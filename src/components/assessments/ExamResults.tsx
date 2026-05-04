@@ -17,22 +17,25 @@ interface Props {
 }
 
 export default function ExamResults({ answers, timeTakenSeconds, onBack }: Props) {
-  const { exam , result } : any = examData;
+  const { exam, result } = examData;
 
-  // Calculate actual score from user answers
-  const allQuestions = exam.sections.flatMap((s : any) => s.questions);
+  const allQuestions = exam.sections.flatMap((s) => s.questions);
+
   let correct = 0;
   let wrong = 0;
   let attempted = 0;
   let score = 0;
 
-  allQuestions.forEach((q : any) => {
+  allQuestions.forEach((q) => {
     const userAnswer = answers[q.id] || [];
+
     if (userAnswer.length > 0) {
       attempted++;
+
       const isCorrect =
         q.correct_answers.length === userAnswer.length &&
-        q.correct_answers.every((a : string) => userAnswer.includes(a));
+        q.correct_answers.every((a) => userAnswer.includes(a));
+
       if (isCorrect) {
         correct++;
         score += q.marks_correct;
@@ -44,7 +47,12 @@ export default function ExamResults({ answers, timeTakenSeconds, onBack }: Props
   });
 
   const skipped = allQuestions.length - attempted;
-  const totalMarks = allQuestions.reduce((sum : number , q : any ) => sum + q.marks_correct, 0);
+
+  const totalMarks = allQuestions.reduce(
+    (sum, q) => sum + q.marks_correct,
+    0
+  );
+
   const percentage = ((score / totalMarks) * 100).toFixed(2);
 
   const formatTimeTaken = (seconds: number) => {
@@ -55,17 +63,23 @@ export default function ExamResults({ answers, timeTakenSeconds, onBack }: Props
   };
 
   // Subject-wise performance
-  const subjectPerf = exam.sections.map((section : any) => {
+  const subjectPerf = exam.sections.map((section) => {
     let sScore = 0;
     let sCorrect = 0;
-    let sTotalMarks = section.questions.reduce((sum : number , q : any ) => sum + q.marks_correct, 0);
 
-    section.questions.forEach((q : any) => {
+    const sTotalMarks = section.questions.reduce(
+      (sum, q) => sum + q.marks_correct,
+      0
+    );
+
+    section.questions.forEach((q) => {
       const userAnswer = answers[q.id] || [];
+
       if (userAnswer.length > 0) {
         const isCorrect =
           q.correct_answers.length === userAnswer.length &&
-          q.correct_answers.every((a : string) => userAnswer.includes(a));
+          q.correct_answers.every((a) => userAnswer.includes(a));
+
         if (isCorrect) {
           sScore += q.marks_correct;
           sCorrect++;
@@ -75,14 +89,18 @@ export default function ExamResults({ answers, timeTakenSeconds, onBack }: Props
       }
     });
 
-    const accuracy =
-      attempted > 0 ? Math.round((sCorrect / section.questions.length) * 100) : 0;
+    const accuracy = Math.round(
+      (sCorrect / section.questions.length) * 100
+    );
 
     return {
       subject: section.name,
-      score: `${sScore < 0 ? sScore : sScore}/${sTotalMarks}`,
+      score: `${sScore}/${sTotalMarks}`,
       accuracy: `${accuracy}%`,
-      color: result.subject_performance.find((sp : any) => sp.subject === section.name)?.color || '#6C5CE7',
+      color:
+        result.subject_performance.find(
+          (sp) => sp.subject === section.name
+        )?.color || '#6C5CE7',
     };
   });
 
@@ -102,88 +120,33 @@ export default function ExamResults({ answers, timeTakenSeconds, onBack }: Props
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Score card */}
+        {/* Score Card */}
         <View style={styles.scoreCard}>
-          <View style={styles.scoreCardTop}>
-            <View>
-              <Text style={styles.scoreDate}>{result.date}</Text>
-              <Text style={styles.scoreValue}>
-                {score < 0 ? score : score}
-                <Text style={styles.scoreDivider}>/{totalMarks}</Text>
-              </Text>
-              <Text style={styles.scorePercent}>{percentage}%</Text>
-            </View>
-            <View style={styles.trophyContainer}>
-              <Text style={styles.trophyIcon}>🏆</Text>
-            </View>
-          </View>
-
-          <View style={styles.scoreStatsRow}>
-            <View style={styles.scoreStatItem}>
-              <View style={[styles.scoreStatDot, { backgroundColor: '#22C55E' }]} />
-              <Text style={styles.scoreStatText}>{correct} correct</Text>
-            </View>
-            <View style={styles.scoreStatItem}>
-              <View style={[styles.scoreStatDot, { backgroundColor: '#EF4444' }]} />
-              <Text style={styles.scoreStatText}>{wrong} wrong</Text>
-            </View>
-            <View style={styles.scoreStatItem}>
-              <View style={[styles.scoreStatDot, { backgroundColor: '#9898B0' }]} />
-              <Text style={styles.scoreStatText}>{skipped} skipped</Text>
-            </View>
-          </View>
+          <Text style={styles.scoreDate}>{result.date}</Text>
+          <Text style={styles.scoreValue}>
+            {score}/{totalMarks}
+          </Text>
+          <Text style={styles.scorePercent}>{percentage}%</Text>
         </View>
 
-        {/* Stats Grid */}
+        {/* Stats */}
         <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statIcon}>📈</Text>
-            <Text style={styles.statValue}>{percentage}%</Text>
-            <Text style={styles.statLabel}>Percentage</Text>
-            <Text style={styles.statSub}>{score} / {totalMarks}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statIcon}>🎯</Text>
-            <Text style={styles.statValue}>
-              {attempted > 0 ? Math.round((correct / attempted) * 100) : 0}%
-            </Text>
-            <Text style={styles.statLabel}>Accuracy</Text>
-            <Text style={styles.statSub}>{correct}/{attempted} correct</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statIcon}>⏱</Text>
-            <Text style={styles.statValue}>{formatTimeTaken(timeTakenSeconds)}</Text>
-            <Text style={styles.statLabel}>Time Taken</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statIcon}>✍</Text>
-            <Text style={styles.statValue}>{attempted}</Text>
-            <Text style={styles.statLabel}>Attempted</Text>
-            <Text style={styles.statSub}>{allQuestions.length} questions</Text>
-          </View>
+          <Text>Correct: {correct}</Text>
+          <Text>Wrong: {wrong}</Text>
+          <Text>Skipped: {skipped}</Text>
+          <Text>Time: {formatTimeTaken(timeTakenSeconds)}</Text>
         </View>
 
-        {/* Subject-wise Performance */}
+        {/* Subject Performance */}
         <Text style={styles.sectionHeading}>Subject-wise Performance</Text>
 
-        <View style={styles.subjectTable}>
-          <View style={styles.subjectTableHeader}>
-            <Text style={[styles.subjectCell, { flex: 2 }]}>SUBJECT</Text>
-            <Text style={styles.subjectCell}>SCORE</Text>
-            <Text style={styles.subjectCell}>ACCURACY</Text>
+        {subjectPerf.map((sp, idx) => (
+          <View key={idx} style={{ marginBottom: 10 }}>
+            <Text>{sp.subject}</Text>
+            <Text>{sp.score}</Text>
+            <Text>{sp.accuracy}</Text>
           </View>
-
-          {subjectPerf.map((sp : any, idx : number) => (
-            <View key={idx} style={styles.subjectRow}>
-              <View style={[styles.subjectCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-                <View style={[styles.subjectColorDot, { backgroundColor: sp.color }]} />
-                <Text style={styles.subjectName}>{sp.subject}</Text>
-              </View>
-              <Text style={styles.subjectCell}>{sp.score}</Text>
-              <Text style={styles.subjectCell}>{sp.accuracy}</Text>
-            </View>
-          ))}
-        </View>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );

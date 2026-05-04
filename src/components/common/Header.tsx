@@ -7,30 +7,10 @@ import {
   Dimensions} from 'react-native';
   import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from "@/src/styles/styles";
 
 const { width } = Dimensions.get('window');
   const router = useRouter();
-
-const COLORS = {
-  primary: '#6C63FF',
-  primaryLight: '#EEF0FF',
-  background: '#F7F8FC',
-  white: '#FFFFFF',
-  textDark: '#1A1A2E',
-  textMedium: '#4A4A6A',
-  textLight: '#9898B0',
-  green: '#22C55E',
-  greenLight: '#DCFCE7',
-  orange: '#F97316',
-  orangeLight: '#FFF0E6',
-  red: '#EF4444',
-  redLight: '#FEE2E2',
-  yellow: '#FBBF24',
-  yellowLight: '#FEF9C3',
-  border: '#E8E8F0',
-  streakBg: '#FFF7ED',
-  cardShadow: 'rgba(108, 99, 255, 0.08)',
-};
 
 type HeaderProps = {
   onMenuPress: () => void;

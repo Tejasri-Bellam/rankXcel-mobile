@@ -15,12 +15,18 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { forgotPasswordStyles as styles } from '../../styles/auth/forgotPasswordStyles';
+import { forgotPasswordService } from '@/src/libs/services/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Step = 'email' | 'otp' | 'newPassword' | 'success';
 
-// ─── Mock OTP (in production replace with real API call) ─────────────────────
-const MOCK_OTP = '123456';
+export type ForgotPasswordPayload = {
+  email: string;
+  otp?: string;
+  new_password?: string;
+  type?: 'send_otp' | 'verify_otp' | 'resend_otp' | 'reset_password';
+};
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ForgotPasswordScreen() {
@@ -82,21 +88,30 @@ export default function ForgotPasswordScreen() {
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSendOTP = async () => {
-    if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address.');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address.');
-      return;
-    }
-    setLoading(true);
-    // Simulate API call
-    await new Promise((res) => setTimeout(res, 1200));
-    setLoading(false);
+  if (!email.trim()) {
+    Alert.alert('Error', 'Please enter your email address.');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await forgotPasswordService({
+      email: email.trim().toLowerCase(),
+    });
+
+    console.log("Send OTP Response:", response);
+
     setStep('otp');
-  };
+  } catch (error: any) {
+    Alert.alert(
+      'Error',
+      error?.response?.data?.message || 'Failed to send OTP'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleOTPChange = (value: string, index: number) => {
     if (!/^\d*$/.test(value)) return;
@@ -123,7 +138,38 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
     await new Promise((res) => setTimeout(res, 1000));
     setLoading(false);
-    if (entered !== MOCK_OTP) {
+    const handleVerifyOTP = async () => {
+  const entered = otp.join('');
+
+  if (entered.length < 6) {
+    Alert.alert('Error', 'Please enter the complete 6-digit OTP.');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await forgotPasswordService({
+      email: email.trim().toLowerCase(),
+      otp: entered,
+      type: "verify_otp" // optional (depends on backend)
+    });
+
+    console.log("Verify OTP Response:", response);
+
+    setStep('newPassword');
+  } catch (error: any) {
+    Alert.alert(
+      'Invalid OTP',
+      error?.response?.data?.message || 'Incorrect OTP'
+    );
+
+    setOtp(['', '', '', '', '', '']);
+    otpRefs.current[0]?.focus();
+  } finally {
+    setLoading(false);
+  }
+}; {
       Alert.alert('Invalid OTP', 'The OTP you entered is incorrect. Please try again.');
       setOtp(['', '', '', '', '', '']);
       otpRefs.current[0]?.focus();
@@ -133,35 +179,65 @@ export default function ForgotPasswordScreen() {
   };
 
   const handleResendOTP = async () => {
-    if (!canResend) return;
-    setLoading(true);
-    await new Promise((res) => setTimeout(res, 800));
-    setLoading(false);
+  if (!canResend) return;
+
+  setLoading(true);
+
+  try {
+    await forgotPasswordService({
+      email: email.trim().toLowerCase(),
+      type: "resend_otp"
+    });
+
     setOtp(['', '', '', '', '', '']);
     otpRefs.current[0]?.focus();
     setResendTimer(30);
     setCanResend(false);
-    Alert.alert('OTP Sent', 'A new OTP has been sent to your email.');
-  };
+
+    Alert.alert('Success', 'OTP resent successfully');
+  } catch (error: any) {
+    Alert.alert(
+      'Error',
+      error?.response?.data?.message || 'Failed to resend OTP'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleResetPassword = async () => {
-    if (!newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in both password fields.');
-      return;
-    }
-    if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match. Please try again.');
-      return;
-    }
-    setLoading(true);
-    await new Promise((res) => setTimeout(res, 1200));
-    setLoading(false);
+  if (!newPassword || !confirmPassword) {
+    Alert.alert('Error', 'Please fill in both password fields.');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    Alert.alert('Error', 'Passwords do not match.');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await forgotPasswordService({
+      email: email.trim().toLowerCase(),
+      otp: otp.join(''),
+      new_password: newPassword,
+      type: "reset_password"
+    });
+
+    console.log("Reset Password Response:", response);
+
     setStep('success');
-  };
+  } catch (error: any) {
+    Alert.alert(
+      'Error',
+      error?.response?.data?.message || 'Failed to reset password'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleBackToLogin = () => {
     router.back();

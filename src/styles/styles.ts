@@ -25,4 +25,5 @@ export const COLORS = {
   grayBg: '#F3F4F6',
   redBg: '#FEF2F2',
   
+  
 } as const;

@@ -12,28 +12,41 @@ import {
 import { router } from 'expo-router';
 import { loginData } from '../json/login';
 import { loginStyles } from '@/src/styles/auth/loginStyles';
+import { loginService } from '@/src/libs/services/auth';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    const validEmail = loginData.auth.email;
-    const validPassword = loginData.auth.password;
-
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    if (
-      email.trim().toLowerCase() === validEmail &&
-      password === validPassword
-    ) {
-      // Navigate to welcome page on successful login
-      router.push('../welcome');
-    } else {
-      Alert.alert('Login Failed', 'Invalid email or password');
+    setLoading(true);
+
+    try {
+      const payload = {
+        email: email.trim().toLowerCase(),
+        password,
+      };
+
+      const response = await loginService(payload);
+
+      if (response?.status === 200 || response?.data) {
+        router.push('../welcome');
+      } else {
+        Alert.alert('Login Failed', 'Invalid credentials');
+      }
+    } catch (error: any) {
+      Alert.alert(
+        'Error',
+        error?.response?.data?.message || 'Something went wrong'
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,8 +85,8 @@ const LoginScreen = () => {
             <View style={loginStyles.inputGroup}>
               <View style={loginStyles.passwordHeader}>
                 <Text style={loginStyles.label}>
-                {loginData.labels.password}
-              </Text>
+                  {loginData.labels.password}
+                </Text>
                 <TouchableOpacity
                   onPress={() => router.push('../../forgot-password')}
                 >
@@ -92,20 +105,24 @@ const LoginScreen = () => {
               />
             </View>
 
-            <TouchableOpacity style={loginStyles.loginButton} onPress={handleLogin}>
+            <TouchableOpacity
+              style={loginStyles.loginButton}
+              onPress={handleLogin}
+              disabled={loading}
+            >
               <Text style={loginStyles.loginButtonText}>
-              {loginData.buttons.login}
-            </Text>
+                {loading ? 'Logging in...' : loginData.buttons.login}
+              </Text>
             </TouchableOpacity>
 
             <View style={loginStyles.signupLink}>
               <Text style={loginStyles.signupText}>
-              {loginData.footer.text}
-            </Text>
+                {loginData.footer.text}
+              </Text>
               <TouchableOpacity onPress={() => router.push('../signup')}>
                 <Text style={loginStyles.signupLinkText}>
-                {loginData.buttons.signup}
-              </Text>
+                  {loginData.buttons.signup}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,4 +1,4 @@
-export default function assessmentExam() {
+export function assessmentExam() {
   return [
     {
       "exam": {
@@ -290,3 +290,76 @@ export default function assessmentExam() {
 }
   ]
 }
+
+const examData = {
+  exam: {
+    id: "exam_mains_2026",
+    name: "Mains 2026",
+    tag: "JEE",
+    status: "live",
+    duration_minutes: 60,
+    total_questions: 30,
+    attempts: 1,
+    exam_status: "In Progress",
+    schedule: {
+      window_start: "13 Apr 2026, 4:38 pm",
+      window_end: "13 Apr 2026, 5:38 pm",
+      exam_duration: "1 hr",
+    },
+    sections: [
+      {
+        id: "mathematics",
+        name: "Mathematics",
+        questions: [
+          {
+            id: "math_q1",
+            marks_correct: 4,
+            marks_incorrect: -3,
+            correct_answers: ["B", "C", "D"],
+          },
+          {
+            id: "math_q2",
+            marks_correct: 4,
+            marks_incorrect: -5,
+            correct_answers: ["D"],
+          },
+        ],
+      },
+      {
+        id: "physics",
+        name: "Physics",
+        questions: [
+          {
+            id: "phy_q1",
+            marks_correct: 4,
+            marks_incorrect: -1,
+            correct_answers: ["C"],
+          },
+        ],
+      },
+      {
+        id: "chemistry",
+        name: "Chemistry",
+        questions: [
+          {
+            id: "chem_q1",
+            marks_correct: 4,
+            marks_incorrect: -1,
+            correct_answers: ["C"],
+          },
+        ],
+      },
+    ],
+  },
+
+  result: {
+    date: "27 Apr 2026",
+    subject_performance: [
+      { subject: "Mathematics", color: "#6C5CE7" },
+      { subject: "Physics", color: "#00B4D8" },
+      { subject: "Chemistry", color: "#F97316" },
+    ],
+  },
+};
+
+export default examData;

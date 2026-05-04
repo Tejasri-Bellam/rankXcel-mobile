@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ;
 
 export default function Layout() {
   return(

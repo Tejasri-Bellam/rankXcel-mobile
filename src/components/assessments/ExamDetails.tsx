@@ -1,4 +1,5 @@
 import { assessmentsStyles } from '@/src/styles/sidebar/assessmentsStyles';
+import { COLORS } from '@/src/styles/styles';
 import React, { useState } from 'react';
 import {
   FlatList,
@@ -13,7 +14,6 @@ import Header from '../common/Header';
 import { ProfileMenu } from '../common/ProfileMenu';
 import Sidebar from '../common/Sidebar';
 import { assessmentsdata } from '../json/assessments';
-import { COLORS } from '@/src/styles/styles';
 import ExamNavigator from './ExamNavigator';
 
 type TabType = 'live' | 'upcoming' | 'completed' | 'missed';
@@ -48,7 +48,7 @@ const TAB_CONFIG: Record<
   },
 };
 
-export default function ExamDetails() {
+export default function ExamDetails({onBack,onResume}:any) {
   const data = assessmentsdata();
 
   const [tab, setTab] = useState<TabType>('live');
