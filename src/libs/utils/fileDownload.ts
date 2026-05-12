@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
-import { storageGetAccessToken } from "@/libs/utils/storage";
-import { getAuthState } from "@/libs/context/authStore";
+import { storageGetAccessToken } from "./storage";
+import { getAuthState } from "../context/authStore";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
 

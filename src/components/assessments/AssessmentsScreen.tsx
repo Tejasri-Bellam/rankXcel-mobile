@@ -1,8 +1,6 @@
-// src/components/home/AssessmentsScreen.tsx
-
 import { assessmentsStyles } from '@/src/styles/sidebar/assessmentsStyles';
 import { COLORS } from '@/src/styles/styles';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   FlatList,
   ScrollView,
@@ -15,8 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../common/Header';
 import { ProfileMenu } from '../common/ProfileMenu';
 import Sidebar from '../common/Sidebar';
-import { assessmentsdata } from '../json/assessments';
-import ExamNavigator from './ExamNavigator';
+import ExamDetails from './ExamDetails';
+import { getassessmentsService } from '@/src/libs/services/assessments';
 
 type TabType = 'live' | 'upcoming' | 'completed' | 'missed';
 
@@ -51,19 +49,43 @@ const TAB_CONFIG: Record<
 };
 
 export default function AssessmentsScreen() {
-  const data = assessmentsdata();
+
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchAssessments();
+      }, []);
+
+      const fetchAssessments = async () => {
+  try {
+    setLoading(true);
+
+    const res = await getassessmentsService();
+
+    console.log("ASSESSMENTS API:", res);
+
+    setData(res.data.results || []);
+  } catch (error) {
+    console.log("ASSESSMENTS ERROR:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const [tab, setTab] = useState<TabType>('live');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const [showExam, setShowExam] = useState(false);
+  // ── Detail view state ──
+  const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  // ── If exam flow is active, render ExamNavigator instead ──
-  if (showExam) {
+  // ── If detail view is active ──
+  if (selectedItem) {
     return (
-      <ExamNavigator
-        onBackToAssessments={() => setShowExam(false)}
+      <ExamDetails
+        item={selectedItem}
+        onBack={() => setSelectedItem(null)}
       />
     );
   }
@@ -86,7 +108,7 @@ export default function AssessmentsScreen() {
   const getButtonLabel = (tabValue: TabType) => {
     switch (tabValue) {
       case 'live':      return 'Resume';
-      case 'completed': return 'Re-attempt';
+      case 'completed': return 'View Details';
       case 'missed':    return 'Retry';
       default:          return 'Start';
     }
@@ -101,89 +123,88 @@ export default function AssessmentsScreen() {
   };
 
   const renderCard = ({ item }: { item: any }) => (
-    <View style={assessmentsStyles.card}>
-      <View
-        style={[
-          assessmentsStyles.cardAccentBar,
-          { backgroundColor: config.accentColor },
-        ]}
-      />
-
-      <View style={assessmentsStyles.cardContent}>
-        {/* Status badge */}
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => setSelectedItem(item)}
+    >
+      <View style={assessmentsStyles.card}>
         <View
           style={[
-            assessmentsStyles.badgeChip,
-            { backgroundColor: config.accentBg },
+            assessmentsStyles.cardAccentBar,
+            { backgroundColor: config.accentColor },
           ]}
-        >
+        />
+
+        <View style={assessmentsStyles.cardContent}>
+          {/* Status badge */}
           <View
             style={[
-              assessmentsStyles.badgeDot,
-              { backgroundColor: config.accentColor },
-            ]}
-          />
-          <Text
-            style={[
-              assessmentsStyles.badgeText,
-              { color: config.accentColor },
+              assessmentsStyles.badgeChip,
+              { backgroundColor: config.accentBg },
             ]}
           >
-            {config.label.toUpperCase()}
-          </Text>
-        </View>
-
-        {/* Title */}
-        <Text style={assessmentsStyles.cardTitle}>{item.name}</Text>
-
-        {/* Description */}
-        <Text style={assessmentsStyles.cardDesc}>
-          {item.description || item.exam?.name}
-        </Text>
-
-        {/* Duration + Questions meta */}
-        <View style={assessmentsStyles.metaRow}>
-          <Text style={assessmentsStyles.metaText}>
-            {item.total_duration_minutes} min
-          </Text>
-          <Text style={assessmentsStyles.metaText}>
-            {item.question_count} Q
-          </Text>
-        </View>
-
-        {/* Window label */}
-        {item.window_label && (
-          <Text style={assessmentsStyles.windowText}>
-            {item.window_label}
-          </Text>
-        )}
-
-        {/* Footer: date + action button */}
-        <View style={assessmentsStyles.cardFooter}>
-          <Text style={assessmentsStyles.dateLabel}>
-            {item.date_label}
-          </Text>
-
-          <TouchableOpacity
-            style={[
-              assessmentsStyles.primaryBtn,
-              { backgroundColor: getButtonColor(tab) },
-            ]}
-            onPress={() => {
-              // Only "live" assessments open the exam flow for now.
-              // Extend this condition to allow 'upcoming' / 'missed' when ready.
-              if (tab === 'live') {
-                setShowExam(true);
-              }
-            }}
-          >
-            <Text style={assessmentsStyles.primaryBtnText}>
-              {getButtonLabel(tab)}
+            <View
+              style={[
+                assessmentsStyles.badgeDot,
+                { backgroundColor: config.accentColor },
+              ]}
+            />
+            <Text
+              style={[
+                assessmentsStyles.badgeText,
+                { color: config.accentColor },
+              ]}
+            >
+              {config.label.toUpperCase()}
             </Text>
-          </TouchableOpacity>
+          </View>
+
+          {/* Title */}
+          <Text style={assessmentsStyles.cardTitle}>{item.name}</Text>
+
+          {/* Description */}
+          <Text style={assessmentsStyles.cardDesc}>
+            {item.description || item.exam?.name}
+          </Text>
+
+          {/* Duration + Questions meta */}
+          <View style={assessmentsStyles.metaRow}>
+            <Text style={assessmentsStyles.metaText}>
+              {item.total_duration_minutes} min
+            </Text>
+            <Text style={assessmentsStyles.metaText}>
+              {item.question_count} Q
+            </Text>
+          </View>
+
+          {/* Window label */}
+          {item.window_label && (
+            <Text style={assessmentsStyles.windowText}>
+              {item.window_label}
+            </Text>
+          )}
+
+          {/* Footer: date + action button */}
+          <View style={assessmentsStyles.cardFooter}>
+            <Text style={assessmentsStyles.dateLabel}>
+              {item.date_label}
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                assessmentsStyles.primaryBtn,
+                { backgroundColor: getButtonColor(tab) },
+              ]}
+              onPress={() => setSelectedItem(item.id + item.attempt_id)}
+            >
+              <Text style={assessmentsStyles.primaryBtnText}>
+                {getButtonLabel(tab)}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const TabButton = ({ value }: { value: TabType }) => {
@@ -250,9 +271,10 @@ export default function AssessmentsScreen() {
     <SafeAreaView style={assessmentsStyles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      <Header 
-        onMenuPress={() => setDrawerOpen(true)} 
-        onProfilePress={() => setProfileOpen(true)} />
+      <Header
+        onMenuPress={() => setDrawerOpen(true)}
+        onProfilePress={() => setProfileOpen(true)}
+      />
 
       {/* TOP FIXED CONTENT */}
       <View>

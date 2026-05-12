@@ -1,70 +1,66 @@
-import React, { useState } from 'react';
+import { logoutService } from '@/src/libs/services/auth';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Switch,
-  Alert,
-  StatusBar,
-  Dimensions,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import Sidebar from '../common/Sidebar';
-import { ProfileMenu } from '../common/ProfileMenu';
-import Header from '../common/Header';
-import { ProfileJson } from '../json/profile';
+  addTargetExamService,
+  deleteAccountService,
+  getMeService,
+  getNotificationsService,
+  getPreferencesService,
+  updateMeService,
+  updateNotificationsService,
+  updatePreferencesService,
+} from '@/src/libs/services/profile';
 import { profileStyles } from '@/src/styles/sidebar/profileStyles';
 import { COLORS } from '@/src/styles/styles';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Text,
+  TextInput,
+  View,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  Switch,
+} from 'react-native';
+import { storageSetAccessToken } from '@/src/libs/storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Header from '../common/Header';
+import Sidebar from '../common/Sidebar';
+import { ProfileMenu } from '../common/ProfileMenu';
 
 const { width } = Dimensions.get('window');
-
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ExamEntry = {
-  id: number;
-  name: string;
-  year: string;
+const storage = {
+  setAccessToken: storageSetAccessToken,
+  setRefreshToken: async () => Promise.resolve(),
 };
 
-type NotifKey =
-  | 'mockResults'
-  | 'weeklyTips'
-  | 'mockNotif'
-  | 'practiceReminders'
-  | 'productUpdates';
+// Types
+type ExamEntry = { id: number; name: string; year: string };
+type NotifKey = 'mockResults' | 'weeklyTips' | 'mockNotif' | 'practiceReminders' | 'productUpdates';
 
-// ─── Section Header ───────────────────────────────────────────────────────────
-
+// Section Header
 const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
   <View style={profileStyles.sectionHeader}>
     <Text style={profileStyles.sectionTitle}>{title}</Text>
-    <Text style={profileStyles.sectionSubtitle}>{subtitle}</Text>
+    {subtitle ? <Text style={profileStyles.sectionSubtitle}>{subtitle}</Text> : null}
   </View>
 );
 
-// ─── Labeled Input ────────────────────────────────────────────────────────────
-
+// Labeled Input
 const LabeledInput = ({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType,
+  label, value, onChangeText, placeholder, keyboardType, disabled = false,
 }: {
-  label: string;
-  value: string;
-  onChangeText: (t: string) => void;
-  placeholder?: string;
-  keyboardType?: any;
+  label: string; value: string; onChangeText: (t: string) => void;
+  placeholder?: string; keyboardType?: any; disabled?: boolean;
 }) => (
   <View style={profileStyles.inputGroup}>
-    <Text style={profileStyles.inputLabel}>{label}</Text>
-    <View style={profileStyles.inputWrap}>
+   <Text style={profileStyles.heroName}>
+</Text>
+    <View style={[profileStyles.inputWrap, disabled && { backgroundColor: '#f2f2f2', opacity: 0.7 }]}>
       {label === 'Phone Number' && (
         <Ionicons name="call-outline" size={15} color={COLORS.textLight} style={profileStyles.inputIcon} />
       )}
@@ -75,27 +71,27 @@ const LabeledInput = ({
         placeholder={placeholder}
         placeholderTextColor={COLORS.textLight}
         keyboardType={keyboardType || 'default'}
+        editable={!disabled}
       />
     </View>
   </View>
 );
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
-
+// Main Screen
 export default function ProfileScreen() {
-
-  const profileData = ProfileJson();
   const router = useRouter();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-    const [profileOpen, setProfileOpen] = useState(false);
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   // Personal info
-  const [fullName, setFullName] = useState(profileData.user.fullName);
-  const [email, setEmail] = useState(profileData.user.email);
-  const [phone, setPhone] = useState(profileData.user.phone);
+  const [name, setname] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
 
-  // Change password
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPwd, setCurrentPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
@@ -104,60 +100,257 @@ export default function ProfileScreen() {
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [pwdError, setPwdError] = useState('');
-
-  const handleUpdatePassword = () => {
-    setPwdError('');
-    if (!currentPwd) { setPwdError('Please enter your current password.'); return; }
-    if (newPwd.length < 8) { setPwdError('New password must be at least 8 characters.'); return; }
-    if (newPwd !== confirmPwd) { setPwdError('Passwords do not match.'); return; }
-    Alert.alert('Success', 'Password updated successfully.');
-    setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
-    setPasswordOpen(false);
-  };
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   // Exam preferences
-  const [exams, setExams] = useState(profileData.exams);
+  const [exams, setExams] = useState<ExamEntry[]>([]);
   const [selectedExam, setSelectedExam] = useState('');
   const [targetYear, setTargetYear] = useState('');
   const [targetPct, setTargetPct] = useState('');
   const [examDropdownOpen, setExamDropdownOpen] = useState(false);
-
-  const examOptions = profileData.examOptions;
+  const examOptions = user?.examOptions || [];
 
   // Notifications
-  const [notifs, setNotifs] = useState(profileData.notifications);
+  const [notifs, setNotifs] = useState<any>({});
 
-  const toggleNotif = (key: NotifKey) =>
-    setNotifs((prev) => ({ ...prev, [key]: !prev[key] }));
+  // ── Fetch profile (GET /api/v1/auth/me/) ───────────────────────────────────
+const fetchProfile = async () => {
+  try {
+    setLoading(true);
 
-  const handleSavePersonal = () => {
-    Alert.alert('Saved', 'Personal information updated successfully.');
-  };
+    const res = await getMeService();
+    const userData = res?.data;
 
-  const handleAddExam = () => {
-    if (!selectedExam || !targetYear) {
-      Alert.alert('Required', 'Please select an exam and enter a target year.');
-      return;
+    setUser(userData);
+
+      setname(`${user?.name || ''}`.trim());
+      setEmail(user?.email || '');
+      setPhone(user?.phone || '');
+  } catch {
+    Alert.alert('Error', 'Failed to load profile data');
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Fetch preferences
+  const fetchPreferences = async () => {
+  try {
+    const res = await getPreferencesService();
+
+    console.log("Preferences Response:", res.data);
+
+    if (res.status === 200) {
+      const data = res.data as { results?: any[] };
+      const mappedExams =
+        data?.results?.map((item: any) => ({
+          id: item.exam_id,
+          name: item.exam_name,
+          year: String(item.target_year),
+        })) || [];
+
+      setExams(mappedExams);
     }
-    setExams((prev) => [
-      ...prev,
-      { id: Date.now(), name: selectedExam, year: targetYear },
-    ]);
-    setSelectedExam('');
-    setTargetYear('');
-    setTargetPct('');
+  } catch (error) {
+    console.log("Preferences Error:", error);
+  }
+};
+
+  //  Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      const res = await getNotificationsService();
+      if (res?.status === 200) {
+        setNotifs(res?.data || user.notifications);
+      
+      }
+    } catch (error) {
+      console.log('Notifications Error:', error);
+    }
   };
 
+  useEffect(() => {
+    fetchProfile();
+    fetchPreferences();
+    fetchNotifications();
+  }, []);
+
+  // Save personal info
+  const handleSavePersonal = async () => {
+    try {
+      setSaveLoading(true);
+      const nameParts = name.trim().split(' ');
+      const payload = {
+        first_name: nameParts[0] || '',
+        last_name: nameParts.slice(1).join(' ') || '',
+        phone,
+      };
+      const res:any = await updateMeService(payload);
+      if (res?.status === 200) {
+        Alert.alert('Success', 'Profile updated successfully');
+      } else {
+        Alert.alert('Error', res?.data?.message || 'Failed to update profile');
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to update profile');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  
+  const handleUpdatePassword = async () => {
+    setPwdError('');
+    if (!currentPwd) { setPwdError('Please enter your current password.'); return; }
+    if (newPwd.length < 8) { setPwdError('New password must be at least 8 characters.'); return; }
+    if (newPwd !== confirmPwd) { setPwdError('Passwords do not match.'); return; }
+
+    try {
+      setPwdLoading(true);
+      Alert.alert(
+        'Not Available',
+        'Authenticated password change endpoint is not yet available. Please use "Forgot Password" from the login screen to reset your password.'
+      );
+    } finally {
+      setPwdLoading(false);
+      setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
+      setPasswordOpen(false);
+    }
+  };
+
+  // Logout
+  const handleLogout = async () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setLogoutLoading(true);
+            await logoutService();
+          } catch {
+          } finally {
+            await storage.setAccessToken('');
+            await storage.setRefreshToken();
+            setLogoutLoading(false);
+            router.replace('/auth/login');
+          }
+        },
+      },
+    ]);
+  };
+
+  // Exam preferences
+  const handleAddExam = async () => {
+  if (!selectedExam || !targetYear) {
+    Alert.alert(
+      "Required",
+      "Please select an exam and enter a target year."
+    );
+    return;
+  }
+
+  try {
+    const payload = {
+      exam_id: selectedExam,
+      target_year: targetYear,
+      target_percentage: targetPct || undefined,
+    };
+
+    const res = await addTargetExamService(payload);
+
+      if (res.status === 200 || res.status === 201) {
+        Alert.alert("Success", "Target exam added");
+
+        setSelectedExam("");
+        setTargetYear("");
+        setTargetPct("");
+
+        fetchPreferences();
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to add target exam");
+    }
+  };
+
+  const handleSavePreferences = async () => {
+  try {
+    const payload = exams.map((item) => ({
+      exam_id: item.id,
+      target_year: item.year,
+    }));
+
+    const res: any = await updatePreferencesService({
+      exams: payload,
+    });
+
+    if (res?.status === 200) {
+      Alert.alert('Success', 'Preferences saved');
+    } else {
+      Alert.alert(
+        'Error',
+        res?.data?.message || 'Failed to save preferences'
+      );
+    }
+  } catch {
+    Alert.alert('Error', 'Failed to save preferences');
+  }
+};
+
+  //  Notifications 
+  const toggleNotif = async (key: NotifKey) => {
+    const updated = { ...notifs, [key]: !notifs[key] };
+    setNotifs(updated);
+    try {
+      await updateNotificationsService(updated);
+    } catch {
+      Alert.alert('Error', 'Failed to update notification preference');
+    }
+  };
+
+  // Delete account 
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
       'Are you sure? This action is permanent and cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {} },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await deleteAccountService();
+              if (res.status === 200 || res.status === 204) {
+                await storage.setAccessToken('');
+                await storage.setRefreshToken();
+                Alert.alert('Deleted', 'Account deleted successfully');
+                router.replace('/auth/login');
+              } else {
+                Alert.alert('Error', (res?.data as any)?.message || 'Failed to delete account');
+              }
+            } catch {
+              Alert.alert('Error', 'Failed to delete account');
+            }
+          },
+        },
       ]
     );
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={profileStyles.safeArea}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={{ marginTop: 12, color: COLORS.textLight }}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={profileStyles.safeArea}>
@@ -176,66 +369,40 @@ export default function ProfileScreen() {
         {/* ── Profile Hero ── */}
         <View style={profileStyles.heroCard}>
           <View style={profileStyles.heroAvatar}>
-            <Text style={profileStyles.heroAvatarText}>
-              {profileData.user.initials}
-            </Text>
+            {/* <Text style={profileStyles.heroAvatarText}>{user.initials}</Text> */}
           </View>
-          <Text style={profileStyles.heroName}>{profileData.user.fullName}</Text>
-          <Text style={profileStyles.heroEmail}>
-            <Ionicons name="mail-outline" size={13} color={COLORS.textLight} />{' '}
-            {profileData.user.email}
-          </Text>
+          {/* <Text style={profileStyles.heroName}>{name || user.name}</Text> */}
+          {/* <Text style={profileStyles.heroEmail}>{email || user.email}</Text> */}
           <View style={profileStyles.heroBadges}>
             <View style={profileStyles.heroBadgeChip}>
-              <Text style={profileStyles.heroBadgeText}>{profileData.user.role}</Text>
+              {/* <Text style={profileStyles.heroBadgeText}>{user.role}</Text> */}
             </View>
             <View style={profileStyles.heroBadgeChip}>
               <Ionicons name="calendar-outline" size={12} color={COLORS.textLight} />
-              <Text style={profileStyles.heroBadgeText}>Member since {profileData.user.memberSince}</Text>
+              {/* <Text style={profileStyles.heroBadgeText}>Member since {user.memberSince}</Text> */}
             </View>
           </View>
         </View>
 
         {/* ── Personal Information ── */}
         <View style={profileStyles.card}>
-          <SectionHeader
-            title="Personal Information"
-            subtitle="Update your name and contact details."
-          />
-          <LabeledInput
-            label="Full Name"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Tejasri Bellam"
-          />
-          <LabeledInput
-            label="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="tejasri@mailinator.com"
-            keyboardType="email-address"
-          />
-          <LabeledInput
-            label="Phone Number"
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="9876543210"
-            keyboardType="phone-pad"
-          />
-          <TouchableOpacity style={profileStyles.saveBtn} onPress={handleSavePersonal}>
-            <Ionicons name="checkmark" size={16} color={COLORS.white} />
+          <SectionHeader title="Personal Information" subtitle="Update your name and contact details." />
+          <LabeledInput label="Full Name" value={name} onChangeText={setname} placeholder="Your full name" />
+          <LabeledInput label="Email Address" value={email} onChangeText={setEmail} placeholder="you@gmail.com" keyboardType="email-address" disabled={true} />
+          <LabeledInput label="Phone Number" value={phone} onChangeText={setPhone} placeholder="9876543210" keyboardType="phone-pad" />
+          <TouchableOpacity style={profileStyles.saveBtn} onPress={handleSavePersonal} disabled={saveLoading}>
+            {saveLoading
+              ? <ActivityIndicator size="small" color={COLORS.white} />
+              : <Ionicons name="checkmark" size={16} color={COLORS.white} />
+            }
             <Text style={profileStyles.saveBtnText}>Save Changes</Text>
           </TouchableOpacity>
         </View>
 
         {/* ── Exam Preferences ── */}
         <View style={profileStyles.card}>
-          <SectionHeader
-            title="Exam Preferences"
-            subtitle="Add your target exams with year and percentage goals."
-          />
+          <SectionHeader title="Exam Preferences" subtitle="Add your target exams with year and percentage goals." />
 
-          {/* Existing exams list */}
           {exams.map((ex) => (
             <View key={ex.id} style={profileStyles.examRow}>
               <View style={profileStyles.examRowInfo}>
@@ -246,35 +413,19 @@ export default function ProfileScreen() {
             </View>
           ))}
 
-          {/* Add new exam */}
           <View style={profileStyles.addExamForm}>
-            {/* Exam dropdown */}
             <Text style={profileStyles.inputLabel}>Target Exam *</Text>
-            <TouchableOpacity
-              style={profileStyles.dropdown}
-              onPress={() => setExamDropdownOpen(!examDropdownOpen)}
-            >
+            <TouchableOpacity style={profileStyles.dropdown} onPress={() => setExamDropdownOpen(!examDropdownOpen)}>
               <Text style={[profileStyles.dropdownText, !selectedExam && { color: COLORS.textLight }]}>
                 {selectedExam || 'Select exam'}
               </Text>
-              <Ionicons
-                name={examDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                size={16}
-                color={COLORS.textLight}
-              />
+              <Ionicons name={examDropdownOpen ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.textLight} />
             </TouchableOpacity>
 
             {examDropdownOpen && (
               <View style={profileStyles.dropdownOptions}>
-                {examOptions.map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={profileStyles.dropdownOption}
-                    onPress={() => {
-                      setSelectedExam(opt);
-                      setExamDropdownOpen(false);
-                    }}
-                  >
+                {examOptions.map((opt: string) => (
+                  <TouchableOpacity key={opt} style={profileStyles.dropdownOption} onPress={() => { setSelectedExam(opt); setExamDropdownOpen(false); }}>
                     <Text style={profileStyles.dropdownOptionText}>{opt}</Text>
                   </TouchableOpacity>
                 ))}
@@ -282,29 +433,22 @@ export default function ProfileScreen() {
             )}
 
             <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Target Year *</Text>
-            <TextInput
-              style={profileStyles.textInput}
-              value={targetYear}
-              onChangeText={setTargetYear}
-              placeholder="e.g. 2026"
-              placeholderTextColor={COLORS.textLight}
-              keyboardType="numeric"
-            />
+            <TextInput style={profileStyles.textInput} value={targetYear} onChangeText={setTargetYear} placeholder="e.g. 2026" placeholderTextColor={COLORS.textLight} keyboardType="numeric" />
 
             <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Target Percentage</Text>
-            <TextInput
-              style={profileStyles.textInput}
-              value={targetPct}
-              onChangeText={setTargetPct}
-              placeholder="e.g. 95"
-              placeholderTextColor={COLORS.textLight}
-              keyboardType="numeric"
-            />
+            <TextInput style={profileStyles.textInput} value={targetPct} onChangeText={setTargetPct} placeholder="e.g. 95" placeholderTextColor={COLORS.textLight} keyboardType="numeric" />
 
             <TouchableOpacity style={profileStyles.addExamBtn} onPress={handleAddExam}>
               <Ionicons name="add" size={16} color={COLORS.white} />
               <Text style={profileStyles.addExamBtnText}>Add Target Exam</Text>
             </TouchableOpacity>
+
+            {exams.length > 0 && (
+              <TouchableOpacity style={[profileStyles.saveBtn, { marginTop: 12 }]} onPress={handleSavePreferences}>
+                <Ionicons name="cloud-upload-outline" size={16} color={COLORS.white} />
+                <Text style={profileStyles.saveBtnText}>Save Preferences</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -312,12 +456,7 @@ export default function ProfileScreen() {
         <View style={profileStyles.card}>
           <SectionHeader title="Account Security" subtitle="" />
 
-          {/* Change Password accordion row */}
-          <TouchableOpacity
-            style={profileStyles.securityRow}
-            onPress={() => setPasswordOpen(!passwordOpen)}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity style={profileStyles.securityRow} onPress={() => setPasswordOpen(!passwordOpen)} activeOpacity={0.7}>
             <View style={profileStyles.securityIconWrap}>
               <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMedium} />
             </View>
@@ -325,143 +464,91 @@ export default function ProfileScreen() {
               <Text style={profileStyles.securityTitle}>Change Password</Text>
               <Text style={profileStyles.securitySub}>Update your login password</Text>
             </View>
-            <Ionicons
-              name={passwordOpen ? 'chevron-up' : 'chevron-down'}
-              size={18}
-              color={COLORS.textLight}
-            />
+            <Ionicons name={passwordOpen ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
           </TouchableOpacity>
 
-          {/* Expanded password form */}
           {passwordOpen && (
             <View style={profileStyles.pwdForm}>
-              {/* Current Password */}
               <Text style={profileStyles.inputLabel}>Current Password</Text>
               <View style={profileStyles.pwdInputRow}>
-                <TextInput
-                  style={profileStyles.pwdInput}
-                  value={currentPwd}
-                  onChangeText={setCurrentPwd}
-                  placeholder="Enter current password"
-                  placeholderTextColor={COLORS.textLight}
-                  secureTextEntry={!showCurrentPwd}
-                />
-                <TouchableOpacity
-                  style={profileStyles.eyeBtn}
-                  onPress={() => setShowCurrentPwd(!showCurrentPwd)}
-                >
-                  <Ionicons
-                    name={showCurrentPwd ? 'eye-outline' : 'eye-off-outline'}
-                    size={18}
-                    color={COLORS.textLight}
-                  />
+                <TextInput style={profileStyles.pwdInput} value={currentPwd} onChangeText={setCurrentPwd} placeholder="Enter current password" placeholderTextColor={COLORS.textLight} secureTextEntry={!showCurrentPwd} />
+                <TouchableOpacity style={profileStyles.eyeBtn} onPress={() => setShowCurrentPwd(!showCurrentPwd)}>
+                  <Ionicons name={showCurrentPwd ? 'eye-outline' : 'eye-off-outline'} size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
               </View>
 
-              {/* New Password */}
               <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>New Password</Text>
               <View style={profileStyles.pwdInputRow}>
-                <TextInput
-                  style={profileStyles.pwdInput}
-                  value={newPwd}
-                  onChangeText={setNewPwd}
-                  placeholder="At least 8 characters"
-                  placeholderTextColor={COLORS.textLight}
-                  secureTextEntry={!showNewPwd}
-                />
-                <TouchableOpacity
-                  style={profileStyles.eyeBtn}
-                  onPress={() => setShowNewPwd(!showNewPwd)}
-                >
-                  <Ionicons
-                    name={showNewPwd ? 'eye-outline' : 'eye-off-outline'}
-                    size={18}
-                    color={COLORS.textLight}
-                  />
+                <TextInput style={profileStyles.pwdInput} value={newPwd} onChangeText={setNewPwd} placeholder="At least 8 characters" placeholderTextColor={COLORS.textLight} secureTextEntry={!showNewPwd} />
+                <TouchableOpacity style={profileStyles.eyeBtn} onPress={() => setShowNewPwd(!showNewPwd)}>
+                  <Ionicons name={showNewPwd ? 'eye-outline' : 'eye-off-outline'} size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
               </View>
 
-              {/* Confirm New Password */}
               <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Confirm New Password</Text>
               <View style={profileStyles.pwdInputRow}>
-                <TextInput
-                  style={profileStyles.pwdInput}
-                  value={confirmPwd}
-                  onChangeText={setConfirmPwd}
-                  placeholder="Repeat new password"
-                  placeholderTextColor={COLORS.textLight}
-                  secureTextEntry={!showConfirmPwd}
-                />
-                <TouchableOpacity
-                  style={profileStyles.eyeBtn}
-                  onPress={() => setShowConfirmPwd(!showConfirmPwd)}
-                >
-                  <Ionicons
-                    name={showConfirmPwd ? 'eye-outline' : 'eye-off-outline'}
-                    size={18}
-                    color={COLORS.textLight}
-                  />
+                <TextInput style={profileStyles.pwdInput} value={confirmPwd} onChangeText={setConfirmPwd} placeholder="Repeat new password" placeholderTextColor={COLORS.textLight} secureTextEntry={!showConfirmPwd} />
+                <TouchableOpacity style={profileStyles.eyeBtn} onPress={() => setShowConfirmPwd(!showConfirmPwd)}>
+                  <Ionicons name={showConfirmPwd ? 'eye-outline' : 'eye-off-outline'} size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
               </View>
 
-              {/* Error */}
-              {pwdError !== '' && (
-                <Text style={profileStyles.pwdError}>{pwdError}</Text>
-              )}
+              {pwdError !== '' && <Text style={profileStyles.pwdError}>{pwdError}</Text>}
 
-              {/* Action buttons */}
               <View style={profileStyles.pwdActions}>
-                <TouchableOpacity
-                  style={profileStyles.updatePwdBtn}
-                  onPress={handleUpdatePassword}
-                >
-                  <Ionicons name="lock-closed" size={14} color={COLORS.white} />
-                  <Text style={profileStyles.updatePwdBtnText}>Update{''}Password</Text>
+                <TouchableOpacity style={profileStyles.updatePwdBtn} onPress={handleUpdatePassword} disabled={pwdLoading}>
+                  {pwdLoading
+                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    : <Ionicons name="lock-closed" size={14} color={COLORS.white} />
+                  }
+                  <Text style={profileStyles.updatePwdBtnText}>Update Password</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={profileStyles.cancelPwdBtn}
-                  onPress={() => {
-                    setPasswordOpen(false);
-                    setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
-                    setPwdError('');
-                  }}
-                >
+                <TouchableOpacity style={profileStyles.cancelPwdBtn} onPress={() => { setPasswordOpen(false); setCurrentPwd(''); setNewPwd(''); setConfirmPwd(''); setPwdError(''); }}>
                   <Text style={profileStyles.cancelPwdBtnText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
+
+          {/* ── Logout button ── */}
+          <TouchableOpacity
+            style={[profileStyles.securityRow, { marginTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 16 }]}
+            onPress={handleLogout}
+            activeOpacity={0.7}
+            disabled={logoutLoading}
+          >
+            <View style={[profileStyles.securityIconWrap, { backgroundColor: '#FEF2F2' }]}>
+              {logoutLoading
+                ? <ActivityIndicator size="small" color={COLORS.red} />
+                : <Ionicons name="log-out-outline" size={20} color={COLORS.red} />
+              }
+            </View>
+            <View style={profileStyles.securityInfo}>
+              <Text style={[profileStyles.securityTitle, { color: COLORS.red }]}>Logout</Text>
+              <Text style={profileStyles.securitySub}>Sign out of your account</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.red} />
+          </TouchableOpacity>
         </View>
 
         {/* ── Notification Preferences ── */}
         <View style={profileStyles.card}>
-          <SectionHeader
-            title="Notification Preferences"
-            subtitle="Choose what updates you'd like to receive."
-          />
-
-          {profileData.notificationList.map((item, idx, arr) => (
-            <View
-              key={item.key}
-              style={[
-                profileStyles.notifRow,
-                idx < arr.length - 1 && profileStyles.notifRowBorder,
-              ]}
-            >
+          <SectionHeader title="Notification Preferences" subtitle="Choose what updates you'd like to receive." />
+          {/* {user.notificationList.map((item: any, idx: number, arr: any[]) => (
+            <View key={item.key} style={[profileStyles.notifRow, idx < arr.length - 1 && profileStyles.notifRowBorder]}>
               <View style={profileStyles.notifInfo}>
                 <Text style={profileStyles.notifLabel}>{item.label}</Text>
                 <Text style={profileStyles.notifChannel}>{item.channel}</Text>
               </View>
-
               <Switch
-                value={notifs[item.key]}
-                onValueChange={() => toggleNotif(item.key)}
+                value={notifs[item.key as NotifKey]}
+                onValueChange={() => toggleNotif(item.key as NotifKey)}
                 trackColor={{ false: COLORS.border, true: COLORS.primary }}
                 thumbColor={COLORS.white}
                 ios_backgroundColor={COLORS.border}
               />
             </View>
-          ))}
+          ))} */}
         </View>
 
         {/* ── Danger Zone ── */}
@@ -482,14 +569,8 @@ export default function ProfileScreen() {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      <Sidebar
-       visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-
-      <ProfileMenu
-        visible={profileOpen}
-        onClose={() => setProfileOpen(false)}
-      />
-
+      <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <ProfileMenu visible={profileOpen} onClose={() => setProfileOpen(false)} />
     </SafeAreaView>
   );
 }

@@ -13,34 +13,41 @@ import { router } from 'expo-router';
 import { loginData } from '../json/login';
 import { loginStyles } from '@/src/styles/auth/loginStyles';
 import { loginService } from '@/src/libs/services/auth';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { storageSetAccessToken } from '@/src/libs/storage';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
+
+const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert('Error', 'Please fill in all fields');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const payload = {
+      email: email.trim().toLowerCase(),
+      password,
+    };
+
+    const { data } = await loginService(payload) as { data: { token?: string } };
+console.log('d', data);
+
+    console.log("LOGIN RESPONSE:", data);
+    if (data?.token) {
+      await storageSetAccessToken(data?.token);
+      console.log("Access token stored successfully:", data?.token);
     }
 
-    setLoading(true);
-
-    try {
-      const payload = {
-        email: email.trim().toLowerCase(),
-        password,
-      };
-
-      const response = await loginService(payload);
-
-      if (response?.status === 200 || response?.data) {
-        router.push('../welcome');
-      } else {
-        Alert.alert('Login Failed', 'Invalid credentials');
-      }
-    } catch (error: any) {
+      router.push('/dashboard');
+    } 
+    catch (error: any) {
       Alert.alert(
         'Error',
         error?.response?.data?.message || 'Something went wrong'
@@ -51,6 +58,7 @@ const LoginScreen = () => {
   };
 
   return (
+    <SafeAreaView style={loginStyles.container}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={loginStyles.keyboardView}
@@ -88,7 +96,7 @@ const LoginScreen = () => {
                   {loginData.labels.password}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => router.push('../../forgot-password')}
+                  onPress={() => router.push('../auth/forgot-password')}
                 >
                   <Text style={loginStyles.forgotPassword}>
                     {loginData.buttons.forgotPassword}
@@ -119,7 +127,7 @@ const LoginScreen = () => {
               <Text style={loginStyles.signupText}>
                 {loginData.footer.text}
               </Text>
-              <TouchableOpacity onPress={() => router.push('../signup')}>
+              <TouchableOpacity onPress={() => router.push('/auth/sign-up')}>
                 <Text style={loginStyles.signupLinkText}>
                   {loginData.buttons.signup}
                 </Text>
@@ -129,6 +137,7 @@ const LoginScreen = () => {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
