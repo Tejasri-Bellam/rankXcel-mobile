@@ -7,17 +7,12 @@ import {
   Dimensions,
   Alert
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from "@/src/styles/styles";
 import { logoutService } from '@/src/libs/services/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
 const { width } = Dimensions.get('window');
-const router = useRouter();
-
-
 
 export const ProfileMenu = ({
   visible,
@@ -27,17 +22,18 @@ export const ProfileMenu = ({
   onClose: () => void;
 }) => {
   if (!visible) return null;
+const router = useRouter();
 
   const handleLogout = async () => {
     try {
-      await logoutService(); // API call
+      await logoutService();
 
       // Clear stored data
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
 
       // Navigate to login (reset stack)
-      router.replace('/auth/login'); // adjust route if needed
+      router.replace('/auth/login');
     } catch (error: any) {
       console.error("Logout Error:", error);
 
@@ -72,10 +68,16 @@ export const ProfileMenu = ({
           <Text style={styles.profileEmail}>tejasri@mailinator.com</Text>
         </View>
 
-        <TouchableOpacity style={styles.profileItem}>
-          <Ionicons name="person-outline" size={18} color="#555" />
-          <Text style={styles.profileItemText}>View Profile</Text>
-        </TouchableOpacity>
+        <TouchableOpacity
+        style={styles.profileItem}
+        onPress={() => {
+          onClose();
+          router.push('../../profile');
+        }}
+      >
+        <Ionicons name="person-outline" size={18} color="#555" />
+        <Text style={styles.profileItemText}>View Profile</Text>
+      </TouchableOpacity>
 
         <TouchableOpacity style={styles.profileItem} onPress={confirmLogout}>
           <Ionicons name="log-out-outline" size={18} color="red" />

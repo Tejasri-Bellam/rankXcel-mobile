@@ -1,6 +1,7 @@
-// src/styles/auth/forgotPasswordStyles.ts
-
 import { StyleSheet } from 'react-native';
+
+const BRAND_PURPLE = '#5B4FCF';
+const BRAND_PURPLE_LIGHT = '#EEF2FF';
 
 export const forgotPasswordStyles = StyleSheet.create({
   keyboardView: {
@@ -11,11 +12,6 @@ export const forgotPasswordStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 40,
   },
 
   // ── Back button ─────────────────────────────────────────────────────────
@@ -202,38 +198,11 @@ export const forgotPasswordStyles = StyleSheet.create({
     color: '#1D4ED8',
   },
 
-  // ── Primary CTA button ────────────────────────────────────────────────────
-  primaryBtn: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-    height: 52,
-  },
-
-  primaryBtnDisabled: {
-    backgroundColor: '#93C5FD',
-  },
-
-  primaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-
   // ── Link row (resend / back to login) ─────────────────────────────────────
   linkRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 22,
-  },
-
-  resendRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
   },
 
   linkText: {
@@ -283,5 +252,220 @@ export const forgotPasswordStyles = StyleSheet.create({
     color: '#166534',
     lineHeight: 22,
     textAlign: 'center',
+  },
+
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8F9FC',
+  },
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 28,
+    paddingVertical: 36,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+
+  // ── Logo ──
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 36,
+    gap: 10,
+  },
+  logoBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: BRAND_PURPLE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  logoLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A2E',
+    letterSpacing: 0.3,
+  },
+
+  // ── Success icon ──
+  successIconWrapper: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  successIconOuter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successIconInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successCheckmark: {
+    color: '#fff',
+    fontSize: 26,
+    fontWeight: '700',
+    lineHeight: 30,
+  },
+
+  // ── Header ──
+  headerSection: {
+    marginBottom: 28,
+  },
+
+  emailHighlight: {
+    color: '#111827',
+    fontWeight: '600',
+  },
+
+  required: {
+    color: '#EF4444',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    backgroundColor: '#FAFAFA',
+    overflow: 'hidden',
+  },
+  inputWrapperFocused: {
+    borderColor: BRAND_PURPLE,
+    backgroundColor: '#FEFEFE',
+    shadowColor: BRAND_PURPLE,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  inputIconContainer: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  inputIcon: {
+    fontSize: 15,
+    color: '#9CA3AF',
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111827',
+    paddingVertical: 14,
+    paddingRight: 14,
+  },
+
+  // ── Primary button ──
+  primaryBtn: {
+    backgroundColor: BRAND_PURPLE,
+    borderRadius: 10,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: BRAND_PURPLE,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+    marginTop: 4,
+  },
+  primaryBtnDisabled: {
+    opacity: 0.65,
+  },
+  primaryBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+
+  // ── Back link ──
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    marginTop: 4,
+  },
+  backArrow: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  backText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+
+  // ── Didn't receive box ──
+  didntReceiveBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  didntReceiveTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 10,
+  },
+  tipList: {
+    gap: 6,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  tipBullet: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    lineHeight: 20,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+
+  // ── Resend ──
+  resendRow: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  resendText: {
+    fontSize: 14,
+    color: BRAND_PURPLE,
+    fontWeight: '500',
   },
 });

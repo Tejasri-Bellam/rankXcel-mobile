@@ -1,155 +1,122 @@
-import axios, { type AxiosError } from 'axios';
-import { storage } from '../storage/storage';
+import axios, { AxiosError, AxiosInstance } from "axios";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ;
-console.log (BASE_URL)
-
-export const axiosInstance = axios.create({
-  baseURL: BASE_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  },
-});
-
-// Attach JWT on every request (when token exists)
-axiosInstance.interceptors.request.use(async (config) => {
-  const token = await storage.getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Token ${token}`;
-  }
-  return config;
-});
-
-// Clear token on 401; pass original error through for genericService handling
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      await storage.clearAll();
-    }
-    return Promise.reject(error);
-  },
-);
-
-// ---------- Generic service helpers ----------
-
-export interface GenericServiceResponse {
-  data: any;
+interface ApiError {
   status: number;
+  errors: Record<string, string[]>;
+  body?: Record<string, unknown>;
 }
 
-export async function getAccessToken(): Promise<string | null> {
-  return storage.getAccessToken();
+interface ErrorResponseData {
+  detail?: string;
+  [key: string]: unknown;
 }
 
-export function getHeaders(authToken: string, isMultipartFormData: boolean) {
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-  };
-  if (isMultipartFormData) {
-    headers['Content-Type'] = 'multipart/form-data';
-  } else {
-    headers['Content-Type'] = 'application/json';
+export function getHeaders(
+  authToken: string | null,
+  isMultipart: boolean = false
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+
+  if (authToken?.trim()) {
+    headers["Authorization"] = `Token ${authToken}`;
   }
-  if (authToken) {
-    headers['Authorization'] = `Token ${authToken}`;
-  }
+
+  headers["Content-Type"] = isMultipart
+    ? "multipart/form-data"
+    : "application/json";
+
   return headers;
 }
 
-function axiosErrorHelper(error: unknown): GenericServiceResponse {
-  const axiosError = error as AxiosError<any>;
-  const status = axiosError.response?.status ?? 500;
-  const data = axiosError.response?.data ?? {
-    detail: axiosError.message ?? 'Something went wrong. Please try again.',
-  };
-  return { data, status };
-}
+function customizeAxiosError(error: AxiosError<ErrorResponseData>): ApiError {
+  const { response, request, message } = error;
+  const apiError: ApiError = { status: 0, errors: {} };
 
-export async function genericService(
-  action: 'get' | 'post' | 'put' | 'patch' | 'delete',
-  apiPath: string,
-  postData: any = null,
-  isMultipartFormData: boolean = false,
-  useAccessToken: boolean = true,
-): Promise<GenericServiceResponse> {
-  try {
-    const authToken = useAccessToken ? await getAccessToken() : '';
-    const headers = getHeaders(authToken ?? '', isMultipartFormData);
+  if (response) {
+    const { data, status } = response;
+    apiError.status = status;
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      apiError.body = data as Record<string, unknown>;
+    }
 
-    let response;
-    if (action === 'get' || action === 'delete') {
-      response = await axiosInstance[action](apiPath, { headers });
+    if (status === 400 && data && typeof data === "object") {
+      if (typeof data.detail === "string") {
+        apiError.errors.nonFieldErrors = [data.detail];
+      } else {
+        const rawErrors = data as Record<string, unknown>;
+        for (const [key, value] of Object.entries(rawErrors)) {
+          const normalizedKey =
+            key === "non_field_errors" ? "nonFieldErrors" : key;
+          if (Array.isArray(value)) {
+            apiError.errors[normalizedKey] = value as string[];
+          } else if (typeof value === "string") {
+            apiError.errors[normalizedKey] = [value];
+          }
+        }
+      }
+    } else if (status === 401 || status === 403) {
+      const detail = data?.detail
+        ? data.detail.replace("token", "credentials")
+        : null;
+
+      if (status === 401) {
+        apiError.errors.nonFieldErrors = detail
+          ? [detail, "Unauthorized"]
+          : ["Unauthorized"];
+      } else {
+        apiError.errors.nonFieldErrors = detail
+          ? [detail, "Forbidden"]
+          : ["Forbidden"];
+      }
+    } else if (status === 404) {
+      const detail =
+        typeof data?.detail === "string" ? data.detail : "Resource not found";
+      apiError.errors.nonFieldErrors = [detail];
+    } else if (status === 429) {
+      const detail =
+        typeof data?.detail === "string" ? data.detail : "Too many requests";
+      apiError.errors.nonFieldErrors = [detail, "Please try again later"];
     } else {
-      response = await axiosInstance[action](apiPath, postData, { headers });
+      const detail =
+        typeof data?.detail === "string" ? data.detail : "Unknown error";
+      apiError.errors.nonFieldErrors = [detail, "Please try again later"];
     }
-
-    return {
-      data: response.data,
-      status: response.status,
-    };
-  } catch (error) {
-    console.error(`Error in ${action.toUpperCase()} ${apiPath}:`, error);
-    return axiosErrorHelper(error);
+  } else if (request) {
+    apiError.errors.nonFieldErrors = [
+      "Network error or server did not respond",
+      "Please check your connection or try again later",
+    ];
+  } else {
+    apiError.errors.nonFieldErrors = [
+      message,
+      "An unexpected error occurred, please try again later",
+    ];
   }
+
+  return apiError;
 }
 
-export async function genericGETService(
-  apiPath: string,
-  useAccessToken: boolean = true,
-) {
-  return genericService('get', apiPath, null, false, useAccessToken);
-}
+function createAxiosInstance(): AxiosInstance {
+  const instance = axios.create({
+    baseURL: process.env.EXPO_PUBLIC_API_BASE_URL,
+    withCredentials: false,
+    timeout: 15000,
+  });
 
-export async function genericPOSTService(
-  apiPath: string,
-  postData: any,
-  isMultipartFormData: boolean = false,
-  useAccessToken: boolean = true,
-) {
-  return genericService('post', apiPath, postData, isMultipartFormData, useAccessToken);
-}
-
-export async function genericPUTService(
-  apiPath: string,
-  postData: any,
-  isMultipartFormData: boolean = false,
-  useAccessToken: boolean = true,
-) {
-  return genericService('put', apiPath, postData, isMultipartFormData, useAccessToken);
-}
-
-export async function genericPATCHService(
-  apiPath: string,
-  postData: any,
-  isMultipartFormData: boolean = false,
-  useAccessToken: boolean = true,
-) {
-  return genericService('patch', apiPath, postData, isMultipartFormData, useAccessToken);
-}
-
-export async function genericDELETEService(
-  apiPath: string,
-  useAccessToken: boolean = true,
-) {
-  return genericService('delete', apiPath, null, false, useAccessToken);
-}
-
-// Convert an object to a query string (e.g. { page: 1, search: "foo" } → "?page=1&search=foo")
-export function parseObjToQuery(query?: Record<string, any>): string {
-  if (!query) return '';
-  const parts: string[] = [];
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== null && value !== '') {
-      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+  instance.interceptors.response.use(
+    (response) => response,
+    (error: AxiosError<ErrorResponseData>) => {
+      const status = error.response?.status;
+      const hadAuthHeader = Boolean(
+        (error.config?.headers as Record<string, unknown> | undefined)?.["Authorization"],
+      );
+      return Promise.reject(customizeAxiosError(error));
     }
-  }
-  return parts.length ? `?${parts.join('&')}` : '';
+  );
+
+  return instance;
 }
 
-// Keep backward-compatible export
-export const api = axiosInstance;
-
+export const axiosInstance: AxiosInstance = createAxiosInstance();
  
+

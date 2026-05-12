@@ -1,11 +1,5 @@
 import { useCallback, useState } from "react";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import {
-  storageGetAccessToken,
-  storageGetUser,
-  storageSetAccessToken,
-  storageSetUser,
-} from "@/libs/utils/storage";
 import { useAuthContext } from "@/libs/context/AuthContext";
 import { resetSessionExpiry } from "@/libs/api/sessionExpiry";
 import { registerPushToken } from "@/libs/services/notifications/pushNotificationService";
@@ -24,6 +18,7 @@ import type {
   UserProfile,
 } from "@/types/auth";
 import type { ApiError } from "@/types/api";
+import { storageGetAccessToken, storageGetUser, storageSetAccessToken, storageSetUser } from "../../utils/storage";
 
 interface UseAuthReturn {
   user: UserProfile | null;

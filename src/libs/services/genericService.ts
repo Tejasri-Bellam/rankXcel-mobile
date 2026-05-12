@@ -1,7 +1,6 @@
-
-import { getAuthState } from "../context/authStore";
-import { storageGetAccessToken } from "../utils/storage";
-import { axiosInstance, getHeaders } from "./apiClient";
+import { axiosInstance, getHeaders } from "@/src/libs/services/api";
+import { storageGetAccessToken } from "@/src/libs/storage";
+import type { ApiResponse } from "@/src/libs/types/api";
 
 type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 
@@ -17,13 +16,9 @@ export async function genericService<T = unknown>(
   options: ServiceOptions = {}
 ): Promise<ApiResponse<T>> {
   const { isMultipart = false, useAccessToken = true } = options;
-  const authToken = useAccessToken
-    ? (getAuthState().token ?? await storageGetAccessToken())
-    : null;
+  const authToken = useAccessToken ? await storageGetAccessToken() : null;
   const headers = getHeaders(authToken, isMultipart);
-if (authToken) {
-  headers['Authorization'] = `Bearer ${authToken}`;
-}
+  console.log(`Making ${method.toUpperCase()} request to ${apiPath} with data:`, data, "and headers:", headers, "Options:", options, authToken);
   const response = await axiosInstance.request<T>({
     method,
     url: apiPath,
@@ -70,3 +65,5 @@ export async function genericDelete<T = unknown>(
 ): Promise<ApiResponse<T>> {
   return genericService<T>("delete", apiPath, null, { useAccessToken });
 }
+
+ 

@@ -11,16 +11,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { examScreenStyles as styles } from '../../styles/sidebar/assessments/exam';
-import examData from '../json/assessmentExam';
+import { getassessmentsQuestionsService } from '../../libs/services/assessments';
+import { assessmentSubmitService, updateAssessmentResponsesService } from '@/src/libs/services/assessments-attempts';
 
 interface Props {
+  assessmentId: number;
+  attemptId: number;
   onSubmit: (answers: Record<string, string[]>, timeTakenSeconds: number) => void;
 }
 
 type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
 
-export default function ExamScreen({ onSubmit }: Props) {
-  const { exam } : any = examData;
+export default function ExamScreen({ assessmentId, attemptId, onSubmit, }: Props) {
+
+  const [exam, setExam] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const totalDurationSeconds = exam.duration_minutes * 60;
   const [timeLeft, setTimeLeft] = useState(totalDurationSeconds);
@@ -44,8 +49,43 @@ export default function ExamScreen({ onSubmit }: Props) {
   // submit modal
   const [showSubmitModal, setShowSubmitModal] = useState(false);
 
+  if (loading || !exam) {
+    return (
+      <SafeAreaView>
+        <Text>Loading Exam...</Text>
+      </SafeAreaView>
+    );
+  }
+
   const activeSection = exam.sections[activeSectionIdx];
   const activeQuestion = activeSection.questions[activeQIdx];
+
+  useEffect(() => {
+      loadQuestions();
+    }, []);
+
+    const loadQuestions = async () => {
+      try {
+
+        setLoading(true);
+
+        const res = await getassessmentsQuestionsService(
+          assessmentId
+        );
+
+        console.log("QUESTIONS API:", res);
+
+        setExam(res);
+
+      } catch (error) {
+
+        console.log("QUESTIONS ERROR:", error);
+
+      } finally {
+
+        setLoading(false);
+      }
+    };
 
   // Timer countdown
   useEffect(() => {
@@ -98,8 +138,19 @@ export default function ExamScreen({ onSubmit }: Props) {
 
   const getCurrentQuestionId = () => activeQuestion.id;
 
-  const handleOptionSelect = (optionId: string) => {
+  const handleOptionSelect = async (optionId: string) => {
     const qId = getCurrentQuestionId();
+
+    try {
+        await updateAssessmentResponsesService(attemptId,qId,
+          {selected_options: [optionId],}
+        );
+
+        console.log("ANSWER SAVED");
+      } catch (error) {
+        console.log("SAVE ANSWER ERROR:", error);
+      }
+
     const isMulti = activeQuestion.type === 'Multi Correct';
 
     setAnswers((prev) => {
@@ -216,10 +267,18 @@ export default function ExamScreen({ onSubmit }: Props) {
       };
     });
 
-  const handleFinalSubmit = useCallback(() => {
-    setShowSubmitModal(false);
+  const handleFinalSubmit = async () => {
+  try {
+    await assessmentSubmitService(attemptId);
+
+    console.log("ASSESSMENT SUBMITTED");
+
     onSubmit(answers, timeTaken);
-  }, [answers, timeTaken, onSubmit]);
+
+  } catch (error) {
+    console.log("SUBMIT ERROR:", error);
+  }
+};
 
   // Question number within current section (1-based)
   const qNumberInSection = activeQIdx + 1;

@@ -4,18 +4,23 @@ export interface LoginPayload {
 }
 
 export interface SignupPayload {
+  name: string;
   email: string;
+  phone: string;
   password: string;
   confirm_password: string;
 }
 
 export interface ForgotPasswordPayload {
   email: string;
+  otp?: string;
+  new_password?: string;
+  type?: 'send_otp' | 'verify_otp' | 'resend_otp' | 'reset_password';
 }
 
 export interface ResetPasswordConfirmPayload {
   new_password: string;
-  re_new_password: string;
+  confirm_password: string;
 }
 
 export interface VerifyEmailPayload {
