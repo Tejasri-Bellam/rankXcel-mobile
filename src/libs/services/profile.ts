@@ -28,10 +28,16 @@ export async function updateMeService(
 
 // Get preferences
 export async function getPreferencesService() {
-  console.log("api calling");
-
   return await genericGet(
     "/v1/exams/target-exams/",
+    true
+  );
+}
+
+// Get all available exams (for dropdown)
+export async function getExamsListService() {
+  return await genericGet(
+    "/v1/exams/",
     true
   );
 }

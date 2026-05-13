@@ -1,0 +1,4776 @@
+openapi: 3.0.3
+info:
+  title: RankXcel API
+  version: 1.0.0
+paths:
+  /api/v1/admin/stats/:
+    get:
+      operationId: admin_stats_retrieve
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/ai-generate-questions/previous-year/:
+    post:
+      operationId: ai_generate_questions_previous_year_create
+      description: POST — upload a previous year paper; subject/chapter auto-detected
+        via LLM.
+      tags:
+      - ai-generate-questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/ai-generate-questions/self-questions/:
+    post:
+      operationId: ai_generate_questions_self_questions_create
+      description: POST — generate variants from existing DB question IDs; no file
+        upload required.
+      tags:
+      - ai-generate-questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/:
+    get:
+      operationId: assessment_attempts_retrieve
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/detailed-analysis/:
+    get:
+      operationId: assessment_attempts_detailed_analysis_retrieve
+      description: GET /api/v1/assessment-attempts/<attempt_id>/detailed-analysis/
+        — detailed analysis with chapter, subject, and question breakdown.
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/responses/:
+    post:
+      operationId: assessment_attempts_responses_create
+      description: |-
+        Save multiple answers for an in-progress attempt in a single request.
+
+        Body: {"answers": [{"question_id": int, "selected_choice_ids": [...],
+        "numeric_answer": ..., "is_marked_for_review": bool, "time_spent_seconds": int}, ...]}
+        All answers are saved in a single transaction; if any item fails validation
+        nothing is persisted and the per-item errors are returned.
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/responses/{question_id}/:
+    put:
+      operationId: assessment_attempts_responses_update
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: question_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/result/:
+    get:
+      operationId: assessment_attempts_result_retrieve
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/review/:
+    get:
+      operationId: assessment_attempts_review_retrieve
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/start/:
+    post:
+      operationId: assessment_attempts_start_create
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/submit/:
+    post:
+      operationId: assessment_attempts_submit_create
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessments/:
+    get:
+      operationId: assessments_list
+      description: CRUD for Assessments — admin creates/edits, CR can list/retrieve.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAssessmentListList'
+          description: ''
+    post:
+      operationId: assessments_create
+      description: CRUD for Assessments — admin creates/edits, CR can list/retrieve.
+      tags:
+      - assessments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssessmentCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssessmentCreate'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentCreate'
+          description: ''
+  /api/v1/assessments/{id}/:
+    get:
+      operationId: assessments_retrieve
+      description: CRUD for Assessments — admin creates/edits, CR can list/retrieve.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this assessment.
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentDetail'
+          description: ''
+    patch:
+      operationId: assessments_partial_update
+      description: CRUD for Assessments — admin creates/edits, CR can list/retrieve.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this assessment.
+        required: true
+      tags:
+      - assessments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAssessmentPatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAssessmentPatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAssessmentPatch'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentPatch'
+          description: ''
+    delete:
+      operationId: assessments_destroy
+      description: CRUD for Assessments — admin creates/edits, CR can list/retrieve.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this assessment.
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/assessments/{id}/deactivate/:
+    post:
+      operationId: assessments_deactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessments/{id}/publish/:
+    post:
+      operationId: assessments_publish_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessments/{id}/questions/:
+    get:
+      operationId: assessments_questions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: assessments_questions_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessments/{id}/questions/{question_id}/:
+    delete:
+      operationId: assessments_questions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: question_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/assessments/csv-template/:
+    get:
+      operationId: assessments_csv_template_retrieve
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessments/db-selection/:
+    post:
+      operationId: assessments_db_selection_create
+      description: |-
+        POST /api/v1/assessments/db-selection/ — create an assessment from
+        admin-selected question IDs (frontend wizard: pick questions on Screen 1,
+        fill form on Screen 2, submit). question_count is derived from
+        len(question_ids); the selected questions must be PUBLISHED and belong
+        to the chosen exam.
+      tags:
+      - assessments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentDBSelection'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssessmentDBSelection'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssessmentDBSelection'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentDBSelection'
+          description: ''
+  /api/v1/assessments/import-csv/:
+    post:
+      operationId: assessments_import_csv_create
+      description: |-
+        Create an assessment by uploading a CSV of questions.
+
+        Form fields (multipart): file, name, description, exam, question_count,
+        total_duration_minutes, scheduled_at. Valid rows are imported in a
+        single transaction; invalid rows are skipped and reported as warnings.
+        Rows are capped at the form's question_count.
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/forgot-password/:
+    post:
+      operationId: auth_forgot_password_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ForgotPassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ForgotPassword'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForgotPassword'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Login'
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMe'
+          description: ''
+    patch:
+      operationId: auth_me_partial_update
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserMe'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserMe'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserMe'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMe'
+          description: ''
+  /api/v1/auth/password/reset/confirm/{uidb64}/{token}/:
+    post:
+      operationId: auth_password_reset_confirm_create
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: uidb64
+        schema:
+          type: string
+        required: true
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetConfirm'
+          description: ''
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Register'
+          description: ''
+  /api/v1/auth/resend-otp/:
+    post:
+      operationId: auth_resend_otp_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendOTP'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResendOTP'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResendOTP'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResendOTP'
+          description: ''
+  /api/v1/auth/students/:
+    get:
+      operationId: auth_students_retrieve
+      description: |-
+        GET /api/v1/auth/students/ — paginated list of students with per-row
+        aggregates (target exam, mocks count, avg score, last_login, status).
+        Filters: ?status=, ?exam=<exam_id>, ?search=<name|email>.
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentListItem'
+          description: ''
+  /api/v1/auth/students/{id}/:
+    get:
+      operationId: auth_students_retrieve_2
+      description: GET /api/v1/auth/students/<id>/ — full drill-in payload for one
+        student.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentDetail'
+          description: ''
+  /api/v1/auth/students/stats/:
+    get:
+      operationId: auth_students_stats_retrieve
+      description: GET /api/v1/auth/students/stats/ — header counts for the dashboard.
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentStats'
+          description: ''
+  /api/v1/auth/users/:
+    get:
+      operationId: auth_users_list
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - ADMIN
+          - CONTENT_REVIEWER
+          - STUDENT
+        description: |-
+          * `STUDENT` - Student
+          * `ADMIN` - Admin
+          * `CONTENT_REVIEWER` - Content Reviewer
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserDetailList'
+          description: ''
+    post:
+      operationId: auth_users_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminCreateUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminCreateUser'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCreateUser'
+          description: ''
+  /api/v1/auth/users/{id}/:
+    get:
+      operationId: auth_users_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+    patch:
+      operationId: auth_users_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUpdateUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUpdateUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUpdateUser'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUpdateUser'
+          description: ''
+  /api/v1/auth/users/{id}/activate/:
+    post:
+      operationId: auth_users_activate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/users/{id}/suspend/:
+    post:
+      operationId: auth_users_suspend_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/users/accept-invite/{token}/:
+    post:
+      operationId: auth_users_accept_invite_create
+      description: |-
+        POST /api/v1/admin/users/accept-invite/<token>/ — invitee sets
+        name + password to activate their account.
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AcceptInvite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AcceptInvite'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptInvite'
+          description: ''
+  /api/v1/auth/users/admins/{id}/:
+    get:
+      operationId: auth_users_admins_retrieve
+      description: |-
+        GET/PATCH /api/v1/admin/users/<id>/ — fetch profile; PATCH for the
+        'Save Role' button. Restricted to admin/reviewer users (no students).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+    patch:
+      operationId: auth_users_admins_partial_update
+      description: |-
+        GET/PATCH /api/v1/admin/users/<id>/ — fetch profile; PATCH for the
+        'Save Role' button. Restricted to admin/reviewer users (no students).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUpdateUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUpdateUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUpdateUser'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUpdateUser'
+          description: ''
+  /api/v1/auth/users/invite/:
+    post:
+      operationId: auth_users_invite_create
+      description: |-
+        POST /api/v1/admin/users/invite/ — invite a new admin/reviewer by
+        email. Creates an inactive User and emails a signed token link that
+        the invitee uses to set a password and activate.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteAdminUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InviteAdminUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InviteAdminUser'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteAdminUser'
+          description: ''
+  /api/v1/auth/verify-email/:
+    post:
+      operationId: auth_verify_email_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmail'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyEmail'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyEmail'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyEmail'
+          description: ''
+  /api/v1/chapters/{chapter_id}/ai-generate-questions/content/:
+    post:
+      operationId: chapters_ai_generate_questions_content_create
+      parameters:
+      - in: path
+        name: chapter_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - chapters
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/chapters/{chapter_id}/topics/:
+    get:
+      operationId: chapters_topics_list
+      description: CRUD for Topics (requires chapter_id filter on list).
+      parameters:
+      - in: path
+        name: chapter_id
+        schema:
+          type: integer
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - chapters
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTopicList'
+          description: ''
+    post:
+      operationId: chapters_topics_create
+      description: CRUD for Topics (requires chapter_id filter on list).
+      parameters:
+      - in: path
+        name: chapter_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - chapters
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Topic'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Topic'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Topic'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+          description: ''
+  /api/v1/chapters/{chapter_id}/topics/{id}/:
+    get:
+      operationId: chapters_topics_retrieve
+      description: CRUD for Topics (requires chapter_id filter on list).
+      parameters:
+      - in: path
+        name: chapter_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this topic.
+        required: true
+      tags:
+      - chapters
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+          description: ''
+    put:
+      operationId: chapters_topics_update
+      description: CRUD for Topics (requires chapter_id filter on list).
+      parameters:
+      - in: path
+        name: chapter_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this topic.
+        required: true
+      tags:
+      - chapters
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Topic'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Topic'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Topic'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+          description: ''
+    patch:
+      operationId: chapters_topics_partial_update
+      description: CRUD for Topics (requires chapter_id filter on list).
+      parameters:
+      - in: path
+        name: chapter_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this topic.
+        required: true
+      tags:
+      - chapters
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTopic'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTopic'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTopic'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+          description: ''
+    delete:
+      operationId: chapters_topics_destroy
+      description: CRUD for Topics (requires chapter_id filter on list).
+      parameters:
+      - in: path
+        name: chapter_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this topic.
+        required: true
+      tags:
+      - chapters
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/dashboard/:
+    get:
+      operationId: dashboard_retrieve
+      tags:
+      - dashboard
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/exams/:
+    get:
+      operationId: exams_list
+      description: CRUD for Exam configs.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedExamList'
+          description: ''
+    post:
+      operationId: exams_create
+      description: CRUD for Exam configs.
+      tags:
+      - exams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Exam'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Exam'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Exam'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exam'
+          description: ''
+  /api/v1/exams/{exam_id}/subjects/:
+    get:
+      operationId: exams_subjects_list
+      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedExamSubjectList'
+          description: ''
+    post:
+      operationId: exams_subjects_create
+      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExamSubject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExamSubject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExamSubject'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamSubject'
+          description: ''
+  /api/v1/exams/{exam_id}/subjects/{id}/:
+    get:
+      operationId: exams_subjects_retrieve
+      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this exam subject.
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamSubject'
+          description: ''
+    put:
+      operationId: exams_subjects_update
+      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this exam subject.
+        required: true
+      tags:
+      - exams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExamSubject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExamSubject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExamSubject'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamSubject'
+          description: ''
+    patch:
+      operationId: exams_subjects_partial_update
+      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this exam subject.
+        required: true
+      tags:
+      - exams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedExamSubject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedExamSubject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedExamSubject'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamSubject'
+          description: ''
+    delete:
+      operationId: exams_subjects_destroy
+      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this exam subject.
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/exams/{id}/:
+    get:
+      operationId: exams_retrieve
+      description: CRUD for Exam configs.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this exam.
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exam'
+          description: ''
+    put:
+      operationId: exams_update
+      description: CRUD for Exam configs.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this exam.
+        required: true
+      tags:
+      - exams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Exam'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Exam'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Exam'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exam'
+          description: ''
+    patch:
+      operationId: exams_partial_update
+      description: CRUD for Exam configs.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this exam.
+        required: true
+      tags:
+      - exams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedExam'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedExam'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedExam'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exam'
+          description: ''
+    delete:
+      operationId: exams_destroy
+      description: CRUD for Exam configs.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this exam.
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/exams/{id}/tree/:
+    get:
+      operationId: exams_tree_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/exams/my-target-exams/:
+    get:
+      operationId: exams_my_target_exams_retrieve
+      description: GET /api/v1/exams/my-target-exams/ — pure exam list for the logged-in
+        student.
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/exams/target-exams/:
+    get:
+      operationId: exams_target_exams_list
+      description: Student target exams — create/list/delete only.
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TargetExam'
+          description: ''
+    post:
+      operationId: exams_target_exams_create
+      description: Student target exams — create/list/delete only.
+      tags:
+      - exams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetExam'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TargetExam'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TargetExam'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetExam'
+          description: ''
+  /api/v1/exams/target-exams/{id}/:
+    delete:
+      operationId: exams_target_exams_destroy
+      description: Student target exams — create/list/delete only.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/mock-tests/:
+    get:
+      operationId: mock_tests_list
+      description: List/Create/Retrieve for student mock tests.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMockTestListList'
+          description: ''
+    post:
+      operationId: mock_tests_create
+      description: List/Create/Retrieve for student mock tests.
+      tags:
+      - mock-tests
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MockTestCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MockTestCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MockTestCreate'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockTestCreate'
+          description: ''
+  /api/v1/mock-tests/{id}/:
+    get:
+      operationId: mock_tests_retrieve
+      description: List/Create/Retrieve for student mock tests.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockTestDetail'
+          description: ''
+  /api/v1/mock-tests/{id}/detailed-analysis/:
+    get:
+      operationId: mock_tests_detailed_analysis_retrieve
+      description: GET /api/v1/mock-tests/<pk>/detailed-analysis/ — detailed analysis
+        with chapter, subject, and question breakdown.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-tests/{id}/questions/:
+    get:
+      operationId: mock_tests_questions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-tests/{id}/responses/{question_id}/:
+    put:
+      operationId: mock_tests_responses_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: question_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-tests/{id}/result/:
+    get:
+      operationId: mock_tests_result_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-tests/{id}/review/:
+    get:
+      operationId: mock_tests_review_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-tests/{id}/start/:
+    post:
+      operationId: mock_tests_start_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-tests/{id}/submit/:
+    post:
+      operationId: mock_tests_submit_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/options/chapters/:
+    get:
+      operationId: options_chapters_list
+      description: Read-only list of active chapters for dropdowns/selects.
+      parameters:
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: subject_id
+        schema:
+          type: number
+      tags:
+      - options
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChapterOption'
+          description: ''
+  /api/v1/options/exams/:
+    get:
+      operationId: options_exams_list
+      description: Read-only list of active exams for dropdowns/selects.
+      parameters:
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - options
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExamOption'
+          description: ''
+  /api/v1/options/questions/:
+    get:
+      operationId: options_questions_list
+      parameters:
+      - in: query
+        name: chapter
+        schema:
+          type: number
+      - in: query
+        name: exam
+        schema:
+          type: number
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: subject
+        schema:
+          type: number
+      - in: query
+        name: topic
+        schema:
+          type: number
+      tags:
+      - options
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QuestionOption'
+          description: ''
+  /api/v1/options/subjects/:
+    get:
+      operationId: options_subjects_list
+      description: Read-only list of active subjects for dropdowns/selects.
+      parameters:
+      - in: query
+        name: exam_id
+        schema:
+          type: number
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - options
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubjectOption'
+          description: ''
+  /api/v1/options/test-types/:
+    get:
+      operationId: options_test_types_retrieve
+      description: GET /api/v1/options/test-types/ — list of test type choices.
+      tags:
+      - options
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/options/topics/:
+    get:
+      operationId: options_topics_list
+      description: Read-only list of active topics for dropdowns/selects.
+      parameters:
+      - in: query
+        name: chapter_id
+        schema:
+          type: number
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - options
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopicOption'
+          description: ''
+  /api/v1/questions/:
+    get:
+      operationId: questions_list
+      parameters:
+      - in: query
+        name: chapter
+        schema:
+          type: integer
+      - in: query
+        name: difficulty
+        schema:
+          type: string
+          enum:
+          - easy
+          - hard
+          - medium
+        description: |-
+          * `easy` - Easy
+          * `medium` - Medium
+          * `hard` - Hard
+      - in: query
+        name: exam
+        schema:
+          type: integer
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: question_type
+        schema:
+          type: string
+          enum:
+          - ASSERTION_REASON
+          - MCQ_MULTIPLE
+          - MCQ_SINGLE
+          - NUMERICAL
+        description: |-
+          * `MCQ_SINGLE` - Single Correct MCQ
+          * `MCQ_MULTIPLE` - Multiple Correct MCQ
+          * `NUMERICAL` - Numerical Answer
+          * `ASSERTION_REASON` - Assertion-Reason
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: source
+        schema:
+          type: string
+          enum:
+          - AI_GENERATED
+          - MANUAL
+          - PREVIOUS_YEAR
+        description: |-
+          * `MANUAL` - Manually Created
+          * `AI_GENERATED` - AI Generated
+          * `PREVIOUS_YEAR` - Previous Year Paper
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - INACTIVE
+          - PENDING
+          - PUBLISHED
+          - REJECTED
+        description: |-
+          * `PENDING` - Pending Review
+          * `PUBLISHED` - Published
+          * `REJECTED` - Rejected
+          * `INACTIVE` - Inactive
+      - in: query
+        name: subject
+        schema:
+          type: integer
+      - in: query
+        name: topic
+        schema:
+          type: integer
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedQuestionListList'
+          description: ''
+    post:
+      operationId: questions_create
+      tags:
+      - questions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionAdmin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QuestionAdmin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QuestionAdmin'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionAdmin'
+          description: ''
+  /api/v1/questions/{id}/:
+    get:
+      operationId: questions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this question.
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionAdmin'
+          description: ''
+    patch:
+      operationId: questions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this question.
+        required: true
+      tags:
+      - questions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionAdmin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionAdmin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedQuestionAdmin'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionAdmin'
+          description: ''
+  /api/v1/questions/{id}/approve/:
+    post:
+      operationId: questions_approve_create
+      description: POST /api/v1/questions/{id}/approve/ — pending → published (admin
+        only).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/{id}/deactivate/:
+    post:
+      operationId: questions_deactivate_create
+      description: POST /api/v1/questions/{id}/deactivate/ — any status → inactive
+        (admin only).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/{id}/preview/:
+    get:
+      operationId: questions_preview_retrieve
+      description: GET /api/v1/questions/{id}/preview/ — student view (no answer keys).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/{id}/regenerate-solution/:
+    post:
+      operationId: questions_regenerate_solution_create
+      description: POST /api/v1/questions/{id}/regenerate-solution/ — admin regenerates
+        AI solution.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/{id}/solution/:
+    get:
+      operationId: questions_solution_retrieve
+      description: GET /api/v1/questions/{id}/solution/ — view AI-generated solution
+        after attempting.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/{id}/submit/:
+    post:
+      operationId: questions_submit_create
+      description: POST /api/v1/questions/{id}/submit/ — move rejected → pending.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/{question_pk}/choices/:
+    get:
+      operationId: questions_choices_list
+      description: CRUD for choices nested under a question — admin & content reviewer
+        only.
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChoiceAdmin'
+          description: ''
+    post:
+      operationId: questions_choices_create
+      description: CRUD for choices nested under a question — admin & content reviewer
+        only.
+      parameters:
+      - in: path
+        name: question_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChoiceAdmin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChoiceAdmin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChoiceAdmin'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChoiceAdmin'
+          description: ''
+  /api/v1/questions/{question_pk}/choices/{id}/:
+    get:
+      operationId: questions_choices_retrieve
+      description: CRUD for choices nested under a question — admin & content reviewer
+        only.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: question_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChoiceAdmin'
+          description: ''
+    put:
+      operationId: questions_choices_update
+      description: CRUD for choices nested under a question — admin & content reviewer
+        only.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: question_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChoiceAdmin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChoiceAdmin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChoiceAdmin'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChoiceAdmin'
+          description: ''
+    patch:
+      operationId: questions_choices_partial_update
+      description: CRUD for choices nested under a question — admin & content reviewer
+        only.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: question_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedChoiceAdmin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedChoiceAdmin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedChoiceAdmin'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChoiceAdmin'
+          description: ''
+    delete:
+      operationId: questions_choices_destroy
+      description: CRUD for choices nested under a question — admin & content reviewer
+        only.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: question_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/questions/ai-generate/batches/{batch_id}/:
+    get:
+      operationId: questions_ai_generate_batches_retrieve
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/ai-generate/batches/{batch_id}/questions/{index}/:
+    patch:
+      operationId: questions_ai_generate_batches_questions_partial_update
+      description: |-
+        PATCH /api/v1/questions/ai-generate/batches/<batch_id>/questions/<index>/
+
+        Admin can edit a single question inside a staged batch before approving.
+        Only the fields provided are updated; unspecified fields are unchanged.
+
+        Editable fields:
+          question_text, assertion_text, reason_text, difficulty, question_type
+          choices: list of {text, is_correct, explanation}
+
+        Example body:
+          {
+            "question_text": "Corrected question stem?",
+            "choices": [
+              {"text": "Option A", "is_correct": false, "explanation": ""},
+              {"text": "Option B", "is_correct": true, "explanation": "Correct because ..."},
+              {"text": "Option C", "is_correct": false, "explanation": ""},
+              {"text": "Option D", "is_correct": false, "explanation": ""}
+            ]
+          }
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: index
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/ai-generate/batches/{batch_id}/review/:
+    post:
+      operationId: questions_ai_generate_batches_review_create
+      description: |-
+        POST /api/v1/questions/ai-generate/batches/<batch_id>/review/
+
+        Admin selects which questions to publish. Only approved questions are written to DB.
+        Rejected/unselected questions are discarded. Batch is deleted after review.
+
+        Body (JSON):
+          { "approve_all": true }
+          OR
+          { "approve_indices": [0, 1, 3] }
+      parameters:
+      - in: path
+        name: batch_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/ai-generate/review/:
+    post:
+      operationId: questions_ai_generate_review_create
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/questions/coverage/:
+    get:
+      operationId: questions_coverage_retrieve
+      description: GET /api/v1/questions/coverage/ — question count per chapter, grouped
+        by exam/subject.
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/student/assessments/:
+    get:
+      operationId: student_assessments_retrieve
+      description: GET /api/v1/student/assessments/ — assessments assigned to the
+        student.
+      tags:
+      - student
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/student/assessments/{id}/attempts/:
+    get:
+      operationId: student_assessments_attempts_retrieve
+      description: GET /api/v1/student/assessments/{assessment_id}/attempts/ — all
+        attempts for an assessment.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - student
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/student/assessments/{id}/questions/:
+    get:
+      operationId: student_assessments_questions_retrieve
+      description: GET /api/v1/student/assessments/{assessment_id}/questions/ — questions
+        + saved answers.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - student
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/student/assessments/{id}/reattempt/:
+    post:
+      operationId: student_assessments_reattempt_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - student
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/student/chapters/performance/:
+    get:
+      operationId: student_chapters_performance_retrieve
+      description: GET /api/v1/student/chapters/performance/ — chapter-wise percentage
+        from assessments & mock tests.
+      tags:
+      - student
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/subjects/:
+    get:
+      operationId: subjects_list
+      description: CRUD for Subjects (requires exam_id filter on list).
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - subjects
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSubjectList'
+          description: ''
+    post:
+      operationId: subjects_create
+      description: CRUD for Subjects (requires exam_id filter on list).
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Subject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Subject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Subject'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+  /api/v1/subjects/{id}/:
+    get:
+      operationId: subjects_retrieve
+      description: CRUD for Subjects (requires exam_id filter on list).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this subject.
+        required: true
+      tags:
+      - subjects
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+    put:
+      operationId: subjects_update
+      description: CRUD for Subjects (requires exam_id filter on list).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this subject.
+        required: true
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Subject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Subject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Subject'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+    patch:
+      operationId: subjects_partial_update
+      description: CRUD for Subjects (requires exam_id filter on list).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this subject.
+        required: true
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSubject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSubject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSubject'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+    delete:
+      operationId: subjects_destroy
+      description: CRUD for Subjects (requires exam_id filter on list).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this subject.
+        required: true
+      tags:
+      - subjects
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/subjects/{subject_id}/ai-generate-questions/content/:
+    post:
+      operationId: subjects_ai_generate_questions_content_create
+      parameters:
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - subjects
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/subjects/{subject_id}/chapters/:
+    get:
+      operationId: subjects_chapters_list
+      description: CRUD for Chapters (requires subject_id filter on list).
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - subjects
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedChapterList'
+          description: ''
+    post:
+      operationId: subjects_chapters_create
+      description: CRUD for Chapters (requires subject_id filter on list).
+      parameters:
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Chapter'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Chapter'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Chapter'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chapter'
+          description: ''
+  /api/v1/subjects/{subject_id}/chapters/{id}/:
+    get:
+      operationId: subjects_chapters_retrieve
+      description: CRUD for Chapters (requires subject_id filter on list).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this chapter.
+        required: true
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - subjects
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chapter'
+          description: ''
+    put:
+      operationId: subjects_chapters_update
+      description: CRUD for Chapters (requires subject_id filter on list).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this chapter.
+        required: true
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Chapter'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Chapter'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Chapter'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chapter'
+          description: ''
+    patch:
+      operationId: subjects_chapters_partial_update
+      description: CRUD for Chapters (requires subject_id filter on list).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this chapter.
+        required: true
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedChapter'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedChapter'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedChapter'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chapter'
+          description: ''
+    delete:
+      operationId: subjects_chapters_destroy
+      description: CRUD for Chapters (requires subject_id filter on list).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this chapter.
+        required: true
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - subjects
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/topics/{topic_id}/ai-generate-questions/content/:
+    post:
+      operationId: topics_ai_generate_questions_content_create
+      parameters:
+      - in: path
+        name: topic_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - topics
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    AcceptInvite:
+      type: object
+      description: Body for POST /admin/users/accept-invite/<token>/.
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+        confirm_password:
+          type: string
+          writeOnly: true
+        phone:
+          type: string
+          default: ''
+          maxLength: 20
+      required:
+      - confirm_password
+      - name
+      - password
+    AdminCreateUser:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/RoleF40Enum'
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - name
+      - password
+    AdminUpdateUser:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/RoleF40Enum'
+      required:
+      - name
+    AssessmentCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        exam:
+          type: integer
+        question_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Maximum number of questions allowed in this assessment.
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - exam
+      - name
+      - total_duration_minutes
+    AssessmentDBSelection:
+      type: object
+      description: |-
+        Create an assessment from admin-selected question IDs.
+
+        Used by the frontend wizard where the admin picks questions from the
+        question bank (Screen 1) and then fills the assessment form (Screen 2).
+        question_count is derived automatically from len(question_ids).
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          default: ''
+        exam:
+          type: integer
+        total_duration_minutes:
+          type: integer
+          minimum: 1
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        question_ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+          description: Ordered list of PUBLISHED Question IDs that belong to the chosen
+            exam.
+      required:
+      - exam
+      - name
+      - question_ids
+      - total_duration_minutes
+    AssessmentDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        exam:
+          allOf:
+          - $ref: '#/components/schemas/ExamMinimal'
+          readOnly: true
+        question_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Maximum number of questions allowed in this assessment.
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/Status451Enum'
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        total_questions:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - exam
+      - id
+      - name
+      - total_duration_minutes
+      - total_questions
+      - updated_at
+    AssessmentList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        exam:
+          allOf:
+          - $ref: '#/components/schemas/ExamMinimal'
+          readOnly: true
+        question_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Maximum number of questions allowed in this assessment.
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/Status451Enum'
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        total_questions:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - exam
+      - id
+      - name
+      - total_duration_minutes
+      - total_questions
+    AssessmentPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        question_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Maximum number of questions allowed in this assessment.
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+      required:
+      - name
+      - total_duration_minutes
+    Chapter:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - name
+    ChapterOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 50
+      required:
+      - code
+      - id
+      - name
+    ChoiceAdmin:
+      type: object
+      description: Full choice — includes is_correct, tolerance, and explanation (admin/CR
+        view).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        text:
+          type: string
+        image_url:
+          type: string
+          format: uri
+          maxLength: 200
+        is_correct:
+          type: boolean
+        sort_order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        tolerance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,14}(?:\.\d{0,6})?$
+          nullable: true
+        explanation:
+          type: string
+      required:
+      - id
+      - text
+    Creator:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+    Difficulty3d0Enum:
+      enum:
+      - easy
+      - medium
+      - hard
+      type: string
+      description: |-
+        * `easy` - Easy
+        * `medium` - Medium
+        * `hard` - Hard
+    Exam:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 20
+        description:
+          type: string
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - name
+      - total_duration_minutes
+    ExamMinimal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        code:
+          type: string
+      required:
+      - code
+      - id
+      - name
+    ExamOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 20
+      required:
+      - code
+      - id
+      - name
+    ExamSubject:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        subject:
+          type: integer
+        question_count:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          description: Number of questions from this subject in the exam. 0 means
+            no fixed quota.
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+      required:
+      - id
+      - subject
+    ForgotPassword:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    InviteAdminUser:
+      type: object
+      description: |-
+        Admin invites a new admin/reviewer user by email. No password —
+        the invitee sets their own via the emailed link.
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/InviteAdminUserRoleEnum'
+      required:
+      - email
+      - role
+    InviteAdminUserRoleEnum:
+      enum:
+      - ADMIN
+      - CONTENT_REVIEWER
+      type: string
+      description: |-
+        * `ADMIN` - ADMIN
+        * `CONTENT_REVIEWER` - CONTENT_REVIEWER
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    MockTestCreate:
+      type: object
+      properties:
+        exam:
+          type: integer
+        subject:
+          type: integer
+        chapter_ids:
+          type: array
+          items:
+            type: integer
+          default: []
+          maxItems: 50
+        topic_ids:
+          type: array
+          items:
+            type: integer
+          default: []
+        question_count:
+          type: integer
+          maximum: 100
+          minimum: 1
+        difficulty:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/MockTestCreateDifficultyEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        test_type:
+          $ref: '#/components/schemas/MockTestCreateTestTypeEnum'
+      required:
+      - exam
+      - question_count
+      - subject
+      - test_type
+    MockTestCreateDifficultyEnum:
+      enum:
+      - easy
+      - medium
+      - hard
+      type: string
+      description: |-
+        * `easy` - easy
+        * `medium` - medium
+        * `hard` - hard
+    MockTestCreateTestTypeEnum:
+      enum:
+      - MOCK_TEST
+      - PRACTICE_TEST
+      type: string
+      description: |-
+        * `MOCK_TEST` - MOCK_TEST
+        * `PRACTICE_TEST` - PRACTICE_TEST
+    MockTestDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        exam:
+          allOf:
+          - $ref: '#/components/schemas/ExamMinimal'
+          readOnly: true
+        subject:
+          allOf:
+          - $ref: '#/components/schemas/SubjectMinimal'
+          readOnly: true
+        chapters:
+          type: string
+          readOnly: true
+        topics:
+          type: string
+          readOnly: true
+        test_type:
+          $ref: '#/components/schemas/TestType15fEnum'
+        question_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        difficulty:
+          type: string
+          nullable: true
+          maxLength: 10
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/StatusC92Enum'
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - chapters
+      - exam
+      - expires_at
+      - id
+      - question_count
+      - subject
+      - topics
+      - total_duration_minutes
+    MockTestList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        exam:
+          allOf:
+          - $ref: '#/components/schemas/ExamMinimal'
+          readOnly: true
+        subject:
+          allOf:
+          - $ref: '#/components/schemas/SubjectMinimal'
+          readOnly: true
+        chapters:
+          type: string
+          readOnly: true
+        test_type:
+          $ref: '#/components/schemas/TestType15fEnum'
+        question_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        difficulty:
+          type: string
+          nullable: true
+          maxLength: 10
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/StatusC92Enum'
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        score:
+          type: string
+          readOnly: true
+        max_score:
+          type: string
+          readOnly: true
+      required:
+      - chapters
+      - exam
+      - id
+      - max_score
+      - question_count
+      - score
+      - subject
+      - total_duration_minutes
+    NullEnum:
+      enum:
+      - null
+    PaginatedAssessmentListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssessmentList'
+    PaginatedChapterList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Chapter'
+    PaginatedExamList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Exam'
+    PaginatedExamSubjectList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExamSubject'
+    PaginatedMockTestListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MockTestList'
+    PaginatedQuestionListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuestionList'
+    PaginatedSubjectList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subject'
+    PaginatedTopicList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Topic'
+    PaginatedUserDetailList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserDetail'
+    PasswordResetConfirm:
+      type: object
+      properties:
+        password:
+          type: string
+          writeOnly: true
+        confirm_password:
+          type: string
+          writeOnly: true
+      required:
+      - confirm_password
+      - password
+    PatchedAdminUpdateUser:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/RoleF40Enum'
+    PatchedAssessmentPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        question_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Maximum number of questions allowed in this assessment.
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+    PatchedChapter:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        is_active:
+          type: boolean
+    PatchedChoiceAdmin:
+      type: object
+      description: Full choice — includes is_correct, tolerance, and explanation (admin/CR
+        view).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        text:
+          type: string
+        image_url:
+          type: string
+          format: uri
+          maxLength: 200
+        is_correct:
+          type: boolean
+        sort_order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        tolerance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,14}(?:\.\d{0,6})?$
+          nullable: true
+        explanation:
+          type: string
+    PatchedExam:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 20
+        description:
+          type: string
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        is_active:
+          type: boolean
+    PatchedExamSubject:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        subject:
+          type: integer
+        question_count:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          description: Number of questions from this subject in the exam. 0 means
+            no fixed quota.
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+    PatchedQuestionAdmin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        exam:
+          type: integer
+        subject:
+          type: integer
+        chapter:
+          type: integer
+          nullable: true
+        topic:
+          type: integer
+          nullable: true
+        question_type:
+          $ref: '#/components/schemas/QuestionTypeEnum'
+        difficulty:
+          $ref: '#/components/schemas/Difficulty3d0Enum'
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        question_text:
+          type: string
+        image_url:
+          type: string
+          format: uri
+          maxLength: 200
+        assertion_text:
+          type: string
+        reason_text:
+          type: string
+        marks_correct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: Marks awarded for a correct answer.
+        marks_wrong:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: Marks deducted for a wrong answer (store as negative, e.g.
+            -1).
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChoiceAdmin'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status6e3Enum'
+          readOnly: true
+        rejection_comment:
+          type: string
+          readOnly: true
+        parent_question:
+          type: integer
+          nullable: true
+        possible_duplicate_of:
+          type: integer
+          nullable: true
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedSubject:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 30
+        content:
+          type: string
+          format: uri
+          nullable: true
+          pattern: (?:pdf)$
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        is_active:
+          type: boolean
+    PatchedTopic:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        is_active:
+          type: boolean
+    PatchedUserMe:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleF40Enum'
+          readOnly: true
+    PurposeEnum:
+      enum:
+      - registration
+      - password_reset
+      type: string
+      description: |-
+        * `registration` - registration
+        * `password_reset` - password_reset
+    QuestionAdmin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        exam:
+          type: integer
+        subject:
+          type: integer
+        chapter:
+          type: integer
+          nullable: true
+        topic:
+          type: integer
+          nullable: true
+        question_type:
+          $ref: '#/components/schemas/QuestionTypeEnum'
+        difficulty:
+          $ref: '#/components/schemas/Difficulty3d0Enum'
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        question_text:
+          type: string
+        image_url:
+          type: string
+          format: uri
+          maxLength: 200
+        assertion_text:
+          type: string
+        reason_text:
+          type: string
+        marks_correct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: Marks awarded for a correct answer.
+        marks_wrong:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: Marks deducted for a wrong answer (store as negative, e.g.
+            -1).
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChoiceAdmin'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status6e3Enum'
+          readOnly: true
+        rejection_comment:
+          type: string
+          readOnly: true
+        parent_question:
+          type: integer
+          nullable: true
+        possible_duplicate_of:
+          type: integer
+          nullable: true
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - difficulty
+      - exam
+      - id
+      - question_text
+      - question_type
+      - rejection_comment
+      - status
+      - subject
+      - updated_at
+    QuestionList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        question_type:
+          $ref: '#/components/schemas/QuestionTypeEnum'
+        difficulty:
+          $ref: '#/components/schemas/Difficulty3d0Enum'
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        status:
+          $ref: '#/components/schemas/Status6e3Enum'
+        question_text:
+          type: string
+        assertion_text:
+          type: string
+        reason_text:
+          type: string
+        exam:
+          allOf:
+          - $ref: '#/components/schemas/ExamMinimal'
+          readOnly: true
+        subject:
+          allOf:
+          - $ref: '#/components/schemas/TaxonomyMinimal'
+          readOnly: true
+        chapter:
+          allOf:
+          - $ref: '#/components/schemas/TaxonomyMinimal'
+          readOnly: true
+        topic:
+          allOf:
+          - $ref: '#/components/schemas/TaxonomyMinimal'
+          readOnly: true
+        marks_correct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: Marks awarded for a correct answer.
+        marks_wrong:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: Marks deducted for a wrong answer (store as negative, e.g.
+            -1).
+        choices:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChoiceAdmin'
+          readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/Creator'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        possible_duplicate_of:
+          type: integer
+          nullable: true
+      required:
+      - chapter
+      - choices
+      - created_at
+      - created_by
+      - difficulty
+      - exam
+      - id
+      - question_text
+      - question_type
+      - subject
+      - topic
+    QuestionOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        question_text:
+          type: string
+      required:
+      - id
+      - question_text
+    QuestionTypeEnum:
+      enum:
+      - MCQ_SINGLE
+      - MCQ_MULTIPLE
+      - NUMERICAL
+      - ASSERTION_REASON
+      type: string
+      description: |-
+        * `MCQ_SINGLE` - Single Correct MCQ
+        * `MCQ_MULTIPLE` - Multiple Correct MCQ
+        * `NUMERICAL` - Numerical Answer
+        * `ASSERTION_REASON` - Assertion-Reason
+    Register:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+        phone:
+          type: string
+          default: ''
+          maxLength: 20
+      required:
+      - email
+      - name
+      - password
+    ResendOTP:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        purpose:
+          $ref: '#/components/schemas/PurposeEnum'
+      required:
+      - email
+      - purpose
+    RoleF40Enum:
+      enum:
+      - STUDENT
+      - ADMIN
+      - CONTENT_REVIEWER
+      type: string
+      description: |-
+        * `STUDENT` - Student
+        * `ADMIN` - Admin
+        * `CONTENT_REVIEWER` - Content Reviewer
+    SourceEnum:
+      enum:
+      - MANUAL
+      - AI_GENERATED
+      - PREVIOUS_YEAR
+      type: string
+      description: |-
+        * `MANUAL` - Manually Created
+        * `AI_GENERATED` - AI Generated
+        * `PREVIOUS_YEAR` - Previous Year Paper
+    Status451Enum:
+      enum:
+      - DRAFT
+      - PUBLISHED
+      - INACTIVE
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `PUBLISHED` - Published
+        * `INACTIVE` - Inactive
+    Status6e3Enum:
+      enum:
+      - PENDING
+      - PUBLISHED
+      - REJECTED
+      - INACTIVE
+      type: string
+      description: |-
+        * `PENDING` - Pending Review
+        * `PUBLISHED` - Published
+        * `REJECTED` - Rejected
+        * `INACTIVE` - Inactive
+    StatusC92Enum:
+      enum:
+      - NOT_STARTED
+      - IN_PROGRESS
+      - SUBMITTED
+      type: string
+      description: |-
+        * `NOT_STARTED` - Not Started
+        * `IN_PROGRESS` - In Progress
+        * `SUBMITTED` - Submitted
+    StudentDetail:
+      type: object
+      description: 'Full drill-in panel: profile + performance + subject breakdown
+        + recent mocks.'
+      properties:
+        id:
+          type: integer
+        student_code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+        status:
+          type: string
+        profile:
+          type: object
+          additionalProperties: {}
+        performance:
+          type: object
+          additionalProperties: {}
+        subject_breakdown:
+          type: array
+          items: {}
+        recent_mocks:
+          type: array
+          items: {}
+        activity_engagement:
+          type: object
+          additionalProperties: {}
+      required:
+      - activity_engagement
+      - id
+      - name
+      - performance
+      - profile
+      - recent_mocks
+      - status
+      - student_code
+      - subject_breakdown
+    StudentListItem:
+      type: object
+      description: |-
+        One row in the admin Student Dashboard table. Built from a dict; the
+        view computes per-student aggregates in bulk and passes them in.
+      properties:
+        id:
+          type: integer
+        student_code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        target_exam:
+          type: string
+          nullable: true
+        mocks_count:
+          type: integer
+        avg_score:
+          type: number
+          format: double
+          nullable: true
+        avg_max_score:
+          type: number
+          format: double
+          nullable: true
+        last_login:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - avg_max_score
+      - avg_score
+      - created_at
+      - email
+      - id
+      - last_login
+      - mocks_count
+      - name
+      - status
+      - student_code
+      - target_exam
+    StudentStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        inactive_no_login_30d:
+          type: integer
+        suspended:
+          type: integer
+        currently_in_exam:
+          type: integer
+        new_this_week:
+          type: integer
+      required:
+      - active
+      - currently_in_exam
+      - inactive_no_login_30d
+      - new_this_week
+      - suspended
+      - total
+    Subject:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 30
+        content:
+          type: string
+          format: uri
+          nullable: true
+          pattern: (?:pdf)$
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - name
+    SubjectMinimal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        code:
+          type: string
+      required:
+      - code
+      - id
+      - name
+    SubjectOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 30
+      required:
+      - code
+      - id
+      - name
+    TargetExam:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        exam:
+          type: integer
+        target_year:
+          type: integer
+          maximum: 32767
+          minimum: 0
+          nullable: true
+          description: Year the student is targeting this exam for.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - exam
+      - id
+    TaxonomyMinimal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+      - id
+      - name
+    TestType15fEnum:
+      enum:
+      - MOCK_TEST
+      - PRACTICE_TEST
+      type: string
+      description: |-
+        * `MOCK_TEST` - Mock Test
+        * `PRACTICE_TEST` - Practice Test
+    Topic:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - name
+    TopicOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 50
+      required:
+      - code
+      - id
+      - name
+    UserDetail:
+      type: object
+      description: Used by admin for GET /users/ and GET /users/{id}/.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/RoleF40Enum'
+        is_active:
+          type: boolean
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - id
+      - is_email_verified
+      - name
+    UserMe:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleF40Enum'
+          readOnly: true
+      required:
+      - email
+      - id
+      - name
+      - role
+    VerifyEmail:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+          maxLength: 6
+          minLength: 6
+      required:
+      - email
+      - otp
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"
