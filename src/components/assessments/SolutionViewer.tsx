@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,66 +22,83 @@ const RED = '#EF4444';
 const GRAY = '#9898B0';
 
 export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
-  
   const [reviewData, setReviewData] = useState<any>(null);
-
-  const exam = reviewData;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-      loadReview();
-    }, []);
+    loadReview();
+  }, []);
 
-    const loadReview = async () => {
-      try {
-
-        setLoading(true);
-
-        const res = await getassessmentReviewService(
-          attemptId
-        );
-
-        console.log("REVIEW API:", res);
-
-        setReviewData(res);
-
-      } catch (error) {
-
-        console.log("REVIEW ERROR:", error);
-
-      } finally {
-
-        setLoading(false);
-      }
-    };
-
-    if (loading || !reviewData) {
-      return (
-        <SafeAreaView>
-          <Text>Loading SolutionsolutionViewerStyles...</Text>
-        </SafeAreaView>
-      );
+  const loadReview = async () => {
+    try {
+      setLoading(true);
+      const res = await getassessmentReviewService(attemptId);
+      console.log('REVIEW API:', res);
+      // Unwrap the actual data from the response wrapper
+      setReviewData(res?.data ?? null);
+    } catch (error) {
+      console.log('REVIEW ERROR:', error);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#6C5CE7" />
+        <Text style={{ marginTop: 12, color: '#9898B0' }}>Loading solutions...</Text>
+      </SafeAreaView>
+    );
+  }
 
-  // Flatten all questions across all sections
+  if (!reviewData) {
+    return (
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: '#9898B0' }}>Solutions are not available yet.</Text>
+        <TouchableOpacity onPress={onBack} style={{ marginTop: 16 }}>
+          <Text style={{ color: '#6C5CE7', fontWeight: '600' }}>← Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // Flatten all questions — API may return { sections: [] } or { results: [] }
+  const sections: any[] = reviewData?.sections ?? reviewData?.results ?? [];
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const allQuestions = useMemo(
-    () => exam.s.flatMap((s: any) => s.question.map((q: any) => ({ ...q, sectionName: s.name }))),
-    [exam]
+    () =>
+      sections.flatMap((s: any) =>
+        (s.questions ?? s.question ?? []).map((q: any) => ({ ...q, sectionName: s.name }))
+      ),
+    [reviewData]
   );
 
   const totalQ = allQuestions.length;
 
+  // currentIndex state must come after all hooks
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [currentIndex, setCurrentIndex] = useState(0);
-  const currentQ = allQuestions[currentIndex];
 
+  if (totalQ === 0) {
+    return (
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: '#9898B0' }}>No questions found in solutions.</Text>
+        <TouchableOpacity onPress={onBack} style={{ marginTop: 16 }}>
+          <Text style={{ color: '#6C5CE7', fontWeight: '600' }}>← Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  const currentQ = allQuestions[currentIndex];
   const userAnswer = answers[currentQ?.id] || [];
   const correctAnswers = currentQ?.correct_answers || [];
 
   const isCorrect =
     correctAnswers.length === userAnswer.length &&
     correctAnswers.every((a: string) => userAnswer.includes(a));
-
   const isSkipped = userAnswer.length === 0;
 
   const getOptionState = (optId: string) => {
@@ -91,7 +109,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     return 'neutral';
   };
 
-  // Question number pills at top — show correct/wrong/skipped per question
   const getQuestionDotColor = (idx: number) => {
     const q = allQuestions[idx];
     const ua = answers[q.id] || [];
@@ -105,23 +122,19 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     <SafeAreaView style={solutionViewerStyles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* ── Header ── */}
+      {/* Header */}
       <View style={solutionViewerStyles.header}>
         <TouchableOpacity onPress={onBack} style={solutionViewerStyles.backBtn}>
           <Text style={solutionViewerStyles.backArrow}>←</Text>
         </TouchableOpacity>
-
         <View style={solutionViewerStyles.headerCenter}>
           <Text style={solutionViewerStyles.headerTitle}>Solution Viewer</Text>
           <Text style={solutionViewerStyles.headerSub}>Review answers & explanations</Text>
         </View>
-
-        <Text style={solutionViewerStyles.headerCounter}>
-          Q {currentIndex + 1}/{totalQ}
-        </Text>
+        <Text style={solutionViewerStyles.headerCounter}>Q {currentIndex + 1}/{totalQ}</Text>
       </View>
 
-      {/* ── Question number strip ── */}
+      {/* Question number strip */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -149,25 +162,18 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
         })}
       </ScrollView>
 
-      {/* ── Question meta bar ── */}
+      {/* Question meta bar */}
       <View style={solutionViewerStyles.qMetaBar}>
-        <Text style={solutionViewerStyles.qMetaLeft}>
-          {currentIndex + 1} of {totalQ}
-        </Text>
-
+        <Text style={solutionViewerStyles.qMetaLeft}>{currentIndex + 1} of {totalQ}</Text>
         <View style={solutionViewerStyles.qTypeBadge}>
           <Text style={solutionViewerStyles.qTypeText}>{currentQ?.type}</Text>
         </View>
-
         <View style={solutionViewerStyles.marksBadges}>
           <View style={solutionViewerStyles.markBadgeGreen}>
             <Text style={solutionViewerStyles.markText}>+{currentQ?.marks_correct}</Text>
           </View>
           <View style={solutionViewerStyles.markBadgeRed}>
-            <Text style={solutionViewerStyles.markText}>{currentQ?.marks_incorrect} / 4</Text>
-          </View>
-          <View style={solutionViewerStyles.markBadgeGray}>
-            <Text style={solutionViewerStyles.markText}>□</Text>
+            <Text style={solutionViewerStyles.markText}>{currentQ?.marks_incorrect}</Text>
           </View>
         </View>
       </View>
@@ -208,7 +214,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                   {opt.id}
                 </Text>
               </View>
-
               <Text
                 style={[
                   solutionViewerStyles.optionText,
@@ -218,19 +223,13 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               >
                 {opt.text}
               </Text>
-
-              {/* Indicator icon */}
-              {state === 'correct' && (
-                <Text style={{ fontSize: 16, color: GREEN }}>✓</Text>
-              )}
-              {state === 'wrong' && (
-                <Text style={{ fontSize: 16, color: RED }}>✗</Text>
-              )}
+              {state === 'correct' && <Text style={{ fontSize: 16, color: GREEN }}>✓</Text>}
+              {state === 'wrong'   && <Text style={{ fontSize: 16, color: RED }}>✗</Text>}
             </View>
           );
         })}
 
-        {/* ── Status badge ── */}
+        {/* Status badge */}
         <View
           style={[
             solutionViewerStyles.statusBadge,
@@ -244,22 +243,22 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
           </Text>
         </View>
 
-        {/* ── Explanation ── */}
+        {/* Explanation */}
         {currentQ?.explanation && (
           <View style={solutionViewerStyles.explanationCard}>
             <View style={solutionViewerStyles.explanationHeader}>
               <Text style={solutionViewerStyles.explanationLabel}>💡 EXPLANATION</Text>
-              {currentQ.explanation.steps && (
+              {currentQ.explanation?.steps && (
                 <View style={solutionViewerStyles.stepsChip}>
                   <Text style={solutionViewerStyles.stepsChipText}>
-                    {currentQ.explanation.stepsolutionViewerStyles.length} steps
+                    {currentQ.explanation.steps.length} steps
                   </Text>
                 </View>
               )}
             </View>
 
             {/* Steps */}
-            {currentQ.explanation.steps?.map((step: any, i: number) => (
+            {currentQ.explanation?.steps?.map((step: any, i: number) => (
               <View key={i} style={solutionViewerStyles.explanationStep}>
                 <Text style={solutionViewerStyles.stepLabel}>Step {i + 1}. {step.title}</Text>
                 <Text style={solutionViewerStyles.stepBody}>{step.body}</Text>
@@ -267,31 +266,33 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
             ))}
 
             {/* Summary */}
-            {currentQ.explanation.summary && (
-              <Text style={solutionViewerStyles.explanationSummary}>{currentQ.explanation.summary}</Text>
+            {currentQ.explanation?.summary && (
+              <Text style={solutionViewerStyles.explanationSummary}>
+                {currentQ.explanation.summary}
+              </Text>
             )}
 
-            {/* Fallback plain text */}
-            {!currentQ.explanation.steps && typeof currentQ.explanation === 'string' && (
+            {/* Plain text fallback */}
+            {!currentQ.explanation?.steps && typeof currentQ.explanation === 'string' && (
               <Text style={solutionViewerStyles.stepBody}>{currentQ.explanation}</Text>
             )}
           </View>
         )}
       </ScrollView>
 
-      {/* ── Navigation ── */}
+      {/* Navigation */}
       <View style={solutionViewerStyles.navRow}>
         <TouchableOpacity
           style={[solutionViewerStyles.navBtn, currentIndex === 0 && solutionViewerStyles.navBtnDisabled]}
           onPress={() => setCurrentIndex((p) => Math.max(0, p - 1))}
           disabled={currentIndex === 0}
         >
-          <Text style={[solutionViewerStyles.navBtnText, currentIndex === 0 && { color: GRAY }]}>‹ Prev</Text>
+          <Text style={[solutionViewerStyles.navBtnText, currentIndex === 0 && { color: GRAY }]}>
+            ‹ Prev
+          </Text>
         </TouchableOpacity>
 
-        <Text style={solutionViewerStyles.navCounter}>
-          {currentIndex + 1} / {totalQ}
-        </Text>
+        <Text style={solutionViewerStyles.navCounter}>{currentIndex + 1} / {totalQ}</Text>
 
         <TouchableOpacity
           style={[solutionViewerStyles.navBtn, currentIndex === totalQ - 1 && solutionViewerStyles.navBtnDisabled]}

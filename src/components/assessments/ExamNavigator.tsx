@@ -1,20 +1,28 @@
-// src/components/home/ExamNavigator.tsx
-// This is a thin wrapper — it renders ExamScreen and passes onSubmit up.
-// ExamScreen already handles the full exam flow with timer, submission modal, etc.
 import React from 'react';
 import ExamScreen from './ExamScreen';
 
 type Props = {
-  onSubmit: (answers: Record<string, string[]>, timeTakenSeconds: number) => void;
-  onBackToAssessments?: () => void; // kept for backward compat
+  assessmentId: number;
+  attemptId: number;
+  onSubmit: (
+    answers: Record<string, string[]>,
+    timeTakenSeconds: number
+  ) => void;
+  onBackToAssessments?: () => void;
 };
 
-export default function ExamNavigator({ onSubmit, onBackToAssessments }: Props) {
+export default function ExamNavigator({
+  assessmentId,
+  attemptId,
+  onSubmit,
+  onBackToAssessments,
+}: Props) {
   return (
     <ExamScreen
-      onSubmit={(answers, seconds) => {
-        onSubmit(answers, seconds);
-      }}
+      assessmentId={assessmentId}
+      attemptId={attemptId}
+      onSubmit={onSubmit}
+      onBackToAssessments={onBackToAssessments}
     />
   );
 }

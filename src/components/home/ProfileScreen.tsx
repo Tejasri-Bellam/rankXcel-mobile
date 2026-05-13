@@ -119,28 +119,28 @@ export default function ProfileScreen() {
   // Notifications
   const [notifs, setNotifs] = useState<any>({});
 
-  // ── Fetch profile (GET /api/v1/auth/me/) ───────────────────────────────────
-const fetchProfile = async () => {
-  try {
-    setLoading(true);
+  // Fetch profile
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
 
-    const res = await getMeService();
-    const userData: any = res?.data;
+      const res = await getMeService();
+      const userData: any = res?.data;
 
-    setUser(userData);
+      setUser(userData);
 
-    const fullName = userData?.name
-      ? userData.name
-      : `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim();
-    setname(fullName);
-    setEmail(userData?.email || '');
-    setPhone(userData?.phone || '');
-  } catch {
-    Alert.alert('Error', 'Failed to load profile data');
-  } finally {
-    setLoading(false);
-  }
-};
+      const fullName = userData?.name
+        ? userData.name
+        : `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim();
+      setname(fullName);
+      setEmail(userData?.email || '');
+      setPhone(userData?.phone || '');
+    } catch {
+      Alert.alert('Error', 'Failed to load profile data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fetch preferences
   const fetchPreferences = async () => {
@@ -209,20 +209,18 @@ const fetchProfile = async () => {
   const handleSavePersonal = async () => {
     try {
       setSaveLoading(true);
-      const nameParts = name.trim().split(' ');
+
       const payload = {
-        first_name: nameParts[0] || '',
-        last_name: nameParts.slice(1).join(' ') || '',
+        name: name.trim(),
         phone,
       };
-      const res:any = await updateMeService(payload);
-      if (res?.status === 200) {
-        Alert.alert('Success', 'Profile updated successfully');
-      } else {
-        Alert.alert('Error', res?.data?.message || 'Failed to update profile');
-      }
+
+      await updateMeService(payload);
+
+      Alert.alert('Success', 'Profile updated successfully');
+      fetchProfile();
     } catch {
-      Alert.alert('Error', 'Failed to update profile');
+      Alert.alert('Un-success', 'Failed to update profile');
     } finally {
       setSaveLoading(false);
     }
@@ -248,27 +246,6 @@ const fetchProfile = async () => {
     }
   };
 
-  // Logout
-  const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setLogoutLoading(true);
-            await logoutService();
-          } catch {
-          } finally {
-            await storageSetAccessToken('');
-            setLogoutLoading(false);
-            router.replace('/auth/login');
-          }
-        },
-      },
-    ]);
-  };
 
   // Exam preferences
   const handleAddExam = async () => {
@@ -302,7 +279,7 @@ const fetchProfile = async () => {
     if (targetPct) payload.target_percentage = Number(targetPct);
 
     const res = await addTargetExamService(payload);
-console.log('res', res);
+    console.log('res', res);
 
       if (res.status === 200 || res.status === 201) {
         Alert.alert("Success", "Target exam added");
@@ -339,44 +316,40 @@ console.log('res', res);
   };
 
   const handleSavePreferences = async () => {
-  try {
-    const payload = exams.map((item) => ({
-      exam: item.id,
-      target_year: item.year,
-    }));
+      try {
+        const payload = exams.map((item) => ({
+          exam: item.id,
+          target_year: item.year,
+        }));
 
-    const res: any = await updatePreferencesService({
-      exams: payload,
-    });
+        await updatePreferencesService({
+          exams: payload,
+        });
 
-    if (res?.status === 200) {
-      Alert.alert('Success', 'Preferences saved');
-    } else {
-      Alert.alert(
-        'Error',
-        res?.data?.message || 'Failed to save preferences'
-      );
-    }
-  } catch {
-    Alert.alert('Error', 'Failed to save preferences');
-  }
-};
+        Alert.alert('Success', 'Target exam added successfully');
+      } catch {
+        Alert.alert('Un-success', 'Failed to add target exam');
+      }
+    };
 
   //  Notifications
   const toggleNotif = async (key: NotifKey) => {
-    const prev = notifs;
-    const next = { ...notifs, [key]: !notifs[key] };
-    setNotifs(next);
-    try {
-      const res: any = await updateNotificationsService({ [key]: next[key] });
-      if (!(res?.status === 200 || res?.status === 204)) {
-        throw new Error('Update failed');
+  const prev = notifs;
+  const next = { ...notifs, [key]: !notifs[key] };
+
+      setNotifs(next);
+
+      try {
+        await updateNotificationsService({
+          [key]: next[key],
+        });
+
+        Alert.alert('Success', 'Notification preference updated');
+      } catch {
+        setNotifs(prev);
+        Alert.alert('Un-success', 'Failed to update notification preference');
       }
-    } catch {
-      setNotifs(prev);
-      Alert.alert('Error', 'Failed to update notification preference');
-    }
-  };
+    };
 
   // Delete account 
   const handleDeleteAccount = () => {
@@ -390,17 +363,15 @@ console.log('res', res);
           style: 'destructive',
           onPress: async () => {
             try {
-              const res = await deleteAccountService();
-              if (res.status === 200 || res.status === 204) {
-                await storage.setAccessToken('');
-                await storage.setRefreshToken();
-                Alert.alert('Deleted', 'Account deleted successfully');
-                router.replace('/auth/login');
-              } else {
-                Alert.alert('Error', (res?.data as any)?.message || 'Failed to delete account');
-              }
+              await deleteAccountService();
+
+              await storageSetAccessToken('');
+              await storage.setRefreshToken();
+
+              Alert.alert('Success', 'Account Deleted Successfully');
+              router.replace('/auth/login');
             } catch {
-              Alert.alert('Error', 'Failed to delete account');
+              Alert.alert('Un-success', 'Failed to Delete Account');
             }
           },
         },
@@ -597,26 +568,6 @@ console.log('res', res);
               </View>
             </View>
           )}
-
-          {/* ── Logout button ── */}
-          {/* <TouchableOpacity
-            style={[profileStyles.securityRow, { marginTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 16 }]}
-            onPress={handleLogout}
-            activeOpacity={0.7}
-            disabled={logoutLoading}
-          >
-            <View style={[profileStyles.securityIconWrap, { backgroundColor: '#FEF2F2' }]}>
-              {logoutLoading
-                ? <ActivityIndicator size="small" color={COLORS.red} />
-                : <Ionicons name="log-out-outline" size={20} color={COLORS.red} />
-              }
-            </View>
-            <View style={profileStyles.securityInfo}>
-              <Text style={[profileStyles.securityTitle, { color: COLORS.red }]}>Logout</Text>
-              <Text style={profileStyles.securitySub}>Sign out of your account</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.red} />
-          </TouchableOpacity> */}
         </View>
 
         {/* ── Notification Preferences ── */}

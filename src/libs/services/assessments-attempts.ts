@@ -1,32 +1,47 @@
-import { genericGETService, genericPOSTService, genericPATCHService, genericDELETEService, genericPUTService } from "./api";
-import { UpdateProfilePayload } from "../types/auth";
+import { genericGet, genericPost, genericPut } from "./genericService";
+
 
 // Get Attempt
 export async function getassessmentAttemptsService(attemptId: number) {
-  return await genericGETService(`/v1/assessment-attempts/${attemptId}/`,true);
+  return await genericGet(`/v1/assessment-attempts/${attemptId}/`,true);
 }
 
-// Start Attempt
 export async function assessmentStartService(attemptId: number) {
-  return await genericPOSTService(`/v1/assessment-attempts/${attemptId}/start/`,{},false,true);
+  return await genericPost(`/v1/assessment-attempts/${attemptId}/start/`,{},
+    { isMultipart: false, useAccessToken: true }
+  );
+}
+
+// Get Questions
+export async function getassessmentsQuestionsService(id: number) {
+  return await genericGet(`/v1/student/assessments/${id}/questions/`,true);
+}
+
+// Save Answer
+export async function updateAssessmentResponsesService(
+  attemptId: number,
+  questionId: number,
+  values: any
+) {
+  return await genericPut(`/v1/assessment-attempts/${attemptId}/responses/${questionId}/`,
+    values,
+    { isMultipart: false, useAccessToken: true}
+  );
 }
 
 // Submit Attempt
 export async function assessmentSubmitService(attemptId: number) {
-  return await genericPOSTService(`/v1/assessment-attempts/${attemptId}/submit/`,{},false,true);
+  return await genericPost(`/v1/assessment-attempts/${attemptId}/submit/`,{},
+    { isMultipart: false, useAccessToken: true }
+  );
 }
 
 // Review
 export async function getassessmentReviewService(attemptId: number) {
-  return await genericGETService(`/v1/assessment-attempts/${attemptId}/review/`,true);
+  return await genericGet(`/v1/assessment-attempts/${attemptId}/review/`,true);
 }
 
 // Result
 export async function getassessmentResultService(attemptId: number) {
-  return await genericGETService(`/v1/assessment-attempts/${attemptId}/result/`,true);
-}
-
-// Save Answer
-export async function updateAssessmentResponsesService(attemptId: number,questionId: number,values: any) {
-  return await genericPUTService(`/v1/assessment-attempts/${attemptId}/responses/${questionId}/`,values,false,true);
+  return await genericGet(`/v1/assessment-attempts/${attemptId}/result/`,true);
 }

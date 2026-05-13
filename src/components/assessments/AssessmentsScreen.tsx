@@ -1,20 +1,15 @@
-import { assessmentsStyles } from '@/src/styles/sidebar/assessmentsStyles';
-import { COLORS } from '@/src/styles/styles';
-import { useEffect, useState } from 'react';
-import {
-  FlatList,
-  ScrollView,
-  StatusBar,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../common/Header';
-import { ProfileMenu } from '../common/ProfileMenu';
-import Sidebar from '../common/Sidebar';
-import ExamDetails from './ExamDetails';
-import { getassessmentsService } from '@/src/libs/services/assessments';
+import { COLORS } from "@/src/styles/styles";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, StatusBar, TouchableOpacity, View } from "react-native";
+import { FlatList, ScrollView, Text } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Header from "../common/Header";
+import Sidebar from "../common/Sidebar";
+import { ProfileMenu } from "../common/ProfileMenu";
+import { getassessmentsService } from "@/src/libs/services/assessments";
+import ExamDetails from "./ExamDetails";
+import { assessmentsStyles } from "@/src/styles/sidebar/assessmentsStyles";
+
 
 type TabType = 'live' | 'upcoming' | 'completed' | 'missed';
 
@@ -49,38 +44,39 @@ const TAB_CONFIG: Record<
 };
 
 export default function AssessmentsScreen() {
-
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        fetchAssessments();
-      }, []);
-
-      const fetchAssessments = async () => {
-  try {
-    setLoading(true);
-
-    const res = await getassessmentsService();
-
-    console.log("ASSESSMENTS API:", res);
-
-    setData(res.data.results || []);
-  } catch (error) {
-    console.log("ASSESSMENTS ERROR:", error);
-  } finally {
-    setLoading(false);
-  }
-};
-
   const [tab, setTab] = useState<TabType>('live');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-
-  // ── Detail view state ──
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  // ── If detail view is active ──
+  useEffect(() => {
+    fetchAssessments();
+  }, []);
+
+  const fetchAssessments = async () => {
+    try {
+      setLoading(true);
+      const res = await getassessmentsService();
+      console.log('ASSESSMENTS RES:', res);
+      const raw: any = res?.data;
+      // Handle both array and paginated { results: [] } responses
+      const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
+      setData(list);
+    } catch (error: any) {
+  console.log("FULL ERROR:", JSON.stringify(error, null, 2));
+
+  console.log("STATUS:", error?.status);
+  console.log("ERROR BODY:", error?.body);
+  console.log("ERRORS:", error?.errors);
+} finally {
+      setLoading(false);
+    }
+  };
+
+  
+  // Show detail view when an item is selected
   if (selectedItem) {
     return (
       <ExamDetails
@@ -90,9 +86,7 @@ export default function AssessmentsScreen() {
     );
   }
 
-  const filteredData = data.filter(
-    (item: any) => item.student_status === tab
-  );
+  const filteredData = data.filter((item: any) => item.student_status === tab);
 
   const counts: Record<TabType, number> = {
     live: data.filter((d: any) => d.student_status === 'live').length,
@@ -102,7 +96,6 @@ export default function AssessmentsScreen() {
   };
 
   const summary = `${counts.live} live · ${counts.upcoming} upcoming · ${counts.completed} completed`;
-
   const config = TAB_CONFIG[tab];
 
   const getButtonLabel = (tabValue: TabType) => {
@@ -123,83 +116,36 @@ export default function AssessmentsScreen() {
   };
 
   const renderCard = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={() => setSelectedItem(item)}
-    >
+    <TouchableOpacity activeOpacity={0.85} onPress={() => setSelectedItem(item)}>
       <View style={assessmentsStyles.card}>
-        <View
-          style={[
-            assessmentsStyles.cardAccentBar,
-            { backgroundColor: config.accentColor },
-          ]}
-        />
-
+        <View style={[assessmentsStyles.cardAccentBar, { backgroundColor: config.accentColor }]} />
         <View style={assessmentsStyles.cardContent}>
-          {/* Status badge */}
-          <View
-            style={[
-              assessmentsStyles.badgeChip,
-              { backgroundColor: config.accentBg },
-            ]}
-          >
-            <View
-              style={[
-                assessmentsStyles.badgeDot,
-                { backgroundColor: config.accentColor },
-              ]}
-            />
-            <Text
-              style={[
-                assessmentsStyles.badgeText,
-                { color: config.accentColor },
-              ]}
-            >
+          <View style={[assessmentsStyles.badgeChip, { backgroundColor: config.accentBg }]}>
+            <View style={[assessmentsStyles.badgeDot, { backgroundColor: config.accentColor }]} />
+            <Text style={[assessmentsStyles.badgeText, { color: config.accentColor }]}>
               {config.label.toUpperCase()}
             </Text>
           </View>
 
-          {/* Title */}
           <Text style={assessmentsStyles.cardTitle}>{item.name}</Text>
+          <Text style={assessmentsStyles.cardDesc}>{item.description || item.exam?.name}</Text>
 
-          {/* Description */}
-          <Text style={assessmentsStyles.cardDesc}>
-            {item.description || item.exam?.name}
-          </Text>
-
-          {/* Duration + Questions meta */}
           <View style={assessmentsStyles.metaRow}>
-            <Text style={assessmentsStyles.metaText}>
-              {item.total_duration_minutes} min
-            </Text>
-            <Text style={assessmentsStyles.metaText}>
-              {item.question_count} Q
-            </Text>
+            <Text style={assessmentsStyles.metaText}>{item.total_duration_minutes} min</Text>
+            <Text style={assessmentsStyles.metaText}>{item.question_count} Q</Text>
           </View>
 
-          {/* Window label */}
           {item.window_label && (
-            <Text style={assessmentsStyles.windowText}>
-              {item.window_label}
-            </Text>
+            <Text style={assessmentsStyles.windowText}>{item.window_label}</Text>
           )}
 
-          {/* Footer: date + action button */}
           <View style={assessmentsStyles.cardFooter}>
-            <Text style={assessmentsStyles.dateLabel}>
-              {item.date_label}
-            </Text>
-
+            <Text style={assessmentsStyles.dateLabel}>{item.date_label}</Text>
             <TouchableOpacity
-              style={[
-                assessmentsStyles.primaryBtn,
-                { backgroundColor: getButtonColor(tab) },
-              ]}
-              onPress={() => setSelectedItem(item.id + item.attempt_id)}
+              style={[assessmentsStyles.primaryBtn, { backgroundColor: getButtonColor(tab) }]}
+              onPress={() => setSelectedItem(item)}
             >
-              <Text style={assessmentsStyles.primaryBtnText}>
-                {getButtonLabel(tab)}
-              </Text>
+              <Text style={assessmentsStyles.primaryBtnText}>{getButtonLabel(tab)}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -210,44 +156,18 @@ export default function AssessmentsScreen() {
   const TabButton = ({ value }: { value: TabType }) => {
     const active = tab === value;
     const cfg = TAB_CONFIG[value];
-
     return (
       <TouchableOpacity
-        style={[
-          assessmentsStyles.tabBtn,
-          active && assessmentsStyles.tabBtnActive,
-        ]}
+        style={[assessmentsStyles.tabBtn, active && assessmentsStyles.tabBtnActive]}
         onPress={() => setTab(value)}
       >
-        <View
-          style={[
-            assessmentsStyles.tabDot,
-            { backgroundColor: cfg.dot },
-          ]}
-        />
-
-        <Text
-          style={[
-            assessmentsStyles.tabText,
-            active && assessmentsStyles.tabTextActive,
-          ]}
-        >
+        <View style={[assessmentsStyles.tabDot, { backgroundColor: cfg.dot }]} />
+        <Text style={[assessmentsStyles.tabText, active && assessmentsStyles.tabTextActive]}>
           {cfg.label}
         </Text>
-
         {counts[value] > 0 && (
-          <View
-            style={[
-              assessmentsStyles.tabBadge,
-              active && assessmentsStyles.tabBadgeActive,
-            ]}
-          >
-            <Text
-              style={[
-                assessmentsStyles.tabBadgeText,
-                active && assessmentsStyles.tabBadgeTextActive,
-              ]}
-            >
+          <View style={[assessmentsStyles.tabBadge, active && assessmentsStyles.tabBadgeActive]}>
+            <Text style={[assessmentsStyles.tabBadgeText, active && assessmentsStyles.tabBadgeTextActive]}>
               {counts[value]}
             </Text>
           </View>
@@ -258,9 +178,7 @@ export default function AssessmentsScreen() {
 
   const renderEmpty = () => (
     <View style={assessmentsStyles.emptyContainer}>
-      <Text style={assessmentsStyles.emptyTitle}>
-        No {tab} assessments
-      </Text>
+      <Text style={assessmentsStyles.emptyTitle}>No {tab} assessments</Text>
       <Text style={assessmentsStyles.emptySubtitle}>
         You have no {tab} assessments right now.
       </Text>
@@ -270,19 +188,16 @@ export default function AssessmentsScreen() {
   return (
     <SafeAreaView style={assessmentsStyles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
       <Header
         onMenuPress={() => setDrawerOpen(true)}
         onProfilePress={() => setProfileOpen(true)}
       />
 
-      {/* TOP FIXED CONTENT */}
       <View>
         <View style={assessmentsStyles.pageTitleRow}>
           <Text style={assessmentsStyles.pageTitle}>Assessments</Text>
           <Text style={assessmentsStyles.pageSummary}>{summary}</Text>
         </View>
-
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -295,9 +210,12 @@ export default function AssessmentsScreen() {
         </ScrollView>
       </View>
 
-      {/* FLEX CONTENT AREA */}
       <View style={{ flex: 1 }}>
-        {filteredData.length === 0 ? (
+        {loading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        ) : filteredData.length === 0 ? (
           renderEmpty()
         ) : (
           <FlatList

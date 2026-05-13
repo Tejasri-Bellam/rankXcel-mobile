@@ -1,5 +1,6 @@
 
 import { getAuthState } from "../context/authStore";
+import { ApiResponse } from "../types/api";
 import { storageGetAccessToken } from "../utils/storage";
 import { axiosInstance, getHeaders } from "./apiClient";
 
