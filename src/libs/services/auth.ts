@@ -2,14 +2,7 @@
 import { LoginPayload, SignupPayload, ForgotPasswordPayload, ResetPasswordConfirmPayload, VerifyEmailPayload, ResendOtpPayload, UpdateProfilePayload, } from "../types/auth";
 import { genericPost } from "./genericService";
 
-// ---------------- AUTH ----------------
 
-// Login
-// export async function loginService(values: LoginPayload) {
-//   console.log("Login Service Called with values:", values);
-//   return await genericPOSTService("/v1/auth/login/", values, false, false);
-// }
-// Login
 export async function loginService(data: any) {
   return await genericPost(
     "/v1/auth/login/",
