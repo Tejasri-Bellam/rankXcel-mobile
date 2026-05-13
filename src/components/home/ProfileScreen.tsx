@@ -2,6 +2,7 @@ import { logoutService } from '@/src/libs/services/auth';
 import {
   addTargetExamService,
   deleteAccountService,
+  getExamsListService,
   getMeService,
   getNotificationsService,
   getPreferencesService,
@@ -33,14 +34,18 @@ import Sidebar from '../common/Sidebar';
 import { ProfileMenu } from '../common/ProfileMenu';
 
 const { width } = Dimensions.get('window');
-const storage = {
-  setAccessToken: storageSetAccessToken,
-  setRefreshToken: async () => Promise.resolve(),
-};
 
 // Types
 type ExamEntry = { id: number; name: string; year: string };
 type NotifKey = 'mockResults' | 'weeklyTips' | 'mockNotif' | 'practiceReminders' | 'productUpdates';
+
+const NOTIFICATION_ITEMS: { key: NotifKey; label: string; channel: string }[] = [
+  { key: 'mockResults', label: 'Mock results and analysis ready', channel: 'Email' },
+  { key: 'weeklyTips', label: 'Weekly study tips and performance insights', channel: 'Email' },
+  { key: 'mockNotif', label: 'Mock results notification', channel: 'In-App' },
+  { key: 'practiceReminders', label: 'Practice reminders and streaks', channel: 'In-App' },
+  { key: 'productUpdates', label: 'Product updates and announcements', channel: 'In-App' },
+];
 
 // Section Header
 const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -58,8 +63,7 @@ const LabeledInput = ({
   placeholder?: string; keyboardType?: any; disabled?: boolean;
 }) => (
   <View style={profileStyles.inputGroup}>
-   <Text style={profileStyles.heroName}>
-</Text>
+    <Text style={profileStyles.inputLabel}>{label}</Text>
     <View style={[profileStyles.inputWrap, disabled && { backgroundColor: '#f2f2f2', opacity: 0.7 }]}>
       {label === 'Phone Number' && (
         <Ionicons name="call-outline" size={15} color={COLORS.textLight} style={profileStyles.inputIcon} />
@@ -105,11 +109,12 @@ export default function ProfileScreen() {
 
   // Exam preferences
   const [exams, setExams] = useState<ExamEntry[]>([]);
-  const [selectedExam, setSelectedExam] = useState('');
+  const [selectedExamId, setSelectedExamId] = useState<number | ''>('');
+  const [selectedExamName, setSelectedExamName] = useState('');
   const [targetYear, setTargetYear] = useState('');
   const [targetPct, setTargetPct] = useState('');
   const [examDropdownOpen, setExamDropdownOpen] = useState(false);
-  const examOptions = user?.examOptions || [];
+  const [examOptions, setExamOptions] = useState<{ id: number; name: string }[]>([]);
 
   // Notifications
   const [notifs, setNotifs] = useState<any>({});
@@ -120,13 +125,16 @@ const fetchProfile = async () => {
     setLoading(true);
 
     const res = await getMeService();
-    const userData = res?.data;
+    const userData: any = res?.data;
 
     setUser(userData);
 
-      setname(`${user?.name || ''}`.trim());
-      setEmail(user?.email || '');
-      setPhone(user?.phone || '');
+    const fullName = userData?.name
+      ? userData.name
+      : `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim();
+    setname(fullName);
+    setEmail(userData?.email || '');
+    setPhone(userData?.phone || '');
   } catch {
     Alert.alert('Error', 'Failed to load profile data');
   } finally {
@@ -139,16 +147,14 @@ const fetchProfile = async () => {
   try {
     const res = await getPreferencesService();
 
-    console.log("Preferences Response:", res.data);
-
     if (res.status === 200) {
-      const data = res.data as { results?: any[] };
-      const mappedExams =
-        data?.results?.map((item: any) => ({
-          id: item.exam_id,
-          name: item.exam_name,
-          year: String(item.target_year),
-        })) || [];
+      const raw: any = res.data;
+      const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
+      const mappedExams = list.map((item: any) => ({
+        id: item.exam?.id ?? item.exam_id,
+        name: item.exam?.name ?? item.exam_name,
+        year: String(item.target_year ?? ''),
+      }));
 
       setExams(mappedExams);
     }
@@ -157,13 +163,35 @@ const fetchProfile = async () => {
   }
 };
 
+  // Fetch list of available exams for dropdown
+  const fetchExamsList = async () => {
+    try {
+      const res = await getExamsListService();
+      if (res.status === 200) {
+        const raw: any = res.data;
+        const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
+        setExamOptions(
+          list.map((item: any) => ({ id: item.id, name: item.name }))
+        );
+      }
+    } catch (error) {
+      console.log('Exams list error:', error);
+    }
+  };
+
   //  Fetch notifications
   const fetchNotifications = async () => {
     try {
       const res = await getNotificationsService();
       if (res?.status === 200) {
-        setNotifs(res?.data || user.notifications);
-      
+        const data: any = res?.data || {};
+        setNotifs({
+          mockResults: !!data.mockResults,
+          weeklyTips: !!data.weeklyTips,
+          mockNotif: !!data.mockNotif,
+          practiceReminders: !!data.practiceReminders,
+          productUpdates: !!data.productUpdates,
+        });
       }
     } catch (error) {
       console.log('Notifications Error:', error);
@@ -173,6 +201,7 @@ const fetchProfile = async () => {
   useEffect(() => {
     fetchProfile();
     fetchPreferences();
+    fetchExamsList();
     fetchNotifications();
   }, []);
 
@@ -232,8 +261,7 @@ const fetchProfile = async () => {
             await logoutService();
           } catch {
           } finally {
-            await storage.setAccessToken('');
-            await storage.setRefreshToken();
+            await storageSetAccessToken('');
             setLogoutLoading(false);
             router.replace('/auth/login');
           }
@@ -244,7 +272,7 @@ const fetchProfile = async () => {
 
   // Exam preferences
   const handleAddExam = async () => {
-  if (!selectedExam || !targetYear) {
+  if (!selectedExamId || !targetYear) {
     Alert.alert(
       "Required",
       "Please select an exam and enter a target year."
@@ -252,33 +280,68 @@ const fetchProfile = async () => {
     return;
   }
 
+  if (exams.some((ex) => ex.id === selectedExamId)) {
+    Alert.alert(
+      "Already added",
+      `${selectedExamName} is already in your target exams.`
+    );
+    return;
+  }
+
   try {
-    const payload = {
-      exam_id: selectedExam,
-      target_year: targetYear,
-      target_percentage: targetPct || undefined,
+    const payload: {
+      exam: number | string;
+      target_year: number;
+      target_percentage?: number;
+    } = {
+      exam: selectedExamId,
+      target_year: Number(targetYear),
     };
+    console.log('payload', payload);
+    
+    if (targetPct) payload.target_percentage = Number(targetPct);
 
     const res = await addTargetExamService(payload);
+console.log('res', res);
 
       if (res.status === 200 || res.status === 201) {
         Alert.alert("Success", "Target exam added");
 
-        setSelectedExam("");
+        setSelectedExamId('');
+        setSelectedExamName('');
         setTargetYear("");
         setTargetPct("");
 
         fetchPreferences();
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to add target exam");
+    } catch (error: any) {
+      console.log(
+        "Add target exam error — status:",
+        error?.status,
+        "errors:",
+        JSON.stringify(error?.errors),
+        "body:",
+        JSON.stringify(error?.body)
+      );
+      const apiErrors = error?.errors || {};
+      const body = error?.body || {};
+      const firstMessage =
+        apiErrors.nonFieldErrors?.[0] ||
+        apiErrors.exam?.[0] ||
+        apiErrors.target_year?.[0] ||
+        apiErrors.target_percentage?.[0] ||
+        Object.values(apiErrors).flat()[0] ||
+        (typeof body.detail === "string" ? body.detail : null) ||
+        JSON.stringify(body) ||
+        "Failed to add target exam";
+      Alert.alert("Error", String(firstMessage));
     }
   };
 
   const handleSavePreferences = async () => {
   try {
     const payload = exams.map((item) => ({
-      exam_id: item.id,
+      exam: item.id,
       target_year: item.year,
     }));
 
@@ -299,13 +362,18 @@ const fetchProfile = async () => {
   }
 };
 
-  //  Notifications 
+  //  Notifications
   const toggleNotif = async (key: NotifKey) => {
-    const updated = { ...notifs, [key]: !notifs[key] };
-    setNotifs(updated);
+    const prev = notifs;
+    const next = { ...notifs, [key]: !notifs[key] };
+    setNotifs(next);
     try {
-      await updateNotificationsService(updated);
+      const res: any = await updateNotificationsService({ [key]: next[key] });
+      if (!(res?.status === 200 || res?.status === 204)) {
+        throw new Error('Update failed');
+      }
     } catch {
+      setNotifs(prev);
       Alert.alert('Error', 'Failed to update notification preference');
     }
   };
@@ -369,19 +437,25 @@ const fetchProfile = async () => {
         {/* ── Profile Hero ── */}
         <View style={profileStyles.heroCard}>
           <View style={profileStyles.heroAvatar}>
-            {/* <Text style={profileStyles.heroAvatarText}>{user.initials}</Text> */}
+            <Text style={profileStyles.heroAvatarText}>
+              {(name || email || '?')
+                .split(' ')
+                .filter(Boolean)
+                .map((p) => p[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase()}
+            </Text>
           </View>
-          {/* <Text style={profileStyles.heroName}>{name || user.name}</Text> */}
-          {/* <Text style={profileStyles.heroEmail}>{email || user.email}</Text> */}
-          <View style={profileStyles.heroBadges}>
-            <View style={profileStyles.heroBadgeChip}>
-              {/* <Text style={profileStyles.heroBadgeText}>{user.role}</Text> */}
+          {name ? <Text style={profileStyles.heroName}>{name}</Text> : null}
+          {email ? <Text style={profileStyles.heroEmail}>{email}</Text> : null}
+          {user?.role ? (
+            <View style={profileStyles.heroBadges}>
+              <View style={profileStyles.heroBadgeChip}>
+                <Text style={profileStyles.heroBadgeText}>{user.role}</Text>
+              </View>
             </View>
-            <View style={profileStyles.heroBadgeChip}>
-              <Ionicons name="calendar-outline" size={12} color={COLORS.textLight} />
-              {/* <Text style={profileStyles.heroBadgeText}>Member since {user.memberSince}</Text> */}
-            </View>
-          </View>
+          ) : null}
         </View>
 
         {/* ── Personal Information ── */}
@@ -416,19 +490,33 @@ const fetchProfile = async () => {
           <View style={profileStyles.addExamForm}>
             <Text style={profileStyles.inputLabel}>Target Exam *</Text>
             <TouchableOpacity style={profileStyles.dropdown} onPress={() => setExamDropdownOpen(!examDropdownOpen)}>
-              <Text style={[profileStyles.dropdownText, !selectedExam && { color: COLORS.textLight }]}>
-                {selectedExam || 'Select exam'}
+              <Text style={[profileStyles.dropdownText, !selectedExamName && { color: COLORS.textLight }]}>
+                {selectedExamName || 'Select exam'}
               </Text>
               <Ionicons name={examDropdownOpen ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.textLight} />
             </TouchableOpacity>
 
             {examDropdownOpen && (
               <View style={profileStyles.dropdownOptions}>
-                {examOptions.map((opt: string) => (
-                  <TouchableOpacity key={opt} style={profileStyles.dropdownOption} onPress={() => { setSelectedExam(opt); setExamDropdownOpen(false); }}>
-                    <Text style={profileStyles.dropdownOptionText}>{opt}</Text>
-                  </TouchableOpacity>
-                ))}
+                {examOptions.length === 0 ? (
+                  <View style={profileStyles.dropdownOption}>
+                    <Text style={[profileStyles.dropdownOptionText, { color: COLORS.textLight }]}>No exams available</Text>
+                  </View>
+                ) : (
+                  examOptions.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={profileStyles.dropdownOption}
+                      onPress={() => {
+                        setSelectedExamId(opt.id);
+                        setSelectedExamName(opt.name);
+                        setExamDropdownOpen(false);
+                      }}
+                    >
+                      <Text style={profileStyles.dropdownOptionText}>{opt.name}</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
               </View>
             )}
 
@@ -511,7 +599,7 @@ const fetchProfile = async () => {
           )}
 
           {/* ── Logout button ── */}
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={[profileStyles.securityRow, { marginTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 16 }]}
             onPress={handleLogout}
             activeOpacity={0.7}
@@ -528,27 +616,27 @@ const fetchProfile = async () => {
               <Text style={profileStyles.securitySub}>Sign out of your account</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.red} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         {/* ── Notification Preferences ── */}
         <View style={profileStyles.card}>
           <SectionHeader title="Notification Preferences" subtitle="Choose what updates you'd like to receive." />
-          {/* {user.notificationList.map((item: any, idx: number, arr: any[]) => (
+          {NOTIFICATION_ITEMS.map((item, idx, arr) => (
             <View key={item.key} style={[profileStyles.notifRow, idx < arr.length - 1 && profileStyles.notifRowBorder]}>
               <View style={profileStyles.notifInfo}>
                 <Text style={profileStyles.notifLabel}>{item.label}</Text>
                 <Text style={profileStyles.notifChannel}>{item.channel}</Text>
               </View>
               <Switch
-                value={notifs[item.key as NotifKey]}
-                onValueChange={() => toggleNotif(item.key as NotifKey)}
+                value={!!notifs[item.key]}
+                onValueChange={() => toggleNotif(item.key)}
                 trackColor={{ false: COLORS.border, true: COLORS.primary }}
                 thumbColor={COLORS.white}
                 ios_backgroundColor={COLORS.border}
               />
             </View>
-          ))} */}
+          ))}
         </View>
 
         {/* ── Danger Zone ── */}
