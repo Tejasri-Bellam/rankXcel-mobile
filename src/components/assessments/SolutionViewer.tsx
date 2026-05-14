@@ -63,10 +63,10 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     );
   }
 
-  // Flatten all questions — API may return { sections: [] } or { results: [] }
+  // Flatten all questions
   const sections: any[] = reviewData?.sections ?? reviewData?.results ?? [];
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // eslint-disable-next-line
   const allQuestions = useMemo(
     () =>
       sections.flatMap((s: any) =>
@@ -78,7 +78,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const totalQ = allQuestions.length;
 
   // currentIndex state must come after all hooks
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [currentIndex, setCurrentIndex] = useState(0);
 
   if (totalQ === 0) {

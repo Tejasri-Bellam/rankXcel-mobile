@@ -1,23 +1,18 @@
+// src/components/assessments/ExamDetails.tsx
+
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  ActivityIndicator,
-  Alert,
+  View, Text, TouchableOpacity, ScrollView,
+  StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ExamInstructions from './ExamInstructions';
 import ExamNavigator from './ExamNavigator';
 import ExamResults from './ExamResults';
 import SolutionViewer from './SolutionViewer';
-import {
-  assessmentStartService,
-} from '@/src/libs/services/assessments-attempts';
+import { assessmentStartService } from '@/src/libs/services/assessments-attempts';
 import { reattemptAssessmentService } from '@/src/libs/services/assessments';
-import { examDetailsStyles } from '@/src/styles/sidebar/assessments/examDetails';
+import { examDetailsStyles as styles } from '@/src/styles/sidebar/assessments/examDetails';
 
 interface Props {
   item: any;
@@ -26,57 +21,95 @@ interface Props {
 
 type ExamView = 'detail' | 'instructions' | 'exam' | 'results' | 'solutions';
 
+const STATUS_CONFIG = {
+  live:      { label: 'Live Now',  color: '#22C55E', bg: '#F0FDF4' },
+  upcoming:  { label: 'Upcoming',  color: '#F59E0B', bg: '#FFFBEB' },
+  completed: { label: 'Completed', color: '#9898B0', bg: '#F5F5F8' },
+  missed:    { label: 'Missed',    color: '#EF4444', bg: '#FEF2F2' },
+} as const;
+
 export default function ExamDetails({ item, onBack }: Props) {
   const assessmentId: number = item?.id;
-  const [attemptId, setAttemptId] = useState<number>(item?.attempt_id);
+  const [attemptId, setAttemptId] = useState<number>(item?.latest_attempt_id);
   const [currentView, setCurrentView] = useState<ExamView>('detail');
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
   const [timeTaken, setTimeTaken] = useState(0);
   const [startLoading, setStartLoading] = useState(false);
-  const [instructionsOpen, setInstructionsOpen] = useState(true);
 
-  const isCompleted = item?.student_status === 'completed';
-  const isMissed = item?.student_status === 'missed';
-  const isLive = item?.student_status === 'live';
-  const isUpcoming = item?.student_status === 'upcoming';
+  const isCompleted  = item?.latest_attempt_status === 'COMPLETED';
+  const isInProgress = item?.latest_attempt_status === 'IN_PROGRESS';
+  const isMissed     = item?.student_status === 'missed';
+  const isLive       = item?.student_status === 'live';
+  const isUpcoming   = item?.student_status === 'upcoming';
 
-  // Start from instructions page (live/upcoming)
+  // Helpers
+  const formatSchedule = (): string | null => {
+    if (!item?.scheduled_at) return null;
+    const start = new Date(item.scheduled_at);
+    const end   = new Date(start.getTime() + (item.total_duration_minutes ?? 0) * 60000);
+    const fmt = (d: Date) =>
+      d.toLocaleString('en-US', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true,
+      });
+    return `${fmt(start)} — ${fmt(end)}`;
+  };
+
+  const getStatus = () => {
+    if (isCompleted) return 'completed';
+    if (isLive)      return 'live';
+    if (isUpcoming)  return 'upcoming';
+    if (isMissed)    return 'missed';
+    return 'upcoming';
+  };
+
+  const getStatValue = () => {
+    if (isCompleted)  return 'Submitted';
+    if (isInProgress) return 'In Progress';
+    if (isLive)       return 'Active';
+    if (isUpcoming)   return 'Upcoming';
+    return 'Not Started';
+  };
+
+  // ── Handlers ─────────────────────────────────────
   const handleStartFromInstructions = async () => {
+    if (!attemptId) {
+      Alert.alert('Error', 'No attempt ID found.');
+      return;
+    }
     try {
-      console.log('BUTTON CLICKED');
-      console.log('ATTEMPT ID:', attemptId);
-
       setStartLoading(true);
-
-      const res = await assessmentStartService(attemptId);
-
-      console.log('START RESPONSE:', res);
-
-      setCurrentView('exam');
-    } catch (error) {
-      console.log('START ERROR:', error);
+      await assessmentStartService(attemptId);
+    } catch (error: any) {
+      const code = error?.body?.code ?? error?.errors?.code?.[0];
+      if (code !== 'INVALID_STATE') {
+        Alert.alert('Error', error?.body?.error ?? 'Failed to start. Please try again.');
+        return;
+      }
+      // INVALID_STATE = already started → proceed to exam
     } finally {
       setStartLoading(false);
     }
+    setCurrentView('exam');
   };
 
-  // Re-attempt: get new attempt then show instructions
   const handleReattempt = async () => {
     try {
       setStartLoading(true);
       const res: any = await reattemptAssessmentService(assessmentId);
-      const newAttemptId = res?.data?.id ?? res?.data?.attempt_id;
+      const newAttemptId =
+        res?.data?.id ?? res?.data?.attempt_id ?? res?.data?.latest_attempt_id;
       if (!newAttemptId) throw new Error('No attempt id returned');
       setAttemptId(newAttemptId);
       setCurrentView('instructions');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to create a new attempt. Please try again.');
     } finally {
       setStartLoading(false);
     }
   };
 
-  // ── Sub-views ──
+  // ── Sub-views ─────────────────────────────────────
   if (currentView === 'instructions') {
     return (
       <ExamInstructions
@@ -84,6 +117,10 @@ export default function ExamDetails({ item, onBack }: Props) {
         startLoading={startLoading}
         onStartExam={handleStartFromInstructions}
         onBack={() => setCurrentView('detail')}
+        isCompleted={isCompleted}
+        onViewResults={() => setCurrentView('results')}
+        onViewSolutions={() => setCurrentView('solutions')}
+        onReattempt={handleReattempt}
       />
     );
   }
@@ -93,6 +130,7 @@ export default function ExamDetails({ item, onBack }: Props) {
       <ExamNavigator
         assessmentId={assessmentId}
         attemptId={attemptId}
+        durationMinutes={item?.total_duration_minutes ?? 60}
         onSubmit={(answers, seconds) => {
           setSubmittedAnswers(answers);
           setTimeTaken(seconds);
@@ -126,196 +164,183 @@ export default function ExamDetails({ item, onBack }: Props) {
     );
   }
 
-  // ─────────────────────────────────────────
-  // DETAIL SCREEN  (matches Image 1)
-  // ─────────────────────────────────────────
+  // Detail screen
+  const sc = STATUS_CONFIG[getStatus()];
+  const schedule = formatSchedule();
+
   return (
-    <SafeAreaView style={examDetailsStyles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}
-      <View style={examDetailsStyles.header}>
-        <TouchableOpacity style={examDetailsStyles.backBtn} onPress={onBack}>
-          <Text style={examDetailsStyles.backArrow}>←</Text>
-          <Text style={examDetailsStyles.backText}>Assessments</Text>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+          <Text style={styles.backArrow}>←</Text>
+          <Text style={styles.backText}>Assessments</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={examDetailsStyles.scroll} contentContainerStyle={examDetailsStyles.scrollContent} showsVerticalScrollIndicator={false}>
-
-        {/* Status badge */}
-        {isLive && (
-          <View style={examDetailsStyles.badge}>
-            <View style={[examDetailsStyles.dot, { backgroundColor: '#22C55E' }]} />
-            <Text style={[examDetailsStyles.badgeText, { color: '#22C55E' }]}>LIVE NOW</Text>
-          </View>
-        )}
-        {isUpcoming && (
-          <View style={examDetailsStyles.badge}>
-            <View style={[examDetailsStyles.dot, { backgroundColor: '#F59E0B' }]} />
-            <Text style={[examDetailsStyles.badgeText, { color: '#F59E0B' }]}>UPCOMING</Text>
-          </View>
-        )}
-        {isCompleted && (
-          <View style={examDetailsStyles.badge}>
-            <View style={[examDetailsStyles.dot, { backgroundColor: '#9898B0' }]} />
-            <Text style={[examDetailsStyles.badgeText, { color: '#9898B0' }]}>COMPLETED</Text>
-          </View>
-        )}
-        {isMissed && (
-          <View style={examDetailsStyles.badge}>
-            <View style={[examDetailsStyles.dot, { backgroundColor: '#EF4444' }]} />
-            <Text style={[examDetailsStyles.badgeText, { color: '#EF4444' }]}>MISSED</Text>
-          </View>
-        )}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Status badge pill */}
+        <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
+          <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
+          <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+        </View>
 
         {/* Title */}
-        <Text style={examDetailsStyles.title}>{item?.name}</Text>
+        <Text style={styles.title}>{item?.name}</Text>
 
-        {/* Exam tag */}
-        {item?.exam?.name && (
-          <View style={examDetailsStyles.tagChip}>
-            <Text style={examDetailsStyles.tagText}>{item.exam.name}</Text>
+        {/* Description */}
+        {!!item?.description && (
+          <Text style={styles.description}>{item.description}</Text>
+        )}
+
+        {/* Exam tag chip */}
+        {!!item?.exam?.name && (
+          <View style={styles.tagChip}>
+            <Text style={styles.tagText}>{item.exam.name}</Text>
           </View>
         )}
 
-        {/* Stats grid */}
-        <View style={examDetailsStyles.statsGrid}>
-          <View style={examDetailsStyles.statCard}>
-            <Text style={examDetailsStyles.statIcon}>⏱</Text>
-            <Text style={examDetailsStyles.statValue}>{item?.total_duration_minutes ?? 0} min</Text>
-            <Text style={examDetailsStyles.statLabel}>Duration</Text>
-          </View>
-          <View style={examDetailsStyles.statCard}>
-            <Text style={examDetailsStyles.statIcon}>📋</Text>
-            <Text style={examDetailsStyles.statValue}>{item?.question_count ?? 0} Total</Text>
-            <Text style={examDetailsStyles.statLabel}>Questions</Text>
-          </View>
-          <View style={examDetailsStyles.statCard}>
-            <Text style={examDetailsStyles.statIcon}>🔁</Text>
-            <Text style={examDetailsStyles.statValue}>{item?.attempt_count ?? 1}</Text>
-            <Text style={examDetailsStyles.statLabel}>Attempts</Text>
-          </View>
-          <View style={examDetailsStyles.statCard}>
-            <Text style={examDetailsStyles.statIcon}>✅</Text>
-            <Text style={examDetailsStyles.statValue} numberOfLines={1}>
-              {isCompleted ? 'Submitted' : isLive ? 'Active' : isUpcoming ? 'Upcoming' : 'Not Started'}
-            </Text>
-            <Text style={examDetailsStyles.statLabel}>Status</Text>
-          </View>
+        {/* Stats 2×2 grid */}
+        <View style={styles.statsGrid}>
+          {[
+            { icon: '⏱', value: `${item?.total_duration_minutes ?? 0} min`, label: 'Duration' },
+            { icon: '📋', value: `${item?.question_count ?? 0} Total`,        label: 'Questions' },
+            { icon: '🔁', value: `${item?.total_attempts ?? 1}`,               label: 'Attempts' },
+            { icon: '✅', value: getStatValue(),                               label: 'Status' },
+          ].map((s, i) => (
+            <View key={i} style={styles.statCard}>
+              <Text style={styles.statIcon}>{s.icon}</Text>
+              <Text style={styles.statValue} numberOfLines={1}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Schedule */}
-        <Text style={examDetailsStyles.sectionTitle}>Schedule</Text>
-        {item?.window_label && (
-          <View style={examDetailsStyles.scheduleRow}>
-            <View style={examDetailsStyles.scheduleIconBox}><Text style={examDetailsStyles.scheduleIconText}>📅</Text></View>
-            <View style={examDetailsStyles.scheduleInfo}>
-              <Text style={examDetailsStyles.scheduleMain}>{item.window_label}</Text>
-              <Text style={examDetailsStyles.scheduleLabel}>Assessment window</Text>
+        <Text style={styles.sectionTitle}>Schedule</Text>
+
+        {schedule && (
+          <View style={styles.scheduleRow}>
+            <View style={styles.scheduleIconBox}>
+              <Text style={styles.scheduleIconText}>📅</Text>
+            </View>
+            <View style={styles.scheduleInfo}>
+              <Text style={styles.scheduleMain}>{schedule}</Text>
+              <Text style={styles.scheduleLabel}>Assessment window</Text>
             </View>
           </View>
         )}
-        <View style={examDetailsStyles.scheduleRow}>
-          <View style={examDetailsStyles.scheduleIconBox}><Text style={examDetailsStyles.scheduleIconText}>⏰</Text></View>
-          <View style={examDetailsStyles.scheduleInfo}>
-            <Text style={examDetailsStyles.scheduleMain}>{item?.total_duration_minutes ?? 0} min</Text>
-            <Text style={examDetailsStyles.scheduleLabel}>Exam duration</Text>
+
+        <View style={styles.scheduleRow}>
+          <View style={styles.scheduleIconBox}>
+            <Text style={styles.scheduleIconText}>⏰</Text>
+          </View>
+          <View style={styles.scheduleInfo}>
+            <Text style={styles.scheduleMain}>{item?.total_duration_minutes ?? 0} min</Text>
+            <Text style={styles.scheduleLabel}>Exam duration</Text>
           </View>
         </View>
 
-        {/* Live "Assessment has started!" green banner (Image 1) */}
-        {(isLive || isUpcoming) && (
-          <View style={examDetailsStyles.liveStartedBanner}>
-            <Text style={examDetailsStyles.liveStartedTitle}>
-              {isLive ? 'Assessment has started!' : 'Assessment is upcoming'}
-            </Text>
-            <Text style={examDetailsStyles.liveStartedSub}>
-              {isLive ? 'Refresh the page to join.' : 'Be ready when the window opens.'}
-            </Text>
-          </View>
-        )}
-
         {/* Completed banner */}
         {isCompleted && (
-          <View style={examDetailsStyles.completedBanner}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <View style={[examDetailsStyles.dot, { backgroundColor: '#22C55E' }]} />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#166534' }}>Assessment Completed</Text>
+          <View style={styles.completedBanner}>
+            <Text style={styles.completedBannerIcon}>✅</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.completedBannerTitle}>Assessment Completed</Text>
+              <Text style={styles.completedBannerSub}>You have completed this assessment.</Text>
             </View>
-            <Text style={{ fontSize: 13, color: '#22C55E' }}>You have completed this assessment.</Text>
           </View>
         )}
 
-        {/* Instructions accordion (Image 1 bottom section) */}
-        <TouchableOpacity
-          style={examDetailsStyles.instructionsHeader}
-          onPress={() => setInstructionsOpen(!instructionsOpen)}
-          activeOpacity={0.7}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-            <Text style={{ fontSize: 18 }}>⚠️</Text>
-            <View>
-              <Text style={examDetailsStyles.instructionsTitle}>Assessment Instructions</Text>
-              <Text style={examDetailsStyles.instructionsSub}>(Read before starting)</Text>
-            </View>
+        {/* Live / Upcoming banner */}
+        {(isLive || isUpcoming) && (
+          <View style={[
+            styles.liveBanner,
+            {
+              backgroundColor: isLive ? '#F0FDF4' : '#FFFBEB',
+              borderLeftColor: isLive ? '#22C55E' : '#F59E0B',
+            },
+          ]}>
+            <Text style={[styles.liveBannerTitle, { color: isLive ? '#166534' : '#92400E' }]}>
+              {isLive ? '🟢  Assessment has started!' : '🕐  Assessment is upcoming'}
+            </Text>
+            <Text style={[styles.liveBannerSub, { color: isLive ? '#166534' : '#92400E' }]}>
+              {isLive
+                ? 'Click Resume Assessment to join.'
+                : 'Be ready when the window opens.'}
+            </Text>
           </View>
-          <Text style={examDetailsStyles.instructionsChevron}>{instructionsOpen ? '∧' : '›'}</Text>
+        )}
+
+        {/* Instructions accordion (tappable → goes to full instructions) */}
+        <TouchableOpacity
+          style={styles.instructionsHeader}
+          onPress={() => setCurrentView('instructions')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.instructionsHeaderIcon}>⚠️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.instructionsTitle}>Assessment Instructions</Text>
+            <Text style={styles.instructionsSub}>(Read before starting)</Text>
+          </View>
+          <Text style={styles.instructionsChevron}>›</Text>
         </TouchableOpacity>
 
-        {instructionsOpen && (
-          <View style={examDetailsStyles.instructionPreview}>
-            <Text style={examDetailsStyles.instructionLine}>1. This is a live assessment. All students take the exam within the same time window.</Text>
-            <TouchableOpacity onPress={() => setCurrentView('instructions')} style={{ marginTop: 8 }}>
-              <Text style={{ fontSize: 13, color: '#6C5CE7', fontWeight: '600' }}>Read all instructions →</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.instructionPreview}>
+          <Text style={styles.instructionPreviewText}>
+            1. This is a live assessment. All students take the exam within the same time window.
+          </Text>
+          <TouchableOpacity onPress={() => setCurrentView('instructions')}>
+            <Text style={styles.instructionReadAll}>Read all instructions →</Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Completed actions */}
-        {isCompleted && (
-          <View style={examDetailsStyles.actionGroup}>
-            <TouchableOpacity style={[examDetailsStyles.actionBtn, { backgroundColor: '#6C5CE7' }]} onPress={() => setCurrentView('results')}>
-              <Text style={examDetailsStyles.actionBtnTextWhite}>📊  View Results</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[examDetailsStyles.actionBtn, examDetailsStyles.actionBtnOutline]} onPress={() => setCurrentView('solutions')}>
-              <Text style={[examDetailsStyles.actionBtnTextWhite, { color: '#1A1A2E' }]}>📖  View Solutions</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[examDetailsStyles.actionBtn, examDetailsStyles.actionBtnOutline]} onPress={handleReattempt} disabled={startLoading}>
-              {startLoading
-                ? <ActivityIndicator size="small" color="#1A1A2E" />
-                : <Text style={[examDetailsStyles.actionBtnTextWhite, { color: '#1A1A2E' }]}>🔄  Re-attempt Assessment</Text>}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Missed actions */}
+        {/* Missed retry button */}
         {isMissed && (
-          <View style={examDetailsStyles.actionGroup}>
-            <TouchableOpacity style={[examDetailsStyles.actionBtn, { backgroundColor: '#EF4444' }]} onPress={handleReattempt} disabled={startLoading}>
-              {startLoading
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={examDetailsStyles.actionBtnTextWhite}>🔄  Retry Assessment</Text>}
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.missedRetryBtn}
+            onPress={handleReattempt}
+            disabled={startLoading}
+          >
+            {startLoading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.missedRetryText}>🔄  Retry Assessment</Text>}
+          </TouchableOpacity>
         )}
-
-        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Bottom CTA — live/upcoming only (Image 1) */}
-      {(isLive || isUpcoming) && (
-        <View style={examDetailsStyles.bottomBar}>
+      {/* Bottom CTA — live / upcoming / in-progress */}
+      {(isLive || isUpcoming || isInProgress) && (
+        <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={examDetailsStyles.resumeBtn}
+            style={styles.resumeBtn}
             onPress={() => setCurrentView('instructions')}
             disabled={startLoading}
           >
-            <Text style={examDetailsStyles.resumeBtnText}>▶  Resume Assessment</Text>
+            <Text style={styles.resumeBtnText}>
+              {isInProgress ? '▶  Resume Assessment' : '▶  Start Assessment'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Bottom CTA — completed */}
+      {isCompleted && (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={styles.completedBottomBtn}
+            onPress={() => setCurrentView('instructions')}
+          >
+            <Text style={styles.completedBottomBtnText}>📋  View Results & Solutions</Text>
           </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
   );
 }
-

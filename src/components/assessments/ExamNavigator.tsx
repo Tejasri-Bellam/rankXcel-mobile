@@ -4,6 +4,7 @@ import ExamScreen from './ExamScreen';
 type Props = {
   assessmentId: number;
   attemptId: number;
+  durationMinutes: number;
   onSubmit: (
     answers: Record<string, string[]>,
     timeTakenSeconds: number
@@ -14,6 +15,7 @@ type Props = {
 export default function ExamNavigator({
   assessmentId,
   attemptId,
+  durationMinutes,
   onSubmit,
   onBackToAssessments,
 }: Props) {
@@ -21,6 +23,7 @@ export default function ExamNavigator({
     <ExamScreen
       assessmentId={assessmentId}
       attemptId={attemptId}
+      durationMinutes={durationMinutes}
       onSubmit={onSubmit}
       onBackToAssessments={onBackToAssessments}
     />
