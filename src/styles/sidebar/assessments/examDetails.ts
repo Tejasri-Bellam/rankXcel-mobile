@@ -1,102 +1,306 @@
 import { StyleSheet } from 'react-native';
 
-const PRIMARY = '#1A1A2E';
 const ACCENT = '#6C5CE7';
-const GREEN = '#22C55E';
-const RED = '#EF4444';
-const ORANGE = '#F97316';
-const GRAY = '#9898B0';
-const BORDER = '#E8E8F0';
+const PRIMARY = '#1A1A2E';
+const BORDER = '#F0F0F5';
 const BG = '#F7F7FB';
+const GRAY = '#9898B0';
+const GREEN = '#22C55E';
+const GREEN_BG = '#F0FDF4';
+const ORANGE = '#F97316';
+const YELLOW_BG = '#FFFBEB';
+const RED = '#EF4444';
 
 export const examDetailsStyles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
+
+  // ── Layout ──────────────────────────────────────
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+
+  // ── Header ──────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F8',
+    borderBottomColor: BORDER,
+    backgroundColor: '#fff',
   },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  backArrow: { fontSize: 20, color: '#1A1A2E', fontWeight: '600' },
-  backText: { fontSize: 15, color: '#1A1A2E', fontWeight: '500' },
-  scroll: { flex: 1 },
-  scrollContent: { padding: 20 },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  backArrow: {
+    fontSize: 18,
+    color: PRIMARY,
+  },
+  backText: {
+    fontSize: 14,
+    color: GRAY,
+    fontWeight: '500',
+  },
 
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  badgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
+  // ── Scroll ──────────────────────────────────────
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 120,
+  },
 
-  title: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', marginBottom: 10 },
+  // ── Status Badge Pill ────────────────────────────
+  statusBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 12,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // ── Title & Tag ──────────────────────────────────
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: PRIMARY,
+    marginBottom: 8,
+  },
+  description: {
+    fontSize: 13,
+    color: GRAY,
+    marginBottom: 8,
+  },
   tagChip: {
-    alignSelf: 'flex-start', backgroundColor: '#EEF2FF',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 20,
+    alignSelf: 'flex-start',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 20,
   },
-  tagText: { fontSize: 13, color: '#6C5CE7', fontWeight: '600' },
+  tagText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: ACCENT,
+  },
 
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+  // ── Stats Grid ───────────────────────────────────
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 24,
+  },
   statCard: {
-    flex: 1, minWidth: '44%', backgroundColor: '#F8F8FF',
-    borderRadius: 14, padding: 14, alignItems: 'center', gap: 4,
+    flex: 1,
+    minWidth: '44%',
+    backgroundColor: BG,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    gap: 4,
   },
-  statIcon: { fontSize: 20 },
-  statValue: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', textAlign: 'center' },
-  statLabel: { fontSize: 11, color: '#9898B0', fontWeight: '500' },
+  statIcon: {
+    fontSize: 22,
+    marginBottom: 2,
+  },
+  statValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: PRIMARY,
+    textAlign: 'center',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: GRAY,
+    textAlign: 'center',
+  },
 
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', marginBottom: 14 },
-  scheduleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
+  // ── Schedule Section ─────────────────────────────
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: PRIMARY,
+    marginBottom: 14,
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 14,
+  },
   scheduleIconBox: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#F8F8FF', alignItems: 'center', justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: BG,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  scheduleIconText: { fontSize: 16 },
-  scheduleInfo: { flex: 1 },
-  scheduleMain: { fontSize: 14, color: '#1A1A2E', fontWeight: '500', lineHeight: 20 },
-  scheduleLabel: { fontSize: 12, color: '#9898B0', marginTop: 2 },
-
-  liveStartedBanner: {
-    backgroundColor: '#F0FDF4', borderWidth: 1.5, borderColor: '#86EFAC',
-    borderRadius: 14, padding: 16, alignItems: 'center', marginVertical: 16,
+  scheduleIconText: {
+    fontSize: 18,
   },
-  liveStartedTitle: { fontSize: 16, fontWeight: '700', color: '#16A34A', marginBottom: 4 },
-  liveStartedSub: { fontSize: 13, color: '#22C55E' },
+  scheduleInfo: {
+    flex: 1,
+  },
+  scheduleMain: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: PRIMARY,
+  },
+  scheduleLabel: {
+    fontSize: 11,
+    color: GRAY,
+    marginTop: 2,
+  },
 
+  // ── Banners ──────────────────────────────────────
   completedBanner: {
-    backgroundColor: '#F0FDF4', borderRadius: 14, padding: 14, marginBottom: 16,
+    backgroundColor: GREEN_BG,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  completedBannerIcon: {
+    fontSize: 20,
+  },
+  completedBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  completedBannerSub: {
+    fontSize: 12,
+    color: GREEN,
+    marginTop: 2,
   },
 
+  liveBanner: {
+    borderLeftWidth: 4,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
+  },
+  liveBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  liveBannerSub: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  // ── Instructions Accordion ────────────────────────
   instructionsHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A',
-    borderRadius: 12, padding: 14, marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: YELLOW_BG,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 1,
   },
-  instructionsTitle: { fontSize: 14, fontWeight: '700', color: '#92400E' },
-  instructionsSub: { fontSize: 11, color: '#B45309', marginTop: 1 },
-  instructionsChevron: { fontSize: 18, color: '#92400E', fontWeight: '700' },
-
+  instructionsHeaderIcon: {
+    fontSize: 18,
+  },
+  instructionsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: PRIMARY,
+  },
+  instructionsSub: {
+    fontSize: 11,
+    color: ORANGE,
+  },
+  instructionsChevron: {
+    fontSize: 18,
+    color: GRAY,
+  },
   instructionPreview: {
-    backgroundColor: '#FFFBEB', borderLeftWidth: 3, borderLeftColor: '#FDE68A',
-    borderBottomLeftRadius: 12, borderBottomRightRadius: 12, padding: 14, marginBottom: 8,
+    backgroundColor: '#FFFDF0',
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 14,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: '#F0E8D0',
   },
-  instructionLine: { fontSize: 13, color: '#78350F', lineHeight: 20 },
-
-  actionGroup: { marginTop: 20, gap: 12 },
-  actionBtn: {
-    borderRadius: 14, paddingVertical: 16, alignItems: 'center', justifyContent: 'center',
+  instructionPreviewText: {
+    fontSize: 13,
+    color: '#555',
+    lineHeight: 20,
   },
-  actionBtnOutline: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E8E8F0' },
-  actionBtnTextWhite: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  instructionReadAll: {
+    fontSize: 13,
+    color: ACCENT,
+    fontWeight: '600',
+    marginTop: 8,
+  },
 
+  // ── Missed retry ─────────────────────────────────
+  missedRetryBtn: {
+    backgroundColor: RED,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  missedRetryText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+
+  // ── Bottom Bar ───────────────────────────────────
   bottomBar: {
-    padding: 16, paddingBottom: 8, backgroundColor: '#fff',
-    borderTopWidth: 1, borderTopColor: '#F0F0F8',
-    shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05, shadowRadius: 8, elevation: 8,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
   },
   resumeBtn: {
-    backgroundColor: '#6C5CE7', borderRadius: 14, paddingVertical: 16, alignItems: 'center',
+    backgroundColor: ACCENT,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
   },
-  resumeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  resumeBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  completedBottomBtn: {
+    backgroundColor: ACCENT,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  completedBottomBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
 });

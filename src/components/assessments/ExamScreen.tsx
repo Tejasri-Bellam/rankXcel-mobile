@@ -19,16 +19,20 @@ import {
   updateAssessmentResponsesService,
 } from '@/src/libs/services/assessments-attempts';
 
+
 interface Props {
   assessmentId: number;
   attemptId: number;
+  durationMinutes: number;
+  questions: any[];
+  onBack: () => void;
   onSubmit: (answers: Record<string, string[]>, timeTakenSeconds: number) => void;
   onBackToAssessments?: () => void;
 }
 
 type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
 
-export default function ExamScreen({ assessmentId, attemptId, onSubmit, onBackToAssessments }: Props) {
+export default function ExamScreen({ assessmentId, attemptId, durationMinutes, questions, onSubmit, onBackToAssessments }: Props) {
   const [exam, setExam] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,33 +59,72 @@ export default function ExamScreen({ assessmentId, attemptId, onSubmit, onBackTo
   }, []);
 
   const loadQuestions = async () => {
-    try {
-      setLoading(true);
-      const res = await getassessmentsQuestionsService(assessmentId);
-      console.log('QUESTIONS API:', res);
+  try {
+    setLoading(true);
+    const res = await getassessmentsQuestionsService(assessmentId);
+    console.log('QUESTIONS API:', JSON.stringify(res?.data, null, 2)); // Log to see real shape
 
-      const raw: any = res?.data;
-      let examData: any = null;
-      if (raw?.sections) {
-        examData = raw;
-      } else if (Array.isArray(raw)) {
-        examData = { sections: raw, duration_minutes: 60 };
-      } else if (raw?.results) {
-        examData = { sections: raw.results, duration_minutes: 60 };
-      } else {
-        examData = raw;
-      }
+    const raw: any = res?.data;
 
-      setExam(examData);
-      const durationSeconds = (examData?.duration_minutes ?? 60) * 60;
-      setTimeLeft(durationSeconds);
-    } catch (error) {
-      console.log('QUESTIONS ERROR:', error);
-      Alert.alert('Error', 'Failed to load questions. Please go back and try again.');
-    } finally {
-      setLoading(false);
+    let examData: any = null;
+
+    if (raw?.sections) {
+  examData = raw;
     }
-  };
+    else if (raw?.questions) {
+      // Convert API questions → section format expected by UI
+      examData = {
+        name: 'Assessment',
+        duration_minutes: durationMinutes,
+        sections: [
+          {
+            id: 1,
+            name: 'Questions',
+            questions: raw.questions.map((q: any) => ({
+              id: q.id,
+              text: q.question_text,
+              type: q.question_type,
+              options: q.choices?.map((choice: any) => ({
+                id: choice.id.toString(),
+                text: choice.text,
+              })),
+              marks_correct: 4,
+              marks_incorrect: -1,
+            })),
+          },
+        ],
+      };
+    }
+    else if (Array.isArray(raw)) {
+      examData = {
+        sections: raw,
+        duration_minutes: durationMinutes,
+      };
+    }
+    else if (raw?.results && Array.isArray(raw.results)) {
+      examData = {
+        sections: raw.results,
+        duration_minutes: durationMinutes,
+      };
+    }
+    else {
+      examData = raw;
+    }
+
+    // Fallback duration from prop if API doesn't provide it
+    if (!examData?.duration_minutes) {
+      examData = { ...examData, duration_minutes: durationMinutes };
+    }
+
+    setExam(examData);
+    setTimeLeft((examData.duration_minutes ?? 60) * 60);
+  } catch (error) {
+    console.log('QUESTIONS ERROR:', error);
+    Alert.alert('Error', 'Failed to load questions. Please go back and try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ── Countdown timer
   useEffect(() => {
@@ -166,7 +209,7 @@ export default function ExamScreen({ assessmentId, attemptId, onSubmit, onBackTo
     if (!qId) return;
 
     // Optimistically update local state first for snappy UX
-    const isMulti = activeQuestion.type === 'Multi Correct';
+    const isMulti = activeQuestion.type === 'MCQ_MULTIPLE';
     setAnswers((prev) => {
       const current = prev[qId] || [];
       if (isMulti) {

@@ -9,13 +9,13 @@ const ACCENT = '#6C5CE7';
 
 export const assessmentsStyles = StyleSheet.create({
 
-  // ── Layout ──────────────────────────────────────
+  // Layout
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
   },
 
-  // ── Page Title ───────────────────────────────────
+  // Page Title
   pageTitleRow: {
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -32,23 +32,21 @@ export const assessmentsStyles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Tab bar ──────────────────────────────────────
+  // Tab bar
   tabsContainer: {
     paddingHorizontal: 16,
     paddingBottom: 12,
     gap: 8,
-      alignItems: 'center',
   },
-tabBtn: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 6,
-  paddingHorizontal: 16,
-  height: 42,
-  borderRadius: 20,
-  backgroundColor: '#F5F5F8',
-},
+  tabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F8',
+  },
   tabBtnActive: {
     backgroundColor: PRIMARY,
   },
@@ -83,14 +81,14 @@ tabBtn: {
     color: '#fff',
   },
 
-  // ── List ─────────────────────────────────────────
+  // List
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 24,
   },
 
-  // ── Card ─────────────────────────────────────────
+  // Card
   card: {
     backgroundColor: '#fff',
     borderRadius: 14,
@@ -202,7 +200,7 @@ tabBtn: {
     color: ACCENT,
   },
 
-  // ── Empty state ──────────────────────────────────
+  // Empty state
   emptyContainer: {
     flex: 1,
     alignItems: 'center',

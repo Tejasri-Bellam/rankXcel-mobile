@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { examResultStyles as styles } from '../../styles/sidebar/assessments/exam';
@@ -36,25 +35,40 @@ export default function ExamResults({
     loadResult();
   }, []);
 
+  console.log('ExamResults mounted with attemptId:', attemptId);
   const loadResult = async () => {
     try {
       setLoading(true);
       const res = await getassessmentResultService(attemptId);
-      console.log('RESULT API:', res);
-      // res.data is the result object from the API
+      console.log('RESULT API FULL:', JSON.stringify(res, null, 2));
       setResult(res?.data ?? null);
     } catch (error) {
-      console.log('RESULT ERROR:', error);
+      console.log('RESULT ERROR FULL:', JSON.stringify(error, null, 2));
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+
+  if (!loading && !result && allQuestions.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#6C5CE7" />
-        <Text style={{ marginTop: 12, color: '#9898B0' }}>Loading results...</Text>
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ fontSize: 40, marginBottom: 16 }}>📊</Text>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 8 }}>
+          Results Loading...
+        </Text>
+        <Text style={{ fontSize: 14, color: '#9898B0', textAlign: 'center', marginBottom: 24 }}>
+          Your exam has been submitted. Results may take a moment to process.
+        </Text>
+        <TouchableOpacity
+          onPress={loadResult}
+          style={{ backgroundColor: '#6C5CE7', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onBack} style={{ marginTop: 12 }}>
+          <Text style={{ color: '#9898B0', fontSize: 14 }}>← Back to Assessments</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -76,7 +90,6 @@ export default function ExamResults({
     }
   });
 
-  // If API returned a result, use those values
   const finalScore    = result?.score           ?? score;
   const finalCorrect  = result?.correct_count   ?? correct;
   const finalWrong    = result?.wrong_count      ?? wrong;
