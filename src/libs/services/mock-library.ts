@@ -1,19 +1,62 @@
-import {
-  genericGETService,
-  genericPOSTService,
-  genericPUTService,
-} from "./api";
 
-import {
-  MockStatus,
-  Difficulty,
-  ExamTag,
-  MockTest,
-  MockQuestion,
-  MockResult,
-} from "../types/mock-library";
+import { genericGet, genericPost, genericPut } from "./genericService";
 
 // Generic API Response
+export type MockStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED';
+ 
+// Difficulty as returned by API (lowercase) — also accept normalized form
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'Easy' | 'Medium' | 'Hard';
+ 
+// Exam codes/names are dynamic; keep as string (don't constrain)
+export type ExamTag = string;
+ 
+// Test types from API
+export type TestType = 'PRACTICE_TEST' | 'MOCK_TEST' | string;
+ 
+// Nested exam object from API
+export interface ExamObject {
+  id: number;
+  code: string;
+  name: string;
+}
+ 
+// Nested subject object from API
+export interface SubjectObject {
+  id: number;
+  code: string;
+  name: string;
+}
+ 
+// The full MockTest shape, matching the API response
+export interface MockTest {
+  id: number | string;
+  title?: string;
+  exam: ExamObject | string;
+  subject: SubjectObject | string;
+  chapters: number[];
+  difficulty: Difficulty;
+  status: MockStatus;
+  test_type: TestType;
+  question_count: number;
+  total_duration_minutes: number;
+  max_score: number | null;
+  score: number | null;
+  started_at: string | null;
+  submitted_at: string | null;
+  percentile?: number | null;
+}
+ 
+// Generic API list response wrapper
+export interface MockListResponse {
+  data: {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: MockTest[];
+  };
+  status: number;
+}
+
 export interface MockResponse<T = any> {
   results?: T[];
   count?: number;
@@ -23,35 +66,35 @@ export interface MockResponse<T = any> {
 
 // Mock Tests
 export async function getMockTestsService() {
-  return await genericGETService(`/v1/mock-tests/`,true);
+  return await genericGet(`/v1/mock-tests/`,true);
 }
 
 // Mock Test By ID
 export async function getMockTestByIdService(
   id: number | string
 ) {
-  return await genericGETService(`/v1/mock-tests/${id}/`,true);
+  return await genericGet(`/v1/mock-tests/${id}/`,true);
 }
 
 // Questions
 export async function getMockTestQuestionsService(
   id: number | string
 ) {
-  return await genericGETService(`/v1/mock-tests/${id}/questions/`,true);
+  return await genericGet(`/v1/mock-tests/${id}/questions/`,true);
 }
 
 // Result
 export async function getMockTestResultService(
   id: number | string
 ) {
-  return await genericGETService(`/v1/mock-tests/${id}/result/`,true);
+  return await genericGet(`/v1/mock-tests/${id}/result/`,true);
 }
 
 // Review
 export async function getMockTestReviewService(
   id: number | string
 ) {
-  return await genericGETService(`/v1/mock-tests/${id}/review/`,true);
+  return await genericGet(`/v1/mock-tests/${id}/review/`,true);
 }
 
 // Create Mock
@@ -63,19 +106,20 @@ export async function createMockTestService(payload: {
   duration: string;
   questions: number;
 }) {
-  return await genericPOSTService(`/v1/mock-tests/`,payload,false,true);
+  return await genericPost(`/v1/mock-tests/`,payload, { isMultipart: false, useAccessToken: true}
+  );
 }
-
 // Start Mock
 export async function startMockTestService(
   id: number | string
 ) {
-  return await genericPOSTService(`/v1/mock-tests/${id}/start/`,{},false,true);
+    return await genericPost(`/v1/mock-tests/${id}/start/`,{}, { isMultipart: false, useAccessToken: true}
+  );
 }
-
 // Submit Mock
 export async function submitMockTestService(id: number | string) {
-  return await genericPOSTService(`/v1/mock-tests/${id}/submit/`,{},false,true);
+  return await genericPost(`/v1/mock-tests/${id}/submit/`,{}, { isMultipart: false, useAccessToken: true}
+);
 }
 
 // Submit Response
@@ -84,7 +128,7 @@ export async function submitMockResponseService(
   questionId: number | string,
   payload: { selected_option: string }) 
   {
-  return await genericPUTService(`/v1/mock-tests/${mockId}/responses/${questionId}/`,payload,false,true);
+  return await genericPut(`/v1/mock-tests/${mockId}/responses/${questionId}/`,payload, { isMultipart: false, useAccessToken: true});
 }
 
 // Sort Helper

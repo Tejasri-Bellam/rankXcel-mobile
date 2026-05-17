@@ -6,7 +6,6 @@ import {
   StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ExamInstructions from './ExamInstructions';
 import ExamNavigator from './ExamNavigator';
 import ExamResults from './ExamResults';
 import SolutionViewer from './SolutionViewer';
@@ -19,7 +18,7 @@ interface Props {
   onBack: () => void;
 }
 
-type ExamView = 'detail' | 'instructions' | 'exam' | 'results' | 'solutions';
+type ExamView = 'detail' | 'exam' | 'results' | 'solutions';
 
 const STATUS_CONFIG = {
   live:      { label: 'Live Now',  color: '#22C55E', bg: '#F0FDF4' },
@@ -27,6 +26,18 @@ const STATUS_CONFIG = {
   completed: { label: 'Completed', color: '#9898B0', bg: '#F5F5F8' },
   missed:    { label: 'Missed',    color: '#EF4444', bg: '#FEF2F2' },
 } as const;
+
+const INSTRUCTIONS = [
+  'This is a live assessment. All students take the exam within the same time window.',
+  'Your timer starts when you click "Start Assessment". You must finish within the exam duration.',
+  'You must complete the exam before the assessment window closes.',
+  'Marking scheme: +4 for correct, -1 for incorrect MCQ, 0 for unattended.',
+  'You may switch between sections at any time during the exam.',
+  'Answers are saved automatically when you click "Save & Next".',
+  'Once you submit, the exam cannot be resumed.',
+  'Switching tabs will be recorded and may be flagged.',
+  'Results and rankings will be available after the assessment window closes.',
+];
 
 export default function ExamDetails({ item, onBack }: Props) {
   const assessmentId: number = item?.id;
@@ -36,7 +47,14 @@ export default function ExamDetails({ item, onBack }: Props) {
   const [timeTaken, setTimeTaken] = useState(0);
   const [startLoading, setStartLoading] = useState(false);
 
-  const isCompleted  = item?.latest_attempt_status === 'COMPLETED';
+  const [showInstructions, setShowInstructions] = useState(true);
+  const [accepted, setAccepted] = useState(false);
+  const [requireConfirmation, setRequireConfirmation] = useState(
+    item?.student_status === 'completed' ||
+    item?.student_status === 'missed'
+  );
+
+  const isCompleted  = item?.latest_attempt_status === 'SUBMITTED';
   const isInProgress = item?.latest_attempt_status === 'IN_PROGRESS';
   const isMissed     = item?.student_status === 'missed';
   const isLive       = item?.student_status === 'live';
@@ -98,32 +116,32 @@ export default function ExamDetails({ item, onBack }: Props) {
       setStartLoading(true);
       const res: any = await reattemptAssessmentService(assessmentId);
       const newAttemptId =
-        res?.data?.id ?? res?.data?.attempt_id ?? res?.data?.latest_attempt_id;
-      if (!newAttemptId) throw new Error('No attempt id returned');
+        res?.data?.id ??
+        res?.data?.attempt_id ??
+        res?.data?.latest_attempt_id;
+
+      if (!newAttemptId) {
+        throw new Error('No attempt id returned');
+      }
+
       setAttemptId(newAttemptId);
-      setCurrentView('instructions');
+      // Check box for Retry and Re-attempt
+      setRequireConfirmation(true);
+
+      // Open instructions
+      setShowInstructions(true);
+
     } catch {
-      Alert.alert('Error', 'Failed to create a new attempt. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to create a new attempt. Please try again.'
+      );
     } finally {
       setStartLoading(false);
     }
   };
 
-  // ── Sub-views ─────────────────────────────────────
-  if (currentView === 'instructions') {
-    return (
-      <ExamInstructions
-        item={item}
-        startLoading={startLoading}
-        onStartExam={handleStartFromInstructions}
-        onBack={() => setCurrentView('detail')}
-        isCompleted={isCompleted}
-        onViewResults={() => setCurrentView('results')}
-        onViewSolutions={() => setCurrentView('solutions')}
-        onReattempt={handleReattempt}
-      />
-    );
-  }
+  
 
   if (currentView === 'exam') {
     return (
@@ -169,7 +187,7 @@ export default function ExamDetails({ item, onBack }: Props) {
   const schedule = formatSchedule();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}  edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}
@@ -182,7 +200,10 @@ export default function ExamDetails({ item, onBack }: Props) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 120 }
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Status badge pill */}
@@ -210,9 +231,9 @@ export default function ExamDetails({ item, onBack }: Props) {
         <View style={styles.statsGrid}>
           {[
             { icon: '⏱', value: `${item?.total_duration_minutes ?? 0} min`, label: 'Duration' },
-            { icon: '📋', value: `${item?.question_count ?? 0} Total`,        label: 'Questions' },
-            { icon: '🔁', value: `${item?.total_attempts ?? 1}`,               label: 'Attempts' },
-            { icon: '✅', value: getStatValue(),                               label: 'Status' },
+            { icon: '📋', value: `${item?.question_count ?? 0} Total`, label: 'Questions' },
+            { icon: '🔁', value: `${item?.total_attempts ?? 1}`, label: 'Attempts' },
+            { icon: '✅', value: getStatValue(), label: 'Status' },
           ].map((s, i) => (
             <View key={i} style={styles.statCard}>
               <Text style={styles.statIcon}>{s.icon}</Text>
@@ -281,7 +302,7 @@ export default function ExamDetails({ item, onBack }: Props) {
         {/* Instructions accordion (tappable → goes to full instructions) */}
         <TouchableOpacity
           style={styles.instructionsHeader}
-          onPress={() => setCurrentView('instructions')}
+          onPress={() => setShowInstructions(!showInstructions)}
           activeOpacity={0.8}
         >
           <Text style={styles.instructionsHeaderIcon}>⚠️</Text>
@@ -289,58 +310,105 @@ export default function ExamDetails({ item, onBack }: Props) {
             <Text style={styles.instructionsTitle}>Assessment Instructions</Text>
             <Text style={styles.instructionsSub}>(Read before starting)</Text>
           </View>
-          <Text style={styles.instructionsChevron}>›</Text>
+          <Text style={styles.instructionsChevron}>
+            {showInstructions ? '⌃' : '⌄'}
+          </Text>
         </TouchableOpacity>
 
-        <View style={styles.instructionPreview}>
-          <Text style={styles.instructionPreviewText}>
-            1. This is a live assessment. All students take the exam within the same time window.
-          </Text>
-          <TouchableOpacity onPress={() => setCurrentView('instructions')}>
-            <Text style={styles.instructionReadAll}>Read all instructions →</Text>
-          </TouchableOpacity>
-        </View>
+        {showInstructions && (
+          <View style={styles.instructionsContainer}>
+            {INSTRUCTIONS.map((instruction, index) => (
+              <View key={index} style={styles.instructionRow}>
+                <Text style={styles.instructionNumber}>
+                  {index + 1}.
+                </Text>
+                <Text style={styles.instructionText}>
+                  {instruction}
+                </Text>
+              </View>
+            ))}
 
-        {/* Missed retry button */}
-        {isMissed && (
-          <TouchableOpacity
-            style={styles.missedRetryBtn}
-            onPress={handleReattempt}
-            disabled={startLoading}
-          >
-            {startLoading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.missedRetryText}>🔄  Retry Assessment</Text>}
-          </TouchableOpacity>
+            {/* Checkbox only for reattempt/retry */}
+            {requireConfirmation && (
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setAccepted(!accepted)}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    accepted
+                      ? styles.checkboxChecked
+                      : styles.checkboxUnchecked,
+                  ]}
+                >
+                  {accepted && (
+                    <Text style={styles.checkboxTick}>✓</Text>
+                  )}
+                </View>
+
+                <Text style={styles.checkboxLabel}>
+                  I have read and understood all instructions.
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
-      </ScrollView>
 
-      {/* Bottom CTA — live / upcoming / in-progress */}
-      {(isLive || isUpcoming || isInProgress) && (
-        <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={styles.resumeBtn}
-            onPress={() => setCurrentView('instructions')}
-            disabled={startLoading}
-          >
-            <Text style={styles.resumeBtnText}>
-              {isInProgress ? '▶  Resume Assessment' : '▶  Start Assessment'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        {/* Bottom CTA — Live / Upcoming / In Progress */}
+        {(isLive || isUpcoming || isInProgress) && (
+          <View style={styles.bottomBar}>
+            <TouchableOpacity
+              style={styles.resumeBtn}
+              onPress={handleStartFromInstructions}
+              disabled={startLoading}
+            >
+              {startLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.resumeBtnText}>
+                  {isInProgress
+                    ? '▶ Resume Assessment'
+                    : '▶ Start Assessment'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* Bottom CTA — completed */}
-      {isCompleted && (
-        <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={styles.completedBottomBtn}
-            onPress={() => setCurrentView('instructions')}
-          >
-            <Text style={styles.completedBottomBtnText}>📋  View Results & Solutions</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        {/* Bottom CTA — Completed / Missed */}
+        {(isCompleted || isMissed) && (
+          <View style={styles.bottomBar}>
+            <TouchableOpacity
+              style={[
+                styles.completedBottomBtn,
+                {
+                  opacity:
+                    requireConfirmation && !accepted
+                      ? 0.5
+                      : 1,
+                },
+              ]}
+              onPress={
+                requireConfirmation
+                  ? handleStartFromInstructions
+                  : handleReattempt
+              }
+              disabled={requireConfirmation && !accepted}
+            >
+              {startLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.completedBottomBtnText}>
+                  🔄{isCompleted
+                  ? 'Re-attempt Assessment'
+                  : 'Retry Assessment'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+    </ScrollView>
     </SafeAreaView>
   );
 }

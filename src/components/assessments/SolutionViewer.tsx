@@ -1,14 +1,7 @@
-import { getassessmentReviewService } from '@/src/libs/services/assessments-attempts';
-import { solutionViewerStyles } from '@/src/styles/sidebar/assessments/solutionViewer';
+import { getassessmentReviewService, getassessmentSolutionsService } from '@/src/libs/services/assessments-attempts';
+import { solutionViewerStyles } from '../../styles/sidebar/assessments/solutionViewer';
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  ActivityIndicator,
-} from 'react-native';
+import {View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Props {
@@ -24,6 +17,7 @@ const GRAY = '#9898B0';
 export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
     loadReview();
@@ -34,8 +28,29 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
       setLoading(true);
       const res = await getassessmentReviewService(attemptId);
       console.log('REVIEW API:', res);
-      // Unwrap the actual data from the response wrapper
-      setReviewData(res?.data ?? null);
+      const data = res?.data ?? null;
+      setReviewData(data);
+
+      //fetch Solutions
+      if (data) {
+        const sections: any[] = data?.sections ?? data?.results ?? [];
+        const questions = sections.flatMap((s: any) =>
+          (s.questions ?? s.question ?? [])
+        );
+
+        const results = await Promise.allSettled(
+          questions.map((q: any) => getassessmentSolutionsService(q.id))
+        );
+
+        const map: Record<string, any> = {};
+        questions.forEach((q: any, i: number) => {
+          const r = results[i];
+          if (r.status === 'fulfilled' && r.value?.data) {
+            map[q.id] = r.value.data;
+          }
+        });
+        setSolutionsMap(map);
+      }
     } catch (error) {
       console.log('REVIEW ERROR:', error);
     } finally {
@@ -63,10 +78,8 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     );
   }
 
-  // Flatten all questions
   const sections: any[] = reviewData?.sections ?? reviewData?.results ?? [];
 
-  // eslint-disable-next-line
   const allQuestions = useMemo(
     () =>
       sections.flatMap((s: any) =>
@@ -76,8 +89,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   );
 
   const totalQ = allQuestions.length;
-
-  // currentIndex state must come after all hooks
   const [currentIndex, setCurrentIndex] = useState(0);
 
   if (totalQ === 0) {
@@ -99,6 +110,10 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     correctAnswers.length === userAnswer.length &&
     correctAnswers.every((a: string) => userAnswer.includes(a));
   const isSkipped = userAnswer.length === 0;
+
+  // Solutions
+  const currentSolution = solutionsMap[currentQ?.id];
+  const explanation = currentSolution?.explanation ?? currentQ?.explanation ?? null;
 
   const getOptionState = (optId: string) => {
     const isCorrectOpt = correctAnswers.includes(optId);
@@ -182,10 +197,8 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
         contentContainerStyle={solutionViewerStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Question text */}
         <Text style={solutionViewerStyles.questionText}>{currentQ?.text}</Text>
 
-        {/* Options */}
         {currentQ?.options?.map((opt: any) => {
           const state = getOptionState(opt.id);
           return (
@@ -228,7 +241,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
           );
         })}
 
-        {/* Status badge */}
         <View
           style={[
             solutionViewerStyles.statusBadge,
@@ -242,38 +254,35 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
           </Text>
         </View>
 
-        {/* Explanation */}
-        {currentQ?.explanation && (
+        
+        {explanation && (
           <View style={solutionViewerStyles.explanationCard}>
             <View style={solutionViewerStyles.explanationHeader}>
               <Text style={solutionViewerStyles.explanationLabel}>💡 EXPLANATION</Text>
-              {currentQ.explanation?.steps && (
+              {explanation?.steps && (
                 <View style={solutionViewerStyles.stepsChip}>
                   <Text style={solutionViewerStyles.stepsChipText}>
-                    {currentQ.explanation.steps.length} steps
+                    {explanation.steps.length} steps
                   </Text>
                 </View>
               )}
             </View>
 
-            {/* Steps */}
-            {currentQ.explanation?.steps?.map((step: any, i: number) => (
+            {explanation?.steps?.map((step: any, i: number) => (
               <View key={i} style={solutionViewerStyles.explanationStep}>
                 <Text style={solutionViewerStyles.stepLabel}>Step {i + 1}. {step.title}</Text>
                 <Text style={solutionViewerStyles.stepBody}>{step.body}</Text>
               </View>
             ))}
 
-            {/* Summary */}
-            {currentQ.explanation?.summary && (
+            {explanation?.summary && (
               <Text style={solutionViewerStyles.explanationSummary}>
-                {currentQ.explanation.summary}
+                {explanation.summary}
               </Text>
             )}
 
-            {/* Plain text fallback */}
-            {!currentQ.explanation?.steps && typeof currentQ.explanation === 'string' && (
-              <Text style={solutionViewerStyles.stepBody}>{currentQ.explanation}</Text>
+            {!explanation?.steps && typeof explanation === 'string' && (
+              <Text style={solutionViewerStyles.stepBody}>{explanation}</Text>
             )}
           </View>
         )}

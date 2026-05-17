@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { examScreenStyles as styles } from '../../styles/sidebar/assessments/exam';
+import { examScreenStyles as styles } from '../../styles/sidebar/assessments/examScreen';
 import { getassessmentsQuestionsService } from '../../libs/services/assessments';
 import {
   assessmentSubmitService,
@@ -62,37 +62,58 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
   try {
     setLoading(true);
     const res = await getassessmentsQuestionsService(assessmentId);
-    console.log('QUESTIONS API:', JSON.stringify(res?.data, null, 2)); // Log to see real shape
+    console.log('QUESTIONS API:', JSON.stringify(res?.data, null, 2));
 
     const raw: any = res?.data;
+    console.log('RAW QUESTIONS:', JSON.stringify(raw, null, 2));
 
     let examData: any = null;
 
     if (raw?.sections) {
-  examData = raw;
+    examData = raw;
     }
     else if (raw?.questions) {
-      // Convert API questions → section format expected by UI
+      const groupedQuestions = raw.questions.reduce(
+        (acc: any, q: any) => {
+          const subject =
+            q.subject ||
+            q.subject_name ||
+            'General';
+
+          if (!acc[subject]) {
+            acc[subject] = [];
+          }
+
+          acc[subject].push({
+            id: q.id,
+            text: q.question_text,
+            type: q.question_type,
+            options: q.choices?.map(
+              (choice: any) => ({
+                id: choice.id.toString(),
+                text: choice.text,
+              })
+            ),
+            marks_correct: 4,
+            marks_incorrect: -1,
+          });
+
+          return acc;
+        },
+        {}
+      );
+
       examData = {
         name: 'Assessment',
         duration_minutes: durationMinutes,
-        sections: [
-          {
-            id: 1,
-            name: 'Questions',
-            questions: raw.questions.map((q: any) => ({
-              id: q.id,
-              text: q.question_text,
-              type: q.question_type,
-              options: q.choices?.map((choice: any) => ({
-                id: choice.id.toString(),
-                text: choice.text,
-              })),
-              marks_correct: 4,
-              marks_incorrect: -1,
-            })),
-          },
-        ],
+        sections: Object.keys(
+          groupedQuestions
+        ).map((subject, index) => ({
+          id: index + 1,
+          name: subject,
+          questions:
+            groupedQuestions[subject],
+        })),
       };
     }
     else if (Array.isArray(raw)) {
@@ -402,32 +423,65 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
               : 'Select one correct option'}
           </Text>
 
-          {activeQuestion.options?.map((option: any) => {
-            const isSelected = selectedOptions.includes(option.id);
-            return (
-              <TouchableOpacity
-                key={option.id}
-                style={[styles.optionRow, isSelected && styles.optionRowSelected]}
-                onPress={() => handleOptionSelect(option.id)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.optionBubble, isSelected && styles.optionBubbleSelected]}>
-                  <Text style={[styles.optionBubbleText, isSelected && styles.optionBubbleTextSelected]}>
-                    {option.id}
+          {activeQuestion.options?.map(
+            (option: any, index: number) => {
+              const isSelected = selectedOptions.includes(
+                option.id
+              );
+
+              return (
+                <TouchableOpacity
+                  key={String.fromCharCode(65 + index)}
+                  style={[
+                    styles.optionRow,
+                    isSelected &&
+                      styles.optionRowSelected,
+                  ]}
+                  onPress={() =>
+                    handleOptionSelect(option.id)
+                  }
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[
+                      styles.optionBubble,
+                      isSelected &&
+                        styles.optionBubbleSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.optionBubbleText,
+                        isSelected &&
+                          styles
+                            .optionBubbleTextSelected,
+                      ]}
+                    >
+                      {String.fromCharCode(
+                        65 + index
+                      )}
+                    </Text>
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.optionText,
+                      isSelected &&
+                        styles.optionTextSelected,
+                    ]}
+                  >
+                    {option.text}
                   </Text>
-                </View>
-                <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                  {option.text}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                </TouchableOpacity>
+              );
+            }
+          )}
         </ScrollView>
-      ) : (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: '#9898B0' }}>No question available.</Text>
-        </View>
-      )}
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#9898B0' }}>No question available.</Text>
+            </View>
+          )}
 
       {/* Bottom action row */}
       <View style={styles.bottomActionRow}>

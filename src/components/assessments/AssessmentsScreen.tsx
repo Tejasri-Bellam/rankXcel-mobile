@@ -82,6 +82,7 @@ export default function AssessmentsScreen() {
 
   // ── Derived data ─────────────────────────────────
   const filteredData = data.filter((item: any) => item.student_status === tab);
+console.log('filteredData', filteredData);
 
   const counts: Record<TabType, number> = {
     live:      data.filter((d: any) => d.student_status === 'live').length,
