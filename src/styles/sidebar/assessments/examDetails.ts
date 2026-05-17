@@ -214,7 +214,7 @@ export const examDetailsStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: YELLOW_BG,
+    backgroundColor: '#F7F7FB',
     borderRadius: 12,
     padding: 14,
     marginBottom: 1,
@@ -272,6 +272,9 @@ export const examDetailsStyles = StyleSheet.create({
 
   // ── Bottom Bar ───────────────────────────────────
   bottomBar: {
+    paddingHorizontal: 16,
+     paddingVertical: 12,
+    paddingBottom: 50,
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -294,8 +297,8 @@ export const examDetailsStyles = StyleSheet.create({
   },
   completedBottomBtn: {
     backgroundColor: ACCENT,
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
   },
   completedBottomBtnText: {
@@ -303,4 +306,78 @@ export const examDetailsStyles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 15,
   },
+
+  instructionsContainer: {
+  backgroundColor: BG,
+  borderWidth: 1,
+  borderColor: BORDER,
+  borderTopWidth: 0,
+  borderBottomLeftRadius: 16,
+  borderBottomRightRadius: 16,
+  padding: 18,
+  marginBottom: 24,
+},
+
+instructionRow: {
+  flexDirection: 'row',
+  marginBottom: 14,
+},
+
+instructionNumber: {
+  fontSize: 15,
+  fontWeight: '700',
+  color: '#1A1A2E',
+  marginRight: 8,
+},
+
+instructionText: {
+  flex: 1,
+  fontSize: 14,
+  color: '#555',
+  lineHeight: 22,
+},
+
+checkboxRow: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  marginTop: 18,
+  paddingTop: 16,
+  borderTopWidth: 1,
+  borderTopColor: '#E5E7EB',
+},
+
+checkbox: {
+  width: 22,
+  height: 22,
+  borderRadius: 6,
+  marginRight: 12,
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginTop: 2,
+},
+
+checkboxChecked: {
+  backgroundColor: '#2563EB',
+  borderWidth: 1,
+  borderColor: '#2563EB',
+},
+
+checkboxUnchecked: {
+  backgroundColor: '#fff',
+  borderWidth: 1.5,
+  borderColor: '#CBD5E1',
+},
+
+checkboxTick: {
+  color: '#fff',
+  fontSize: 14,
+  fontWeight: '700',
+},
+
+checkboxLabel: {
+  flex: 1,
+  fontSize: 14,
+  lineHeight: 22,
+  color: '#475569',
+},
 });

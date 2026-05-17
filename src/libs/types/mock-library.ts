@@ -1,49 +1,54 @@
-export type MockStatus = 'in_progress' | 'completed' | 'not_attempted';
-export type Difficulty = 'Easy' | 'Medium' | 'Hard';
-export type ExamTag = 'EAMCET' | 'JEE' | 'JEE Mains' | 'JEE2' | 'Mains';
-
+export type MockStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED';
+ 
+// Difficulty as returned by API (lowercase) — also accept normalized form
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'Easy' | 'Medium' | 'Hard';
+ 
+// Exam codes/names are dynamic; keep as string (don't constrain)
+export type ExamTag = string;
+ 
+// Test types from API
+export type TestType = 'PRACTICE_TEST' | 'MOCK_TEST' | string;
+ 
+// Nested exam object from API
+export interface ExamObject {
+  id: number;
+  code: string;
+  name: string;
+}
+ 
+// Nested subject object from API
+export interface SubjectObject {
+  id: number;
+  code: string;
+  name: string;
+}
+ 
+// The full MockTest shape, matching the API response
 export interface MockTest {
-  id: string;
-  exam: ExamTag;
-  title: string;
-  subject: string;
-  duration: string;
-  questions: number
-  marks?: number;
+  id: number | string;
+  title?: string;
+  exam: ExamObject | string;
+  subject: SubjectObject | string;
+  chapters: number[];
   difficulty: Difficulty;
   status: MockStatus;
-  score?: string;
-  percentile?: string;
-  accuracy?: string;
-  lastAttempt?: string;
-  response?: string;
+  test_type: TestType;
+  question_count: number;
+  total_duration_minutes: number;
+  max_score: number | null;
+  score: number | null;
+  started_at: string | null;
+  submitted_at: string | null;
+  percentile?: number | null;
 }
-
-export interface MockQuestion {
-  id: string;
-  question_id: string;
-  text: string;
-  options: { id: string; text: string }[];
-  subject?: string;
-  topic?: string;
-  marks?: number;
-  negative_marks?: number;
-}
-
-export interface MockResult {
-  score: string;
-  percentile: string;
-  accuracy: string;
-  total_questions: number;
-  attempted: number;
-  correct: number;
-  incorrect: number;
-  time_taken: string;
-}
-
-export interface MockResponse<T = any> {
-  results?: T[];
-  count?: number;
-  next?: string | null;
-  previous?: string | null;
+ 
+// Generic API list response wrapper
+export interface MockListResponse {
+  data: {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: MockTest[];
+  };
+  status: number;
 }
