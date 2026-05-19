@@ -30,9 +30,7 @@ import { Difficulty, MockStatus, MockTest } from '@/src/libs/types/mock-library'
  
 
  
-/* ============================================================
-   Type-safe helpers
-   ============================================================ */
+  // Type-safe
  
 type NormalizedDifficulty = 'Easy' | 'Medium' | 'Hard';
  

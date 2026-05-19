@@ -1,18 +1,15 @@
-import { useRouter } from 'expo-router';
-import React from 'react';
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
-  Dimensions,
-  Alert
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from "@/src/styles/styles";
-import { logoutService } from '@/src/libs/services/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const { width } = Dimensions.get('window');
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { logoutService } from "@/src/libs/services/auth";
+import { getMeService } from "@/src/libs/services/profile";
 
 export const ProfileMenu = ({
   visible,
@@ -21,27 +18,69 @@ export const ProfileMenu = ({
   visible: boolean;
   onClose: () => void;
 }) => {
+  const router = useRouter();
+
+  const [user, setUser] = useState({
+    name: "",
+    email: "",
+  });
+
+  // Fetch user details
+  useEffect(() => {
+    if (visible) {
+      fetchUser();
+    }
+  }, [visible]);
+
+  const fetchUser = async () => {
+    try {
+      const res:any = await getMeService();
+
+      console.log("User data:", res?.data);
+
+      setUser({
+        name: res?.data?.name  || "User",
+        email: res?.data?.email || "",
+      });
+    } catch (error) {
+      console.error("Get user failed:", error);
+
+      // fallback from AsyncStorage
+      const savedUser = await AsyncStorage.getItem("user");
+
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+
+        setUser({
+          name: parsed?.name || "User",
+          email: parsed?.email || "",
+        });
+      }
+    }
+  };
+
   if (!visible) return null;
-const router = useRouter();
 
   const handleLogout = async () => {
     try {
+      console.log("Logging out...");
+
       await logoutService();
 
-      // Clear stored data
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
-
-      // Navigate to login (reset stack)
-      router.replace('/auth/login');
-    } catch (error: any) {
+      console.log("Logout API success");
+    } catch (error) {
       console.error("Logout Error:", error);
+    } finally {
+      await AsyncStorage.multiRemove([
+        "token",
+        "user",
+      ]);
 
-      // Even if API fails, still clear local session
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      console.log("Local session cleared");
 
-      router.replace('/auth/login');
+      onClose();
+
+      router.replace("/auth/login");
     }
   };
 
@@ -50,8 +89,15 @@ const router = useRouter();
       "Logout",
       "Are you sure you want to logout?",
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Logout", style: "destructive", onPress: handleLogout }
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: handleLogout,
+        },
       ]
     );
   };
@@ -64,24 +110,46 @@ const router = useRouter();
     >
       <View style={styles.profileMenu}>
         <View style={styles.profileTop}>
-          <Text style={styles.profileName}>Tejasri Bellam</Text>
-          <Text style={styles.profileEmail}>tejasri@mailinator.com</Text>
+          <Text style={styles.profileName}>
+            {user.name}
+          </Text>
+          <Text style={styles.profileEmail}>
+            {user.email}
+          </Text>
         </View>
 
         <TouchableOpacity
-        style={styles.profileItem}
-        onPress={() => {
-          onClose();
-          router.push('../../profile');
-        }}
-      >
-        <Ionicons name="person-outline" size={18} color="#555" />
-        <Text style={styles.profileItemText}>View Profile</Text>
-      </TouchableOpacity>
+          style={styles.profileItem}
+          onPress={() => {
+            onClose();
+            router.push("/profile");
+          }}
+        >
+          <Ionicons
+            name="person-outline"
+            size={18}
+            color="#555"
+          />
+          <Text style={styles.profileItemText}>
+            View Profile
+          </Text>
+        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.profileItem} onPress={confirmLogout}>
-          <Ionicons name="log-out-outline" size={18} color="red" />
-          <Text style={[styles.profileItemText, { color: "red" }]}>
+        <TouchableOpacity
+          style={styles.profileItem}
+          onPress={confirmLogout}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={18}
+            color="red"
+          />
+          <Text
+            style={[
+              styles.profileItemText,
+              { color: "red" },
+            ]}
+          >
             Log out
           </Text>
         </TouchableOpacity>
@@ -90,14 +158,7 @@ const router = useRouter();
   );
 };
 
-
-// --Styles
-
-const styles: any = ({
-  safeArea: { flex: 1, backgroundColor: COLORS.white },
-  scrollView: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { paddingBottom: 24 },
-
+const styles: any = {
   profileOverlay: {
     position: "absolute",
     top: 0,
@@ -116,7 +177,10 @@ const styles: any = ({
     borderRadius: 12,
     paddingVertical: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     shadowOpacity: 0.12,
     shadowRadius: 10,
     elevation: 8,
@@ -153,5 +217,5 @@ const styles: any = ({
     fontSize: 13,
     fontWeight: "600",
     color: "#222",
-  }
-});
+  },
+};

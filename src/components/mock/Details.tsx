@@ -1,17 +1,13 @@
-// src/components/assessments/ExamDetails.tsx
-
 import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView,
-  StatusBar, ActivityIndicator, Alert,
-} from 'react-native';
+import {View, Text, TouchableOpacity, ScrollView,
+        StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ExamNavigator from './ExamNavigator';
-import ExamResults from './ExamResults';
-import SolutionViewer from './SolutionViewer';
 import { assessmentStartService } from '@/src/libs/services/assessments-attempts';
 import { reattemptAssessmentService } from '@/src/libs/services/assessments';
 import { examDetailsStyles as styles } from '@/src/styles/sidebar/assessments/examDetails';
+import ExamResults from './Results';
+import SolutionViewer from './SolutionViewer';
+import ExamNavigator from './Navigator';
 
 interface Props {
   item: any;
@@ -39,7 +35,7 @@ const INSTRUCTIONS = [
   'Results and rankings will be available after the assessment window closes.',
 ];
 
-export default function ExamDetails({ item, onBack }: Props) {
+export default function Details({ item, onBack }: Props) {
   const assessmentId: number = item?.id;
   const [attemptId, setAttemptId] = useState<number>(item?.latest_attempt_id);
   const [currentView, setCurrentView] = useState<ExamView>('detail');
@@ -89,11 +85,8 @@ export default function ExamDetails({ item, onBack }: Props) {
     return 'Not Started';
   };
 
-  // Handlers
+  // ── Handlers ─────────────────────────────────────
   const handleStartFromInstructions = async () => {
-
-
-    console.log('Starting assessment with attempt id:', attemptId);
     if (!attemptId) {
       Alert.alert('Error', 'No attempt ID found.');
       return;
@@ -107,7 +100,7 @@ export default function ExamDetails({ item, onBack }: Props) {
         Alert.alert('Error', error?.body?.error ?? 'Failed to start. Please try again.');
         return;
       }
-      // INVALID_STATE 
+      // INVALID_STATE = already started → proceed to exam
     } finally {
       setStartLoading(false);
     }
@@ -115,11 +108,9 @@ export default function ExamDetails({ item, onBack }: Props) {
   };
 
   const handleReattempt = async () => {
-    console.log('Initiating reattempt for assessment id:', assessmentId);
     try {
       setStartLoading(true);
       const res: any = await reattemptAssessmentService(assessmentId);
-      console.log('Reattempt response:', res);
       const newAttemptId =
         res?.data?.id ??
         res?.data?.attempt_id ??
@@ -133,8 +124,6 @@ export default function ExamDetails({ item, onBack }: Props) {
       setAttemptId(newAttemptId);
       // Check box for Retry and Re-attempt
       setRequireConfirmation(true);
-
-      setCurrentView('exam');
 
       // Open instructions
       setShowInstructions(true);
@@ -398,7 +387,7 @@ export default function ExamDetails({ item, onBack }: Props) {
                 },
               ]}
               onPress={
-                !isCompleted
+                requireConfirmation
                   ? handleStartFromInstructions
                   : handleReattempt
               }

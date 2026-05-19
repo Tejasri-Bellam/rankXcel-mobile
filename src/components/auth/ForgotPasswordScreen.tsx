@@ -17,10 +17,10 @@ import { forgotPasswordService } from '@/src/libs/services/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { forgotPasswordStyles } from '@/src/styles/auth/forgotPasswordStyles';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-type Step = 'email' | 'checkEmail';
+// Types
+  
+  type Step = 'email' | 'checkEmail';
 
-// ─────────────────────────────────────────────────────────────────────────────
 export default function ForgotPasswordScreen() {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');

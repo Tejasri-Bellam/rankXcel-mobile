@@ -6,6 +6,24 @@ export const profileStyles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: { paddingBottom: 16 },
 
+  backButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: 16,
+  paddingVertical: 14,
+  marginLeft: 10,
+  backgroundColor: COLORS.white,
+  
+},
+
+backText: {
+  fontSize: 24,
+  alignItems: 'flex-start',
+  fontWeight: '700',
+  color: COLORS.textDark,
+  marginLeft: 16,
+},
+
   // ── Hero ──
   heroCard: {
     backgroundColor: COLORS.white,

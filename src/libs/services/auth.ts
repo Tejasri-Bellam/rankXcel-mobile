@@ -24,11 +24,15 @@ export async function signupService(
 
 // Logout
 export async function logoutService() {
-  return await genericPost(
-    "/v1/auth/logout/",
-    {},
-    { useAccessToken: true }
-  );
+  try {
+    const response = await genericPost( "/v1/auth/logout/",{},
+      { useAccessToken: true, }
+    );
+    return response;
+  } catch (error) {
+    console.error("Logout API Error:", error);
+    throw error;
+  }
 }
 
 // Forgot Password
