@@ -1,9 +1,53 @@
-import { COLORS } from "@/src/styles/styles";
 import { Text, TouchableOpacity, View } from "react-native";
-import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { COLORS } from "@/src/styles/styles";
+import React, { useEffect, useState } from "react";
+import { getMeService } from "@/src/libs/services/profile";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import dashboardData from "../json/dashboard";
 
 export default function Greeting() {
+  const [firstName, setFirstName] = useState("User");
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const fetchUser = async () => {
+    try {
+      const res : any = await getMeService();
+
+      const fullName = res?.data?.name || "";
+      const name = getFirstName(fullName);
+
+      setFirstName(name);
+
+      // optional cache
+      await AsyncStorage.setItem(
+        "user",
+        JSON.stringify(res?.data)
+      );
+    } catch (error) {
+      console.log("User fetch failed:", error);
+
+      // fallback from storage
+      const savedUser = await AsyncStorage.getItem("user");
+
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        const name = getFirstName(parsed?.name || "");
+
+        setFirstName(name);
+      }
+    }
+  };
+
+  const getFirstName = (fullName: string) => {
+    if (!fullName) return "User";
+
+    return fullName.trim().split(" ")[0];
+  };
+
   const now = new Date();
   const hour = now.getHours();
 
@@ -14,7 +58,6 @@ export default function Greeting() {
     greeting = "Good evening";
   }
 
-  // Dynamic date
   const formattedDate = now.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
@@ -26,10 +69,12 @@ export default function Greeting() {
     <View className="bg-white rounded-lg shadow-md p-6 mb-6">
       <View style={styles.greetingSection}>
         <Text style={styles.greetingText}>
-          {greeting}, {dashboardData.user.name}! 👋
+          {greeting}, {firstName}! 👋
         </Text>
 
-        <Text style={styles.greetingDate}>{formattedDate}</Text>
+        <Text style={styles.greetingDate}>
+          {formattedDate}
+        </Text>
 
         <View style={styles.examBadgesContainer}>
           {dashboardData.user.exams.map((item: any) => (
@@ -37,7 +82,8 @@ export default function Greeting() {
               key={item.id}
               style={[
                 styles.examBadge,
-                item.active && styles.examBadgeActive
+                item.active &&
+                  styles.examBadgeActive,
               ]}
             >
               <MaterialCommunityIcons
@@ -53,7 +99,8 @@ export default function Greeting() {
               <Text
                 style={[
                   styles.examBadgeText,
-                  item.active && styles.examBadgeTextActive
+                  item.active &&
+                    styles.examBadgeTextActive,
                 ]}
               >
                 {item.name}
@@ -75,17 +122,54 @@ export default function Greeting() {
 }
 
 const styles: any = {
-greetingSection: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
-  greetingText: { fontSize: 20, fontWeight: '800', color: COLORS.textDark },
-  greetingDate: { fontSize: 13, color: COLORS.textLight, marginTop: 2, marginBottom: 14 },
-  examBadgesContainer: { gap: 8 },
-  examBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: COLORS.white, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderWidth: 1.5, borderColor: COLORS.border,
+  greetingSection: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
   },
-  examBadgeActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
-  examBadgeText: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.textMedium },
-  examBadgeTextActive: { color: COLORS.primary },
+
+  greetingText: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: COLORS.textDark,
+  },
+
+  greetingDate: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    marginTop: 2,
+    marginBottom: 14,
+  },
+
+  examBadgesContainer: {
+    gap: 8,
+  },
+
+  examBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+  },
+
+  examBadgeActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+
+  examBadgeText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.textMedium,
+  },
+
+  examBadgeTextActive: {
+    color: COLORS.primary,
+  },
 };

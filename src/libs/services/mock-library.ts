@@ -1,7 +1,7 @@
 
 import { genericGet, genericPost, genericPut } from "./genericService";
 
-// Generic API Response
+// API Response
 export type MockStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED';
  
 // Difficulty as returned by API (lowercase) — also accept normalized form
@@ -27,7 +27,7 @@ export interface SubjectObject {
   name: string;
 }
  
-// The full MockTest shape, matching the API response
+// The full MockTest shape
 export interface MockTest {
   id: number | string;
   title?: string;
@@ -46,7 +46,7 @@ export interface MockTest {
   percentile?: number | null;
 }
  
-// Generic API list response wrapper
+// API list response
 export interface MockListResponse {
   data: {
     count: number;

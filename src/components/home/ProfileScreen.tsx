@@ -399,6 +399,20 @@ export default function ProfileScreen() {
         onProfilePress={() => setProfileOpen(!profileOpen)}
       />
 
+      <TouchableOpacity
+        style={profileStyles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons
+          name="arrow-back"
+          size={18}
+          color={COLORS.textDark}
+        />
+        <Text style={profileStyles.backText}>
+          Profile
+        </Text>
+      </TouchableOpacity>
+
       <ScrollView
         style={profileStyles.scroll}
         showsVerticalScrollIndicator={false}

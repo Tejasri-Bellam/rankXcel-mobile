@@ -2,6 +2,7 @@ import { practiceStyles } from '@/src/styles/sidebar/practiceStyles';
 import { COLORS } from '@/src/styles/styles';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
 import {
   Dimensions,
   ScrollView,
@@ -76,6 +77,8 @@ export default function PracticeScreen() {
   const [selectedSubject, setSelectedSubject] = useState<Subject>('Mathematics');
   const [profileOpen, setProfileOpen] = useState(false);
 
+  const router = useRouter();
+
   // Practice flow state
   const [practiceVisible, setPracticeVisible] = useState(false);
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
@@ -102,6 +105,8 @@ export default function PracticeScreen() {
               onMenuPress={() => setDrawerOpen(true)}
               onProfilePress={() => setProfileOpen(!profileOpen)}
             />
+
+
       <ScrollView
         style={practiceStyles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -109,9 +114,25 @@ export default function PracticeScreen() {
       >
         {/* ── Hero Banner ── */}
         <View style={practiceStyles.heroBanner}>
+          <TouchableOpacity
+            style={practiceStyles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={18}
+              color={COLORS.textDark}
+            />
+          </TouchableOpacity>
+
           <View style={practiceStyles.heroIconCircle}>
-            <MaterialCommunityIcons name="lightning-bolt" size={28} color={COLORS.primary} />
+            <MaterialCommunityIcons
+              name="lightning-bolt"
+              size={28}
+              color={COLORS.primary}
+            />
           </View>
+
           <View style={{ flex: 1 }}>
             <Text style={practiceStyles.heroTitle}>Practice Hub</Text>
             <Text style={practiceStyles.heroSubtitle}>

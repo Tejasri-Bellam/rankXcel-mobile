@@ -13,9 +13,10 @@ export async function assessmentStartService(attemptId: number) {
 }
 
 // Get Questions
-export async function getassessmentsQuestionsService(id: number) {
-  return await genericGet(`/v1/student/assessments/${id}/questions/`,true);
-}
+// export async function getassessmentsQuestionsService(id: number) {
+//   console.log("Getting questions for assessment id:", id);
+//   return await genericGet(`/v1/student/assessments/${id}/questions/`,true);
+// }
 
 // Save Answer
 export async function updateAssessmentResponsesService(
@@ -23,6 +24,7 @@ export async function updateAssessmentResponsesService(
   questionId: number,
   values: any
 ) {
+
   return await genericPut(`/v1/assessment-attempts/${attemptId}/responses/${questionId}/`,
     values,
     { isMultipart: false, useAccessToken: true}

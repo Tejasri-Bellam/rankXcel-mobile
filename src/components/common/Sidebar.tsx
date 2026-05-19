@@ -35,13 +35,13 @@ export default function Sidebar({
 
   if (!visible) return null;
 
-  // sidebarData.ts
+  // sidebar
 
 const navItems = [
   {icon: 'grid-outline',label: 'Dashboard',route: '/dashboard',status: 'active',},
   {icon: 'barbell-outline',label: 'Practice',route: '/practice',status: 'active',},
   {icon: 'clipboard-outline',label: 'Assessments',route: '/assessments',status: 'active',},
-  {icon: 'document-text-outline',label: 'Mock Library',route: '/mock-library',status: 'active',},
+  {icon: 'document-text-outline',label: 'Mock Exam',route: '/mock-library',status: 'active',},
   {icon: 'analytics-outline',label: 'Analytics',route: '/analytics',status: 'active',},
   {icon: 'bulb-outline',label: 'Strategy',soon: 'true',status: 'inactive',},
   {icon: 'cloud-upload-outline',label: 'Upload Paper',soon: 'true',status: 'inactive',},

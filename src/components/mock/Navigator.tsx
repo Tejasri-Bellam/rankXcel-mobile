@@ -12,7 +12,7 @@ type Props = {
   onBackToAssessments?: () => void;
 };
 
-export default function ExamNavigator({
+export default function Navigator({
   assessmentId,
   attemptId,
   durationMinutes,

@@ -6,17 +6,25 @@ export const practiceStyles = StyleSheet.create({
   scrollView: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: { paddingBottom: 32 },
 
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginLeft: -8,
+    backgroundColor: COLORS.white,
+  },
+
   // Hero
   heroBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 10,
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 5,
     paddingBottom: 16,
     backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    
   },
   heroIconCircle: {
     width: 52,
@@ -25,6 +33,7 @@ export const practiceStyles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: -6,
   },
   heroTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textDark },
   heroSubtitle: { fontSize: 13, color: COLORS.textLight, marginTop: 3, lineHeight: 18 },
