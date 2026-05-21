@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import React from 'react';
+// src/components/mock/MockExamResults.tsx
+
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,44 +10,19 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  examResultStyles as styles,
-  GREEN, RED, GRAY, ACCENT,
-} from '../../styles/sidebar/assessments/results';
-import { getassessmentResultService } from '@/src/libs/services/assessments-attempts';
+import { mockResultStyles as styles } from '../../styles/sidebar/mockExams/results';
+import { getMockTestResultService, MockTest } from '../../libs/services/mock-library';
 
-// Types
 interface Props {
-  attemptId: number;
+  mockId: number | string;
+  mock: MockTest;
   answers: Record<string, string[]>;
   timeTakenSeconds: number;
   onBack: () => void;
   onViewSolutions?: () => void;
-  exam: any;
+  onViewAnalysis?: () => void;
 }
 
-interface SubjectStat {
-  subject: string;
-  score: number;
-  totalMarks: number;
-  accuracy: number;
-  correct: number;
-  wrong: number;
-  skipped: number;
-  color: string;
-}
-
-interface ChapterStat {
-  chapter: string;
-  subject: string;
-  score: number;
-  totalMarks: number;
-  correct: number;
-  wrong: number;
-  accuracy: number;
-}
-
-// Helpers
 function formatTime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   const m = Math.floor(seconds / 60);
@@ -61,30 +37,30 @@ function isAnswerCorrect(q: any, userAnswer: string[]): boolean {
   );
 }
 
-// Component
-export default function Results({
-  attemptId,
+export default function MockExamResults({
+  mockId,
+  mock,
   answers,
   timeTakenSeconds,
   onBack,
   onViewSolutions,
-  exam,
+  onViewAnalysis,
 }: Props) {
   const [result, setResult]   = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const allQuestions: any[] = exam?.sections?.flatMap((s: any) => s.questions) ?? [];
+  const allQuestions: any[] = (mock as any)?.sections?.flatMap((s: any) => s.questions) ?? [];
 
   useEffect(() => { loadResult(); }, []);
 
   const loadResult = async () => {
     try {
       setLoading(true);
-      const res = await getassessmentResultService(attemptId);
-      console.log('RESULT API:', JSON.stringify(res, null, 2));
+      const res = await getMockTestResultService(mockId);
+      console.log('MOCK RESULT API:', JSON.stringify(res, null, 2));
       setResult(res?.data ?? null);
     } catch (err) {
-      console.log('RESULT ERROR:', JSON.stringify(err, null, 2));
+      console.log('MOCK RESULT ERROR:', err);
     } finally {
       setLoading(false);
     }
@@ -92,43 +68,21 @@ export default function Results({
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
         <ActivityIndicator size="large" color="#6C5CE7" />
-        <Text style={{ marginTop: 12, color: GRAY }}>Loading results…</Text>
+        <Text style={{ marginTop: 12, color: '#9898B0' }}>Loading results…</Text>
       </SafeAreaView>
     );
   }
 
-  if (!result && allQuestions.length === 0) {
-    return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ fontSize: 40, marginBottom: 16 }}>📊</Text>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 8 }}>
-          Results Loading…
-        </Text>
-        <Text style={{ fontSize: 14, color: GRAY, textAlign: 'center', marginBottom: 24 }}>
-          Your exam has been submitted. Results may take a moment to process.
-        </Text>
-        <TouchableOpacity
-          onPress={loadResult}
-          style={{ backgroundColor: '#6C5CE7', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-        >
-          <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onBack} style={{ marginTop: 12 }}>
-          <Text style={{ color: GRAY, fontSize: 14 }}>← Back to Assessments</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
+  // Compute local stats as fallback
   let localCorrect = 0, localWrong = 0, localAttempted = 0, localScore = 0;
   allQuestions.forEach((q: any) => {
     const ua = answers[q.id] ?? [];
     if (ua.length > 0) {
       localAttempted++;
-      if (isAnswerCorrect(q, ua)) { localCorrect++; localScore += q.marks_correct ?? 0; }
-      else                         { localWrong++;   localScore += q.marks_incorrect ?? 0; }
+      if (isAnswerCorrect(q, ua)) { localCorrect++; localScore += q.marks_correct ?? 4; }
+      else                         { localWrong++;   localScore += q.marks_incorrect ?? -1; }
     }
   });
 
@@ -137,78 +91,20 @@ export default function Results({
   const finalWrong     = result?.wrong_count      ?? localWrong;
   const finalAttempted = result?.attempted_count  ?? localAttempted;
   const totalMarks     = result?.total_marks
-    ?? allQuestions.reduce((s: number, q: any) => s + (q.marks_correct ?? 0), 0);
-  const finalSkipped   = allQuestions.length - finalAttempted;
+    ?? allQuestions.reduce((s: number, q: any) => s + (q.marks_correct ?? 4), 0)
+    ?? mock.max_score
+    ?? mock.question_count
+    ?? 0;
+  const finalSkipped   = (result?.total_questions ?? allQuestions.length) - finalAttempted;
   const percentage     = result?.percentage != null
     ? Number(result.percentage).toFixed(1)
     : totalMarks > 0 ? ((finalScore / totalMarks) * 100).toFixed(1) : '0.0';
+  const percentile     = result?.percentile ?? mock.percentile ?? null;
+  const rank           = result?.rank ?? null;
 
   const dateLabel = result?.date ?? new Date().toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
-
-  // Subject-wise stats
-  const subjectPerf: SubjectStat[] = (exam?.sections ?? []).map((section: any) => {
-    let sScore = 0, sCorrect = 0, sWrong = 0, sAttempted = 0;
-    const sTotalMarks = (section.questions ?? []).reduce(
-      (sum: number, q: any) => sum + (q.marks_correct ?? 0), 0
-    );
-    (section.questions ?? []).forEach((q: any) => {
-      const ua = answers[q.id] ?? [];
-      if (ua.length > 0) {
-        sAttempted++;
-        if (isAnswerCorrect(q, ua)) { sScore += q.marks_correct ?? 0; sCorrect++; }
-        else                         { sScore += q.marks_incorrect ?? 0; sWrong++; }
-      }
-    });
-    const sSkipped  = (section.questions ?? []).length - sAttempted;
-    const sAccuracy = sAttempted > 0 ? Math.round((sCorrect / sAttempted) * 100) : 0;
-    const spData    = result?.subject_performance?.find((sp: any) => sp.subject === section.name);
-    return {
-      subject:    section.name,
-      score:      sScore,
-      totalMarks: sTotalMarks,
-      accuracy:   sAccuracy,
-      correct:    sCorrect,
-      wrong:      sWrong,
-      skipped:    sSkipped,
-      color:      spData?.color ?? '#6C5CE7',
-    };
-  });
-
-  // Chapter-wise stats
-  const chapterPerf: ChapterStat[] = [];
-  (exam?.sections ?? []).forEach((section: any) => {
-    const chapterMap: Record<string, any[]> = {};
-    (section.questions ?? []).forEach((q: any) => {
-      const key = q.chapter_name ?? q.topic_name ?? q.chapter ?? 'General';
-      if (!chapterMap[key]) chapterMap[key] = [];
-      chapterMap[key].push(q);
-    });
-    Object.entries(chapterMap).forEach(([chName, qs]) => {
-      let cScore = 0, cCorrect = 0, cWrong = 0, cAttempted = 0;
-      const cTotal = qs.reduce((s, q) => s + (q.marks_correct ?? 0), 0);
-      qs.forEach((q) => {
-        const ua = answers[q.id] ?? [];
-        if (ua.length > 0) {
-          cAttempted++;
-          if (isAnswerCorrect(q, ua)) { cScore += q.marks_correct ?? 0; cCorrect++; }
-          else                         { cScore += q.marks_incorrect ?? 0; cWrong++; }
-        }
-      });
-      const cAccuracy = cAttempted > 0 ? Math.round((cCorrect / cAttempted) * 100) : 0;
-      chapterPerf.push({
-        chapter:    chName,
-        subject:    section.name,
-        score:      cScore,
-        totalMarks: cTotal,
-        correct:    cCorrect,
-        wrong:      cWrong,
-        accuracy:   cAccuracy,
-      });
-    });
-  });
-
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -218,13 +114,13 @@ export default function Results({
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backText}>Assessments</Text>
+          <Text style={styles.backText}>Mock Library</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-        {/* ── Score Card ── */}
+        {/* Score Card */}
         <View style={styles.scoreCard}>
           <View style={styles.scoreCardTop}>
             <View>
@@ -241,8 +137,8 @@ export default function Results({
           </View>
           <View style={styles.scoreStatsRow}>
             {[
-              { label: `${finalCorrect} correct`,  color: GREEN },
-              { label: `${finalWrong} wrong`,       color: RED },
+              { label: `${finalCorrect} correct`,  color: '#22C55E' },
+              { label: `${finalWrong} wrong`,       color: '#EF4444' },
               { label: `${finalSkipped} skipped`,   color: 'rgba(255,255,255,0.5)' },
             ].map(({ label, color }) => (
               <View key={label} style={styles.scoreStatItem}>
@@ -253,7 +149,7 @@ export default function Results({
           </View>
         </View>
 
-        {/* ── Stats Grid ── */}
+        {/* Stats Grid */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Text style={styles.statIcon}>📊</Text>
@@ -280,91 +176,28 @@ export default function Results({
             <Text style={styles.statLabel}>Attempted</Text>
             <Text style={styles.statSub}>{finalSkipped} skipped</Text>
           </View>
+          {percentile != null && (
+            <View style={styles.statCard}>
+              <Text style={styles.statIcon}>📈</Text>
+              <Text style={styles.statValue}>{percentile}%ile</Text>
+              <Text style={styles.statLabel}>Percentile</Text>
+            </View>
+          )}
+          {rank != null && (
+            <View style={styles.statCard}>
+              <Text style={styles.statIcon}>🏅</Text>
+              <Text style={styles.statValue}>#{rank}</Text>
+              <Text style={styles.statLabel}>Rank</Text>
+            </View>
+          )}
         </View>
 
-        {/* TABLE 1 — Subject-wise Performance */}
-        {subjectPerf.length > 0 && (
-          <>
-            <Text style={styles.sectionHeading}>Subject-wise Performance</Text>
-            <View style={styles.table}>
-              {/* Header */}
-              <View style={styles.tableHeaderRow}>
-                <Text style={styles.subjectColSubject}>Subject</Text>
-                {['Score', 'Accuracy', 'Correct', 'Wrong', 'Skipped'].map((h) => (
-                  <Text key={h} style={styles.subjectColData}>{h}</Text>
-                ))}
-              </View>
-              {/* Rows */}
-              {subjectPerf.map((sp, idx) => (
-                <View key={idx} style={styles.tableRow}>
-                  <View style={styles.subjectNameCell}>
-                    <View style={[styles.subjectColorDot, { backgroundColor: sp.color }]} />
-                    <Text style={styles.subjectNameText} numberOfLines={1}>{sp.subject}</Text>
-                  </View>
-                  <Text style={[styles.subjectDataCell, { color: ACCENT }]}>
-                    {sp.score}/{sp.totalMarks}
-                  </Text>
-                  <Text style={[styles.subjectDataCell, { color: '#1A1A2E' }]}>
-                    {sp.accuracy}%
-                  </Text>
-                  <Text style={[styles.subjectDataCell, { color: GREEN }]}>
-                    {sp.correct}
-                  </Text>
-                  <Text style={[styles.subjectDataCell, { color: RED }]}>
-                    {sp.wrong}
-                  </Text>
-                  <Text style={[styles.subjectDataCell, { color: GRAY }]}>
-                    {sp.skipped}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* TABLE 2 — Chapter-wise Breakdown */}
-        {chapterPerf.length > 0 && (
-          <>
-            <Text style={[styles.sectionHeading, { marginTop: 24 }]}>Chapter-wise Breakdown</Text>
-            <View style={styles.table}>
-              {/* Header */}
-              <View style={styles.tableHeaderRow}>
-                <Text style={styles.chapterColChapter}>Chapter</Text>
-                {['Subject', 'Score', 'Correct', 'Wrong', 'Accuracy'].map((h) => (
-                  <Text key={h} style={styles.chapterColData}>{h}</Text>
-                ))}
-              </View>
-              {/* Rows */}
-              {chapterPerf.map((cp, idx) => (
-                <View key={idx} style={styles.tableRow}>
-                  <Text style={styles.chapterNameText} numberOfLines={2}>{cp.chapter}</Text>
-                  <Text style={[styles.chapterDataCell, { color: GRAY }]}>{cp.subject}</Text>
-                  <Text style={[styles.chapterDataCell, { color: ACCENT }]}>
-                    {cp.score}/{cp.totalMarks}
-                  </Text>
-                  <Text style={[styles.chapterDataCell, { color: GREEN }]}>{cp.correct}</Text>
-                  <Text style={[styles.chapterDataCell, { color: RED }]}>{cp.wrong}</Text>
-                  <Text style={[styles.chapterDataCell, { color: '#1A1A2E' }]}>{cp.accuracy}%</Text>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* ── What would you like to do next? ── */}
+        {/* What next */}
         <View style={styles.nextCard}>
           <Text style={styles.nextCardTitle}>What would you like to do next?</Text>
 
-          {/* View Solutions */}
           {onViewSolutions && (
-            <TouchableOpacity
-              style={styles.nextRow}
-              onPress={() => {
-                try { onViewSolutions(); }
-                catch (e) { console.log('onViewSolutions error:', e); }
-              }}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.nextRow} onPress={onViewSolutions} activeOpacity={0.7}>
               <View style={[styles.nextIconBox, { backgroundColor: '#F0EEFF' }]}>
                 <Text style={{ fontSize: 18 }}>📖</Text>
               </View>
@@ -376,26 +209,26 @@ export default function Results({
             </TouchableOpacity>
           )}
 
-          {/* Detailed Analysis (placeholder) */}
-          <TouchableOpacity style={styles.nextRow} activeOpacity={0.7}>
-            <View style={[styles.nextIconBox, { backgroundColor: '#FFF0E8' }]}>
-              <Text style={{ fontSize: 18 }}>📈</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.nextLabel}>Detailed Analysis</Text>
-              <Text style={styles.nextSub}>Chapter-wise breakdown & AI insights</Text>
-            </View>
-            <Text style={styles.nextChevron}>›</Text>
-          </TouchableOpacity>
+          {onViewAnalysis && (
+            <TouchableOpacity style={styles.nextRow} onPress={onViewAnalysis} activeOpacity={0.7}>
+              <View style={[styles.nextIconBox, { backgroundColor: '#FFF0E8' }]}>
+                <Text style={{ fontSize: 18 }}>📈</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.nextLabel}>Detailed Analysis</Text>
+                <Text style={styles.nextSub}>Chapter-wise breakdown & insights</Text>
+              </View>
+              <Text style={styles.nextChevron}>›</Text>
+            </TouchableOpacity>
+          )}
 
-          {/* Assessments */}
           <TouchableOpacity style={styles.nextRow} onPress={onBack} activeOpacity={0.7}>
             <View style={[styles.nextIconBox, { backgroundColor: '#E8F5E9' }]}>
-              <Text style={{ fontSize: 18 }}>📝</Text>
+              <Text style={{ fontSize: 18 }}>📚</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.nextLabel}>Assessments</Text>
-              <Text style={styles.nextSub}>View all assessments</Text>
+              <Text style={styles.nextLabel}>Mock Library</Text>
+              <Text style={styles.nextSub}>Browse all mock tests</Text>
             </View>
             <Text style={styles.nextChevron}>›</Text>
           </TouchableOpacity>
