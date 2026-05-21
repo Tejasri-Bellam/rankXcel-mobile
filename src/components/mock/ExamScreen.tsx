@@ -1,3 +1,5 @@
+// src/components/mock/MockExamScreen.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -12,145 +14,48 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { examScreenStyles as styles } from '../../styles/sidebar/assessments/examScreen';
-import { getassessmentsQuestionsService } from '../../libs/services/assessments';
+import { mockExamScreenStyles as styles } from '../../styles/sidebar/mockExams/examScreen';
 import {
-  assessmentSubmitService,
-  updateAssessmentResponsesService,
-} from '@/src/libs/services/assessments-attempts';
-
+  submitMockTestService,
+  submitMockResponseService,
+} from '../../libs/services/mock-library';
 
 interface Props {
-  assessmentId: number;
-  attemptId: number;
+  mockId: number | string;
   durationMinutes: number;
-  questions: any[];
-  onBack: () => void;
+  exam: any;
   onSubmit: (answers: Record<string, string[]>, timeTakenSeconds: number) => void;
-  onBackToAssessments?: () => void;
+  onBackToMocks?: () => void;
 }
 
 type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
 
-export default function ExamScreen({ assessmentId, attemptId, durationMinutes, questions, onSubmit, onBackToAssessments }: Props) {
-  const [exam, setExam] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Timer state — initialised after exam data loads
-  const [timeLeft, setTimeLeft] = useState(0);
+export default function MockExamScreen({
+  mockId,
+  durationMinutes,
+  exam,
+  onSubmit,
+  onBackToMocks,
+}: Props) {
+  const [timeLeft, setTimeLeft]   = useState((exam?.duration_minutes ?? durationMinutes) * 60);
   const [timeTaken, setTimeTaken] = useState(0);
 
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
-  const [activeQIdx, setActiveQIdx] = useState(0);
+  const [activeQIdx, setActiveQIdx]             = useState(0);
 
-  const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  const [answers, setAnswers]     = useState<Record<string, string[]>>({});
   const [qStatuses, setQStatuses] = useState<Record<string, QuestionStatus>>({});
 
-  const [tabSwitchCount, setTabSwitchCount] = useState(0);
-  const [showTabWarning, setShowTabWarning] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount]   = useState(0);
+  const [showTabWarning, setShowTabWarning]   = useState(false);
   const appStateRef = useRef(AppState.currentState);
   const tabWarningTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submitting, setSubmitting]           = useState(false);
 
-  // ── Load questions ──
+  // ── Countdown timer ─────────────────────────────────────────────────────
   useEffect(() => {
-    loadQuestions();
-  }, []);
-
-  const loadQuestions = async () => {
-  try {
-    setLoading(true);
-    const res = await getassessmentsQuestionsService(assessmentId);
-    console.log('QUESTIONS RESPONSE:', res);
-    console.log('QUESTIONS API:', JSON.stringify(res?.data, null, 2));
-
-    const raw: any = res?.data;
-    console.log('RAW QUESTIONS:', JSON.stringify(raw, null, 2));
-
-    let examData: any = null;
-
-    if (raw?.sections) {
-    examData = raw;
-    }
-    else if (raw?.questions) {
-      const groupedQuestions = raw.questions.reduce(
-        (acc: any, q: any) => {
-          const subject =
-            q.subject ||
-            q.subject_name ||
-            'General';
-
-          if (!acc[subject]) {
-            acc[subject] = [];
-          }
-
-          acc[subject].push({
-            id: q.id,
-            text: q.question_text,
-            type: q.question_type,
-            options: q.choices?.map(
-              (choice: any) => ({
-                id: choice.id.toString(),
-                text: choice.text,
-              })
-            ),
-            marks_correct: 4,
-            marks_incorrect: -1,
-          });
-
-          return acc;
-        },
-        {}
-      );
-
-      examData = {
-        name: 'Assessment',
-        duration_minutes: durationMinutes,
-        sections: Object.keys(
-          groupedQuestions
-        ).map((subject, index) => ({
-          id: index + 1,
-          name: subject,
-          questions:
-            groupedQuestions[subject],
-        })),
-      };
-    }
-    else if (Array.isArray(raw)) {
-      examData = {
-        sections: raw,
-        duration_minutes: durationMinutes,
-      };
-    }
-    else if (raw?.results && Array.isArray(raw.results)) {
-      examData = {
-        sections: raw.results,
-        duration_minutes: durationMinutes,
-      };
-    }
-    else {
-      examData = raw;
-    }
-
-    // Fallback duration from prop if API doesn't provide it
-    if (!examData?.duration_minutes) {
-      examData = { ...examData, duration_minutes: durationMinutes };
-    }
-
-    setExam(examData);
-    setTimeLeft((examData.duration_minutes ?? 60) * 60);
-  } catch (error) {
-    console.log('QUESTIONS ERROR:', error);
-    Alert.alert('Error', 'Failed to load questions. Please go back and try again.');
-  } finally {
-    setLoading(false);
-  }
-};
-
-  // ── Countdown timer
-  useEffect(() => {
-    if (!exam) return;
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -163,47 +68,37 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
       setTimeTaken((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [exam]);
+  }, []);
 
-  // ── AppState / tab-switch detection ──
+  // ── AppState tab-switch detection ────────────────────────────────────────
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (
         appStateRef.current === 'active' &&
-        (nextState === 'background' || nextState === 'inactive')
+        (next === 'background' || next === 'inactive')
       ) {
         setTabSwitchCount((prev) => {
-          const newCount = prev + 1;
+          const n = prev + 1;
           setShowTabWarning(true);
           if (tabWarningTimeout.current) clearTimeout(tabWarningTimeout.current);
           tabWarningTimeout.current = setTimeout(() => setShowTabWarning(false), 4000);
-          return newCount;
+          return n;
         });
       }
-      appStateRef.current = nextState;
+      appStateRef.current = next;
     });
     return () => {
-      subscription.remove();
+      sub.remove();
       if (tabWarningTimeout.current) clearTimeout(tabWarningTimeout.current);
     };
   }, []);
 
-  // ── Loading / empty guard ──
-  if (loading || !exam) {
+  if (!exam?.sections?.length) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#6C5CE7" />
-        <Text style={{ marginTop: 12, color: '#9898B0' }}>Loading exam...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  if (!exam.sections || exam.sections.length === 0) {
-    return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: '#9898B0' }}>No questions found for this assessment.</Text>
-        {onBackToAssessments && (
-          <TouchableOpacity onPress={onBackToAssessments} style={{ marginTop: 16 }}>
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+        <Text style={{ color: '#9898B0' }}>No questions found for this mock test.</Text>
+        {onBackToMocks && (
+          <TouchableOpacity onPress={onBackToMocks} style={{ marginTop: 16 }}>
             <Text style={{ color: '#6C5CE7', fontWeight: '600' }}>← Go Back</Text>
           </TouchableOpacity>
         )}
@@ -211,10 +106,9 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
     );
   }
 
-  const activeSection = exam.sections[activeSectionIdx];
+  const activeSection  = exam.sections[activeSectionIdx];
   const activeQuestion = activeSection?.questions?.[activeQIdx];
-
-  const getCurrentQuestionId = () => activeQuestion?.id;
+  const currentQId     = activeQuestion?.id;
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -226,59 +120,59 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
+  const isTimeLow = timeLeft < 300; // < 5 min
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleOptionSelect = async (optionId: string) => {
-    const qId = getCurrentQuestionId();
-    if (!qId) return;
+    if (!currentQId) return;
+    const isMulti = activeQuestion?.type === 'MCQ_MULTIPLE' || activeQuestion?.type === 'Multi Correct';
 
-    // Optimistically update local state first for snappy UX
-    const isMulti = activeQuestion.type === 'MCQ_MULTIPLE';
     setAnswers((prev) => {
-      const current = prev[qId] || [];
+      const current = prev[currentQId] || [];
       if (isMulti) {
-        if (current.includes(optionId)) {
-          return { ...prev, [qId]: current.filter((o) => o !== optionId) };
-        }
-        return { ...prev, [qId]: [...current, optionId] };
+        return {
+          ...prev,
+          [currentQId]: current.includes(optionId)
+            ? current.filter((o) => o !== optionId)
+            : [...current, optionId],
+        };
       }
-      return { ...prev, [qId]: [optionId] };
+      return { ...prev, [currentQId]: [optionId] };
     });
-    setQStatuses((prev) => ({ ...prev, [qId]: 'answered' }));
+    setQStatuses((prev) => ({ ...prev, [currentQId]: 'answered' }));
 
-    // Persist to server
     try {
-      await updateAssessmentResponsesService(attemptId, qId, {
-        selected_options: [optionId],
-      });
-    } catch (error) {
-      console.log('SAVE ANSWER ERROR:', error);
+      await submitMockResponseService(mockId, currentQId, { selected_option: optionId });
+    } catch (err) {
+      console.log('MOCK SAVE ANSWER ERROR:', err);
     }
   };
 
   const handleMarkForReview = () => {
-    const qId = getCurrentQuestionId();
-    if (qId) setQStatuses((prev) => ({ ...prev, [qId]: 'marked' }));
+    if (currentQId) setQStatuses((prev) => ({ ...prev, [currentQId]: 'marked' }));
   };
 
   const handleSaveAndNext = () => {
-    const qId = getCurrentQuestionId();
-    const hasAnswer = (answers[qId] || []).length > 0;
-    if (qId && !qStatuses[qId]) {
-      setQStatuses((prev) => ({
-        ...prev,
-        [qId]: hasAnswer ? 'answered' : 'not_answered',
-      }));
+    if (currentQId) {
+      const hasAnswer = (answers[currentQId] || []).length > 0;
+      if (!qStatuses[currentQId]) {
+        setQStatuses((prev) => ({
+          ...prev,
+          [currentQId]: hasAnswer ? 'answered' : 'not_answered',
+        }));
+      }
     }
 
     if (activeQIdx < activeSection.questions.length - 1) {
-      const nextQId = activeSection.questions[activeQIdx + 1].id;
+      const nextId = activeSection.questions[activeQIdx + 1].id;
       setActiveQIdx(activeQIdx + 1);
-      setQStatuses((prev) => ({ ...prev, [nextQId]: prev[nextQId] || 'not_answered' }));
+      setQStatuses((prev) => ({ ...prev, [nextId]: prev[nextId] || 'not_answered' }));
     } else if (activeSectionIdx < exam.sections.length - 1) {
       const nextSection = exam.sections[activeSectionIdx + 1];
-      const nextQId = nextSection.questions[0].id;
+      const nextId = nextSection.questions[0].id;
       setActiveSectionIdx(activeSectionIdx + 1);
       setActiveQIdx(0);
-      setQStatuses((prev) => ({ ...prev, [nextQId]: prev[nextQId] || 'not_answered' }));
+      setQStatuses((prev) => ({ ...prev, [nextId]: prev[nextId] || 'not_answered' }));
     }
   };
 
@@ -301,18 +195,16 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
     }
   };
 
-  const getAllQuestions = () => exam.sections.flatMap((s: any) => s.questions);
-
   const getSubmitSummary = () => {
-    const allQs = getAllQuestions();
+    const allQs = exam.sections.flatMap((s: any) => s.questions);
     let answered = 0, notAnswered = 0, markedForReview = 0, notVisited = 0;
     allQs.forEach((q: any) => {
       const status = qStatuses[q.id];
       const hasAnswer = (answers[q.id] || []).length > 0;
-      if (!status)                              notVisited++;
+      if (!status) notVisited++;
       else if (status === 'answered' && hasAnswer) answered++;
-      else if (status === 'marked')             markedForReview++;
-      else                                      notAnswered++;
+      else if (status === 'marked') markedForReview++;
+      else notAnswered++;
     });
     return { answered, notAnswered, markedForReview, notVisited };
   };
@@ -329,20 +221,21 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
 
   const handleFinalSubmit = async () => {
     try {
-      await assessmentSubmitService(attemptId);
-      console.log('ASSESSMENT SUBMITTED');
+      setSubmitting(true);
+      await submitMockTestService(mockId);
+      setShowSubmitModal(false);
       onSubmit(answers, timeTaken);
-    } catch (error) {
-      console.log('SUBMIT ERROR:', error);
+    } catch (err) {
+      console.log('MOCK SUBMIT ERROR:', err);
       Alert.alert('Error', 'Submission failed. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const qNumberInSection = activeQIdx + 1;
-  const totalInSection = activeSection?.questions?.length ?? 0;
-  const selectedOptions = answers[getCurrentQuestionId()] || [];
-  const summary = getSubmitSummary();
+  const summary        = getSubmitSummary();
   const sectionSummary = getSectionSummary();
+  const selectedOptions = answers[currentQId] || [];
   const sectionAnswered = exam.sections.map((s: any) =>
     s.questions.filter((q: any) => (answers[q.id] || []).length > 0).length
   );
@@ -355,14 +248,21 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
       <View style={styles.topBar}>
         <View style={styles.topLeft}>
           <Text style={styles.examLabel}>Mock Test</Text>
-          <Text style={styles.examName}>{exam?.name ?? 'Assessment'}</Text>
+          <Text style={styles.examName} numberOfLines={1}>
+            {exam?.name ?? 'Mock Test'}
+          </Text>
         </View>
-        <View style={styles.timerBox}>
+        <View style={[styles.timerBox, isTimeLow && styles.timerBoxRed]}>
           <Text style={styles.timerLabel}>TIME LEFT</Text>
-          <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
+          <Text style={[styles.timerValue, isTimeLow && { color: '#FCA5A5' }]}>
+            {formatTime(timeLeft)}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.submitTopBtn} onPress={() => setShowSubmitModal(true)}>
-          <Text style={styles.submitTopBtnText}>⚑  Submit</Text>
+        <TouchableOpacity
+          style={styles.submitTopBtn}
+          onPress={() => setShowSubmitModal(true)}
+        >
+          <Text style={styles.submitTopBtnText}>⚑ Submit</Text>
         </TouchableOpacity>
       </View>
 
@@ -380,7 +280,7 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
       <View style={styles.sectionTabsRow}>
         {exam.sections.map((section: any, idx: number) => (
           <TouchableOpacity
-            key={section.id}
+            key={section.id ?? idx}
             style={[styles.sectionTab, activeSectionIdx === idx && styles.sectionTabActive]}
             onPress={() => { setActiveSectionIdx(idx); setActiveQIdx(0); }}
           >
@@ -388,7 +288,7 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
               {section.name}
             </Text>
             <Text style={[styles.sectionTabCount, activeSectionIdx === idx && styles.sectionTabCountActive]}>
-              {sectionAnswered[idx]}/{section.total_questions ?? section.questions?.length ?? 0}
+              {sectionAnswered[idx]}/{section.questions?.length ?? 0}
             </Text>
           </TouchableOpacity>
         ))}
@@ -401,17 +301,20 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
           contentContainerStyle={styles.questionScrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Q meta */}
           <View style={styles.qMetaRow}>
-            <Text style={styles.qNumber}>Q {qNumberInSection} of {totalInSection}</Text>
+            <Text style={styles.qNumber}>
+              Q {activeQIdx + 1} of {activeSection?.questions?.length ?? 0}
+            </Text>
             <View style={styles.qTypeBadge}>
-              <Text style={styles.qTypeText}>{activeQuestion.type}</Text>
+              <Text style={styles.qTypeText}>{activeQuestion.type ?? 'MCQ'}</Text>
             </View>
             <View style={styles.marksBadges}>
               <View style={styles.correctMarkBadge}>
-                <Text style={styles.marksBadgeText}>+{activeQuestion.marks_correct} marks</Text>
+                <Text style={styles.marksBadgeText}>+{activeQuestion.marks_correct ?? 4}</Text>
               </View>
               <View style={styles.wrongMarkBadge}>
-                <Text style={styles.marksBadgeText}>{activeQuestion.marks_incorrect} marks</Text>
+                <Text style={styles.marksBadgeText}>{activeQuestion.marks_incorrect ?? -1}</Text>
               </View>
             </View>
           </View>
@@ -419,70 +322,37 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
           <Text style={styles.questionText}>{activeQuestion.text}</Text>
 
           <Text style={styles.selectLabel}>
-            {activeQuestion.type === 'Multi Correct'
+            {activeQuestion.type === 'MCQ_MULTIPLE' || activeQuestion.type === 'Multi Correct'
               ? 'Select one or more correct options'
               : 'Select one correct option'}
           </Text>
 
-          {activeQuestion.options?.map(
-            (option: any, index: number) => {
-              const isSelected = selectedOptions.includes(
-                option.id
-              );
-
-              return (
-                <TouchableOpacity
-                  key={String.fromCharCode(65 + index)}
-                  style={[
-                    styles.optionRow,
-                    isSelected &&
-                      styles.optionRowSelected,
-                  ]}
-                  onPress={() =>
-                    handleOptionSelect(option.id)
-                  }
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={[
-                      styles.optionBubble,
-                      isSelected &&
-                        styles.optionBubbleSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.optionBubbleText,
-                        isSelected &&
-                          styles
-                            .optionBubbleTextSelected,
-                      ]}
-                    >
-                      {String.fromCharCode(
-                        65 + index
-                      )}
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={[
-                      styles.optionText,
-                      isSelected &&
-                        styles.optionTextSelected,
-                    ]}
-                  >
-                    {option.text}
+          {activeQuestion.options?.map((option: any, index: number) => {
+            const isSelected = selectedOptions.includes(String(option.id));
+            return (
+              <TouchableOpacity
+                key={String(option.id)}
+                style={[styles.optionRow, isSelected && styles.optionRowSelected]}
+                onPress={() => handleOptionSelect(String(option.id))}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.optionBubble, isSelected && styles.optionBubbleSelected]}>
+                  <Text style={[styles.optionBubbleText, isSelected && styles.optionBubbleTextSelected]}>
+                    {String.fromCharCode(65 + index)}
                   </Text>
-                </TouchableOpacity>
-              );
-            }
-          )}
+                </View>
+                <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                  {option.text}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
-          ) : (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#9898B0' }}>No question available.</Text>
-            </View>
-          )}
+      ) : (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#9898B0' }}>No question available.</Text>
+        </View>
+      )}
 
       {/* Bottom action row */}
       <View style={styles.bottomActionRow}>
@@ -519,7 +389,7 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
               <View style={styles.modalTitleRow}>
                 <Text style={styles.modalWarningIcon}>⚠</Text>
                 <View>
-                  <Text style={styles.modalTitle}>Submit Exam?</Text>
+                  <Text style={styles.modalTitle}>Submit Mock?</Text>
                   <Text style={styles.modalSubtitle}>This action cannot be undone.</Text>
                 </View>
               </View>
@@ -542,7 +412,7 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
             <View style={styles.modalStatsRow}>
               <View style={[styles.modalStatBox, styles.modalStatBoxPurple]}>
                 <Text style={styles.modalStatValue}>{summary.markedForReview}</Text>
-                <Text style={[styles.modalStatLabel, { color: '#8B5CF6' }]}>Marked for Review</Text>
+                <Text style={[styles.modalStatLabel, { color: '#8B5CF6' }]}>Marked</Text>
               </View>
               <View style={[styles.modalStatBox, styles.modalStatBoxGray]}>
                 <Text style={styles.modalStatValue}>{summary.notVisited}</Text>
@@ -559,7 +429,7 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
               </View>
               {sectionSummary.map((s: any, idx: number) => (
                 <View key={idx} style={styles.sectionTableRow}>
-                  <Text style={[styles.sectionTableCell, { flex: 2 }]}>{s.name}</Text>
+                  <Text style={[styles.sectionTableCell, { flex: 2 }]} numberOfLines={1}>{s.name}</Text>
                   <Text style={styles.sectionTableCell}>{s.total}</Text>
                   <Text style={[styles.sectionTableCell, { color: '#22C55E' }]}>{s.answered}</Text>
                   <Text style={[styles.sectionTableCell, { color: '#EF4444' }]}>{s.notAnswered}</Text>
@@ -567,21 +437,23 @@ export default function ExamScreen({ assessmentId, attemptId, durationMinutes, q
               ))}
             </View>
 
-            {tabSwitchCount > 0 && (
-              <View style={styles.tabSwitchWarning}>
-                <Text style={styles.tabSwitchWarningIcon}>⚠</Text>
-                <Text style={styles.tabSwitchWarningText}>
-                  {tabSwitchCount} tab switch{tabSwitchCount > 1 ? 'es' : ''} detected. This will be recorded.
-                </Text>
-              </View>
-            )}
-
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={styles.goBackBtn} onPress={() => setShowSubmitModal(false)}>
-                <Text style={styles.goBackBtnText}>Go Back to Exam</Text>
+              <TouchableOpacity
+                style={styles.goBackBtn}
+                onPress={() => setShowSubmitModal(false)}
+              >
+                <Text style={styles.goBackBtnText}>Go Back</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.submitExamBtn} onPress={handleFinalSubmit}>
-                <Text style={styles.submitExamBtnText}>Submit Exam</Text>
+              <TouchableOpacity
+                style={styles.submitExamBtn}
+                onPress={handleFinalSubmit}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.submitExamBtnText}>Submit Mock</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

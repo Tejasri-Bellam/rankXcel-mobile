@@ -288,14 +288,14 @@ const MockCard: React.FC<MockCardProps> = ({
         )}
  
         {isInProgress && (
-<TouchableOpacity
-            style={[mockLibraryStyles.startBtn, { backgroundColor: COLORS.primary }]}
-            onPress={() => onResume(String(mock.id))}
-            disabled={isLoading}
->
-<Ionicons name="play-forward" size={14} color={COLORS.white} />
-<Text style={mockLibraryStyles.startBtnText}>Resume</Text>
-</TouchableOpacity>
+    <TouchableOpacity
+                style={[mockLibraryStyles.startBtn, { backgroundColor: COLORS.primary }]}
+                onPress={() => onResume(String(mock.id))}
+                disabled={isLoading}
+    >
+    <Ionicons name="play-forward" size={14} color={COLORS.white} />
+    <Text style={mockLibraryStyles.startBtnText}>Resume</Text>
+    </TouchableOpacity>
         )}
  
         {isCompleted && (
