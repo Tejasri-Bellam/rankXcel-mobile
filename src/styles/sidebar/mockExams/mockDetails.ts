@@ -174,4 +174,83 @@ export const mockDetailsStyles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+
+  /* ─── Completed-view additions ───────────────────────────────── */
+  pillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  pillExam: {
+    backgroundColor: ACCENT,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  pillExamText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  pillDifficulty: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  pillDifficultyText: { fontSize: 12, fontWeight: '700' },
+
+  coverageCard: {
+    backgroundColor: BG,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+  },
+  coverageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  coverageTitle: { fontSize: 14, fontWeight: '700', color: PRIMARY },
+  coverageRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  coverageChip: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  coverageChipText: { fontSize: 12, color: PRIMARY, fontWeight: '500' },
+  coverageEmpty: { fontSize: 12, color: GRAY, fontStyle: 'italic' },
+
+  bottomBarRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  primaryBtnFlex: {
+    flex: 1,
+    backgroundColor: ACCENT,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  secondaryBtnFlex: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  secondaryBtnText: { color: PRIMARY, fontWeight: '700', fontSize: 14 },
 });

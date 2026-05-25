@@ -42,17 +42,6 @@ export async function getExamsListService() {
   );
 }
 
-// Target Exams
-export async function updatePreferencesService(
-  data: any
-) {
-  return await genericPatch(
-    "/v1/exams/target-exams/",
-    data,
-    { useAccessToken: true }
-  );
-}
-
 // Get Target Exams
 export async function getTargetExamsService() {
   return await genericGet(
@@ -64,9 +53,8 @@ export async function getTargetExamsService() {
 // Add Target Exam
 export async function addTargetExamService(
   payload: {
-    exam_id: number | string;
+    exam: number | string;
     target_year: number | string;
-    target_percentage?: number | string;
   }
 ) {
   return await genericPost(

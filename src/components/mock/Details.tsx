@@ -1,6 +1,6 @@
 // src/components/mock/MockDetails.tsx
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { mockDetailsStyles as styles } from '../../styles/sidebar/mockExams/mockDetails';
 import {
   startMockTestService,
-  getMockTestByIdService,
   MockTest,
 } from '../../libs/services/mock-library';
 import MockExamNavigator from './Navigator';
@@ -22,12 +23,13 @@ import MockExamResults from './Results';
 import MockSolutionViewer from './SolutionViewer';
 import MockDetailedAnalysis from './DetailedAnalysis';
 
+type MockView = 'detail' | 'exam' | 'results' | 'solutions' | 'analysis';
+
 interface Props {
   mock: MockTest;
   onBack: () => void;
+  initialView?: MockView;
 }
-
-type MockView = 'detail' | 'exam' | 'results' | 'solutions' | 'analysis';
 
 const STATUS_CONFIG = {
   NOT_STARTED: { label: 'Not Started', color: '#9898B0', bg: '#F3F4F6' },
@@ -65,14 +67,40 @@ const formatDuration = (mins: number | null | undefined): string => {
   return `${m} min`;
 };
 
-export default function MockDetails({ mock, onBack }: Props) {
-  const [currentView, setCurrentView] = useState<MockView>('detail');
+export default function MockDetails({ mock, onBack, initialView = 'detail' }: Props) {
+  const [currentView, setCurrentView] = useState<MockView>(initialView);
   const [startLoading, setStartLoading] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
   const [accepted, setAccepted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
   const [timeTaken, setTimeTaken] = useState(0);
-  const [mockData, setMockData] = useState<MockTest>(mock);
+  const [mockData] = useState<MockTest>(mock);
+
+  // Reflect the current sub-view in the URL so deep-links / debugging is clear.
+  useEffect(() => {
+    router.setParams({ mockId: String(mockData.id), view: currentView });
+    return () => {
+      router.setParams({ mockId: undefined as any, view: undefined as any });
+    };
+  }, [currentView, mockData.id]);
+
+  // Hardware back: pop within the mock flow instead of exiting the screen.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (currentView === 'solutions' || currentView === 'analysis') {
+        setCurrentView('results');
+        return true;
+      }
+      if (currentView === 'exam') {
+        setCurrentView('detail');
+        return true;
+      }
+      // From 'results' or 'detail', exit straight back to the Mock Library list.
+      onBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [currentView, onBack]);
 
   const isCompleted  = mockData.status === 'SUBMITTED';
   const isInProgress = mockData.status === 'IN_PROGRESS';
@@ -81,6 +109,27 @@ export default function MockDetails({ mock, onBack }: Props) {
   const sc = STATUS_CONFIG[mockData.status] ?? STATUS_CONFIG.NOT_STARTED;
   const examName    = getExamName(mockData.exam);
   const subjectName = getSubjectName(mockData.subject);
+
+  const difficultyLabel = mockData.difficulty
+    ? String(mockData.difficulty).charAt(0).toUpperCase() +
+      String(mockData.difficulty).slice(1).toLowerCase()
+    : 'Medium';
+  const difficultyColor =
+    difficultyLabel === 'Easy' ? '#22C55E' :
+    difficultyLabel === 'Hard' ? '#EF4444' :
+    '#F97316';
+  const difficultyBg =
+    difficultyLabel === 'Easy' ? '#F0FDF4' :
+    difficultyLabel === 'Hard' ? '#FEF2F2' :
+    '#FFFBEB';
+
+  const coverageChips: string[] = Array.isArray(mockData.chapters)
+    ? mockData.chapters.map((c: any) =>
+        typeof c === 'object' && c !== null
+          ? c.name ?? c.code ?? String(c.id ?? '')
+          : String(c)
+      ).filter(Boolean)
+    : [];
 
   const handleStart = async () => {
     try {
@@ -100,19 +149,6 @@ export default function MockDetails({ mock, onBack }: Props) {
 
   const handleResume = () => {
     setCurrentView('exam');
-  };
-
-  const handleReattempt = async () => {
-    try {
-      setStartLoading(true);
-      await startMockTestService(String(mockData.id));
-      setAccepted(false);
-      setCurrentView('exam');
-    } catch (error: any) {
-      Alert.alert('Error', 'Failed to start a new attempt. Please try again.');
-    } finally {
-      setStartLoading(false);
-    }
   };
 
   // ── Sub-screen routing ──────────────────────────────────────────────────
@@ -138,7 +174,7 @@ export default function MockDetails({ mock, onBack }: Props) {
         mock={mockData}
         answers={submittedAnswers}
         timeTakenSeconds={timeTaken}
-        onBack={() => setCurrentView('detail')}
+        onBack={onBack}
         onViewSolutions={() => setCurrentView('solutions')}
         onViewAnalysis={() => setCurrentView('analysis')}
       />
@@ -184,39 +220,51 @@ export default function MockDetails({ mock, onBack }: Props) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Status pill */}
-        <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-          <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
-          <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
-        </View>
+        {/* Pills: exam + difficulty (completed) OR status pill */}
+        {isCompleted ? (
+          <View style={styles.pillsRow}>
+            {!!examName && (
+              <View style={styles.pillExam}>
+                <Text style={styles.pillExamText}>{examName}</Text>
+              </View>
+            )}
+            <View
+              style={[
+                styles.pillDifficulty,
+                { borderColor: difficultyColor, backgroundColor: difficultyBg },
+              ]}
+            >
+              <Text style={[styles.pillDifficultyText, { color: difficultyColor }]}>
+                {difficultyLabel}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
+            <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
+            <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
+          </View>
+        )}
 
         {/* Title */}
         <Text style={styles.title}>
           {mockData.title || `${examName} Mock Test`}
         </Text>
 
-        {/* Subject */}
-        {!!subjectName && (
-          <Text style={styles.subjectLabel}>{subjectName}</Text>
-        )}
-
-        {/* Exam chip */}
-        {!!examName && (
-          <View style={styles.tagChip}>
-            <Text style={styles.tagText}>{examName}</Text>
-          </View>
+        {/* Subject line: "JEE · Mathematics" */}
+        {(!!examName || !!subjectName) && (
+          <Text style={styles.subjectLabel}>
+            {[examName, subjectName].filter(Boolean).join(' · ')}
+          </Text>
         )}
 
         {/* Stats grid */}
         <View style={styles.statsGrid}>
           {[
             { icon: '⏱', value: formatDuration(mockData.total_duration_minutes), label: 'Duration' },
-            { icon: '📋', value: `${mockData.question_count ?? 0} Qs`, label: 'Questions' },
-            { icon: '🎯', value: `${mockData.max_score ?? mockData.question_count ?? 0}`, label: 'Max Marks' },
-            { icon: '📊', value: mockData.difficulty
-                ? String(mockData.difficulty).charAt(0).toUpperCase() + String(mockData.difficulty).slice(1).toLowerCase()
-                : 'Medium',
-              label: 'Difficulty' },
+            { icon: '📋', value: `${mockData.question_count ?? 0}`, label: 'Total Questions' },
+            { icon: '🎯', value: `${mockData.max_score ?? mockData.question_count ?? 0}`, label: 'Total Marks' },
+            { icon: '📊', value: difficultyLabel, label: 'Difficulty' },
           ].map((s, i) => (
             <View key={i} style={styles.statCard}>
               <Text style={styles.statIcon}>{s.icon}</Text>
@@ -225,28 +273,6 @@ export default function MockDetails({ mock, onBack }: Props) {
             </View>
           ))}
         </View>
-
-        {/* Completed banner with score */}
-        {isCompleted && (
-          <View style={styles.completedBanner}>
-            <Text style={styles.completedBannerIcon}>🏆</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.completedBannerTitle}>Mock Completed</Text>
-              {mockData.score != null && (
-                <Text style={styles.completedBannerSub}>
-                  Score: {mockData.score}/{mockData.max_score ?? mockData.question_count}
-                  {mockData.percentile != null ? `  ·  ${mockData.percentile}%ile` : ''}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.viewResultsBtn}
-              onPress={() => setCurrentView('results')}
-            >
-              <Text style={styles.viewResultsBtnText}>View Results</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* In Progress banner */}
         {isInProgress && (
@@ -264,9 +290,9 @@ export default function MockDetails({ mock, onBack }: Props) {
           onPress={() => setShowInstructions(!showInstructions)}
           activeOpacity={0.8}
         >
-          <Text style={styles.instructionsHeaderIcon}>📋</Text>
+          <Text style={styles.instructionsHeaderIcon}>⚠️</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.instructionsTitle}>Mock Test Instructions</Text>
+            <Text style={styles.instructionsTitle}>Exam Instructions</Text>
             <Text style={styles.instructionsSub}>(Read before starting)</Text>
           </View>
           <Text style={styles.instructionsChevron}>
@@ -283,8 +309,8 @@ export default function MockDetails({ mock, onBack }: Props) {
               </View>
             ))}
 
-            {/* Checkbox only for reattempt */}
-            {isCompleted && (
+            {/* Checkbox before starting */}
+            {isNotStarted && (
               <TouchableOpacity
                 style={styles.checkboxRow}
                 onPress={() => setAccepted(!accepted)}
@@ -304,15 +330,34 @@ export default function MockDetails({ mock, onBack }: Props) {
             )}
           </View>
         )}
+
+        {/* Coverage */}
+        <View style={styles.coverageCard}>
+          <View style={styles.coverageHeader}>
+            <Text style={{ fontSize: 16 }}>🏷</Text>
+            <Text style={styles.coverageTitle}>Coverage</Text>
+          </View>
+          {coverageChips.length > 0 ? (
+            <View style={styles.coverageRow}>
+              {coverageChips.map((c, i) => (
+                <View key={i} style={styles.coverageChip}>
+                  <Text style={styles.coverageChipText}>{c}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.coverageEmpty}>All topics</Text>
+          )}
+        </View>
       </ScrollView>
 
       {/* Bottom CTA */}
       <View style={styles.bottomBar}>
         {isNotStarted && (
           <TouchableOpacity
-            style={styles.primaryBtn}
+            style={[styles.primaryBtn, !accepted && { opacity: 0.5 }]}
             onPress={handleStart}
-            disabled={startLoading}
+            disabled={!accepted || startLoading}
           >
             {startLoading ? (
               <ActivityIndicator color="#fff" />
@@ -332,20 +377,22 @@ export default function MockDetails({ mock, onBack }: Props) {
         )}
 
         {isCompleted && (
-          <TouchableOpacity
-            style={[
-              styles.primaryBtn,
-              (!accepted) && { opacity: 0.5 },
-            ]}
-            onPress={handleReattempt}
-            disabled={!accepted || startLoading}
-          >
-            {startLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryBtnText}>🔄 Re-attempt Mock</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.bottomBarRow}>
+            <TouchableOpacity
+              style={styles.primaryBtnFlex}
+              onPress={() => setCurrentView('results')}
+            >
+              <Text style={{ color: '#fff', fontSize: 14 }}>👁</Text>
+              <Text style={styles.primaryBtnText}>View Results</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryBtnFlex}
+              onPress={() => setCurrentView('solutions')}
+            >
+              <Text style={{ fontSize: 14 }}>📄</Text>
+              <Text style={styles.secondaryBtnText}>View Solutions</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </SafeAreaView>

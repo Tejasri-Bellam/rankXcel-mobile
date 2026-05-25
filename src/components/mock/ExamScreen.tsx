@@ -24,16 +24,32 @@ interface Props {
   mockId: number | string;
   durationMinutes: number;
   exam: any;
+  initialAnswers?: Record<string, string[]>;
+  initialStatuses?: Record<string, 'not_visited' | 'not_answered' | 'answered' | 'marked'>;
   onSubmit: (answers: Record<string, string[]>, timeTakenSeconds: number) => void;
   onBackToMocks?: () => void;
 }
 
 type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
 
+const isMultiSelectType = (type: string | undefined) => {
+  if (!type) return false;
+  const t = type.toUpperCase();
+  return (
+    t === 'MCQ_MULTIPLE' ||
+    t === 'MULTI_CORRECT' ||
+    t === 'MULTI CORRECT' ||
+    t === 'MULTIPLE' ||
+    t.includes('MULTI')
+  );
+};
+
 export default function MockExamScreen({
   mockId,
   durationMinutes,
   exam,
+  initialAnswers,
+  initialStatuses,
   onSubmit,
   onBackToMocks,
 }: Props) {
@@ -43,8 +59,8 @@ export default function MockExamScreen({
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [activeQIdx, setActiveQIdx]             = useState(0);
 
-  const [answers, setAnswers]     = useState<Record<string, string[]>>({});
-  const [qStatuses, setQStatuses] = useState<Record<string, QuestionStatus>>({});
+  const [answers, setAnswers]     = useState<Record<string, string[]>>(initialAnswers ?? {});
+  const [qStatuses, setQStatuses] = useState<Record<string, QuestionStatus>>(initialStatuses ?? {});
 
   const [tabSwitchCount, setTabSwitchCount]   = useState(0);
   const [showTabWarning, setShowTabWarning]   = useState(false);
@@ -53,6 +69,8 @@ export default function MockExamScreen({
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submitting, setSubmitting]           = useState(false);
+
+  const pendingSaves = useRef<Set<Promise<any>>>(new Set());
 
   // ── Countdown timer ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -123,33 +141,61 @@ export default function MockExamScreen({
   const isTimeLow = timeLeft < 300; // < 5 min
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const handleOptionSelect = async (optionId: string) => {
+  const saveAnswerToServer = (
+    qId: number | string,
+    selectedOptions: string[],
+    markedForReview = false,
+  ) => {
+    const numericChoiceIds = selectedOptions
+      .map((v) => Number(v))
+      .filter((n) => Number.isFinite(n));
+
+    const promise = submitMockResponseService(mockId, qId, {
+      selected_choice_ids: numericChoiceIds,
+      is_marked_for_review: markedForReview,
+      time_spent_seconds: 0,
+    })
+      .then((r) => {
+        console.log('MOCK SAVE OK for question', qId, 'status:', (r as any)?.status);
+        return r;
+      })
+      .catch((e) => {
+        console.log('MOCK SAVE ANSWER ERROR for question', qId, ':', e);
+      });
+
+    pendingSaves.current.add(promise);
+    promise.finally(() => pendingSaves.current.delete(promise));
+    return promise;
+  };
+
+  const handleOptionSelect = (optionId: string) => {
     if (!currentQId) return;
-    const isMulti = activeQuestion?.type === 'MCQ_MULTIPLE' || activeQuestion?.type === 'Multi Correct';
+    const isMulti = isMultiSelectType(activeQuestion?.type);
+    const current = answers[currentQId] || [];
+    const newSelection = isMulti
+      ? current.includes(optionId)
+        ? current.filter((o) => o !== optionId)
+        : [...current, optionId]
+      : [optionId];
 
-    setAnswers((prev) => {
-      const current = prev[currentQId] || [];
-      if (isMulti) {
-        return {
-          ...prev,
-          [currentQId]: current.includes(optionId)
-            ? current.filter((o) => o !== optionId)
-            : [...current, optionId],
-        };
-      }
-      return { ...prev, [currentQId]: [optionId] };
-    });
-    setQStatuses((prev) => ({ ...prev, [currentQId]: 'answered' }));
+    setAnswers((prev) => ({ ...prev, [currentQId]: newSelection }));
+    const wasMarked = qStatuses[currentQId] === 'marked';
+    setQStatuses((prev) => ({
+      ...prev,
+      [currentQId]: wasMarked
+        ? 'marked'
+        : newSelection.length > 0
+          ? 'answered'
+          : 'not_answered',
+    }));
 
-    try {
-      await submitMockResponseService(mockId, currentQId, { selected_option: optionId });
-    } catch (err) {
-      console.log('MOCK SAVE ANSWER ERROR:', err);
-    }
+    saveAnswerToServer(currentQId, newSelection, wasMarked);
   };
 
   const handleMarkForReview = () => {
-    if (currentQId) setQStatuses((prev) => ({ ...prev, [currentQId]: 'marked' }));
+    if (!currentQId) return;
+    setQStatuses((prev) => ({ ...prev, [currentQId]: 'marked' }));
+    saveAnswerToServer(currentQId, answers[currentQId] ?? [], true);
   };
 
   const handleSaveAndNext = () => {
@@ -196,9 +242,10 @@ export default function MockExamScreen({
   };
 
   const getSubmitSummary = () => {
-    const allQs = exam.sections.flatMap((s: any) => s.questions);
+    const allQs = exam.sections.flatMap((s: any) => s?.questions ?? []).filter(Boolean);
     let answered = 0, notAnswered = 0, markedForReview = 0, notVisited = 0;
     allQs.forEach((q: any) => {
+      if (q?.id == null) return;
       const status = qStatuses[q.id];
       const hasAnswer = (answers[q.id] || []).length > 0;
       if (!status) notVisited++;
@@ -211,24 +258,33 @@ export default function MockExamScreen({
 
   const getSectionSummary = () =>
     exam.sections.map((section: any) => {
+      const questions = (section?.questions ?? []).filter(Boolean);
       let ans = 0, notAns = 0;
-      section.questions.forEach((q: any) => {
+      questions.forEach((q: any) => {
+        if (q?.id == null) return;
         if ((answers[q.id] || []).length > 0) ans++;
         else notAns++;
       });
-      return { name: section.name, total: section.questions.length, answered: ans, notAnswered: notAns };
+      return { name: section?.name ?? '', total: questions.length, answered: ans, notAnswered: notAns };
     });
 
   const handleFinalSubmit = async () => {
+    if (submitting) return;
     try {
       setSubmitting(true);
-      await submitMockTestService(mockId);
       setShowSubmitModal(false);
+
+      if (pendingSaves.current.size > 0) {
+        console.log('Waiting for', pendingSaves.current.size, 'mock saves...');
+        await Promise.all(Array.from(pendingSaves.current));
+      }
+
+      const res = await submitMockTestService(mockId);
+      console.log('MOCK SUBMIT RESPONSE:', JSON.stringify(res, null, 2));
       onSubmit(answers, timeTaken);
     } catch (err) {
       console.log('MOCK SUBMIT ERROR:', err);
       Alert.alert('Error', 'Submission failed. Please try again.');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -237,7 +293,7 @@ export default function MockExamScreen({
   const sectionSummary = getSectionSummary();
   const selectedOptions = answers[currentQId] || [];
   const sectionAnswered = exam.sections.map((s: any) =>
-    s.questions.filter((q: any) => (answers[q.id] || []).length > 0).length
+    (s?.questions ?? []).filter((q: any) => q?.id != null && (answers[q.id] || []).length > 0).length
   );
 
   return (

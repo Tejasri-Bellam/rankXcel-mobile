@@ -3,7 +3,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -21,12 +24,19 @@ import { SORT_OPTIONS } from '../json/mockLibrary';
 import { mockLibraryStyles } from '@/src/styles/sidebar/mockLibraryStyles';
 import { COLORS } from '@/src/styles/styles';
 import {
+  createMockTestService,
   ExamObject,
+  getChapterOptionsService,
   getMockTestsService,
+  getMyTargetExamsOptionsService,
+  getSubjectOptionsService,
+  getTopicOptionsService,
+  OptionItem,
   startMockTestService,
   SubjectObject,
 } from '../../libs/services/mock-library';
 import { Difficulty, MockStatus, MockTest } from '@/src/libs/types/mock-library';
+import MockDetails from './Details';
  
 
  
@@ -131,17 +141,17 @@ const formatDate = (iso: string | null | undefined): string => {
    ============================================================ */
 interface MockCardProps {
   mock: MockTest;
+  onOpen: (id: string) => void;
   onStart: (id: string) => void;
   onResume: (id: string) => void;
-  onView: (id: string) => void;
   actionLoadingId: string | null;
 }
- 
+
 const MockCard: React.FC<MockCardProps> = ({
   mock,
+  onOpen,
   onStart,
   onResume,
-  onView,
   actionLoadingId,
 }) => {
   const examName = getExamName(mock.exam);
@@ -162,7 +172,11 @@ const MockCard: React.FC<MockCardProps> = ({
   const percentile = mock.percentile ?? 0;
  
   return (
-<View style={mockLibraryStyles.mockCard}>
+<TouchableOpacity
+      style={mockLibraryStyles.mockCard}
+      activeOpacity={0.85}
+      onPress={() => onOpen(String(mock.id))}
+    >
 <View style={mockLibraryStyles.mockCardTop}>
 <View style={[mockLibraryStyles.examTag, { backgroundColor: tagBg }]}>
 <Text style={[mockLibraryStyles.examTagText, { color: tagColor }]}>
@@ -269,46 +283,44 @@ const MockCard: React.FC<MockCardProps> = ({
 </Text>
       )}
  
-      <View style={mockLibraryStyles.actionRow}>
-        {isNotStarted && (
-<TouchableOpacity
-            style={mockLibraryStyles.startBtn}
-            onPress={() => onStart(String(mock.id))}
-            disabled={isLoading}
->
-            {isLoading ? (
-<ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-<>
-<Ionicons name="play" size={14} color={COLORS.white} />
-<Text style={mockLibraryStyles.startBtnText}>Start Mock</Text>
-</>
-            )}
+      {(isNotStarted || isInProgress) && (
+        <View style={mockLibraryStyles.actionRow}>
+          {isNotStarted && (
+            <TouchableOpacity
+              style={mockLibraryStyles.startBtn}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onStart(String(mock.id));
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <>
+                  <Ionicons name="play" size={14} color={COLORS.white} />
+                  <Text style={mockLibraryStyles.startBtnText}>Start Mock</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {isInProgress && (
+            <TouchableOpacity
+              style={[mockLibraryStyles.startBtn, { backgroundColor: COLORS.primary }]}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onResume(String(mock.id));
+              }}
+              disabled={isLoading}
+            >
+              <Ionicons name="play-forward" size={14} color={COLORS.white} />
+              <Text style={mockLibraryStyles.startBtnText}>Resume</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 </TouchableOpacity>
-        )}
- 
-        {isInProgress && (
-    <TouchableOpacity
-                style={[mockLibraryStyles.startBtn, { backgroundColor: COLORS.primary }]}
-                onPress={() => onResume(String(mock.id))}
-                disabled={isLoading}
-    >
-    <Ionicons name="play-forward" size={14} color={COLORS.white} />
-    <Text style={mockLibraryStyles.startBtnText}>Resume</Text>
-    </TouchableOpacity>
-        )}
- 
-        {isCompleted && (
-<TouchableOpacity
-            style={mockLibraryStyles.viewBtn}
-            onPress={() => onView(String(mock.id))}
->
-<Ionicons name="eye-outline" size={14} color={COLORS.primary} />
-<Text style={mockLibraryStyles.viewBtnText}>View Results</Text>
-</TouchableOpacity>
-        )}
-</View>
-</View>
   );
 };
  
@@ -423,6 +435,441 @@ const FilterModal: React.FC<FilterModalProps> = ({
 };
  
 /* ============================================================
+   Request Mock Test Modal
+   ============================================================ */
+interface DifficultyOption {
+  value: 'easy' | 'medium' | 'hard' | 'any';
+  label: string;
+}
+
+const DIFFICULTY_OPTIONS: DifficultyOption[] = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+  { value: 'any', label: 'Any' },
+];
+
+const toOptionsArray = (raw: unknown): OptionItem[] => {
+  if (Array.isArray(raw)) return raw as OptionItem[];
+  if (raw && typeof raw === 'object') {
+    const r = raw as { results?: OptionItem[]; data?: OptionItem[] | { results?: OptionItem[] } };
+    if (Array.isArray(r.results)) return r.results;
+    if (Array.isArray(r.data)) return r.data;
+    if (r.data && typeof r.data === 'object' && Array.isArray((r.data as { results?: OptionItem[] }).results)) {
+      return (r.data as { results: OptionItem[] }).results;
+    }
+  }
+  return [];
+};
+
+interface OptionDropdownProps {
+  value: OptionItem | null;
+  options: OptionItem[];
+  placeholder: string;
+  disabled?: boolean;
+  loading?: boolean;
+  onSelect: (item: OptionItem) => void;
+}
+
+const OptionDropdown: React.FC<OptionDropdownProps> = ({
+  value,
+  options,
+  placeholder,
+  disabled,
+  loading,
+  onSelect,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.name.toLowerCase().includes(q));
+  }, [options, query]);
+
+  return (
+    <View>
+      <TouchableOpacity
+        style={[mockLibraryStyles.selectBox, disabled && mockLibraryStyles.selectBoxDisabled]}
+        disabled={disabled}
+        onPress={() => setOpen((v) => !v)}
+      >
+        <Ionicons name="search-outline" size={14} color={COLORS.textLight} />
+        <Text
+          style={[
+            mockLibraryStyles.selectText,
+            !value && mockLibraryStyles.selectPlaceholder,
+          ]}
+          numberOfLines={1}
+        >
+          {value ? value.name : placeholder}
+        </Text>
+        {loading ? (
+          <ActivityIndicator size="small" color={COLORS.textLight} />
+        ) : (
+          <Ionicons
+            name={open ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color={COLORS.textLight}
+          />
+        )}
+      </TouchableOpacity>
+
+      {open && !disabled && (
+        <View style={mockLibraryStyles.dropdownPanel}>
+          <TextInput
+            style={[
+              mockLibraryStyles.textInput,
+              { borderWidth: 0, borderBottomWidth: 1, borderRadius: 0 },
+            ]}
+            placeholder="Search..."
+            placeholderTextColor={COLORS.textLight}
+            value={query}
+            onChangeText={setQuery}
+          />
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {filtered.length === 0 ? (
+              <Text style={mockLibraryStyles.dropdownEmpty}>No options</Text>
+            ) : (
+              filtered.map((opt) => (
+                <TouchableOpacity
+                  key={String(opt.id)}
+                  style={[
+                    mockLibraryStyles.dropdownItem,
+                    value?.id === opt.id && mockLibraryStyles.dropdownItemActive,
+                  ]}
+                  onPress={() => {
+                    onSelect(opt);
+                    setOpen(false);
+                    setQuery('');
+                  }}
+                >
+                  <Text style={mockLibraryStyles.dropdownItemText}>{opt.name}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+};
+
+interface RequestMockModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onCreated: (mockId: string) => void;
+}
+
+const RequestMockModal: React.FC<RequestMockModalProps> = ({
+  visible,
+  onClose,
+  onCreated,
+}) => {
+  const [exams, setExams] = useState<OptionItem[]>([]);
+  const [subjects, setSubjects] = useState<OptionItem[]>([]);
+  const [chapters, setChapters] = useState<OptionItem[]>([]);
+  const [topics, setTopics] = useState<OptionItem[]>([]);
+
+  const [selectedExam, setSelectedExam] = useState<OptionItem | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<OptionItem | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<OptionItem | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<OptionItem | null>(null);
+  const [difficulty, setDifficulty] = useState<DifficultyOption['value']>('medium');
+  const [duration, setDuration] = useState<string>('');
+  const [questionCount, setQuestionCount] = useState<string>('');
+
+  const [examsLoading, setExamsLoading] = useState(false);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [chaptersLoading, setChaptersLoading] = useState(false);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const resetForm = useCallback(() => {
+    setSelectedExam(null);
+    setSelectedSubject(null);
+    setSelectedChapter(null);
+    setSelectedTopic(null);
+    setSubjects([]);
+    setChapters([]);
+    setTopics([]);
+    setDifficulty('medium');
+    setDuration('');
+    setQuestionCount('');
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    resetForm();
+    (async () => {
+      try {
+        setExamsLoading(true);
+        const res = await getMyTargetExamsOptionsService();
+        setExams(toOptionsArray(res));
+      } catch (err) {
+        console.log('Failed to load target exams', err);
+      } finally {
+        setExamsLoading(false);
+      }
+    })();
+  }, [visible, resetForm]);
+
+  useEffect(() => {
+    if (!selectedExam) return;
+    setSelectedSubject(null);
+    setSelectedChapter(null);
+    setSelectedTopic(null);
+    setSubjects([]);
+    setChapters([]);
+    setTopics([]);
+    (async () => {
+      try {
+        setSubjectsLoading(true);
+        const res = await getSubjectOptionsService(selectedExam.id);
+        setSubjects(toOptionsArray(res));
+      } catch (err) {
+        console.log('Failed to load subjects', err);
+      } finally {
+        setSubjectsLoading(false);
+      }
+    })();
+  }, [selectedExam]);
+
+  useEffect(() => {
+    if (!selectedSubject) return;
+    setSelectedChapter(null);
+    setSelectedTopic(null);
+    setChapters([]);
+    setTopics([]);
+    (async () => {
+      try {
+        setChaptersLoading(true);
+        const res = await getChapterOptionsService(selectedSubject.id);
+        setChapters(toOptionsArray(res));
+      } catch (err) {
+        console.log('Failed to load chapters', err);
+      } finally {
+        setChaptersLoading(false);
+      }
+    })();
+  }, [selectedSubject]);
+
+  useEffect(() => {
+    if (!selectedChapter) return;
+    setSelectedTopic(null);
+    setTopics([]);
+    (async () => {
+      try {
+        setTopicsLoading(true);
+        const res = await getTopicOptionsService(selectedChapter.id);
+        setTopics(toOptionsArray(res));
+      } catch (err) {
+        console.log('Failed to load topics', err);
+      } finally {
+        setTopicsLoading(false);
+      }
+    })();
+  }, [selectedChapter]);
+
+  const canSubmit =
+    !!selectedExam &&
+    !!selectedSubject &&
+    Number(duration) > 0 &&
+    Number(questionCount) > 0 &&
+    !submitting;
+
+  const handleSubmit = async (): Promise<void> => {
+    if (!selectedExam || !selectedSubject) {
+      Alert.alert('Missing fields', 'Please select an exam and subject.');
+      return;
+    }
+    const durationNum = Number(duration);
+    const questionsNum = Number(questionCount);
+    if (!durationNum || !questionsNum) {
+      Alert.alert('Missing fields', 'Please enter duration and number of questions.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const payload = {
+        exam: selectedExam.id,
+        subject: selectedSubject.id,
+        chapter_ids: selectedChapter ? [selectedChapter.id] : [],
+        topic_ids: selectedTopic ? [selectedTopic.id] : [],
+        question_count: questionsNum,
+        total_duration_minutes: durationNum,
+        difficulty: difficulty === 'any' ? null : difficulty,
+        test_type: 'MOCK_TEST' as const,
+      };
+
+      const createRes = await createMockTestService(payload);
+      const created = (createRes as { data?: { id?: number | string } })?.data;
+      const newId = created?.id;
+      if (!newId) {
+        throw new Error('Mock test was created but no ID was returned.');
+      }
+
+      await startMockTestService(newId);
+      onCreated(String(newId));
+      onClose();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Could not create mock test. Please try again.';
+      Alert.alert('Error', message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={mockLibraryStyles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <KeyboardAvoidingView
+              style={mockLibraryStyles.requestPanel}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+              <TouchableOpacity style={mockLibraryStyles.closeIcon} onPress={onClose}>
+                <Ionicons name="close" size={18} color={COLORS.textMedium} />
+              </TouchableOpacity>
+
+              <Text style={mockLibraryStyles.requestTitle}>Request Mock Test</Text>
+              <Text style={mockLibraryStyles.requestSubtitle}>
+                Configure your custom mock test. We&apos;ll prepare it based on your preferences.
+              </Text>
+
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <Text style={mockLibraryStyles.fieldLabel}>
+                  Exam <Text style={mockLibraryStyles.fieldRequired}>*</Text>
+                </Text>
+                <OptionDropdown
+                  value={selectedExam}
+                  options={exams}
+                  placeholder="Search or select an exam..."
+                  loading={examsLoading}
+                  onSelect={setSelectedExam}
+                />
+
+                <Text style={mockLibraryStyles.fieldLabel}>
+                  Subject <Text style={mockLibraryStyles.fieldRequired}>*</Text>
+                </Text>
+                <OptionDropdown
+                  value={selectedSubject}
+                  options={subjects}
+                  placeholder={selectedExam ? 'Select a subject' : 'Select an exam first'}
+                  disabled={!selectedExam}
+                  loading={subjectsLoading}
+                  onSelect={setSelectedSubject}
+                />
+
+                <Text style={mockLibraryStyles.fieldLabel}>Chapter</Text>
+                <OptionDropdown
+                  value={selectedChapter}
+                  options={chapters}
+                  placeholder={selectedSubject ? 'Select a chapter' : 'Select a subject first'}
+                  disabled={!selectedSubject}
+                  loading={chaptersLoading}
+                  onSelect={setSelectedChapter}
+                />
+
+                <Text style={mockLibraryStyles.fieldLabel}>Topic</Text>
+                <OptionDropdown
+                  value={selectedTopic}
+                  options={topics}
+                  placeholder={selectedChapter ? 'Select a topic' : 'Select a chapter first'}
+                  disabled={!selectedChapter}
+                  loading={topicsLoading}
+                  onSelect={setSelectedTopic}
+                />
+
+                <Text style={mockLibraryStyles.fieldLabel}>Difficulty Level</Text>
+                <View style={mockLibraryStyles.difficultyRow}>
+                  {DIFFICULTY_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[
+                        mockLibraryStyles.difficultyOption,
+                        difficulty === opt.value && mockLibraryStyles.difficultyOptionActive,
+                      ]}
+                      onPress={() => setDifficulty(opt.value)}
+                    >
+                      <Text
+                        style={[
+                          mockLibraryStyles.difficultyOptionText,
+                          difficulty === opt.value && mockLibraryStyles.difficultyOptionTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={mockLibraryStyles.inlineRow}>
+                  <View style={mockLibraryStyles.inlineField}>
+                    <Text style={mockLibraryStyles.fieldLabel}>
+                      Duration (minutes) <Text style={mockLibraryStyles.fieldRequired}>*</Text>
+                    </Text>
+                    <TextInput
+                      style={mockLibraryStyles.textInput}
+                      placeholder="e.g. 180"
+                      placeholderTextColor={COLORS.textLight}
+                      keyboardType="number-pad"
+                      value={duration}
+                      onChangeText={setDuration}
+                    />
+                  </View>
+                  <View style={mockLibraryStyles.inlineField}>
+                    <Text style={mockLibraryStyles.fieldLabel}>
+                      No. of Questions <Text style={mockLibraryStyles.fieldRequired}>*</Text>
+                    </Text>
+                    <TextInput
+                      style={mockLibraryStyles.textInput}
+                      placeholder="e.g. 90"
+                      placeholderTextColor={COLORS.textLight}
+                      keyboardType="number-pad"
+                      value={questionCount}
+                      onChangeText={setQuestionCount}
+                    />
+                  </View>
+                </View>
+
+                <View style={mockLibraryStyles.requestActions}>
+                  <TouchableOpacity
+                    style={mockLibraryStyles.cancelBtn}
+                    onPress={onClose}
+                    disabled={submitting}
+                  >
+                    <Text style={mockLibraryStyles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      mockLibraryStyles.submitBtn,
+                      !canSubmit && mockLibraryStyles.submitBtnDisabled,
+                    ]}
+                    onPress={handleSubmit}
+                    disabled={!canSubmit}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator size="small" color={COLORS.white} />
+                    ) : (
+                      <Text style={mockLibraryStyles.submitBtnText}>Request Mock Test</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+};
+
+/* ============================================================
    Sort Dropdown
    ============================================================ */
 interface SortDropdownProps {
@@ -515,7 +962,10 @@ export default function MockLibrary() {
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [actionLoadingId] = useState<string | null>(null);
+  const [requestVisible, setRequestVisible] = useState<boolean>(false);
+  const [selectedMock, setSelectedMock] = useState<MockTest | null>(null);
+  const [resumeMock, setResumeMock] = useState<MockTest | null>(null);
  
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
@@ -565,6 +1015,21 @@ export default function MockLibrary() {
   useEffect(() => {
     loadMocks();
   }, [loadMocks]);
+
+  // Hardware back: pop modal / detail-view state before letting Expo Router exit.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (requestVisible) { setRequestVisible(false); return true; }
+      if (filterVisible)  { setFilterVisible(false); return true; }
+      if (sortVisible)    { setSortVisible(false);   return true; }
+      if (drawerOpen)     { setDrawerOpen(false);    return true; }
+      if (profileOpen)    { setProfileOpen(false);   return true; }
+      if (resumeMock)     { setResumeMock(null);     return true; }
+      if (selectedMock)   { setSelectedMock(null);   return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [requestVisible, filterVisible, sortVisible, drawerOpen, profileOpen, resumeMock, selectedMock]);
  
   const availableExams = useMemo<string[]>(() => {
     return Array.from(
@@ -639,32 +1104,19 @@ export default function MockLibrary() {
   const attempted = allMocks.filter((m) => m.status !== 'NOT_STARTED').length;
   const activeFilterCount = selectedExams.length + selectedDifficulties.length;
  
-  const handleStart = async (id: string): Promise<void> => {
-    try {
-      setActionLoadingId(id);
-      await startMockTestService(id);
-      setAllMocks((prev) =>
-        prev.map((m): MockTest =>
-          String(m.id) === id ? { ...m, status: 'IN_PROGRESS' } : m
-        )
-      );
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Could not start mock test. Please try again.';
-      Alert.alert('Error', message);
-    } finally {
-      setActionLoadingId(null);
-    }
+  const handleOpen = (id: string): void => {
+    const mock = allMocks.find((m) => String(m.id) === id);
+    if (mock) setSelectedMock(mock);
   };
- 
+
+  const handleStart = (id: string): void => {
+    const mock = allMocks.find((m) => String(m.id) === id);
+    if (mock) setSelectedMock(mock);
+  };
+
   const handleResume = (id: string): void => {
-    Alert.alert('Resume', `Resuming mock ${id}`);
-  };
- 
-  const handleView = (id: string): void => {
-    Alert.alert('View', `View results for mock ${id}`);
+    const mock = allMocks.find((m) => String(m.id) === id);
+    if (mock) setResumeMock(mock);
   };
  
   const resetFilters = (): void => {
@@ -673,7 +1125,32 @@ export default function MockLibrary() {
   };
  
   const TABS: readonly TabKey[] = ['all', 'attempts', 'requests'] as const;
- 
+
+  if (resumeMock) {
+    return (
+      <MockDetails
+        mock={resumeMock}
+        initialView="exam"
+        onBack={() => {
+          setResumeMock(null);
+          loadMocks(true);
+        }}
+      />
+    );
+  }
+
+  if (selectedMock) {
+    return (
+      <MockDetails
+        mock={selectedMock}
+        onBack={() => {
+          setSelectedMock(null);
+          loadMocks(true);
+        }}
+      />
+    );
+  }
+
   return (
 <SafeAreaView style={mockLibraryStyles.safeArea}>
 <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
@@ -681,7 +1158,11 @@ export default function MockLibrary() {
         onMenuPress={() => setDrawerOpen(true)}
         onProfilePress={() => setProfileOpen(!profileOpen)}
       />
- 
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         style={mockLibraryStyles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -703,7 +1184,10 @@ export default function MockLibrary() {
               {totalCount} mock tests · {attempted} attempted
 </Text>
 </View>
-<TouchableOpacity style={mockLibraryStyles.requestBtn}>
+<TouchableOpacity
+            style={mockLibraryStyles.requestBtn}
+            onPress={() => setRequestVisible(true)}
+          >
 <Ionicons name="add" size={16} color={COLORS.white} />
 <Text style={mockLibraryStyles.requestBtnText}>Request Mock</Text>
 </TouchableOpacity>
@@ -834,14 +1318,15 @@ export default function MockLibrary() {
 <MockCard
               key={String(mock.id)}
               mock={mock}
+              onOpen={handleOpen}
               onStart={handleStart}
               onResume={handleResume}
-              onView={handleView}
               actionLoadingId={actionLoadingId}
             />
           ))}
 </ScrollView>
- 
+      </KeyboardAvoidingView>
+
       <FilterModal
         visible={filterVisible}
         onClose={() => setFilterVisible(false)}
@@ -853,7 +1338,13 @@ export default function MockLibrary() {
         onApply={() => setFilterVisible(false)}
         onReset={resetFilters}
       />
- 
+
+      <RequestMockModal
+        visible={requestVisible}
+        onClose={() => setRequestVisible(false)}
+        onCreated={() => loadMocks(true)}
+      />
+
       <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
 <ProfileMenu visible={profileOpen} onClose={() => setProfileOpen(false)} />
 </SafeAreaView>

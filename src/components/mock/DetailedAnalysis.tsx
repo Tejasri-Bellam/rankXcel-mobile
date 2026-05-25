@@ -1,6 +1,6 @@
 // src/components/mock/MockDetailedAnalysis.tsx
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { mockAnalysisStyles as styles } from '../../styles/sidebar/mockExams/detailedAnalysis';
-import { getMockTestResultService, MockTest } from '../../libs/services/mock-library';
+import {
+  getMockTestDetailedAnalysisService,
+  getMockTestResultService,
+  MockTest,
+} from '../../libs/services/mock-library';
 
 interface Props {
   mockId: number | string;
@@ -22,46 +26,39 @@ interface Props {
 
 type AnalysisTab = 'subject' | 'chapter' | 'ai';
 
-const SUBJECT_COLORS = ['#6C5CE7', '#F97316', '#22C55E', '#0EA5E9', '#EC4899', '#F59E0B'];
+const SUBJECT_COLORS: Record<string, string> = {
+  Physics: '#FF6B6B',
+  Chemistry: '#4ECDC4',
+  Mathematics: '#6C5CE7',
+  Mathemetics: '#6C5CE7',
+  Biology: '#22C55E',
+  General: '#9898B0',
+};
 
-function isAnswerCorrect(q: any, userAnswer: string[]): boolean {
-  return (
-    q.correct_answers?.length === userAnswer.length &&
-    q.correct_answers?.every((a: string) => userAnswer.includes(a))
-  );
-}
+const PALETTE = ['#6C5CE7', '#F97316', '#22C55E', '#0EA5E9', '#EC4899', '#F59E0B'];
 
-// Circular progress (SVG-like with View border trick)
-function CircleProgress({ percentage, size = 72, color = '#6C5CE7', label }: {
+const getSubjectColor = (subject: string, idx: number): string =>
+  SUBJECT_COLORS[subject] ?? PALETTE[idx % PALETTE.length];
+
+function CircleProgress({ percentage, size = 72, color = '#6C5CE7' }: {
   percentage: number;
   size?: number;
   color?: string;
-  label?: string;
 }) {
   const clipped = Math.min(100, Math.max(0, percentage));
   return (
     <View style={{ alignItems: 'center' }}>
       <View
         style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: 6,
-          borderColor: color + '30',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#fff',
-          // Fake arc: overlay colored border on top portion
+          width: size, height: size, borderRadius: size / 2,
+          borderWidth: 6, borderColor: color + '30',
+          justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff',
         }}
       >
         <View
           style={{
-            position: 'absolute',
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: 6,
-            borderColor: 'transparent',
+            position: 'absolute', width: size, height: size, borderRadius: size / 2,
+            borderWidth: 6, borderColor: 'transparent',
             borderTopColor: color,
             borderRightColor: clipped > 25 ? color : 'transparent',
             borderBottomColor: clipped > 50 ? color : 'transparent',
@@ -73,32 +70,32 @@ function CircleProgress({ percentage, size = 72, color = '#6C5CE7', label }: {
           {clipped}%
         </Text>
       </View>
-      {!!label && (
-        <Text style={{ fontSize: 11, color: '#9898B0', marginTop: 6, fontWeight: '600' }}>
-          {label}
-        </Text>
-      )}
     </View>
   );
 }
 
-export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: Props) {
-  const [result, setResult]   = useState<any>(null);
+export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
+  const [analysis, setAnalysis] = useState<any>(null);
+  const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<AnalysisTab>('subject');
 
-  const allQuestions: any[] = useMemo(
-    () => (mock as any)?.sections?.flatMap((s: any) => s.questions) ?? [],
-    [mock]
-  );
+  useEffect(() => { load(); }, []);
 
-  useEffect(() => { loadResult(); }, []);
-
-  const loadResult = async () => {
+  const load = async () => {
     try {
       setLoading(true);
-      const res = await getMockTestResultService(mockId);
-      setResult(res?.data ?? null);
+      const [analysisRes, resultRes] = await Promise.allSettled([
+        getMockTestDetailedAnalysisService(mockId),
+        getMockTestResultService(mockId),
+      ]);
+      if (analysisRes.status === 'fulfilled') {
+        console.log('MOCK ANALYSIS API:', JSON.stringify((analysisRes.value as any)?.data, null, 2));
+        setAnalysis((analysisRes.value as any)?.data ?? null);
+      }
+      if (resultRes.status === 'fulfilled') {
+        setResult((resultRes.value as any)?.data ?? null);
+      }
     } catch (err) {
       console.log('MOCK ANALYSIS ERROR:', err);
     } finally {
@@ -106,100 +103,109 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
     }
   };
 
-  // ── Per-subject stats ───────────────────────────────────────────────────
-  const subjectStats = useMemo(() => {
-    const sections: any[] = (mock as any)?.sections ?? [];
-    return sections.map((section: any, idx: number) => {
-      let sScore = 0, sCorrect = 0, sWrong = 0, sAttempted = 0;
-      const sTotalMarks = (section.questions ?? []).reduce(
-        (sum: number, q: any) => sum + (q.marks_correct ?? 4), 0
-      );
-      (section.questions ?? []).forEach((q: any) => {
-        const ua = answers[q.id] ?? [];
-        if (ua.length > 0) {
-          sAttempted++;
-          if (isAnswerCorrect(q, ua)) { sScore += q.marks_correct ?? 4; sCorrect++; }
-          else                         { sScore += q.marks_incorrect ?? -1; sWrong++; }
-        }
-      });
-      const sSkipped  = (section.questions ?? []).length - sAttempted;
-      const sAccuracy = sAttempted > 0 ? Math.round((sCorrect / sAttempted) * 100) : 0;
+  // The /detailed-analysis/ endpoint returns:
+  //   chapter_breakdown:  array of { chapter_name, subject_name, attempted, correct, wrong,
+  //                                  unattempted, accuracy, earned_marks, max_marks }
+  //   subject_summary:    array of { subject_name, correct, wrong, unattempted, accuracy,
+  //                                  earned_marks, max_marks }
+  // The /result/ endpoint returns:
+  //   chapter_breakdown:  object keyed by "Subject / Chapter", values use score/max_score.
+  // Prefer the analysis payload (richer + array) and fall back to result.
+  const breakdownSource = analysis ?? result;
+
+  const rawChapters: any[] = useMemo(() => {
+    const cb = breakdownSource?.chapter_breakdown;
+    if (Array.isArray(cb)) return cb;
+    if (cb && typeof cb === 'object') return Object.values(cb);
+    return [];
+  }, [breakdownSource]);
+
+  const chapterStats = useMemo(() => {
+    return rawChapters.map((ch: any, idx: number) => {
+      const correct  = Number(ch?.correct ?? 0);
+      const wrong    = Number(ch?.wrong ?? 0);
+      const skipped  = Number(ch?.unattempted ?? ch?.skipped ?? 0);
+      const attempted = Number(ch?.attempted ?? correct + wrong);
+      const total    = attempted + skipped;
+      const accuracy = ch?.accuracy != null
+        ? Number(ch.accuracy)
+        : attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+      const subject  = ch?.subject_name ?? ch?.subject ?? 'General';
       return {
-        subject:    section.name,
-        score:      sScore,
-        totalMarks: sTotalMarks,
-        accuracy:   sAccuracy,
-        correct:    sCorrect,
-        wrong:      sWrong,
-        skipped:    sSkipped,
-        total:      (section.questions ?? []).length,
-        attempted:  sAttempted,
-        color:      SUBJECT_COLORS[idx % SUBJECT_COLORS.length],
+        chapter: ch?.chapter_name ?? ch?.chapter ?? 'Unknown',
+        subject,
+        subjectColor: getSubjectColor(subject, idx),
+        score: Number(ch?.earned_marks ?? ch?.score ?? 0),
+        totalMarks: Number(ch?.max_marks ?? ch?.max_score ?? ch?.total_marks ?? 0),
+        correct, wrong, skipped, attempted, total, accuracy,
       };
     });
-  }, [mock, answers]);
+  }, [rawChapters]);
 
-  // ── Per-chapter stats ───────────────────────────────────────────────────
-  const chapterStats = useMemo(() => {
-    const chapters: any[] = [];
-    const sections: any[] = (mock as any)?.sections ?? [];
-    sections.forEach((section: any, sIdx: number) => {
-      const chapterMap: Record<string, any[]> = {};
-      (section.questions ?? []).forEach((q: any) => {
-        const key = q.chapter_name ?? q.topic_name ?? q.chapter ?? 'General';
-        if (!chapterMap[key]) chapterMap[key] = [];
-        chapterMap[key].push(q);
+  // Prefer the API's pre-aggregated subject_summary when available.
+  const subjectStats = useMemo(() => {
+    const summary = analysis?.subject_summary;
+    if (Array.isArray(summary) && summary.length > 0) {
+      return summary.map((s: any, idx: number) => {
+        const correct  = Number(s?.correct ?? 0);
+        const wrong    = Number(s?.wrong ?? 0);
+        const skipped  = Number(s?.unattempted ?? s?.skipped ?? 0);
+        const attempted = correct + wrong;
+        return {
+          subject:    s?.subject_name ?? 'General',
+          score:      Number(s?.earned_marks ?? s?.score ?? 0),
+          totalMarks: Number(s?.max_marks ?? s?.max_score ?? 0),
+          correct, wrong, skipped, attempted,
+          total:      attempted + skipped,
+          accuracy:   s?.accuracy != null
+            ? Number(s.accuracy)
+            : attempted > 0 ? Math.round((correct / attempted) * 100) : 0,
+          color:      getSubjectColor(s?.subject_name ?? 'General', idx),
+        };
       });
-      Object.entries(chapterMap).forEach(([chName, qs]) => {
-        let cScore = 0, cCorrect = 0, cWrong = 0, cAttempted = 0;
-        const cTotal = qs.reduce((s, q) => s + (q.marks_correct ?? 4), 0);
-        qs.forEach((q) => {
-          const ua = answers[q.id] ?? [];
-          if (ua.length > 0) {
-            cAttempted++;
-            if (isAnswerCorrect(q, ua)) { cScore += q.marks_correct ?? 4; cCorrect++; }
-            else                         { cScore += q.marks_incorrect ?? -1; cWrong++; }
-          }
-        });
-        const cAccuracy = cAttempted > 0 ? Math.round((cCorrect / cAttempted) * 100) : 0;
-        chapters.push({
-          chapter:    chName,
-          subject:    section.name,
-          subjectColor: SUBJECT_COLORS[sIdx % SUBJECT_COLORS.length],
-          score:      cScore,
-          totalMarks: cTotal,
-          correct:    cCorrect,
-          wrong:      cWrong,
-          accuracy:   cAccuracy,
-          attempted:  cAttempted,
-          total:      qs.length,
-        });
-      });
-    });
-    return chapters;
-  }, [mock, answers]);
+    }
 
-  // ── Overall stats ────────────────────────────────────────────────────────
-  const overall = useMemo(() => {
-    let correct = 0, wrong = 0, attempted = 0, score = 0;
-    const totalMarks = allQuestions.reduce((s, q) => s + (q.marks_correct ?? 4), 0);
-    allQuestions.forEach((q: any) => {
-      const ua = answers[q.id] ?? [];
-      if (ua.length > 0) {
-        attempted++;
-        if (isAnswerCorrect(q, ua)) { correct++; score += q.marks_correct ?? 4; }
-        else                         { wrong++;   score += q.marks_incorrect ?? -1; }
+    // Fallback: aggregate from chapterStats.
+    const map: Record<string, any> = {};
+    chapterStats.forEach((ch) => {
+      if (!map[ch.subject]) {
+        map[ch.subject] = {
+          subject: ch.subject,
+          score: 0, totalMarks: 0,
+          correct: 0, wrong: 0, skipped: 0, attempted: 0, total: 0,
+          color: getSubjectColor(ch.subject, Object.keys(map).length),
+        };
       }
+      const s = map[ch.subject];
+      s.score      += ch.score;
+      s.totalMarks += ch.totalMarks;
+      s.correct    += ch.correct;
+      s.wrong      += ch.wrong;
+      s.skipped    += ch.skipped;
+      s.attempted  += ch.attempted;
+      s.total      += ch.total;
     });
-    const skipped  = allQuestions.length - attempted;
-    const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
-    const finalScore     = result?.score ?? score;
-    const finalTotalMarks = result?.total_marks ?? totalMarks;
-    const percentage = finalTotalMarks > 0
-      ? Math.round((finalScore / finalTotalMarks) * 100)
-      : 0;
-    return { correct, wrong, attempted, skipped, accuracy, percentage, score: finalScore, totalMarks: finalTotalMarks };
-  }, [allQuestions, answers, result]);
+    return Object.values(map).map((s: any) => ({
+      ...s,
+      accuracy: s.attempted > 0 ? Math.round((s.correct / s.attempted) * 100) : 0,
+    }));
+  }, [analysis, chapterStats]);
+
+  const overall = useMemo(() => {
+    const correct   = chapterStats.reduce((a, c) => a + c.correct, 0);
+    const wrong     = chapterStats.reduce((a, c) => a + c.wrong, 0);
+    const skipped   = chapterStats.reduce((a, c) => a + c.skipped, 0);
+    const attempted = correct + wrong;
+    const accuracy  = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+    const score      = Number(breakdownSource?.total_score ?? breakdownSource?.score ?? 0);
+    const totalMarks = Number(
+      breakdownSource?.max_score ??
+      breakdownSource?.total_marks ??
+      chapterStats.reduce((a, c) => a + c.totalMarks, 0)
+    );
+    const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+    return { correct, wrong, skipped, attempted, accuracy, score, totalMarks, percentage };
+  }, [chapterStats, breakdownSource]);
 
   if (loading) {
     return (
@@ -214,7 +220,6 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
@@ -224,13 +229,11 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-        {/* Page title */}
         <Text style={styles.pageTitle}>Detailed Analysis</Text>
         {!!(mock as any)?.title && (
           <Text style={styles.pageSubtitle}>{(mock as any).title}</Text>
         )}
 
-        {/* Overall legend */}
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#22C55E' }]} />
@@ -246,7 +249,6 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
           </View>
         </View>
 
-        {/* Tabs */}
         <View style={styles.tabRow}>
           {([
             { key: 'subject', label: 'Subject Analysis' },
@@ -265,20 +267,20 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
           ))}
         </View>
 
-        {/* ── Subject Analysis tab ────────────────────────────────────────── */}
         {activeTab === 'subject' && (
           <>
             <Text style={styles.sectionLabel}>Correct / Incorrect / Skipped</Text>
 
-            {subjectStats.map((sp, idx) => (
+            {subjectStats.length === 0 && (
+              <Text style={{ color: '#9898B0', textAlign: 'center', paddingVertical: 24 }}>
+                No subject breakdown available.
+              </Text>
+            )}
+
+            {subjectStats.map((sp: any, idx: number) => (
               <View key={idx} style={styles.subjectCard}>
-                {/* Circle + Subject name */}
                 <View style={styles.subjectCardTop}>
-                  <CircleProgress
-                    percentage={sp.accuracy}
-                    size={72}
-                    color={sp.color}
-                  />
+                  <CircleProgress percentage={sp.accuracy} size={72} color={sp.color} />
                   <View style={styles.subjectCardInfo}>
                     <Text style={styles.subjectCardName}>{sp.subject}</Text>
                     <View style={styles.subjectLegendRow}>
@@ -298,7 +300,6 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
                   </View>
                 </View>
 
-                {/* Progress bar */}
                 <View style={styles.progressBarTrack}>
                   <View
                     style={[
@@ -308,7 +309,6 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
                   />
                 </View>
 
-                {/* Mini stats */}
                 <View style={styles.subjectMiniStats}>
                   <View style={styles.subjectMiniStat}>
                     <Text style={[styles.subjectMiniVal, { color: sp.color }]}>
@@ -328,16 +328,15 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
               </View>
             ))}
 
-            {/* Score Breakdown by Subject table */}
             <Text style={styles.sectionLabel}>Score Breakdown by Subject</Text>
             <View style={styles.breakdownCard}>
-              {subjectStats.map((sp, idx) => (
+              {subjectStats.map((sp: any, idx: number) => (
                 <View key={idx} style={[styles.breakdownRow, idx > 0 && styles.breakdownRowBorder]}>
                   <View style={styles.breakdownLeft}>
                     <Text style={styles.breakdownSubject}>{sp.subject}</Text>
                     <View style={styles.breakdownTagRow}>
                       <Text style={[styles.breakdownTag, { color: '#22C55E' }]}>
-                        +{sp.correct * 4} earned
+                        +{sp.correct} correct
                       </Text>
                       <Text style={[styles.breakdownTag, { color: '#EF4444' }]}>
                         {sp.wrong} incorrect
@@ -353,7 +352,6 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
                   </Text>
                 </View>
               ))}
-              {/* Legend */}
               <View style={styles.breakdownLegend}>
                 <View style={styles.breakdownLegendItem}>
                   <View style={[styles.breakdownLegendDot, { backgroundColor: '#22C55E' }]} />
@@ -372,12 +370,10 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
           </>
         )}
 
-        {/* ── Chapter Breakdown tab ────────────────────────────────────────── */}
         {activeTab === 'chapter' && (
           <>
             <Text style={styles.sectionLabel}>Chapter-wise Performance</Text>
 
-            {/* Table header */}
             <View style={styles.chapterTable}>
               <View style={styles.chapterTableHeader}>
                 <Text style={[styles.chapterHeaderCell, { flex: 2 }]}>CHAPTER</Text>
@@ -404,10 +400,9 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
                     style={[
                       styles.accuracyBadge,
                       {
-                        backgroundColor: cp.accuracy >= 70
-                          ? '#F0FDF4'
-                          : cp.accuracy >= 40
-                          ? '#FFFBEB'
+                        backgroundColor:
+                          cp.accuracy >= 70 ? '#F0FDF4'
+                          : cp.accuracy >= 40 ? '#FFFBEB'
                           : '#FEF2F2',
                       },
                     ]}
@@ -416,10 +411,9 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
                       style={[
                         styles.accuracyText,
                         {
-                          color: cp.accuracy >= 70
-                            ? '#22C55E'
-                            : cp.accuracy >= 40
-                            ? '#F59E0B'
+                          color:
+                            cp.accuracy >= 70 ? '#22C55E'
+                            : cp.accuracy >= 40 ? '#F59E0B'
                             : '#EF4444',
                         },
                       ]}
@@ -442,44 +436,38 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
           </>
         )}
 
-        {/* ── AI Insights tab ──────────────────────────────────────────────── */}
         {activeTab === 'ai' && (
           <>
             <Text style={styles.sectionLabel}>AI Performance Insights</Text>
 
-            {/* Strength card */}
-            {subjectStats.filter(s => s.accuracy >= 60).map((sp, idx) => (
-              <View key={idx} style={[styles.insightCard, styles.insightStrength]}>
+            {subjectStats.filter((s: any) => s.accuracy >= 60).map((sp: any, idx: number) => (
+              <View key={`s-${idx}`} style={[styles.insightCard, styles.insightStrength]}>
                 <View style={styles.insightIconBox}>
                   <Text style={{ fontSize: 20 }}>💪</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.insightTitle}>Strong in {sp.subject}</Text>
                   <Text style={styles.insightDesc}>
-                    {sp.accuracy}% accuracy with {sp.correct}/{sp.total} questions correct.
-                    Keep it up!
+                    {sp.accuracy}% accuracy with {sp.correct}/{sp.total} questions correct. Keep it up!
                   </Text>
                 </View>
               </View>
             ))}
 
-            {/* Weakness card */}
-            {subjectStats.filter(s => s.accuracy < 40 && s.attempted > 0).map((sp, idx) => (
-              <View key={idx} style={[styles.insightCard, styles.insightWeakness]}>
+            {subjectStats.filter((s: any) => s.accuracy < 40 && s.attempted > 0).map((sp: any, idx: number) => (
+              <View key={`w-${idx}`} style={[styles.insightCard, styles.insightWeakness]}>
                 <View style={styles.insightIconBox}>
                   <Text style={{ fontSize: 20 }}>⚠️</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.insightTitle}>Needs Work: {sp.subject}</Text>
                   <Text style={styles.insightDesc}>
-                    Only {sp.accuracy}% accuracy. Focus on {sp.subject} concepts
-                    and practice more problems.
+                    Only {sp.accuracy}% accuracy. Focus on {sp.subject} concepts and practice more.
                   </Text>
                 </View>
               </View>
             ))}
 
-            {/* Time insight */}
             <View style={[styles.insightCard, { borderLeftColor: '#6C5CE7', borderLeftWidth: 3 }]}>
               <View style={styles.insightIconBox}>
                 <Text style={{ fontSize: 20 }}>🎯</Text>
@@ -493,7 +481,6 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
               </View>
             </View>
 
-            {/* Skipped insight */}
             {overall.skipped > 5 && (
               <View style={[styles.insightCard, { borderLeftColor: '#F59E0B', borderLeftWidth: 3 }]}>
                 <View style={styles.insightIconBox}>
@@ -503,16 +490,14 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
                   <Text style={styles.insightTitle}>Tip: Reduce Skips</Text>
                   <Text style={styles.insightDesc}>
                     You skipped {overall.skipped} questions. Even educated guesses can improve your score.
-                    Try to attempt every question next time.
                   </Text>
                 </View>
               </View>
             )}
 
-            {/* Best chapter */}
             {chapterStats.length > 0 && (() => {
               const best = [...chapterStats].sort((a, b) => b.accuracy - a.accuracy)[0];
-              return best.accuracy > 0 ? (
+              return best && best.accuracy > 0 ? (
                 <View style={[styles.insightCard, { borderLeftColor: '#22C55E', borderLeftWidth: 3 }]}>
                   <View style={styles.insightIconBox}>
                     <Text style={{ fontSize: 20 }}>⭐</Text>
@@ -520,8 +505,7 @@ export default function MockDetailedAnalysis({ mockId, mock, answers, onBack }: 
                   <View style={{ flex: 1 }}>
                     <Text style={styles.insightTitle}>Best Chapter: {best.chapter}</Text>
                     <Text style={styles.insightDesc}>
-                      {best.accuracy}% accuracy in {best.chapter} ({best.subject}).
-                      This is your strongest topic!
+                      {best.accuracy}% accuracy in {best.chapter} ({best.subject}). This is your strongest topic!
                     </Text>
                   </View>
                 </View>

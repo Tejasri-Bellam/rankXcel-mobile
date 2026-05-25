@@ -3,7 +3,7 @@
 import { COLORS } from '@/src/styles/styles';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, StatusBar, TouchableOpacity, View, Text,
+  ActivityIndicator, StatusBar, TouchableOpacity, View, Text, BackHandler,
 } from 'react-native';
 import { FlatList, ScrollView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,12 +54,13 @@ export default function AssessmentsScreen() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  useEffect(() => { fetchAssessments(); }, []);
 
   const fetchAssessments = async () => {
     try {
       setLoading(true);
       const res = await getassessmentsService();
+      console.log('resssss', res);
+      
       const raw: any = res?.data;
       const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
       setData(list);
@@ -69,6 +70,19 @@ export default function AssessmentsScreen() {
       setLoading(false);
     }
   };
+  
+  useEffect(() => { fetchAssessments(); }, []);
+
+  // Hardware back: close menus / detail view before exiting the screen.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (drawerOpen)   { setDrawerOpen(false);   return true; }
+      if (profileOpen)  { setProfileOpen(false);  return true; }
+      if (selectedItem) { setSelectedItem(null);  return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [drawerOpen, profileOpen, selectedItem]);
 
   // ── Detail view ──────────────────────────────────
   if (selectedItem) {
@@ -81,14 +95,31 @@ export default function AssessmentsScreen() {
   }
 
   // ── Derived data ─────────────────────────────────
-  const filteredData = data.filter((item: any) => item.student_status === tab);
-console.log('filteredData', filteredData);
+  const deriveStatus = (item: any): TabType => {
+    if (item.latest_attempt_status === 'SUBMITTED') return 'completed';
+
+    const scheduled = new Date(item.scheduled_at).getTime();
+    const endTime = scheduled + (item.total_duration_minutes ?? 0) * 60 * 1000;
+    const now = Date.now();
+
+    if (now < scheduled) return 'upcoming';
+    if (now <= endTime) return 'live';
+    return 'missed';
+  };
+
+  const dataWithStatus = data.map((item: any) => ({
+    ...item,
+    derived_status: deriveStatus(item),
+  }));
+
+  const filteredData = dataWithStatus.filter((item: any) => item.derived_status === tab);
+  console.log('filteredData', filteredData);
 
   const counts: Record<TabType, number> = {
-    live:      data.filter((d: any) => d.student_status === 'live').length,
-    upcoming:  data.filter((d: any) => d.student_status === 'upcoming').length,
-    completed: data.filter((d: any) => d.student_status === 'completed').length,
-    missed:    data.filter((d: any) => d.student_status === 'missed').length,
+    live:      dataWithStatus.filter((d: any) => d.derived_status === 'live').length,
+    upcoming:  dataWithStatus.filter((d: any) => d.derived_status === 'upcoming').length,
+    completed: dataWithStatus.filter((d: any) => d.derived_status === 'completed').length,
+    missed:    dataWithStatus.filter((d: any) => d.derived_status === 'missed').length,
   };
 
   const summary = `${counts.live} live · ${counts.upcoming} upcoming · ${counts.completed} completed`;
