@@ -678,4 +678,167 @@ export const mockLibraryStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+
+  /* ===== Request Mock Test modal ===== */
+  requestPanel: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 20,
+    maxHeight: '90%',
+  },
+  requestTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.textDark || '#111827',
+  },
+  requestSubtitle: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textDark || '#111827',
+    marginBottom: 6,
+    marginTop: 10,
+  },
+  fieldRequired: {
+    color: COLORS.red,
+  },
+  selectBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 8,
+  },
+  selectBoxDisabled: {
+    backgroundColor: '#F9FAFB',
+  },
+  selectText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.textDark || '#111827',
+  },
+  selectPlaceholder: {
+    color: COLORS.textLight,
+  },
+  dropdownPanel: {
+    marginTop: 6,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    maxHeight: 180,
+  },
+  dropdownItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownItemActive: {
+    backgroundColor: '#EEF2FF',
+  },
+  dropdownItemText: {
+    fontSize: 13,
+    color: COLORS.textDark || '#111827',
+  },
+  dropdownEmpty: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    padding: 12,
+    textAlign: 'center',
+  },
+  difficultyRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  difficultyOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+  },
+  difficultyOptionActive: {
+    backgroundColor: COLORS.orange,
+    borderColor: COLORS.orange,
+  },
+  difficultyOptionText: {
+    fontSize: 13,
+    color: COLORS.textMedium,
+    fontWeight: '600',
+  },
+  difficultyOptionTextActive: {
+    color: COLORS.white,
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inlineField: {
+    flex: 1,
+  },
+  textInput: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    fontSize: 13,
+    color: COLORS.textDark || '#111827',
+  },
+  requestActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 20,
+  },
+  cancelBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  cancelBtnText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  submitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 10,
+    gap: 6,
+    minWidth: 160,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
+  },
+  submitBtnText: {
+    color: COLORS.white,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  closeIcon: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 4,
+  },
 });

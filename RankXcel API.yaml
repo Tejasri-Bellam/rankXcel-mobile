@@ -3,6 +3,17 @@ info:
   title: RankXcel API
   version: 1.0.0
 paths:
+  /api/v1/admin/quality/low-accuracy-chapters/:
+    get:
+      operationId: admin_quality_low_accuracy_chapters_retrieve
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/admin/stats/:
     get:
       operationId: admin_stats_retrieve
@@ -79,13 +90,6 @@ paths:
   /api/v1/assessment-attempts/{attempt_id}/responses/:
     post:
       operationId: assessment_attempts_responses_create
-      description: |-
-        Save multiple answers for an in-progress attempt in a single request.
-
-        Body: {"answers": [{"question_id": int, "selected_choice_ids": [...],
-        "numeric_answer": ..., "is_marked_for_review": bool, "time_spent_seconds": int}, ...]}
-        All answers are saved in a single transaction; if any item fails validation
-        nothing is persisted and the per-item errors are returned.
       parameters:
       - in: path
         name: attempt_id
@@ -411,31 +415,26 @@ paths:
       security:
       - tokenAuth: []
       - cookieAuth: []
+      - {}
       responses:
         '200':
           description: No response body
-  /api/v1/assessments/db-selection/:
+  /api/v1/assessments/custom-selection/:
     post:
-      operationId: assessments_db_selection_create
-      description: |-
-        POST /api/v1/assessments/db-selection/ — create an assessment from
-        admin-selected question IDs (frontend wizard: pick questions on Screen 1,
-        fill form on Screen 2, submit). question_count is derived from
-        len(question_ids); the selected questions must be PUBLISHED and belong
-        to the chosen exam.
+      operationId: assessments_custom_selection_create
       tags:
       - assessments
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AssessmentDBSelection'
+              $ref: '#/components/schemas/AssessmentCustomSelection'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AssessmentDBSelection'
+              $ref: '#/components/schemas/AssessmentCustomSelection'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AssessmentDBSelection'
+              $ref: '#/components/schemas/AssessmentCustomSelection'
         required: true
       security:
       - tokenAuth: []
@@ -445,18 +444,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssessmentDBSelection'
+                $ref: '#/components/schemas/AssessmentCustomSelection'
           description: ''
   /api/v1/assessments/import-csv/:
     post:
       operationId: assessments_import_csv_create
-      description: |-
-        Create an assessment by uploading a CSV of questions.
-
-        Form fields (multipart): file, name, description, exam, question_count,
-        total_duration_minutes, scheduled_at. Valid rows are imported in a
-        single transaction; invalid rows are skipped and reported as warnings.
-        Rows are capped at the form's question_count.
       tags:
       - assessments
       security:
@@ -1235,9 +1227,15 @@ paths:
       responses:
         '204':
           description: No response body
-  /api/v1/dashboard/:
+  /api/v1/dashboard/{exam_id}/:
     get:
       operationId: dashboard_retrieve
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
       tags:
       - dashboard
       security:
@@ -2336,6 +2334,23 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/v1/questions/{question_id}/delete/:
+    delete:
+      operationId: questions_delete_destroy
+      parameters:
+      - in: path
+        name: question_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - questions
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/questions/{question_pk}/choices/:
     get:
       operationId: questions_choices_list
@@ -2701,11 +2716,17 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/v1/student/chapters/performance/:
+  /api/v1/student/chapters/performance/{exam_id}/:
     get:
       operationId: student_chapters_performance_retrieve
-      description: GET /api/v1/student/chapters/performance/ — chapter-wise percentage
-        from assessments & mock tests.
+      description: GET /api/v1/student/chapters/performance/{exam_id}/ — chapter-wise
+        percentage from assessments & mock tests for selected exam.
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
       tags:
       - student
       security:
@@ -3180,7 +3201,7 @@ components:
       - exam
       - name
       - total_duration_minutes
-    AssessmentDBSelection:
+    AssessmentCustomSelection:
       type: object
       description: |-
         Create an assessment from admin-selected question IDs.
@@ -3333,6 +3354,9 @@ components:
       required:
       - name
       - total_duration_minutes
+    BlankEnum:
+      enum:
+      - ''
     Chapter:
       type: object
       properties:
@@ -3381,10 +3405,10 @@ components:
           readOnly: true
         text:
           type: string
-        image_url:
+        image:
           type: string
           format: uri
-          maxLength: 200
+          nullable: true
         is_correct:
           type: boolean
         sort_order:
@@ -3565,9 +3589,14 @@ components:
           nullable: true
           oneOf:
           - $ref: '#/components/schemas/MockTestCreateDifficultyEnum'
+          - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
         test_type:
           $ref: '#/components/schemas/MockTestCreateTestTypeEnum'
+        total_duration_minutes:
+          type: integer
+          minimum: 0
+          default: 0
       required:
       - exam
       - question_count
@@ -3986,10 +4015,10 @@ components:
           readOnly: true
         text:
           type: string
-        image_url:
+        image:
           type: string
           format: uri
-          maxLength: 200
+          nullable: true
         is_correct:
           type: boolean
         sort_order:
@@ -4065,10 +4094,10 @@ components:
           $ref: '#/components/schemas/SourceEnum'
         question_text:
           type: string
-        image_url:
+        image:
           type: string
           format: uri
-          maxLength: 200
+          nullable: true
         assertion_text:
           type: string
         reason_text:
@@ -4206,10 +4235,10 @@ components:
           $ref: '#/components/schemas/SourceEnum'
         question_text:
           type: string
-        image_url:
+        image:
           type: string
           format: uri
-          maxLength: 200
+          nullable: true
         assertion_text:
           type: string
         reason_text:
@@ -4720,11 +4749,17 @@ components:
           type: string
           format: date-time
           readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
       required:
       - created_at
       - email
       - id
       - is_email_verified
+      - last_login
       - name
     UserMe:
       type: object

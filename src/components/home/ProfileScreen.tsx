@@ -8,7 +8,6 @@ import {
   getPreferencesService,
   updateMeService,
   updateNotificationsService,
-  updatePreferencesService,
 } from '@/src/libs/services/profile';
 import { profileStyles } from '@/src/styles/sidebar/profileStyles';
 import { COLORS } from '@/src/styles/styles';
@@ -112,7 +111,6 @@ export default function ProfileScreen() {
   const [selectedExamId, setSelectedExamId] = useState<number | ''>('');
   const [selectedExamName, setSelectedExamName] = useState('');
   const [targetYear, setTargetYear] = useState('');
-  const [targetPct, setTargetPct] = useState('');
   const [examDropdownOpen, setExamDropdownOpen] = useState(false);
   const [examOptions, setExamOptions] = useState<{ id: number; name: string }[]>([]);
 
@@ -269,14 +267,11 @@ export default function ProfileScreen() {
     const payload: {
       exam: number | string;
       target_year: number;
-      target_percentage?: number;
     } = {
       exam: selectedExamId,
       target_year: Number(targetYear),
     };
     console.log('payload', payload);
-    
-    if (targetPct) payload.target_percentage = Number(targetPct);
 
     const res = await addTargetExamService(payload);
     console.log('res', res);
@@ -287,7 +282,6 @@ export default function ProfileScreen() {
         setSelectedExamId('');
         setSelectedExamName('');
         setTargetYear("");
-        setTargetPct("");
 
         fetchPreferences();
       }
@@ -306,7 +300,6 @@ export default function ProfileScreen() {
         apiErrors.nonFieldErrors?.[0] ||
         apiErrors.exam?.[0] ||
         apiErrors.target_year?.[0] ||
-        apiErrors.target_percentage?.[0] ||
         Object.values(apiErrors).flat()[0] ||
         (typeof body.detail === "string" ? body.detail : null) ||
         JSON.stringify(body) ||
@@ -314,23 +307,6 @@ export default function ProfileScreen() {
       Alert.alert("Error", String(firstMessage));
     }
   };
-
-  const handleSavePreferences = async () => {
-      try {
-        const payload = exams.map((item) => ({
-          exam: item.id,
-          target_year: item.year,
-        }));
-
-        await updatePreferencesService({
-          exams: payload,
-        });
-
-        Alert.alert('Success', 'Target exam added successfully');
-      } catch {
-        Alert.alert('Un-success', 'Failed to add target exam');
-      }
-    };
 
   //  Notifications
   const toggleNotif = async (key: NotifKey) => {
@@ -508,20 +484,10 @@ export default function ProfileScreen() {
             <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Target Year *</Text>
             <TextInput style={profileStyles.textInput} value={targetYear} onChangeText={setTargetYear} placeholder="e.g. 2026" placeholderTextColor={COLORS.textLight} keyboardType="numeric" />
 
-            <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Target Percentage</Text>
-            <TextInput style={profileStyles.textInput} value={targetPct} onChangeText={setTargetPct} placeholder="e.g. 95" placeholderTextColor={COLORS.textLight} keyboardType="numeric" />
-
             <TouchableOpacity style={profileStyles.addExamBtn} onPress={handleAddExam}>
               <Ionicons name="add" size={16} color={COLORS.white} />
               <Text style={profileStyles.addExamBtnText}>Add Target Exam</Text>
             </TouchableOpacity>
-
-            {exams.length > 0 && (
-              <TouchableOpacity style={[profileStyles.saveBtn, { marginTop: 12 }]} onPress={handleSavePreferences}>
-                <Ionicons name="cloud-upload-outline" size={16} color={COLORS.white} />
-                <Text style={profileStyles.saveBtnText}>Save Preferences</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
 

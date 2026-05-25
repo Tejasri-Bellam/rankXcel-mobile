@@ -66,7 +66,7 @@ export interface MockResponse<T = any> {
 
 // Mock Tests
 export async function getMockTestsService() {
-  return await genericGet(`/v1/mock-tests/`,true);
+  return await genericGet(`/v1/mock-tests/?test_type=MOCK_TEST`, true);
 }
 
 // Mock Test By ID
@@ -97,17 +97,60 @@ export async function getMockTestReviewService(
   return await genericGet(`/v1/mock-tests/${id}/review/`,true);
 }
 
+// Detailed Analysis
+export async function getMockTestDetailedAnalysisService(
+  id: number | string
+) {
+  return await genericGet(`/v1/mock-tests/${id}/detailed-analysis/`, true);
+}
+
+// Per-question solution (AI-generated)
+export async function getQuestionSolutionService(
+  questionId: number | string
+) {
+  return await genericGet(`/v1/questions/${questionId}/solution/`, true);
+}
+
 // Create Mock
-export async function createMockTestService(payload: {
-  title: string;
-  exam: ExamTag;
-  subject: string;
-  difficulty: Difficulty;
-  duration: string;
-  questions: number;
-}) {
-  return await genericPost(`/v1/mock-tests/`,payload, { isMultipart: false, useAccessToken: true}
-  );
+export interface CreateMockTestPayload {
+  exam: number;
+  subject: number;
+  chapter_ids?: number[];
+  topic_ids?: number[];
+  question_count: number;
+  total_duration_minutes: number;
+  difficulty?: 'easy' | 'medium' | 'hard' | null;
+  test_type?: 'MOCK_TEST' | 'PRACTICE_TEST';
+}
+
+export async function createMockTestService(payload: CreateMockTestPayload) {
+  return await genericPost(`/v1/mock-tests/`, payload, { isMultipart: false, useAccessToken: true });
+}
+
+// Options
+export interface OptionItem {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export async function getMyTargetExamsOptionsService() {
+  return await genericGet(`/v1/exams/my-target-exams/`, true);
+}
+
+export async function getSubjectOptionsService(examId?: number) {
+  const qs = examId ? `?exam_id=${examId}` : '';
+  return await genericGet(`/v1/options/subjects/${qs}`, true);
+}
+
+export async function getChapterOptionsService(subjectId?: number) {
+  const qs = subjectId ? `?subject_id=${subjectId}` : '';
+  return await genericGet(`/v1/options/chapters/${qs}`, true);
+}
+
+export async function getTopicOptionsService(chapterId?: number) {
+  const qs = chapterId ? `?chapter_id=${chapterId}` : '';
+  return await genericGet(`/v1/options/topics/${qs}`, true);
 }
 // Start Mock
 export async function startMockTestService(
@@ -123,12 +166,22 @@ export async function submitMockTestService(id: number | string) {
 }
 
 // Submit Response
+export interface MockResponsePayload {
+  selected_choice_ids: number[];
+  is_marked_for_review?: boolean;
+  time_spent_seconds?: number;
+}
+
 export async function submitMockResponseService(
   mockId: number | string,
   questionId: number | string,
-  payload: { selected_option: string }) 
-  {
-  return await genericPut(`/v1/mock-tests/${mockId}/responses/${questionId}/`,payload, { isMultipart: false, useAccessToken: true});
+  payload: MockResponsePayload,
+) {
+  return await genericPut(
+    `/v1/mock-tests/${mockId}/responses/${questionId}/`,
+    payload,
+    { isMultipart: false, useAccessToken: true },
+  );
 }
 
 // Sort Helper

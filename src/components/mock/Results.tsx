@@ -24,23 +24,16 @@ interface Props {
 }
 
 function formatTime(seconds: number): string {
+  if (!seconds || seconds < 0) return '0s';
   if (seconds < 60) return `${seconds}s`;
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}m ${s}s`;
 }
 
-function isAnswerCorrect(q: any, userAnswer: string[]): boolean {
-  return (
-    q.correct_answers?.length === userAnswer.length &&
-    q.correct_answers?.every((a: string) => userAnswer.includes(a))
-  );
-}
-
 export default function MockExamResults({
   mockId,
   mock,
-  answers,
   timeTakenSeconds,
   onBack,
   onViewSolutions,
@@ -48,19 +41,20 @@ export default function MockExamResults({
 }: Props) {
   const [result, setResult]   = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  const allQuestions: any[] = (mock as any)?.sections?.flatMap((s: any) => s.questions) ?? [];
+  const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => { loadResult(); }, []);
 
   const loadResult = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await getMockTestResultService(mockId);
       console.log('MOCK RESULT API:', JSON.stringify(res, null, 2));
       setResult(res?.data ?? null);
     } catch (err) {
       console.log('MOCK RESULT ERROR:', err);
+      setError('Failed to load results.');
     } finally {
       setLoading(false);
     }
@@ -75,42 +69,69 @@ export default function MockExamResults({
     );
   }
 
-  // Compute local stats as fallback
-  let localCorrect = 0, localWrong = 0, localAttempted = 0, localScore = 0;
-  allQuestions.forEach((q: any) => {
-    const ua = answers[q.id] ?? [];
-    if (ua.length > 0) {
-      localAttempted++;
-      if (isAnswerCorrect(q, ua)) { localCorrect++; localScore += q.marks_correct ?? 4; }
-      else                         { localWrong++;   localScore += q.marks_incorrect ?? -1; }
-    }
+  if (!result) {
+    return (
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fff' }}>
+        <Text style={{ fontSize: 40, marginBottom: 16 }}>📊</Text>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 8 }}>
+          {error ? 'Could not load results' : 'Results not available yet'}
+        </Text>
+        <Text style={{ fontSize: 14, color: '#9898B0', textAlign: 'center', marginBottom: 24 }}>
+          Your mock has been submitted. Please try again in a moment.
+        </Text>
+        <TouchableOpacity
+          onPress={loadResult}
+          style={{ backgroundColor: '#6C5CE7', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onBack} style={{ marginTop: 12 }}>
+          <Text style={{ color: '#9898B0', fontSize: 14 }}>← Back to Mock Library</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Extract directly from API result ──
+  const finalScore  = Number(result?.total_score ?? result?.score ?? 0);
+  const totalMarks  = Number(result?.max_score ?? result?.total_marks ?? mock.max_score ?? mock.question_count ?? 0);
+  const timeTaken   = Number(result?.time_taken_seconds ?? timeTakenSeconds ?? 0);
+
+  const chapterBreakdown: Record<string, any> = result?.chapter_breakdown ?? {};
+  const chapterEntries = Object.values(chapterBreakdown);
+
+  let finalCorrect = 0, finalWrong = 0, finalSkipped = 0;
+  chapterEntries.forEach((ch: any) => {
+    finalCorrect += Number(ch?.correct ?? 0);
+    finalWrong   += Number(ch?.wrong ?? 0);
+    finalSkipped += Number(ch?.unattempted ?? ch?.skipped ?? 0);
   });
 
-  const finalScore     = result?.score           ?? localScore;
-  const finalCorrect   = result?.correct_count   ?? localCorrect;
-  const finalWrong     = result?.wrong_count      ?? localWrong;
-  const finalAttempted = result?.attempted_count  ?? localAttempted;
-  const totalMarks     = result?.total_marks
-    ?? allQuestions.reduce((s: number, q: any) => s + (q.marks_correct ?? 4), 0)
-    ?? mock.max_score
-    ?? mock.question_count
-    ?? 0;
-  const finalSkipped   = (result?.total_questions ?? allQuestions.length) - finalAttempted;
-  const percentage     = result?.percentage != null
+  // Fallback to top-level fields if no chapter_breakdown.
+  if (chapterEntries.length === 0) {
+    finalCorrect = Number(result?.correct_count ?? result?.correct ?? 0);
+    finalWrong   = Number(result?.wrong_count ?? result?.wrong ?? 0);
+    finalSkipped = Number(result?.skipped_count ?? result?.unattempted ?? 0);
+  }
+
+  const finalAttempted = finalCorrect + finalWrong;
+  const totalQuestions = Number(result?.total_questions ?? mock.question_count ?? (finalAttempted + finalSkipped));
+
+  const percentage = result?.percentage != null
     ? Number(result.percentage).toFixed(1)
     : totalMarks > 0 ? ((finalScore / totalMarks) * 100).toFixed(1) : '0.0';
-  const percentile     = result?.percentile ?? mock.percentile ?? null;
-  const rank           = result?.rank ?? null;
 
-  const dateLabel = result?.date ?? new Date().toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const percentile = result?.percentile ?? mock.percentile ?? null;
+  const rank       = result?.rank ?? null;
+
+  const dateLabel = result?.submitted_at
+    ? new Date(result.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Text style={styles.backArrow}>←</Text>
@@ -137,9 +158,9 @@ export default function MockExamResults({
           </View>
           <View style={styles.scoreStatsRow}>
             {[
-              { label: `${finalCorrect} correct`,  color: '#22C55E' },
-              { label: `${finalWrong} wrong`,       color: '#EF4444' },
-              { label: `${finalSkipped} skipped`,   color: 'rgba(255,255,255,0.5)' },
+              { label: `${finalCorrect} correct`, color: '#22C55E' },
+              { label: `${finalWrong} wrong`,     color: '#EF4444' },
+              { label: `${finalSkipped} skipped`, color: 'rgba(255,255,255,0.5)' },
             ].map(({ label, color }) => (
               <View key={label} style={styles.scoreStatItem}>
                 <View style={[styles.scoreStatDot, { backgroundColor: color }]} />
@@ -167,14 +188,16 @@ export default function MockExamResults({
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statIcon}>⏱</Text>
-            <Text style={styles.statValue}>{formatTime(timeTakenSeconds)}</Text>
+            <Text style={styles.statValue}>{formatTime(timeTaken)}</Text>
             <Text style={styles.statLabel}>Time Taken</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statIcon}>✍️</Text>
             <Text style={styles.statValue}>{finalAttempted}</Text>
             <Text style={styles.statLabel}>Attempted</Text>
-            <Text style={styles.statSub}>{finalSkipped} skipped</Text>
+            <Text style={styles.statSub}>
+              {Math.max(0, totalQuestions - finalAttempted)} skipped
+            </Text>
           </View>
           {percentile != null && (
             <View style={styles.statCard}>

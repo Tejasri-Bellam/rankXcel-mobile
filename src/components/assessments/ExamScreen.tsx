@@ -24,8 +24,6 @@ interface Props {
   assessmentId: number;
   attemptId: number;
   durationMinutes: number;
-  questions: any[];
-  onBack: () => void;
   onSubmit: (answers: Record<string, string[]>, timeTakenSeconds: number) => void;
   onBackToAssessments?: () => void;
 }
@@ -49,7 +47,6 @@ export default function ExamScreen({
   assessmentId,
   attemptId,
   durationMinutes,
-  questions,
   onSubmit,
   onBackToAssessments,
 }: Props) {
@@ -115,6 +112,7 @@ export default function ExamScreen({
             })),
             marks_correct: 4,
             marks_incorrect: -1,
+            selected_options: q.selected_options ?? q.selected_choices ?? q.response?.selected_options,
           });
  
           return acc;
@@ -148,6 +146,27 @@ export default function ExamScreen({
         examData = { ...examData, duration_minutes: durationMinutes };
       }
  
+      // Hydrate previously saved responses from the top-level `existing_answers`
+      // map returned by the student questions endpoint (keyed by question id).
+      const existing: Record<string, any> = raw?.existing_answers ?? {};
+      const savedAnswers: Record<string, string[]> = {};
+      const savedStatuses: Record<string, QuestionStatus> = {};
+      Object.entries(existing).forEach(([qId, val]: [string, any]) => {
+        const ids: any[] = val?.selected_choice_ids ?? [];
+        if (Array.isArray(ids) && ids.length > 0) {
+          savedAnswers[qId] = ids.map((v: any) => String(v));
+        }
+        if (val?.is_marked_for_review) {
+          savedStatuses[qId] = 'marked';
+        } else if (ids?.length > 0) {
+          savedStatuses[qId] = 'answered';
+        }
+      });
+      if (Object.keys(savedAnswers).length > 0 || Object.keys(savedStatuses).length > 0) {
+        setAnswers(savedAnswers);
+        setQStatuses(savedStatuses);
+      }
+
       setExam(examData);
       setTimeLeft((examData.duration_minutes ?? 60) * 60);
     } catch (error) {
@@ -238,9 +257,22 @@ export default function ExamScreen({
   };
  
   // ── Save answer to server (tracked for await on submit) ──
-  const saveAnswerToServer = (qId: any, selectedOptions: string[]) => {
+  const saveAnswerToServer = (
+    qId: any,
+    selectedOptions: string[],
+    markedForReview = false,
+  ) => {
+    // Choice IDs are integers per the API schema (ChoiceAdmin.id). We hold
+    // them as strings locally for UI equality checks; coerce back to numbers
+    // before sending so the backend actually persists the response.
+    const numericOptions = selectedOptions
+      .map((v) => Number(v))
+      .filter((n) => Number.isFinite(n));
+
     const savePromise = updateAssessmentResponsesService(attemptId, qId, {
-      selected_options: selectedOptions,
+      selected_choice_ids: numericOptions,
+      is_marked_for_review: markedForReview,
+      time_spent_seconds: 0,
     })
       .then((r) => {
         console.log('SAVE OK for question', qId, 'status:', (r as any)?.status);
@@ -276,18 +308,25 @@ export default function ExamScreen({
  
     // Optimistically update local state first for snappy UX
     setAnswers((prev) => ({ ...prev, [qId]: newSelection }));
+    const wasMarked = qStatuses[qId] === 'marked';
     setQStatuses((prev) => ({
       ...prev,
-      [qId]: newSelection.length > 0 ? 'answered' : 'not_answered',
+      [qId]: wasMarked
+        ? 'marked'
+        : newSelection.length > 0
+          ? 'answered'
+          : 'not_answered',
     }));
- 
+
     // Persist the FULL current selection (not just the tapped option)
-    saveAnswerToServer(qId, newSelection);
+    saveAnswerToServer(qId, newSelection, wasMarked);
   };
- 
+
   const handleMarkForReview = () => {
     const qId = getCurrentQuestionId();
-    if (qId) setQStatuses((prev) => ({ ...prev, [qId]: 'marked' }));
+    if (!qId) return;
+    setQStatuses((prev) => ({ ...prev, [qId]: 'marked' }));
+    saveAnswerToServer(qId, answers[qId] ?? [], true);
   };
  
   const handleSaveAndNext = () => {

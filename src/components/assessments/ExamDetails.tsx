@@ -1,11 +1,12 @@
 // src/components/assessments/ExamDetails.tsx
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StatusBar, ActivityIndicator, Alert,
+  StatusBar, ActivityIndicator, Alert, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import ExamNavigator from './ExamNavigator';
 import ExamResults from './ExamResults';
 import SolutionViewer from './SolutionViewer';
@@ -59,6 +60,31 @@ export default function ExamDetails({ item, onBack }: Props) {
   const isMissed     = item?.student_status === 'missed';
   const isLive       = item?.student_status === 'live';
   const isUpcoming   = item?.student_status === 'upcoming';
+
+  // Reflect the current sub-view in the URL.
+  useEffect(() => {
+    router.setParams({
+      assessmentId: assessmentId != null ? String(assessmentId) : undefined as any,
+      view: currentView,
+    });
+    return () => {
+      router.setParams({ assessmentId: undefined as any, view: undefined as any });
+    };
+  }, [currentView, assessmentId]);
+
+  // Hardware back: pop within the assessment flow.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (currentView === 'solutions') { setCurrentView('results'); return true; }
+      if (currentView === 'results' || currentView === 'exam') {
+        setCurrentView('detail');
+        return true;
+      }
+      onBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [currentView, onBack]);
 
   // Helpers
   const formatSchedule = (): string | null => {
@@ -120,30 +146,43 @@ export default function ExamDetails({ item, onBack }: Props) {
       setStartLoading(true);
       const res: any = await reattemptAssessmentService(assessmentId);
       console.log('Reattempt response:', res);
+      const body = res?.data ?? {};
       const newAttemptId =
-        res?.data?.id ??
-        res?.data?.attempt_id ??
-        res?.data?.latest_attempt_id;
-        console.log('Reattempt response:', res);
+        body?.id ??
+        body?.attempt_id ??
+        body?.latest_attempt_id ??
+        body?.data?.id ??
+        body?.data?.attempt_id ??
+        body?.data?.latest_attempt_id ??
+        body?.attempt?.id;
 
       if (!newAttemptId) {
         throw new Error('No attempt id returned');
       }
 
       setAttemptId(newAttemptId);
-      // Check box for Retry and Re-attempt
-      setRequireConfirmation(true);
+
+      // /reattempt/ only creates the attempt — still need /start/ to move it
+      // to IN_PROGRESS before responses can be saved/submitted.
+      try {
+        await assessmentStartService(newAttemptId);
+      } catch (startErr: any) {
+        const code = startErr?.body?.code ?? startErr?.errors?.code?.[0];
+        if (code !== 'INVALID_STATE') throw startErr;
+      }
 
       setCurrentView('exam');
-
-      // Open instructions
-      setShowInstructions(true);
-
-    } catch {
-      Alert.alert(
-        'Error',
-        'Failed to create a new attempt. Please try again.'
-      );
+    } catch (error: any) {
+      console.log('Reattempt failed:', error);
+      const body = error?.body ?? {};
+      const message =
+        body?.error ??
+        body?.detail ??
+        body?.message ??
+        (Array.isArray(body?.non_field_errors) ? body.non_field_errors[0] : undefined) ??
+        error?.errors?.nonFieldErrors?.find((m: string) => m && m !== 'Unknown error' && m !== 'Please try again later') ??
+        'Failed to create a new attempt. Please try again.';
+      Alert.alert('Error', message);
     } finally {
       setStartLoading(false);
     }
@@ -397,12 +436,8 @@ export default function ExamDetails({ item, onBack }: Props) {
                       : 1,
                 },
               ]}
-              onPress={
-                !isCompleted
-                  ? handleStartFromInstructions
-                  : handleReattempt
-              }
-              disabled={requireConfirmation && !accepted}
+              onPress={handleReattempt}
+              disabled={(requireConfirmation && !accepted) || startLoading}
             >
               {startLoading ? (
                 <ActivityIndicator color="#fff" />

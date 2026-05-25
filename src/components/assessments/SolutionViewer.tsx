@@ -18,17 +18,30 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     loadReview();
   }, []);
+
+  const sections: any[] = reviewData?.sections ?? reviewData?.results ?? [];
+
+  const allQuestions = useMemo(
+    () =>
+      sections.flatMap((s: any) =>
+        (s.questions ?? s.question ?? []).map((q: any) => ({ ...q, sectionName: s.name }))
+      ),
+    [reviewData]
+  );
+
+  const totalQ = allQuestions.length;
 
   const loadReview = async () => {
     try {
       setLoading(true);
       const res = await getassessmentReviewService(attemptId);
       console.log('REVIEW API:', res);
-      const data = res?.data ?? null;
+      const data: any = res?.data ?? null;
       setReviewData(data);
 
       //fetch Solutions
@@ -77,19 +90,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
       </SafeAreaView>
     );
   }
-
-  const sections: any[] = reviewData?.sections ?? reviewData?.results ?? [];
-
-  const allQuestions = useMemo(
-    () =>
-      sections.flatMap((s: any) =>
-        (s.questions ?? s.question ?? []).map((q: any) => ({ ...q, sectionName: s.name }))
-      ),
-    [reviewData]
-  );
-
-  const totalQ = allQuestions.length;
-  const [currentIndex, setCurrentIndex] = useState(0);
 
   if (totalQ === 0) {
     return (
