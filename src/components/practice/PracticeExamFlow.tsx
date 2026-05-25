@@ -151,21 +151,35 @@ const findQuestionsArray = (node: any, depth = 0): any[] | null => {
 };
 
 const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
-  if (!q || q.id == null) return null;
-  const choicesRaw = q.choices ?? q.options ?? q.answer_options ?? [];
+  if (!q) return null;
+
+  // The /questions/ endpoint may wrap the real question: { id: <join_id>, question: {...}, question_id: 87, ... }
+  // Prefer question_id / question.id (the question-bank id) since that's what the /responses/<id>/ endpoint expects.
+  const realId =
+    q.question_id ??
+    q.question?.id ??
+    q.id;
+  if (realId == null) return null;
+
+  // Choices may live on the wrapper or on the nested question
+  const choicesRaw =
+    q.choices ?? q.options ?? q.answer_options ??
+    q.question?.choices ?? q.question?.options ?? [];
   const options = (Array.isArray(choicesRaw) ? choicesRaw : []).map((c: any) => ({
     id: String(c?.id ?? c?.value ?? ''),
     text: c?.text ?? c?.label ?? String(c ?? ''),
   }));
 
-  // Try to detect correct choice id (practice mode usually returns it)
+  // Detect correct choice id if practice mode includes it
   let correctId: string | null = null;
   const correctRaw =
     q.correct_choice_id ??
     q.correct_option_id ??
     q.correct_answer_id ??
     q.correct_choice ??
-    (Array.isArray(q.correct_choice_ids) ? q.correct_choice_ids[0] : null);
+    (Array.isArray(q.correct_choice_ids) ? q.correct_choice_ids[0] : null) ??
+    q.question?.correct_choice_id ??
+    q.question?.correct_option_id;
   if (correctRaw != null) correctId = String(correctRaw);
   else {
     const flagged = options.find((_o: any, i: number) => {
@@ -176,15 +190,18 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
   }
 
   return {
-    id: q.id,
-    text: q.question_text ?? q.text ?? q.statement ?? '',
-    type: q.question_type ?? q.type ?? 'MCQ',
+    id: realId,
+    text:
+      q.question_text ?? q.text ?? q.statement ??
+      q.question?.question_text ?? q.question?.text ?? '',
+    type: q.question_type ?? q.type ?? q.question?.question_type ?? 'MCQ',
     options,
     correctChoiceId: correctId,
     explanation:
-      q.explanation ?? q.solution ?? q.solution_text ?? q.answer_explanation ?? '',
-    marksCorrect: Number(q.marks_correct ?? 4),
-    marksIncorrect: Number(q.marks_incorrect ?? -1),
+      q.explanation ?? q.solution ?? q.solution_text ?? q.answer_explanation ??
+      q.question?.explanation ?? q.question?.solution ?? '',
+    marksCorrect: Number(q.marks_correct ?? q.question?.marks_correct ?? 4),
+    marksIncorrect: Number(q.marks_incorrect ?? q.question?.marks_incorrect ?? -1),
     selectedOptions:
       q.selected_options ?? q.selected_choices ?? q.response?.selected_options ?? null,
   };
@@ -247,31 +264,36 @@ export const PracticeExamFlow = ({
       }
       const subjectId = Number(matchedSubject.id);
 
-      // Resolve chapter_id by name within that subject
+      // Resolve chapter_id by name within that subject. "Uncategorized" and other
+      // backend buckets won't appear in /options/chapters/; fall back to subject-wide.
       const chRes = await getChapterOptionsService(subjectId);
       const chList = toArray(unwrap(chRes));
       const matchedChapter = chList.find(
         (c: any) => String(c?.name ?? '').toLowerCase() === chapter.name.toLowerCase(),
       );
-      if (!matchedChapter?.id) {
-        throw new Error(`Chapter "${chapter.name}" not found in subject options.`);
-      }
-      const chapterId = Number(matchedChapter.id);
+      const chapterIds: number[] = matchedChapter?.id ? [Number(matchedChapter.id)] : [];
 
       const payload = {
         exam: examId,
         subject: subjectId,
-        chapter_ids: [chapterId],
+        chapter_ids: chapterIds,
         topic_ids: [],
         question_count: count,
-        total_duration_minutes: timer && timer > 0 ? timer : Math.max(count * 2, 5),
+        total_duration_minutes: timer > 0 ? timer : 0,
         difficulty,
         test_type: 'PRACTICE_TEST' as const,
       };
 
       const createRes = await createMockTestService(payload);
-      const created = unwrap(createRes);
-      const newId = created?.id;
+      console.log('CREATE PRACTICE RESPONSE:', JSON.stringify(createRes, null, 2));
+      const body = unwrap(createRes);
+      const newId =
+        body?.id ??
+        body?.mock_test_id ??
+        body?.mock_id ??
+        body?.data?.id ??
+        body?.result?.id ??
+        body?.results?.id;
       if (!newId) {
         throw new Error('Practice session was created but no ID was returned.');
       }
@@ -286,6 +308,7 @@ export const PracticeExamFlow = ({
 
       const qRes = await getMockTestQuestionsService(newId);
       const raw = unwrap(qRes);
+      console.log('PRACTICE QUESTIONS RAW:', JSON.stringify(raw, null, 2));
       const arr =
         (Array.isArray(raw?.questions) && raw.questions) ||
         findQuestionsArray(raw) ||

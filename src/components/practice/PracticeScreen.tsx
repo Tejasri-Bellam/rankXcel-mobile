@@ -395,7 +395,8 @@ export default function PracticeScreen() {
             ) : (
               chapters.map((chapter) => {
                 const expanded = !!expandedChapters[chapter.name];
-                const topicsCount = chapter.topics.length;
+                const topics = Array.isArray(chapter.topics) ? chapter.topics : [];
+                const topicsCount = topics.length;
                 return (
                   <View key={chapter.name}>
                     <TouchableOpacity
@@ -444,9 +445,9 @@ export default function PracticeScreen() {
                       </View>
                     </TouchableOpacity>
 
-                    {expanded && chapter.topics.length > 0 && (
+                    {expanded && topics.length > 0 && (
                       <View style={{ backgroundColor: COLORS.background, paddingLeft: 38 }}>
-                        {chapter.topics.map((topic) => (
+                        {topics.map((topic) => (
                           <View
                             key={topic.name}
                             style={{
