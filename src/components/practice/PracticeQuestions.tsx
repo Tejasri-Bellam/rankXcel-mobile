@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Platform,
   StyleSheet,
@@ -15,6 +16,18 @@ import PracticeProgress from './PracticeProgress';
 import { AnswerState } from './PracticeExamFlow';
 import { submitMockResponseService } from '@/src/libs/services/mock-library';
 
+export interface ExplanationStep {
+  number: number;
+  heading: string;
+  explanation: string;
+}
+
+export interface StructuredExplanation {
+  summary?: string;
+  steps?: ExplanationStep[];
+  conclusion?: string;
+}
+
 export interface PracticeApiQuestion {
   id: number | string;
   text: string;
@@ -22,10 +35,34 @@ export interface PracticeApiQuestion {
   options: { id: string; text: string }[];
   correctChoiceId: string | null;
   explanation: string;
+  explanationStructured?: StructuredExplanation | null;
   marksCorrect: number;
   marksIncorrect: number;
   selectedOptions?: any[] | null;
 }
+
+const parseExplanation = (raw: any): StructuredExplanation | null => {
+  if (!raw) return null;
+  try {
+    const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!obj || typeof obj !== 'object') return null;
+    const stepsRaw = Array.isArray(obj.steps) ? obj.steps : [];
+    const steps: ExplanationStep[] = stepsRaw
+      .map((s: any) => ({
+        number: Number(s?.step_number ?? 0),
+        heading: String(s?.heading ?? ''),
+        explanation: String(s?.explanation ?? ''),
+      }))
+      .filter((s: ExplanationStep) => s.heading || s.explanation);
+    return {
+      summary: typeof obj.summary === 'string' ? obj.summary : undefined,
+      steps: steps.length > 0 ? steps : undefined,
+      conclusion: typeof obj.conclusion === 'string' ? obj.conclusion : undefined,
+    };
+  } catch {
+    return null;
+  }
+};
 
 interface Props {
   mockId: number | string;
@@ -34,6 +71,9 @@ interface Props {
   timerMinutes: number;
   onEnd: (answers: AnswerState[], totalSeconds: number) => void;
 }
+
+const unwrap = (res: any): any =>
+  res && typeof res === 'object' && 'data' in res ? (res as any).data : res;
 
 export default function PracticeQuestions({
   mockId,
@@ -61,6 +101,8 @@ export default function PracticeQuestions({
     }),
   );
   const [totalSeconds, setTotalSeconds] = useState(0);
+  const [savingIdx, setSavingIdx] = useState<number | null>(null);
+  const [questionList, setQuestionList] = useState<PracticeApiQuestion[]>(questions);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
@@ -83,8 +125,8 @@ export default function PracticeQuestions({
   }, [totalSeconds, timerEnabled, timerMinutes]);
 
   const current = answers[currentIdx];
-  const question = questions[currentIdx];
-  const isLast = currentIdx === questions.length - 1;
+  const question = questionList[currentIdx];
+  const isLast = currentIdx === questionList.length - 1;
 
   const saveResponse = (
     qId: number | string,
@@ -101,6 +143,7 @@ export default function PracticeQuestions({
       .then((r) => r)
       .catch((e) => {
         console.log('PRACTICE SAVE ERROR for question', qId, ':', e);
+        return null;
       });
     pendingSaves.current.add(promise);
     promise.finally(() => pendingSaves.current.delete(promise));
@@ -116,22 +159,71 @@ export default function PracticeQuestions({
     });
   };
 
-  const handleSaveNext = () => {
+  const handleSaveNext = async () => {
     if (!current.answered && current.selected) {
-      const isCorrect =
-        question.correctChoiceId != null
-          ? current.selected === question.correctChoiceId
-          : null;
-      setAnswers((prev) => {
-        const next = [...prev];
-        next[currentIdx] = {
-          ...next[currentIdx],
-          answered: true,
-          correct: isCorrect,
-        };
-        return next;
-      });
-      saveResponse(question.id, current.selected, current.markedForReview);
+      const idx = currentIdx;
+      const selected = current.selected;
+      setSavingIdx(idx);
+      try {
+        const res = await saveResponse(question.id, selected, current.markedForReview);
+        const body = unwrap(res);
+        console.log('PRACTICE SAVE RESPONSE for q', question.id, ':', JSON.stringify(body, null, 2));
+
+        // Response shape (from API):
+        // { status: "saved", correct_choices: [{ id, text, explanation: "<json-string>" }] }
+        const correctChoices = Array.isArray(body?.correct_choices) ? body.correct_choices : [];
+        const firstCorrect = correctChoices[0];
+
+        const apiCorrectId =
+          firstCorrect?.id != null
+            ? String(firstCorrect.id)
+            : body?.correct_choice_id != null
+              ? String(body.correct_choice_id)
+              : null;
+
+        const explanationRaw =
+          firstCorrect?.explanation ??
+          body?.explanation ??
+          body?.solution ??
+          body?.solution_text ??
+          null;
+
+        const structured = parseExplanation(explanationRaw);
+
+        // Update the question's correctChoiceId/explanation so feedback can render
+        if (apiCorrectId || explanationRaw) {
+          setQuestionList((prev) => {
+            const next = [...prev];
+            next[idx] = {
+              ...next[idx],
+              correctChoiceId: apiCorrectId ?? next[idx].correctChoiceId,
+              explanation: structured ? '' : (explanationRaw ?? next[idx].explanation),
+              explanationStructured: structured ?? next[idx].explanationStructured ?? null,
+            };
+            return next;
+          });
+        }
+
+        // Compute correctness from API
+        const finalCorrect: boolean | null =
+          apiCorrectId != null
+            ? selected === apiCorrectId
+            : question.correctChoiceId != null
+              ? selected === question.correctChoiceId
+              : null;
+
+        setAnswers((prev) => {
+          const next = [...prev];
+          next[idx] = {
+            ...next[idx],
+            answered: true,
+            correct: finalCorrect,
+          };
+          return next;
+        });
+      } finally {
+        setSavingIdx(null);
+      }
       return;
     }
 
@@ -240,11 +332,11 @@ export default function PracticeQuestions({
         <View style={qStyles.headerCenter}>
           <PracticeProgress
             current={currentIdx}
-            total={questions.length}
+            total={questionList.length}
             answers={answers}
           />
           <Text style={qStyles.progressText}>
-            {currentIdx + 1}/{questions.length}
+            {currentIdx + 1}/{questionList.length}
           </Text>
         </View>
 
@@ -262,7 +354,7 @@ export default function PracticeQuestions({
         <View style={qStyles.metaRow}>
           <View style={qStyles.qNumBadge}>
             <Text style={qStyles.qNumText}>
-              Q {currentIdx + 1} of {questions.length}
+              Q {currentIdx + 1} of {questionList.length}
             </Text>
           </View>
           <View style={qStyles.typeBadge}>
@@ -377,13 +469,41 @@ export default function PracticeQuestions({
                   )}
                 </View>
               )}
-              {!!question.explanation && (
+              {(question.explanationStructured || !!question.explanation) && (
                 <View style={qStyles.explanationBox}>
                   <View style={qStyles.explanationHeader}>
                     <Ionicons name="bulb-outline" size={16} color={COLORS.orange} />
                     <Text style={qStyles.explanationTitle}>Explanation</Text>
                   </View>
-                  <Text style={qStyles.explanationText}>{question.explanation}</Text>
+                  {question.explanationStructured ? (
+                    <>
+                      {!!question.explanationStructured.summary && (
+                        <Text style={qStyles.explanationText}>
+                          {question.explanationStructured.summary}
+                        </Text>
+                      )}
+                      {(question.explanationStructured.steps ?? []).map((step) => (
+                        <View key={step.number} style={{ marginTop: 8 }}>
+                          <Text style={qStyles.explanationStepHeading}>
+                            Step {step.number}. {step.heading}
+                          </Text>
+                          <Text style={qStyles.explanationText}>{step.explanation}</Text>
+                        </View>
+                      ))}
+                      {!!question.explanationStructured.conclusion && (
+                        <Text
+                          style={[
+                            qStyles.explanationText,
+                            { marginTop: 10, fontWeight: '700', color: COLORS.textDark },
+                          ]}
+                        >
+                          {question.explanationStructured.conclusion}
+                        </Text>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={qStyles.explanationText}>{question.explanation}</Text>
+                  )}
                 </View>
               )}
             </View>
@@ -463,19 +583,25 @@ export default function PracticeQuestions({
             <TouchableOpacity
               style={[
                 qStyles.saveNextBtn,
-                !current.selected && qStyles.saveNextBtnDisabled,
+                (!current.selected || savingIdx === currentIdx) && qStyles.saveNextBtnDisabled,
               ]}
               onPress={handleSaveNext}
-              disabled={!current.selected}
+              disabled={!current.selected || savingIdx === currentIdx}
             >
-              <MaterialCommunityIcons
-                name="content-save-outline"
-                size={16}
-                color={COLORS.white}
-              />
-              <Text style={qStyles.saveNextText}>
-                {isLast ? 'Save' : 'Save & Next'}
-              </Text>
+              {savingIdx === currentIdx ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons
+                    name="content-save-outline"
+                    size={16}
+                    color={COLORS.white}
+                  />
+                  <Text style={qStyles.saveNextText}>
+                    {isLast ? 'Save' : 'Save & Next'}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           )}
 
@@ -690,6 +816,12 @@ const qStyles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMedium,
     lineHeight: 20,
+  },
+  explanationStepHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: 2,
   },
 
   bottomBar: {
