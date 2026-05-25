@@ -1,11 +1,9 @@
-import { Dimensions, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import dashboardData from "../json/dashboard";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { useRouter } from 'expo-router';
-
-const router = useRouter();
 
 const scores = dashboardData.performance;
   const max = 260;
@@ -14,11 +12,10 @@ const scores = dashboardData.performance;
   const subjects = dashboardData.subjects;
 
 export default function Continue() {
+  const router = useRouter();
   return (
     <View className="bg-white rounded-lg shadow-md p-6 mb-6">
-
-
-      // Performance card
+      {/* Performance card */}
         <View style={styles.card}>
               <View style={styles.perfHeader}>
                 <View>
@@ -71,9 +68,8 @@ export default function Continue() {
                 ))}
               </View>
         </View>
-        
 
-        //Subject health card
+      {/* Subject health card */}
         <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
                 <View>

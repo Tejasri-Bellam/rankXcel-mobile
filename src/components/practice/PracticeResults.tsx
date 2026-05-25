@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Animated, TouchableOpacity,} from "react-native";
+import { StyleSheet, View, Text, Animated, TouchableOpacity, ActivityIndicator } from "react-native";
 import { COLORS } from "../../styles/styles";
 import { useEffect, useRef } from "react";
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,12 +9,14 @@ export default function PracticeResults({
   chapterName,
   answers,
   totalSeconds,
+  submitting = false,
   onTryAgain,
   onBackToHub,
 }: {
   chapterName: string;
   answers: AnswerState[];
   totalSeconds: number;
+  submitting?: boolean;
   onTryAgain: () => void;
   onBackToHub: () => void;
 }) {
@@ -93,12 +95,19 @@ export default function PracticeResults({
              </View>
            </View>
    
+           {submitting && (
+             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingBottom: 10 }}>
+               <ActivityIndicator size="small" color={COLORS.primary} />
+               <Text style={{ fontSize: 12, color: COLORS.textLight }}>Submitting your session...</Text>
+             </View>
+           )}
+
            {/* Actions */}
            <View style={resStyles.actions}>
-             <TouchableOpacity style={resStyles.hubBtn} onPress={onBackToHub}>
+             <TouchableOpacity style={resStyles.hubBtn} onPress={onBackToHub} disabled={submitting}>
                <Text style={resStyles.hubText}>Back to Hub</Text>
              </TouchableOpacity>
-             <TouchableOpacity style={resStyles.tryBtn} onPress={onTryAgain}>
+             <TouchableOpacity style={resStyles.tryBtn} onPress={onTryAgain} disabled={submitting}>
                <Ionicons name="refresh" size={16} color={COLORS.white} />
                <Text style={resStyles.tryText}>Try Again</Text>
              </TouchableOpacity>
