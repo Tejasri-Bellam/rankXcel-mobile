@@ -1,3 +1,4 @@
+import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import dashboardData from "../json/dashboard";
 import { COLORS } from "@/src/styles/styles";
@@ -5,14 +6,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from 'expo-router';
 
 const streak = dashboardData.streak;
-const router = useRouter();
 
 export default function Continue() {
+  const router = useRouter();
   return (
     <View className="bg-white rounded-lg shadow-md p-6 mb-6">
-
-
-      // Continue Card
+      {/* Continue Card */}
         {[dashboardData.continueTest].map((item, index) => (
       <View key={index} style={styles.card}>
         <Text style={styles.continueLabel}>
@@ -55,8 +54,7 @@ export default function Continue() {
       </View>
     ))}
 
-
-      //Streak Card
+      {/* Streak Card */}
         <View style={styles.card}>
         <View style={styles.streakHeader}>
             <View>

@@ -1,27 +1,40 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
 import { COLORS } from '@/src/styles/styles';
-import { Difficulty } from '../json/practice';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { QuestionSlider } from './PracticeExamFlow';
+import { Difficulty, QuestionSlider } from './PracticeExamFlow';
 
+interface Props {
+  chapterName: string;
+  accuracy: number | null;
+  loading?: boolean;
+  errorText?: string | null;
+  onBegin: (questions: number, difficulty: Difficulty, timerMinutes: number) => void;
+  onCancel: () => void;
+}
 
 export default function PracticeSettingsModal({
   chapterName,
   accuracy,
+  loading = false,
+  errorText,
   onBegin,
   onCancel,
-}: {
-  chapterName: string;
-  accuracy: number | null;
-  onBegin: (questions: number, difficulty: Difficulty, timer: boolean) => void;
-  onCancel: () => void;
-}) {
+}: Props) {
   const [questionCount, setQuestionCount] = useState(20);
-  const [difficulty, setDifficulty] = useState<Difficulty>('Medium');
-  const [timerEnabled, setTimerEnabled] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+  const [timerText, setTimerText] = useState<string>('');
 
-  const difficulties: Difficulty[] = ['Easy', 'Medium', 'Hard'];
+  const difficulties: { value: Difficulty; label: string }[] = [
+    { value: 'easy', label: 'Easy' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'hard', label: 'Hard' },
+  ];
+
+  const handleBegin = () => {
+    const minutes = Number(timerText);
+    onBegin(questionCount, difficulty, Number.isFinite(minutes) ? minutes : 0);
+  };
 
   return (
     <View style={settingsStyles.overlay}>
@@ -48,20 +61,20 @@ export default function PracticeSettingsModal({
         <View style={settingsStyles.diffRow}>
           {difficulties.map((d) => (
             <TouchableOpacity
-              key={d}
+              key={d.value}
               style={[
                 settingsStyles.diffBtn,
-                difficulty === d && settingsStyles.diffBtnActive,
+                difficulty === d.value && settingsStyles.diffBtnActive,
               ]}
-              onPress={() => setDifficulty(d)}
+              onPress={() => setDifficulty(d.value)}
             >
               <Text
                 style={[
                   settingsStyles.diffText,
-                  difficulty === d && settingsStyles.diffTextActive,
+                  difficulty === d.value && settingsStyles.diffTextActive,
                 ]}
               >
-                {d}
+                {d.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -69,49 +82,59 @@ export default function PracticeSettingsModal({
 
         <View style={settingsStyles.divider} />
 
-        {/* Timer */}
-        <TouchableOpacity
-          style={settingsStyles.timerRow}
-          onPress={() => setTimerEnabled(!timerEnabled)}
-          activeOpacity={0.8}
-        >
-          <View
-            style={[
-              settingsStyles.checkbox,
-              timerEnabled && settingsStyles.checkboxChecked,
-            ]}
-          >
-            {timerEnabled && (
-              <Ionicons name="checkmark" size={12} color={COLORS.white} />
-            )}
-          </View>
-          <View>
-            <Text style={settingsStyles.timerLabel}>Enable Timer</Text>
-            <Text style={settingsStyles.timerSub}>Track time spent on this session</Text>
-          </View>
-        </TouchableOpacity>
+        {/* Timer Duration */}
+        <View style={settingsStyles.timerHeader}>
+          <Ionicons name="time-outline" size={16} color={COLORS.textMedium} />
+          <Text style={settingsStyles.timerHeaderText}>
+            Timer Duration (minutes)
+          </Text>
+          <Text style={settingsStyles.timerOptional}> — optional</Text>
+        </View>
+        <TextInput
+          style={settingsStyles.timerInput}
+          placeholder="e.g. 30 — leave empty for no timer"
+          placeholderTextColor={COLORS.textLight}
+          keyboardType="number-pad"
+          value={timerText}
+          onChangeText={(t) => setTimerText(t.replace(/[^0-9]/g, ''))}
+        />
+
+        {errorText ? (
+          <Text style={settingsStyles.errorText}>{errorText}</Text>
+        ) : null}
 
         <View style={settingsStyles.divider} />
 
         {/* Actions */}
         <View style={settingsStyles.actions}>
-          <TouchableOpacity style={settingsStyles.cancelBtn} onPress={onCancel}>
+          <TouchableOpacity
+            style={settingsStyles.cancelBtn}
+            onPress={onCancel}
+            disabled={loading}
+          >
             <Text style={settingsStyles.cancelText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={settingsStyles.beginBtn}
-            onPress={() => onBegin(questionCount, difficulty, timerEnabled)}
+            style={[settingsStyles.beginBtn, loading && { opacity: 0.6 }]}
+            onPress={handleBegin}
+            disabled={loading}
           >
-            <Ionicons name="play-circle-outline" size={18} color={COLORS.white} />
-            <Text style={settingsStyles.beginText}>Begin</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <>
+                <Ionicons name="play-circle-outline" size={18} color={COLORS.white} />
+                <Text style={settingsStyles.beginText}>Begin</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>
     </View>
   );
-};
+}
 
-const settingsStyles: any =({
+const settingsStyles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -185,33 +208,33 @@ const settingsStyles: any =({
   diffTextActive: {
     color: COLORS.white,
   },
-  timerRow: {
+  timerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
   },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  timerLabel: {
+  timerHeaderText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.textDark,
   },
-  timerSub: {
-    fontSize: 12,
+  timerOptional: {
+    fontSize: 13,
     color: COLORS.textLight,
-    marginTop: 1,
+  },
+  timerInput: {
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    fontSize: 14,
+    color: COLORS.textDark,
+  },
+  errorText: {
+    marginTop: 10,
+    fontSize: 12,
+    color: COLORS.red,
   },
   actions: {
     flexDirection: 'row',
