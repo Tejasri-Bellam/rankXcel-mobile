@@ -32,7 +32,6 @@ import {
   getSubjectOptionsService,
   getTopicOptionsService,
   OptionItem,
-  startMockTestService,
   SubjectObject,
 } from '../../libs/services/mock-library';
 import { Difficulty, MockStatus, MockTest } from '@/src/libs/types/mock-library';
@@ -442,6 +441,25 @@ interface DifficultyOption {
   label: string;
 }
 
+type ApiErrorShape = {
+  status: number;
+  errors: Record<string, string[] | undefined>;
+  body?: Record<string, unknown>;
+};
+
+const isApiError = (e: unknown): e is ApiErrorShape =>
+  typeof e === 'object' && e !== null && 'status' in e && 'errors' in e;
+
+const extractErrorMessage = (err: unknown, fallback: string): string => {
+  if (isApiError(err)) {
+    const msgs = Object.values(err.errors).flat().filter(Boolean) as string[];
+    if (msgs.length > 0) return msgs.join('\n');
+    return `Request failed (status ${err.status})`;
+  }
+  if (err instanceof Error) return err.message;
+  return fallback;
+};
+
 const DIFFICULTY_OPTIONS: DifficultyOption[] = [
   { value: 'easy', label: 'Easy' },
   { value: 'medium', label: 'Medium' },
@@ -585,6 +603,7 @@ const RequestMockModal: React.FC<RequestMockModalProps> = ({
   const [chaptersLoading, setChaptersLoading] = useState(false);
   const [topicsLoading, setTopicsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   const resetForm = useCallback(() => {
     setSelectedExam(null);
@@ -680,6 +699,7 @@ const RequestMockModal: React.FC<RequestMockModalProps> = ({
     !submitting;
 
   const handleSubmit = async (): Promise<void> => {
+    if (submittingRef.current) return;
     if (!selectedExam || !selectedSubject) {
       Alert.alert('Missing fields', 'Please select an exam and subject.');
       return;
@@ -691,8 +711,9 @@ const RequestMockModal: React.FC<RequestMockModalProps> = ({
       return;
     }
 
+    submittingRef.current = true;
+    setSubmitting(true);
     try {
-      setSubmitting(true);
       const payload = {
         exam: selectedExam.id,
         subject: selectedSubject.id,
@@ -705,20 +726,26 @@ const RequestMockModal: React.FC<RequestMockModalProps> = ({
       };
 
       const createRes = await createMockTestService(payload);
-      const created = (createRes as { data?: { id?: number | string } })?.data;
-      const newId = created?.id;
+      console.log('createRes', createRes);
+      const created = (createRes as {
+        data?: { mock_test_id?: number | string; id?: number | string };
+      })?.data;
+
+      const newId = created?.mock_test_id ?? created?.id;
       if (!newId) {
         throw new Error('Mock test was created but no ID was returned.');
       }
 
-      await startMockTestService(newId);
       onCreated(String(newId));
       onClose();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Could not create mock test. Please try again.';
-      Alert.alert('Error', message);
+      console.log('createMockTest error', err);
+      Alert.alert(
+        'Error',
+        extractErrorMessage(err, 'Could not create mock test. Please try again.'),
+      );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -1047,7 +1074,7 @@ export default function MockLibrary() {
       const matchesTab: boolean =
         activeTab === 'all' ||
         (activeTab === 'attempts' && m.status !== 'NOT_STARTED') ||
-        (activeTab === 'requests' && false);
+        activeTab === 'requests';
  
       const matchesSearch: boolean =
         !q ||
