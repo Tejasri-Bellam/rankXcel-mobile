@@ -19,6 +19,7 @@ import {
   submitMockTestService,
   submitMockResponseService,
 } from '../../libs/services/mock-library';
+import { stripHtml } from '../../libs/utils/html';
 
 interface Props {
   mockId: number | string;
@@ -375,7 +376,7 @@ export default function MockExamScreen({
             </View>
           </View>
 
-          <Text style={styles.questionText}>{activeQuestion.text}</Text>
+          <Text style={styles.questionText}>{stripHtml(activeQuestion.text)}</Text>
 
           <Text style={styles.selectLabel}>
             {activeQuestion.type === 'MCQ_MULTIPLE' || activeQuestion.type === 'Multi Correct'
@@ -398,7 +399,7 @@ export default function MockExamScreen({
                   </Text>
                 </View>
                 <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                  {option.text}
+                  {stripHtml(option.text)}
                 </Text>
               </TouchableOpacity>
             );
