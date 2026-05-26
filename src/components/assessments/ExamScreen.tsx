@@ -18,6 +18,7 @@ import {
   assessmentSubmitService,
   updateAssessmentResponsesService,
 } from '@/src/libs/services/assessments-attempts';
+import { stripHtml } from '@/src/libs/utils/html';
  
  
 interface Props {
@@ -545,7 +546,7 @@ export default function ExamScreen({
 </View>
 </View>
  
-          <Text style={styles.questionText}>{activeQuestion.text}</Text>
+          <Text style={styles.questionText}>{stripHtml(activeQuestion.text)}</Text>
  
           <Text style={styles.selectLabel}>
             {isMultiSelectType(activeQuestion.type)
@@ -575,7 +576,7 @@ export default function ExamScreen({
 </View>
  
                 <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                  {option.text}
+                  {stripHtml(option.text)}
 </Text>
 </TouchableOpacity>
             );

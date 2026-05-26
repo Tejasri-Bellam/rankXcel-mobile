@@ -16,6 +16,7 @@ import {
   getMockTestReviewService,
   getQuestionSolutionService,
 } from '../../libs/services/mock-library';
+import { stripHtml } from '../../libs/utils/html';
 
 interface Props {
   mockId: number | string;
@@ -27,9 +28,6 @@ const GREEN = '#22C55E';
 const RED   = '#EF4444';
 const GRAY  = '#9898B0';
 const ACCENT_BORDER = '#6C5CE7';
-
-const stripHtml = (s: any): string =>
-  String(s ?? '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
 
 const normalizeQuestion = (q: any, sectionName?: string): any | null => {
   const id = q?.id ?? q?.question_id;

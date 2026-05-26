@@ -15,6 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import PracticeProgress from './PracticeProgress';
 import { AnswerState } from './PracticeExamFlow';
 import { submitMockResponseService } from '@/src/libs/services/mock-library';
+import { stripHtml } from '@/src/libs/utils/html';
 
 export interface ExplanationStep {
   number: number;
@@ -74,6 +75,51 @@ interface Props {
 
 const unwrap = (res: any): any =>
   res && typeof res === 'object' && 'data' in res ? (res as any).data : res;
+
+const toIdString = (v: unknown): string | null => {
+  if (v == null) return null;
+  if (typeof v === 'object') {
+    const obj = v as { id?: unknown };
+    return obj.id != null ? String(obj.id) : null;
+  }
+  return String(v);
+};
+
+// API response shapes seen in practice:
+//   { correct_choices: [{ id, text, explanation }] }
+//   { correct_choices: [567] }
+//   { correct_choice_id: 567 }
+//   { correct_choice_ids: [567] }
+//   { correct_options: [...] }
+const extractCorrectChoiceId = (body: any): string | null => {
+  if (!body || typeof body !== 'object') return null;
+  const lists: unknown[] = [
+    body.correct_choices,
+    body.correct_choice_ids,
+    body.correct_options,
+    body.correct_answers,
+  ];
+  for (const list of lists) {
+    if (Array.isArray(list) && list.length > 0) {
+      const id = toIdString(list[0]);
+      if (id != null) return id;
+    }
+  }
+  return toIdString(body.correct_choice_id ?? body.correct_choice ?? body.correct_option_id ?? null);
+};
+
+const extractExplanation = (body: any): string | null => {
+  if (!body || typeof body !== 'object') return null;
+  const list = Array.isArray(body.correct_choices) ? body.correct_choices : null;
+  const first = list && list.length > 0 && typeof list[0] === 'object' ? list[0] : null;
+  return (
+    first?.explanation ??
+    body.explanation ??
+    body.solution ??
+    body.solution_text ??
+    null
+  );
+};
 
 export default function PracticeQuestions({
   mockId,
@@ -166,31 +212,17 @@ export default function PracticeQuestions({
       setSavingIdx(idx);
       try {
         const res = await saveResponse(question.id, selected, current.markedForReview);
+        if (res == null) {
+          // saveResponse swallows network errors and returns null; don't mark as answered.
+          return;
+        }
         const body = unwrap(res);
         console.log('PRACTICE SAVE RESPONSE for q', question.id, ':', JSON.stringify(body, null, 2));
 
-        // Response shape (from API):
-        // { status: "saved", correct_choices: [{ id, text, explanation: "<json-string>" }] }
-        const correctChoices = Array.isArray(body?.correct_choices) ? body.correct_choices : [];
-        const firstCorrect = correctChoices[0];
-
-        const apiCorrectId =
-          firstCorrect?.id != null
-            ? String(firstCorrect.id)
-            : body?.correct_choice_id != null
-              ? String(body.correct_choice_id)
-              : null;
-
-        const explanationRaw =
-          firstCorrect?.explanation ??
-          body?.explanation ??
-          body?.solution ??
-          body?.solution_text ??
-          null;
-
+        const apiCorrectId = extractCorrectChoiceId(body);
+        const explanationRaw = extractExplanation(body);
         const structured = parseExplanation(explanationRaw);
 
-        // Update the question's correctChoiceId/explanation so feedback can render
         if (apiCorrectId || explanationRaw) {
           setQuestionList((prev) => {
             const next = [...prev];
@@ -204,12 +236,12 @@ export default function PracticeQuestions({
           });
         }
 
-        // Compute correctness from API
+        const effectiveCorrectId = apiCorrectId ?? question.correctChoiceId;
         const finalCorrect: boolean | null =
-          apiCorrectId != null
-            ? selected === apiCorrectId
-            : question.correctChoiceId != null
-              ? selected === question.correctChoiceId
+          typeof body?.is_correct === 'boolean'
+            ? body.is_correct
+            : effectiveCorrectId != null
+              ? selected === effectiveCorrectId
               : null;
 
         setAnswers((prev) => {
@@ -373,7 +405,7 @@ export default function PracticeQuestions({
         </View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
-          <Text style={qStyles.questionText}>{question.text}</Text>
+          <Text style={qStyles.questionText}>{stripHtml(question.text)}</Text>
 
           <View style={qStyles.optionsList}>
             {question.options.map((opt, idx) => (
@@ -406,7 +438,7 @@ export default function PracticeQuestions({
                     {String.fromCharCode(65 + idx)}
                   </Text>
                 </View>
-                <Text style={optionTextStyle(opt.id)}>{opt.text}</Text>
+                <Text style={optionTextStyle(opt.id)}>{stripHtml(opt.text)}</Text>
                 {current.answered && opt.id === question.correctChoiceId && (
                   <Ionicons
                     name="checkmark-circle"
@@ -455,7 +487,7 @@ export default function PracticeQuestions({
                     <Text style={qStyles.yourAnswer}>
                       Your answer:{' '}
                       <Text style={{ color: COLORS.red, fontWeight: '700' }}>
-                        {selectedOptObj.text}
+                        {stripHtml(selectedOptObj.text)}
                       </Text>
                     </Text>
                   )}
@@ -463,7 +495,7 @@ export default function PracticeQuestions({
                     <Text style={qStyles.correctAnswer}>
                       Correct answer:{' '}
                       <Text style={{ color: COLORS.green, fontWeight: '700' }}>
-                        {correctOptObj.text}
+                        {stripHtml(correctOptObj.text)}
                       </Text>
                     </Text>
                   )}
@@ -479,15 +511,15 @@ export default function PracticeQuestions({
                     <>
                       {!!question.explanationStructured.summary && (
                         <Text style={qStyles.explanationText}>
-                          {question.explanationStructured.summary}
+                          {stripHtml(question.explanationStructured.summary)}
                         </Text>
                       )}
                       {(question.explanationStructured.steps ?? []).map((step) => (
                         <View key={step.number} style={{ marginTop: 8 }}>
                           <Text style={qStyles.explanationStepHeading}>
-                            Step {step.number}. {step.heading}
+                            Step {step.number}. {stripHtml(step.heading)}
                           </Text>
-                          <Text style={qStyles.explanationText}>{step.explanation}</Text>
+                          <Text style={qStyles.explanationText}>{stripHtml(step.explanation)}</Text>
                         </View>
                       ))}
                       {!!question.explanationStructured.conclusion && (
@@ -497,12 +529,12 @@ export default function PracticeQuestions({
                             { marginTop: 10, fontWeight: '700', color: COLORS.textDark },
                           ]}
                         >
-                          {question.explanationStructured.conclusion}
+                          {stripHtml(question.explanationStructured.conclusion)}
                         </Text>
                       )}
                     </>
                   ) : (
-                    <Text style={qStyles.explanationText}>{question.explanation}</Text>
+                    <Text style={qStyles.explanationText}>{stripHtml(question.explanation)}</Text>
                   )}
                 </View>
               )}

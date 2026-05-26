@@ -1,5 +1,6 @@
 import { getassessmentReviewService, getassessmentSolutionsService } from '@/src/libs/services/assessments-attempts';
 import { solutionViewerStyles } from '../../styles/sidebar/assessments/solutionViewer';
+import { stripHtml } from '@/src/libs/utils/html';
 import React, { useState, useMemo, useEffect } from 'react';
 import {View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -104,7 +105,20 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
 
   const currentQ = allQuestions[currentIndex];
   const userAnswer = answers[currentQ?.id] || [];
-  const correctAnswers = currentQ?.correct_answers || [];
+  const correctAnswers: string[] = (() => {
+    const topLevel =
+      currentQ?.correct_answers ??
+      currentQ?.correct_options ??
+      currentQ?.correct_choice_ids ??
+      null;
+    if (Array.isArray(topLevel) && topLevel.length > 0) {
+      return topLevel.map((v: any) => String(v?.id ?? v));
+    }
+    const opts: any[] = Array.isArray(currentQ?.options) ? currentQ.options : [];
+    return opts
+      .filter((o: any) => o?.is_correct === true || o?.correct === true)
+      .map((o: any) => String(o.id));
+  })();
 
   const isCorrect =
     correctAnswers.length === userAnswer.length &&
@@ -123,11 +137,22 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     return 'neutral';
   };
 
+  const correctIdsFor = (q: any): string[] => {
+    const topLevel = q?.correct_answers ?? q?.correct_options ?? q?.correct_choice_ids ?? null;
+    if (Array.isArray(topLevel) && topLevel.length > 0) {
+      return topLevel.map((v: any) => String(v?.id ?? v));
+    }
+    const opts: any[] = Array.isArray(q?.options) ? q.options : [];
+    return opts
+      .filter((o: any) => o?.is_correct === true || o?.correct === true)
+      .map((o: any) => String(o.id));
+  };
+
   const getQuestionDotColor = (idx: number) => {
     const q = allQuestions[idx];
     const ua = answers[q.id] || [];
     if (ua.length === 0) return GRAY;
-    const ca = q.correct_answers || [];
+    const ca = correctIdsFor(q);
     const ok = ca.length === ua.length && ca.every((a: string) => ua.includes(a));
     return ok ? GREEN : RED;
   };
@@ -197,7 +222,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
         contentContainerStyle={solutionViewerStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={solutionViewerStyles.questionText}>{currentQ?.text}</Text>
+        <Text style={solutionViewerStyles.questionText}>{stripHtml(currentQ?.text)}</Text>
 
         {currentQ?.options?.map((opt: any) => {
           const state = getOptionState(opt.id);
@@ -233,7 +258,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                   state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
                 ]}
               >
-                {opt.text}
+                {stripHtml(opt.text)}
               </Text>
               {state === 'correct' && <Text style={{ fontSize: 16, color: GREEN }}>✓</Text>}
               {state === 'wrong'   && <Text style={{ fontSize: 16, color: RED }}>✗</Text>}
@@ -270,19 +295,19 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
 
             {explanation?.steps?.map((step: any, i: number) => (
               <View key={i} style={solutionViewerStyles.explanationStep}>
-                <Text style={solutionViewerStyles.stepLabel}>Step {i + 1}. {step.title}</Text>
-                <Text style={solutionViewerStyles.stepBody}>{step.body}</Text>
+                <Text style={solutionViewerStyles.stepLabel}>Step {i + 1}. {stripHtml(step.title)}</Text>
+                <Text style={solutionViewerStyles.stepBody}>{stripHtml(step.body)}</Text>
               </View>
             ))}
 
             {explanation?.summary && (
               <Text style={solutionViewerStyles.explanationSummary}>
-                {explanation.summary}
+                {stripHtml(explanation.summary)}
               </Text>
             )}
 
             {!explanation?.steps && typeof explanation === 'string' && (
-              <Text style={solutionViewerStyles.stepBody}>{explanation}</Text>
+              <Text style={solutionViewerStyles.stepBody}>{stripHtml(explanation)}</Text>
             )}
           </View>
         )}
