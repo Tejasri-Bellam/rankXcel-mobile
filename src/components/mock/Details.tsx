@@ -1,5 +1,3 @@
-// src/components/mock/MockDetails.tsx
-
 import React, { useEffect, useState } from 'react';
 import {
   View,

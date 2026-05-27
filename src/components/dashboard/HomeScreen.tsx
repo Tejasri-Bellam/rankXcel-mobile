@@ -1,49 +1,78 @@
-import { ScrollView, StatusBar, View } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, ScrollView, StatusBar, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+
+import { COLORS } from "@/src/styles/styles";
+
+import Header from "../common/Header";
+import Sidebar from "../common/Sidebar";
+import { ProfileMenu } from "../common/ProfileMenu";
+
+import Greeting from "./Greeting";
 import TodaysFocus from "./TodaysFocus";
 import Continue from "./Continue";
-import Greeting from "./Greeting";
 import Performance from "./Performance";
-import Upcoming from "./Upcoming";
 import WeakChapter from "./WeakChapter";
-import { COLORS } from "@/src/styles/styles";
-import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import React, { useState } from "react";
-import { ProfileMenu } from "../common/ProfileMenu";
-import Sidebar from "../common/Sidebar";
-import Header from "../common/Header";
+import Upcoming from "./Upcoming";
+import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
 
 export default function HomeScreen() {
-    const [drawerOpen, setDrawerOpen] = useState(false);
-      const [profileOpen, setProfileOpen] = useState(false);
-    
-      const router = useRouter();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const router = useRouter();
+
+  const {
+    user,
+    targetExams,
+    activeExamId,
+    dashboardData,
+    isLoading,
+    error,
+    setActiveExamId,
+  } = useDashboard();
+
   return (
     <SafeAreaView style={styles.safeArea}>
-          <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-          <Header
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+
+      <Header
         onMenuPress={() => setDrawerOpen(true)}
         onProfilePress={() => setProfileOpen(!profileOpen)}
       />
 
-          <ScrollView
-                  style={styles.scrollView}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.scrollContent}
-                >
-    <View className="bg-white rounded-lg shadow-md p-6 mb-6">    
-      <Greeting />
-      <TodaysFocus /> 
-      <Continue />
-      <Performance />
-      <WeakChapter />
-      <Upcoming />
-    </View>
+      {isLoading && !dashboardData ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : error && !dashboardData ? (
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <Greeting
+              user={user}
+              targetExams={targetExams}
+              activeExamId={activeExamId}
+              onSelectExam={setActiveExamId}
+            />
+            <TodaysFocus dashboardData={dashboardData} />
+            <Continue dashboardData={dashboardData} />
+            <Performance dashboardData={dashboardData} />
+            <WeakChapter dashboardData={dashboardData} />
+            <Upcoming dashboardData={dashboardData} />
+          </View>
+        </ScrollView>
+      )}
 
-    </ScrollView>
-          <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-    
-    <ProfileMenu
+      <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <ProfileMenu
         visible={profileOpen}
         onClose={() => setProfileOpen(false)}
       />
@@ -52,8 +81,9 @@ export default function HomeScreen() {
 }
 
 const styles: any = {
-    safeArea: { flex: 1, backgroundColor: COLORS.white },
+  safeArea: { flex: 1, backgroundColor: COLORS.white },
   scrollView: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: { paddingBottom: 24 },
-
-}
+  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+  errorText: { color: COLORS.textLight, fontSize: 14, textAlign: "center", paddingHorizontal: 32 },
+};

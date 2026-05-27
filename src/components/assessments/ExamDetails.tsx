@@ -162,8 +162,6 @@ export default function ExamDetails({ item, onBack }: Props) {
 
       setAttemptId(newAttemptId);
 
-      // /reattempt/ only creates the attempt — still need /start/ to move it
-      // to IN_PROGRESS before responses can be saved/submitted.
       try {
         await assessmentStartService(newAttemptId);
       } catch (startErr: any) {

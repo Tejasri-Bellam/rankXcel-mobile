@@ -1,62 +1,34 @@
+import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/src/styles/styles";
-import React, { useEffect, useState } from "react";
-import { getMeService } from "@/src/libs/services/profile";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import dashboardData from "../json/dashboard";
+import { DashboardUser, TargetExam } from "@/src/libs/types/dashboard";
 
-export default function Greeting() {
-  const [firstName, setFirstName] = useState("User");
+interface GreetingProps {
+  user: DashboardUser | null;
+  targetExams: TargetExam[];
+  activeExamId: number | string | null;
+  onSelectExam: (id: number | string) => void;
+}
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      const res : any = await getMeService();
-
-      const fullName = res?.data?.name || "";
-      const name = getFirstName(fullName);
-
-      setFirstName(name);
-
-      // optional cache
-      await AsyncStorage.setItem(
-        "user",
-        JSON.stringify(res?.data)
-      );
-    } catch (error) {
-      console.log("User fetch failed:", error);
-
-      // fallback from storage
-      const savedUser = await AsyncStorage.getItem("user");
-
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        const name = getFirstName(parsed?.name || "");
-
-        setFirstName(name);
-      }
-    }
-  };
-
+export default function Greeting({
+  user,
+  targetExams,
+  activeExamId,
+  onSelectExam,
+}: GreetingProps) {
   const getFirstName = (fullName: string) => {
     if (!fullName) return "User";
-
     return fullName.trim().split(" ")[0];
   };
 
+  const firstName = getFirstName(user?.name ?? "");
+
   const now = new Date();
   const hour = now.getHours();
-
   let greeting = "Good morning";
-  if (hour >= 12 && hour < 17) {
-    greeting = "Good afternoon";
-  } else if (hour >= 17) {
-    greeting = "Good evening";
-  }
+  if (hour >= 12 && hour < 17) greeting = "Good afternoon";
+  else if (hour >= 17) greeting = "Good evening";
 
   const formattedDate = now.toLocaleDateString("en-GB", {
     weekday: "long",
@@ -72,49 +44,45 @@ export default function Greeting() {
           {greeting}, {firstName}! 👋
         </Text>
 
-        <Text style={styles.greetingDate}>
-          {formattedDate}
-        </Text>
+        <Text style={styles.greetingDate}>{formattedDate}</Text>
 
         <View style={styles.examBadgesContainer}>
-          {dashboardData.user.exams.map((item: any) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.examBadge,
-                item.active &&
-                  styles.examBadgeActive,
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="book-open-outline"
-                size={16}
-                color={
-                  item.active
-                    ? COLORS.primary
-                    : COLORS.textLight
-                }
-              />
+          {targetExams.map((item) => {
+            const examId = item.exam ?? item.id;
+            const isActive = examId === activeExamId;
 
-              <Text
-                style={[
-                  styles.examBadgeText,
-                  item.active &&
-                    styles.examBadgeTextActive,
-                ]}
+            return (
+              <TouchableOpacity
+                key={String(examId)}
+                style={[styles.examBadge, isActive && styles.examBadgeActive]}
+                onPress={() => onSelectExam(examId)}
               >
-                {item.name}
-              </Text>
-
-              {item.active && (
-                <Ionicons
-                  name="checkmark-circle"
+                <MaterialCommunityIcons
+                  name="book-open-outline"
                   size={16}
-                  color={COLORS.primary}
+                  color={isActive ? COLORS.primary : COLORS.textLight}
                 />
-              )}
-            </TouchableOpacity>
-          ))}
+
+                <Text
+                  style={[
+                    styles.examBadgeText,
+                    isActive && styles.examBadgeTextActive,
+                  ]}
+                >
+                  {item.exam_name}
+                  {item.target_year ? ` ${item.target_year}` : ""}
+                </Text>
+
+                {isActive && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     </View>
@@ -127,24 +95,20 @@ const styles: any = {
     paddingTop: 20,
     paddingBottom: 8,
   },
-
   greetingText: {
     fontSize: 20,
     fontWeight: "800",
     color: COLORS.textDark,
   },
-
   greetingDate: {
     fontSize: 13,
     color: COLORS.textLight,
     marginTop: 2,
     marginBottom: 14,
   },
-
   examBadgesContainer: {
     gap: 8,
   },
-
   examBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -156,19 +120,16 @@ const styles: any = {
     borderWidth: 1.5,
     borderColor: COLORS.border,
   },
-
   examBadgeActive: {
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primaryLight,
   },
-
   examBadgeText: {
     flex: 1,
     fontSize: 14,
     fontWeight: "600",
     color: COLORS.textMedium,
   },
-
   examBadgeTextActive: {
     color: COLORS.primary,
   },

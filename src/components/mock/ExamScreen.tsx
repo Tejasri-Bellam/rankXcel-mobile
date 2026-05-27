@@ -1,5 +1,3 @@
-// src/components/mock/MockExamScreen.tsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -73,7 +71,7 @@ export default function MockExamScreen({
 
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
 
-  // ── Countdown timer ─────────────────────────────────────────────────────
+  // Countdown timer
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
@@ -89,7 +87,7 @@ export default function MockExamScreen({
     return () => clearInterval(interval);
   }, []);
 
-  // ── AppState tab-switch detection ────────────────────────────────────────
+  // AppState tab-switch detection
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (
@@ -141,7 +139,7 @@ export default function MockExamScreen({
 
   const isTimeLow = timeLeft < 300; // < 5 min
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  // Handlers
   const saveAnswerToServer = (
     qId: number | string,
     selectedOptions: string[],

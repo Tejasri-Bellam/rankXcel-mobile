@@ -73,7 +73,6 @@ export default function AssessmentsScreen() {
   
   useEffect(() => { fetchAssessments(); }, []);
 
-  // Hardware back: close menus / detail view before exiting the screen.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (drawerOpen)   { setDrawerOpen(false);   return true; }
@@ -84,7 +83,7 @@ export default function AssessmentsScreen() {
     return () => sub.remove();
   }, [drawerOpen, profileOpen, selectedItem]);
 
-  // ── Detail view ──────────────────────────────────
+  // Detail view
   if (selectedItem) {
     return (
       <ExamDetails
@@ -94,7 +93,7 @@ export default function AssessmentsScreen() {
     );
   }
 
-  // ── Derived data ─────────────────────────────────
+  // Derived data
   const deriveStatus = (item: any): TabType => {
     if (item.latest_attempt_status === 'SUBMITTED') return 'completed';
 
@@ -141,7 +140,7 @@ export default function AssessmentsScreen() {
     }
   };
 
-  // ── Tab button component ─────────────────────────
+  // Tab button component
   const TabButton = ({ value }: { value: TabType }) => {
     const active = tab === value;
     const cfg = TAB_CONFIG[value];
@@ -165,7 +164,7 @@ export default function AssessmentsScreen() {
     );
   };
 
-  // ── Card renderer ────────────────────────────────
+  // Card renderer
   const renderCard = ({ item }: { item: any }) => {
     const cfg = TAB_CONFIG[tab];
     const isCompleted = tab === 'completed';
@@ -235,7 +234,7 @@ export default function AssessmentsScreen() {
     );
   };
 
-  // ── Empty state ──────────────────────────────────
+  // Empty state
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyTitle}>No {tab} assessments</Text>
@@ -245,7 +244,7 @@ export default function AssessmentsScreen() {
     </View>
   );
 
-  // ── Main render ──────────────────────────────────
+  // Main render
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
