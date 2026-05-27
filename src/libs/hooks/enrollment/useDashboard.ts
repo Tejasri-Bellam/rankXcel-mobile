@@ -1,109 +1,186 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ApiError } from "@/types/api";
-import { getDashboard } from "@/libs/services/enrollment/enrollmentService";
-import type { DashboardCourse, Enrollment } from "@/types/enrollment";
+import { useCallback, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  getDashboardDataService,
+  getDashboardUserService,
+  getMyTargetExamsService,
+} from "@/src/libs/services/dashboard";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardUser {
+  id: number;
+  name: string;
+  email: string;
+  [key: string]: any;
+}
+
+export interface TargetExam {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  total_duration_minutes: number;
+  is_active: boolean;
+}
+
+export type DashboardData = Record<string, any> | null;
 
 interface UseDashboardState {
-  courses: DashboardCourse[];
+  user: DashboardUser | null;
+  targetExams: TargetExam[];
+  activeExamId: number | string | null;
+  dashboardData: DashboardData | null;
   isLoading: boolean;
-  error: ApiError | null;
+  error: string | null;
 }
 
 interface UseDashboardResult {
-  enrollments: Enrollment[];
-  rawCourses: DashboardCourse[];
-  progressByEnrollmentId: Record<number, { percent: number; completed: number; total: number }>;
+  user: DashboardUser | null;
+  targetExams: TargetExam[];
+  activeExamId: number | string | null;
+  dashboardData: DashboardData | null;
   isLoading: boolean;
-  isLoadingMore: false;
-  hasNextPage: false;
-  error: ApiError | null;
+  error: string | null;
+  setActiveExamId: (id: number | string) => void;
   refresh: () => void;
-  loadMore: () => void;
 }
 
-/**
- * Maps a DashboardCourse to the existing Enrollment shape so that EnrollmentCard
- * (and anything else expecting `Enrollment`) keeps working unchanged.
- *
- * Notes on missing fields:
- * - course_slug — not returned by /api/v1/dashboard/. Falls back to String(course_id),
- *   which the /course/player route accepts via params.
- * - pricing_group / pricing_group_name — not returned. Set to null.
- */
-function mapDashboardToEnrollment(d: DashboardCourse): Enrollment {
-  return {
-    id: d.enrollment_id,
-    course: d.course_id,
-    course_title: d.course_title,
-    course_slug: String(d.course_id),
-    course_thumbnail: d.course_thumbnail_url,
-    pricing_group: null,
-    pricing_group_name: null,
-    status: d.status,
-    enrolled_at: d.enrolled_at,
-    cohort_start_date: d.cohort_start_date ?? null,
-  };
+interface TargetExamResponse {
+  results: TargetExam[];
 }
 
-export function useDashboard(enabled: boolean = true, search?: string): UseDashboardResult {
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
+export function useDashboard(enabled: boolean = true): UseDashboardResult {
   const [state, setState] = useState<UseDashboardState>({
-    courses: [],
+    user: null,
+    targetExams: [],
+    activeExamId: null,
+    dashboardData: null,
     isLoading: enabled,
     error: null,
   });
 
-  const fetchData = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+  // ── 1. Fetch user + target exams ────────────────────────────────────────────
+const fetchInitial = useCallback(async () => {
+  setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+  try {
+    const [userRes, examsRes] = await Promise.all([
+      getDashboardUserService(),
+      getMyTargetExamsService(),
+    ]);
+
+    const user: DashboardUser | any = userRes?.data ?? null;
+
+    const examsData = examsRes?.data as TargetExam[];
+
+    const targetExams: TargetExam[] = Array.isArray(examsData)
+      ? examsData
+      : [];
+
+    const savedId = await AsyncStorage.getItem("activeExamId");
+
+    const firstId = targetExams[0]?.id ?? null;
+
+    const activeExamId = savedId ? Number(savedId) : firstId;
+
+    setState((prev) => ({
+      ...prev,
+      user,
+      targetExams,
+      activeExamId,
+      isLoading: false,
+    }));
+
+    if (user) {
+      await AsyncStorage.setItem("user", JSON.stringify(user));
+    }
+
+    if (targetExams.length) {
+      await AsyncStorage.setItem(
+        "targetExams",
+        JSON.stringify(targetExams)
+      );
+    }
+  } catch (err) {
+    const [cachedUser, cachedExams, cachedExamId] = await Promise.all([
+      AsyncStorage.getItem("user"),
+      AsyncStorage.getItem("targetExams"),
+      AsyncStorage.getItem("activeExamId"),
+    ]);
+
+    const user = cachedUser ? JSON.parse(cachedUser) : null;
+
+    const targetExams = cachedExams
+      ? JSON.parse(cachedExams)
+      : [];
+
+    const activeExamId = cachedExamId
+      ? Number(cachedExamId)
+      : targetExams[0]?.id ?? null;
+
+    setState((prev) => ({
+      ...prev,
+      user,
+      targetExams,
+      activeExamId,
+      isLoading: false,
+      error: targetExams.length
+        ? null
+        : "Failed to load dashboard. Check your connection.",
+    }));
+  }
+}, []);
+  // ── 2. Fetch dashboard data when active exam changes ────────────────────────
+  const fetchDashboard = useCallback(async (examId: number | string) => {
     try {
-      const response = await getDashboard();
-      setState({ courses: response.data, isLoading: false, error: null });
+      const res = await getDashboardDataService(examId);
+      const dashboardData: DashboardData = res?.data ?? null;
+
+      setState((prev) => ({ ...prev, dashboardData }));
+
+      if (dashboardData)
+        await AsyncStorage.setItem(
+          `dashboardData_${examId}`,
+          JSON.stringify(dashboardData)
+        );
     } catch (err) {
-      setState((prev) => ({ ...prev, isLoading: false, error: err as ApiError }));
+      // Offline fallback for this exam
+      const cached = await AsyncStorage.getItem(`dashboardData_${examId}`);
+      if (cached) {
+        setState((prev) => ({ ...prev, dashboardData: JSON.parse(cached) }));
+      }
     }
   }, []);
 
-  const refresh = useCallback(() => {
-    fetchData();
-  }, [fetchData]);
+  // ── 3. Set active exam (persists choice) ────────────────────────────────────
+  const setActiveExamId = useCallback(async (id: number | string) => {
+    setState((prev) => ({ ...prev, activeExamId: id }));
+    await AsyncStorage.setItem("activeExamId", String(id));
+  }, []);
 
+  // ── Effects ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!enabled) return;
-    fetchData();
-  }, [enabled, fetchData]);
+    fetchInitial();
+  }, [enabled, fetchInitial]);
 
-  // Client-side search filter (the dashboard endpoint accepts no query params).
-  const filteredCourses = useMemo(() => {
-    const q = search?.trim().toLowerCase();
-    if (!q) return state.courses;
-    return state.courses.filter((c) => c.course_title.toLowerCase().includes(q));
-  }, [state.courses, search]);
-
-  const enrollments = useMemo(
-    () => filteredCourses.map(mapDashboardToEnrollment),
-    [filteredCourses],
-  );
-
-  const progressByEnrollmentId = useMemo(() => {
-    const out: Record<number, { percent: number; completed: number; total: number }> = {};
-    for (const c of state.courses) {
-      out[c.enrollment_id] = {
-        percent: parseFloat(c.progress_percentage),
-        completed: c.completed_chapters,
-        total: c.total_chapters,
-      };
+  useEffect(() => {
+    if (state.activeExamId != null) {
+      fetchDashboard(state.activeExamId);
     }
-    return out;
-  }, [state.courses]);
+  }, [state.activeExamId, fetchDashboard]);
 
   return {
-    enrollments,
-    rawCourses: filteredCourses,
-    progressByEnrollmentId,
+    user: state.user,
+    targetExams: state.targetExams,
+    activeExamId: state.activeExamId,
+    dashboardData: state.dashboardData,
     isLoading: state.isLoading,
-    isLoadingMore: false,
-    hasNextPage: false,
     error: state.error,
-    refresh,
-    loadMore: () => {},
+    setActiveExamId,
+    refresh: fetchInitial,
   };
 }

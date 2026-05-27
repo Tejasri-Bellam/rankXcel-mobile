@@ -1,5 +1,3 @@
-// src/components/mock/MockDetailedAnalysis.tsx
-
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -103,14 +101,6 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
     }
   };
 
-  // The /detailed-analysis/ endpoint returns:
-  //   chapter_breakdown:  array of { chapter_name, subject_name, attempted, correct, wrong,
-  //                                  unattempted, accuracy, earned_marks, max_marks }
-  //   subject_summary:    array of { subject_name, correct, wrong, unattempted, accuracy,
-  //                                  earned_marks, max_marks }
-  // The /result/ endpoint returns:
-  //   chapter_breakdown:  object keyed by "Subject / Chapter", values use score/max_score.
-  // Prefer the analysis payload (richer + array) and fall back to result.
   const breakdownSource = analysis ?? result;
 
   const rawChapters: any[] = useMemo(() => {
@@ -122,15 +112,15 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
 
   const chapterStats = useMemo(() => {
     return rawChapters.map((ch: any, idx: number) => {
-      const correct  = Number(ch?.correct ?? 0);
-      const wrong    = Number(ch?.wrong ?? 0);
-      const skipped  = Number(ch?.unattempted ?? ch?.skipped ?? 0);
+      const correct = Number(ch?.correct ?? 0);
+      const wrong = Number(ch?.wrong ?? 0);
+      const skipped = Number(ch?.unattempted ?? ch?.skipped ?? 0);
       const attempted = Number(ch?.attempted ?? correct + wrong);
-      const total    = attempted + skipped;
+      const total = attempted + skipped;
       const accuracy = ch?.accuracy != null
         ? Number(ch.accuracy)
         : attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
-      const subject  = ch?.subject_name ?? ch?.subject ?? 'General';
+      const subject = ch?.subject_name ?? ch?.subject ?? 'General';
       return {
         chapter: ch?.chapter_name ?? ch?.chapter ?? 'Unknown',
         subject,
@@ -147,20 +137,20 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
     const summary = analysis?.subject_summary;
     if (Array.isArray(summary) && summary.length > 0) {
       return summary.map((s: any, idx: number) => {
-        const correct  = Number(s?.correct ?? 0);
-        const wrong    = Number(s?.wrong ?? 0);
-        const skipped  = Number(s?.unattempted ?? s?.skipped ?? 0);
+        const correct = Number(s?.correct ?? 0);
+        const wrong = Number(s?.wrong ?? 0);
+        const skipped = Number(s?.unattempted ?? s?.skipped ?? 0);
         const attempted = correct + wrong;
         return {
-          subject:    s?.subject_name ?? 'General',
-          score:      Number(s?.earned_marks ?? s?.score ?? 0),
+          subject: s?.subject_name ?? 'General',
+          score: Number(s?.earned_marks ?? s?.score ?? 0),
           totalMarks: Number(s?.max_marks ?? s?.max_score ?? 0),
           correct, wrong, skipped, attempted,
-          total:      attempted + skipped,
-          accuracy:   s?.accuracy != null
+          total: attempted + skipped,
+          accuracy: s?.accuracy != null
             ? Number(s.accuracy)
             : attempted > 0 ? Math.round((correct / attempted) * 100) : 0,
-          color:      getSubjectColor(s?.subject_name ?? 'General', idx),
+          color: getSubjectColor(s?.subject_name ?? 'General', idx),
         };
       });
     }
@@ -177,13 +167,13 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
         };
       }
       const s = map[ch.subject];
-      s.score      += ch.score;
+      s.score += ch.score;
       s.totalMarks += ch.totalMarks;
-      s.correct    += ch.correct;
-      s.wrong      += ch.wrong;
-      s.skipped    += ch.skipped;
-      s.attempted  += ch.attempted;
-      s.total      += ch.total;
+      s.correct += ch.correct;
+      s.wrong += ch.wrong;
+      s.skipped += ch.skipped;
+      s.attempted += ch.attempted;
+      s.total += ch.total;
     });
     return Object.values(map).map((s: any) => ({
       ...s,
@@ -192,12 +182,12 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
   }, [analysis, chapterStats]);
 
   const overall = useMemo(() => {
-    const correct   = chapterStats.reduce((a, c) => a + c.correct, 0);
-    const wrong     = chapterStats.reduce((a, c) => a + c.wrong, 0);
-    const skipped   = chapterStats.reduce((a, c) => a + c.skipped, 0);
+    const correct = chapterStats.reduce((a, c) => a + c.correct, 0);
+    const wrong = chapterStats.reduce((a, c) => a + c.wrong, 0);
+    const skipped = chapterStats.reduce((a, c) => a + c.skipped, 0);
     const attempted = correct + wrong;
-    const accuracy  = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
-    const score      = Number(breakdownSource?.total_score ?? breakdownSource?.score ?? 0);
+    const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+    const score = Number(breakdownSource?.total_score ?? breakdownSource?.score ?? 0);
     const totalMarks = Number(
       breakdownSource?.max_score ??
       breakdownSource?.total_marks ??
@@ -253,7 +243,7 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
           {([
             { key: 'subject', label: 'Subject Analysis' },
             { key: 'chapter', label: 'Question Breakdown' },
-            { key: 'ai',      label: 'AI Insights' },
+            { key: 'ai', label: 'AI Insights' },
           ] as { key: AnalysisTab; label: string }[]).map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -402,8 +392,8 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
                       {
                         backgroundColor:
                           cp.accuracy >= 70 ? '#F0FDF4'
-                          : cp.accuracy >= 40 ? '#FFFBEB'
-                          : '#FEF2F2',
+                            : cp.accuracy >= 40 ? '#FFFBEB'
+                              : '#FEF2F2',
                       },
                     ]}
                   >
@@ -413,8 +403,8 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
                         {
                           color:
                             cp.accuracy >= 70 ? '#22C55E'
-                            : cp.accuracy >= 40 ? '#F59E0B'
-                            : '#EF4444',
+                              : cp.accuracy >= 40 ? '#F59E0B'
+                                : '#EF4444',
                         },
                       ]}
                     >

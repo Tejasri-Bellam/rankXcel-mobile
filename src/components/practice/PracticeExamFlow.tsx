@@ -35,7 +35,7 @@ export interface AnswerState {
   correct: boolean | null;
 }
 
-// ─── Slider (shared) ──────────────────────────────────────────────────────────
+// Slider
 export const QuestionSlider = ({
   value,
   onChange,
@@ -161,7 +161,6 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
     q.id;
   if (realId == null) return null;
 
-  // Choices may live on the wrapper or on the nested question
   const choicesRaw =
     q.choices ?? q.options ?? q.answer_options ??
     q.question?.choices ?? q.question?.options ?? [];
@@ -170,7 +169,7 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
     text: c?.text ?? c?.label ?? String(c ?? ''),
   }));
 
-  // Detect correct choice id if practice mode includes it
+  // Detect correct choice
   let correctId: string | null = null;
   const correctRaw =
     q.correct_choice_id ??
@@ -230,7 +229,7 @@ export const PracticeExamFlow = ({
   const [submittingMock, setSubmittingMock] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Reset when modal opens
+  // Reset when opens
   useEffect(() => {
     if (visible) {
       setScreen('settings');
@@ -253,7 +252,6 @@ export const PracticeExamFlow = ({
     setScreen('loading');
     setCreating(true);
     try {
-      // Resolve subject_id by name
       const subjRes = await getSubjectOptionsService(examId);
       const subjects = toArray(unwrap(subjRes));
       const matchedSubject = subjects.find(
@@ -264,8 +262,7 @@ export const PracticeExamFlow = ({
       }
       const subjectId = Number(matchedSubject.id);
 
-      // Resolve chapter_id by name within that subject. "Uncategorized" and other
-      // backend buckets won't appear in /options/chapters/; fall back to subject-wide.
+
       const chRes = await getChapterOptionsService(subjectId);
       const chList = toArray(unwrap(chRes));
       const matchedChapter = chList.find(
@@ -321,7 +318,7 @@ export const PracticeExamFlow = ({
       setScreen('questions');
     } catch (err) {
       const msg =
-        err instanceof Error ? err.message : 'Could not start practice. Please try again.';
+        err instanceof Error ? err.message : 'No published questions available for the selected criteria.';
       console.log('Practice begin error:', err);
       setLoadError(msg);
       setScreen('settings');
@@ -367,14 +364,16 @@ export const PracticeExamFlow = ({
           onCancel={onClose}
         />
       )}
-      {screen === 'loading' && (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background }}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={{ marginTop: 14, color: COLORS.textMedium, fontSize: 14 }}>
-            Preparing your practice...
-          </Text>
-        </View>
-      )}
+      {
+        screen === 'loading' && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background }}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={{ marginTop: 14, color: COLORS.textMedium, fontSize: 14 }}>
+              Preparing your practice...
+            </Text>
+          </View>
+        )
+      }
       {screen === 'questions' && questions.length > 0 && mockId != null && (
         <PracticeQuestions
           mockId={mockId}
@@ -384,16 +383,18 @@ export const PracticeExamFlow = ({
           onEnd={handleEnd}
         />
       )}
-      {screen === 'results' && (
-        <PracticeResults
-          chapterName={chapter.name}
-          answers={finalAnswers}
-          totalSeconds={finalSeconds}
-          submitting={submittingMock}
-          onTryAgain={handleTryAgain}
-          onBackToHub={onClose}
-        />
-      )}
+      {
+        screen === 'results' && (
+          <PracticeResults
+            chapterName={chapter.name}
+            answers={finalAnswers}
+            totalSeconds={finalSeconds}
+            submitting={submittingMock}
+            onTryAgain={handleTryAgain}
+            onBackToHub={onClose}
+          />
+        )
+      }
     </Modal>
   );
 };
