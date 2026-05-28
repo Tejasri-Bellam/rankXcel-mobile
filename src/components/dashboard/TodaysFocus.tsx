@@ -10,16 +10,66 @@ interface TodaysFocusProps {
   dashboardData: DashboardData | null;
 }
 
+const formatPercent = (n: number | null | undefined) => {
+  if (n == null || Number.isNaN(n)) return "0%";
+  return `${Number(n).toFixed(1).replace(/\.0$/, "")}%`;
+};
+
 export default function TodaysFocus({ dashboardData }: TodaysFocusProps) {
-  const stats = dashboardData?.stats ?? [];
-  const todayFocus = dashboardData?.today_focus ?? dashboardData?.todayFocus ?? null;
+  const overview = dashboardData?.overview;
+  const todayFocus = dashboardData?.todays_focus ?? null;
+
+  const stats = overview
+    ? [
+        {
+          id: "mocks_taken",
+          icon: "file-document-outline",
+          iconType: "MaterialCommunityIcons" as const,
+          value: String(overview.mocks_taken ?? 0),
+          label: "Mocks Taken",
+          delta: `+${overview.mocks_this_week ?? 0} this week`,
+          color: COLORS.primary,
+          bg: COLORS.primaryLight,
+        },
+        {
+          id: "mock_accuracy",
+          icon: "target",
+          iconType: "MaterialCommunityIcons" as const,
+          value: formatPercent(overview.avg_accuracy),
+          label: "Mock Accuracy",
+          delta: "",
+          color: COLORS.green,
+          bg: COLORS.greenLight,
+        },
+        {
+          id: "assessments_taken",
+          icon: "clipboard-text-outline",
+          iconType: "MaterialCommunityIcons" as const,
+          value: String(overview.assessments_taken ?? 0),
+          label: "Assessments Taken",
+          delta: `+${overview.assessments_this_week ?? 0} this week`,
+          color: COLORS.orange,
+          bg: COLORS.orangeLight,
+        },
+        {
+          id: "assessment_accuracy",
+          icon: "chart-bar",
+          iconType: "MaterialCommunityIcons" as const,
+          value: formatPercent(overview.assessments_avg_accuracy),
+          label: "Assessment Accuracy",
+          delta: "",
+          color: COLORS.primary,
+          bg: "#F3F0FF",
+        },
+      ]
+    : [];
 
   return (
-    <View className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <View>
       {/* Stats Grid */}
       <View style={styles.statsGrid}>
-        {stats.map((item: any) => (
-          <View key={item.id} style={[styles.statCard, { flex: 1 }]}>
+        {stats.map((item) => (
+          <View key={item.id} style={styles.statCard}>
             <View style={[styles.statIconBg, { backgroundColor: item.bg }]}>
               {item.iconType === "MaterialCommunityIcons" ? (
                 <MaterialCommunityIcons
@@ -33,9 +83,11 @@ export default function TodaysFocus({ dashboardData }: TodaysFocusProps) {
             </View>
             <Text style={styles.statValue}>{item.value}</Text>
             <Text style={styles.statLabel}>{item.label}</Text>
-            <Text style={[styles.statDelta, { color: item.color }]}>
-              {item.delta}
-            </Text>
+            {item.delta ? (
+              <Text style={[styles.statDelta, { color: item.color }]}>
+                {item.delta}
+              </Text>
+            ) : null}
           </View>
         ))}
       </View>
@@ -44,17 +96,19 @@ export default function TodaysFocus({ dashboardData }: TodaysFocusProps) {
       {todayFocus && (
         <View style={styles.focusCard}>
           <View style={styles.focusTop}>
-            <View>
+            <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={styles.focusLabel}>TODAY'S FOCUS</Text>
-              <Text style={styles.focusTitle}>{todayFocus.title}</Text>
+              <Text style={styles.focusTitle}>{todayFocus.chapter_name}</Text>
               <View style={styles.focusSubjectRow}>
                 <Ionicons name="flash" size={13} color={COLORS.yellow} />
-                <Text style={styles.focusSubject}>{todayFocus.subject}</Text>
+                <Text style={styles.focusSubject}>{todayFocus.subject_name}</Text>
               </View>
             </View>
 
             <View style={styles.focusQuestionsBadge}>
-              <Text style={styles.focusQuestionsNum}>{todayFocus.questions}</Text>
+              <Text style={styles.focusQuestionsNum}>
+                {todayFocus.question_count}
+              </Text>
               <Text style={styles.focusQuestionsLabel}>questions</Text>
             </View>
           </View>
@@ -66,11 +120,15 @@ export default function TodaysFocus({ dashboardData }: TodaysFocusProps) {
                 size={14}
                 color={COLORS.white}
               />
-              <Text style={styles.focusMetaText}>{todayFocus.issue}</Text>
+              <Text style={styles.focusMetaText}>
+                {todayFocus.accuracy_trend}
+              </Text>
             </View>
             <View style={styles.focusMetaItem}>
               <Ionicons name="time-outline" size={14} color={COLORS.white} />
-              <Text style={styles.focusMetaText}>{todayFocus.duration}</Text>
+              <Text style={styles.focusMetaText}>
+                ~{todayFocus.estimated_duration_minutes} min
+              </Text>
             </View>
           </View>
 
@@ -95,7 +153,7 @@ const styles: any = {
     backgroundColor: COLORS.white,
     borderRadius: 14,
     padding: 14,
-    minWidth: (width - 60) / 2,
+    width: (width - 44) / 2,
     shadowColor: COLORS.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
@@ -178,3 +236,4 @@ const styles: any = {
     fontSize: 14,
   },
 };
+ 

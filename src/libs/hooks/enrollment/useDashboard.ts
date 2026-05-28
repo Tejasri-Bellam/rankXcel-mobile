@@ -5,8 +5,9 @@ import {
   getDashboardUserService,
   getMyTargetExamsService,
 } from "@/src/libs/services/dashboard";
+import type { DashboardData } from "@/src/libs/types/dashboard";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// Types
 
 export interface DashboardUser {
   id: number;
@@ -24,7 +25,7 @@ export interface TargetExam {
   is_active: boolean;
 }
 
-export type DashboardData = Record<string, any> | null;
+export type { DashboardData };
 
 interface UseDashboardState {
   user: DashboardUser | null;
@@ -137,7 +138,7 @@ const fetchInitial = useCallback(async () => {
   const fetchDashboard = useCallback(async (examId: number | string) => {
     try {
       const res = await getDashboardDataService(examId);
-      const dashboardData: DashboardData = res?.data ?? null;
+      const dashboardData = (res?.data ?? null) as DashboardData | null;
 
       setState((prev) => ({ ...prev, dashboardData }));
 

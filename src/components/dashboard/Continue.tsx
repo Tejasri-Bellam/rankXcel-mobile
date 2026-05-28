@@ -12,32 +12,39 @@ interface ContinueProps {
 export default function Continue({ dashboardData }: ContinueProps) {
   const router = useRouter();
 
-  const continueTest =
-    dashboardData?.continue_test ?? dashboardData?.continueTest ?? null;
+  const session = dashboardData?.in_progress_session ?? null;
   const streak = dashboardData?.streak ?? null;
 
+  const attemptedCount = session
+    ? Math.round(((session.progress_percentage ?? 0) / 100) * (session.total_questions ?? 0))
+    : 0;
+
   return (
-    <View className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <View>
       {/* Continue Card */}
-      {continueTest && (
+      {session && (
         <View style={styles.card}>
           <Text style={styles.continueLabel}>Continue where you left off</Text>
 
           <View style={styles.continueRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.continueTitle}>{continueTest.title}</Text>
-              <Text style={styles.continueSub}>{continueTest.subtitle}</Text>
+              <Text style={styles.continueTitle}>{session.test_name}</Text>
+              <Text style={styles.continueSub}>
+                Last section: {session.last_section} · {session.time_ago}
+              </Text>
 
               <View style={styles.progressBarBg}>
                 <View
                   style={[
                     styles.progressBarFill,
-                    { width: `${continueTest.progress}%` },
+                    { width: `${session.progress_percentage ?? 0}%` },
                   ]}
                 />
               </View>
 
-              <Text style={styles.progressText}>{continueTest.attempted}</Text>
+              <Text style={styles.progressText}>
+                {attemptedCount} of {session.total_questions} questions attempted
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -56,14 +63,18 @@ export default function Continue({ dashboardData }: ContinueProps) {
           <View style={styles.streakHeader}>
             <View>
               <Text style={styles.streakTitle}>
-                🔥 {streak.current} Day Streak
+                🔥 {streak.current_streak ?? 0} Day Streak
               </Text>
-              <Text style={styles.streakSub}>Keep it going!</Text>
+              <Text style={styles.streakSub}>
+                {(streak.current_streak ?? 0) > 0
+                  ? "Keep it going!"
+                  : "Start a session today!"}
+              </Text>
             </View>
           </View>
 
           <View style={styles.streakDays}>
-            {(streak.days ?? []).map((item: any, index: number) => (
+            {(streak.streak_days ?? []).map((item, index) => (
               <View key={index} style={styles.streakDayCol}>
                 <View
                   style={[
@@ -84,7 +95,7 @@ export default function Continue({ dashboardData }: ContinueProps) {
 
           <View style={styles.bestStreakRow}>
             <Text style={styles.bestStreakText}>
-              🏆 Best streak: {streak.best} days
+              🏆 Best streak: {streak.best_streak ?? 0} days
             </Text>
           </View>
         </View>
@@ -160,3 +171,5 @@ const styles: any = {
   },
   bestStreakText: { fontSize: 13, fontWeight: "600", color: COLORS.orange },
 };
+
+ 

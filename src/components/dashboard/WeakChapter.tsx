@@ -3,34 +3,44 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { DashboardData } from "@/src/libs/types/dashboard";
+import { DashboardData, WeakChapter as WeakChapterItem } from "@/src/libs/types/dashboard";
 
 interface WeakChapterProps {
   dashboardData: DashboardData | null;
 }
 
-const subjectColors: Record<string, string> = {
-  Chemistry: "#DCFCE7",
-  Physics: "#EEF0FF",
-  Mathematics: "#FFF0E6",
+const subjectPalette: Record<string, { bg: string; text: string }> = {
+  Chemistry: { bg: COLORS.greenLight, text: COLORS.green },
+  Physics: { bg: COLORS.primaryLight, text: COLORS.primary },
+  Mathematics: { bg: COLORS.orangeLight, text: COLORS.orange },
+  Mathemetics: { bg: COLORS.orangeLight, text: COLORS.orange },
+  "Life in the UK": { bg: COLORS.primaryLight, text: COLORS.primary },
 };
 
-const subjectTextColors: Record<string, string> = {
-  Chemistry: COLORS.green,
-  Physics: COLORS.primary,
-  Mathematics: COLORS.orange,
+const fallbackSubject = { bg: COLORS.grayBg, text: COLORS.textMedium };
+
+const severityColor = (pct: number) => {
+  if (pct < 0) return COLORS.red;
+  if (pct < 10) return COLORS.red;
+  if (pct < 30) return COLORS.orange;
+  if (pct < 60) return COLORS.yellow;
+  return COLORS.green;
 };
+
+const PREVIEW_COUNT = 3;
 
 export default function WeakChapter({ dashboardData }: WeakChapterProps) {
   const router = useRouter();
 
-  const chapters: any[] =
-    dashboardData?.weak_chapters ?? dashboardData?.weakChapters ?? [];
+  const chapters: WeakChapterItem[] = dashboardData?.weak_chapters ?? [];
 
   if (!chapters.length) return null;
 
+  const preview = chapters.slice(0, PREVIEW_COUNT);
+  const remaining = chapters.length - preview.length;
+
   return (
-    <View className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <View>
       <View style={styles.card}>
         <View style={styles.cardHeaderRow}>
           <View style={styles.weakTitleRow}>
@@ -42,58 +52,62 @@ export default function WeakChapter({ dashboardData }: WeakChapterProps) {
           <Text style={styles.aiLabel}>AI-Identified</Text>
         </View>
 
-        {chapters.map((item: any, index: number) => (
-          <View key={index} style={styles.weakChapterRow}>
-            <View
-              style={[styles.weakRankBubble, { backgroundColor: item.color }]}
-            >
-              <Text style={styles.weakRankText}>{item.rank}</Text>
-            </View>
+        {preview.map((item, index) => {
+          const pct = item.percentage ?? 0;
+          const color = severityColor(pct);
+          const palette = subjectPalette[item.subject_name] ?? fallbackSubject;
+          const barWidth = Math.min(100, Math.max(0, Math.abs(pct)));
+          const attemptsLabel = `${item.attempts} ${item.attempts === 1 ? "attempt" : "attempts"}`;
 
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <View style={styles.weakNameRow}>
-                <Text style={styles.weakChapterName}>{item.name}</Text>
+          return (
+            <View key={index} style={styles.weakChapterRow}>
+              <View style={[styles.weakRankBubble, { backgroundColor: color }]}>
+                <Text style={styles.weakRankText}>{index + 1}</Text>
+              </View>
 
-                <View
-                  style={[
-                    styles.weakSubjectTag,
-                    { backgroundColor: subjectColors[item.subject] ?? "#F3F4F6" },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.weakSubjectText,
-                      { color: subjectTextColors[item.subject] ?? COLORS.textMedium },
-                    ]}
-                  >
-                    {item.subject}
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <View style={styles.weakNameRow}>
+                  <Text style={styles.weakChapterName} numberOfLines={1}>
+                    {item.chapter_name}
                   </Text>
+
+                  <View
+                    style={[styles.weakSubjectTag, { backgroundColor: palette.bg }]}
+                  >
+                    <Text style={[styles.weakSubjectText, { color: palette.text }]}>
+                      {item.subject_name}
+                    </Text>
+                  </View>
                 </View>
+
+                <View style={styles.weakBarBg}>
+                  <View
+                    style={[
+                      styles.weakBarFill,
+                      { width: `${barWidth}%`, backgroundColor: color },
+                    ]}
+                  />
+                </View>
+
+                <Text style={styles.weakAttempts}>{attemptsLabel}</Text>
               </View>
 
-              <View style={styles.weakBarBg}>
-                <View
-                  style={[
-                    styles.weakBarFill,
-                    { width: `${item.percent}%`, backgroundColor: item.color },
-                  ]}
-                />
-              </View>
-
-              <Text style={styles.weakAttempts}>{item.attempts} attempts</Text>
+              <Text style={[styles.weakPct, { color }]}>
+                {pct.toFixed(pct % 1 === 0 ? 0 : 1)}%
+              </Text>
             </View>
-
-            <Text style={[styles.weakPct, { color: item.color }]}>
-              {item.percent}%
-            </Text>
-          </View>
-        ))}
+          );
+        })}
 
         <TouchableOpacity
           style={styles.viewAllBtn}
           onPress={() => router.push("./practice")}
         >
-          <Text style={styles.viewAllText}>View all weak areas →</Text>
+          <Text style={styles.viewAllText}>
+            {remaining > 0
+              ? `View all weak areas (${remaining} more) →`
+              : "View all weak areas →"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -166,3 +180,4 @@ const styles: any = {
     fontSize: 13,
   },
 };
+ 
