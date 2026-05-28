@@ -9,16 +9,22 @@ interface UpcomingProps {
   dashboardData: DashboardData | null;
 }
 
+const difficultyColor = (difficulty: string | undefined) => {
+  const d = (difficulty ?? "").toLowerCase();
+  if (d === "hard") return COLORS.red;
+  if (d === "easy") return COLORS.green;
+  return COLORS.orange;
+};
+
 export default function Upcoming({ dashboardData }: UpcomingProps) {
   const router = useRouter();
 
-  const mocks: any[] =
-    dashboardData?.upcoming_mocks ?? dashboardData?.upcomingMocks ?? [];
+  const assessments = dashboardData?.upcoming_assessments ?? [];
 
-  if (!mocks.length) return null;
+  if (!assessments.length) return null;
 
   return (
-    <View className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <View>
       <View style={[styles.card, { marginBottom: 32 }]}>
         <View style={styles.cardHeaderRow}>
           <View style={styles.upcomingTitleRow}>
@@ -28,40 +34,43 @@ export default function Upcoming({ dashboardData }: UpcomingProps) {
               color={COLORS.primary}
             />
             <Text style={[styles.cardTitle, { marginLeft: 6 }]}>
-              Upcoming Mocks
+              Upcoming Assessments
             </Text>
           </View>
 
           <TouchableOpacity onPress={() => router.push("./mock-library")}>
-            <Text style={styles.detailsLink}>All mocks →</Text>
+            <Text style={styles.detailsLink}>All →</Text>
           </TouchableOpacity>
         </View>
 
-        {mocks.map((item: any, index: number) => (
-          <TouchableOpacity key={index} style={styles.mockRow}>
-            <Ionicons name="time-outline" size={18} color={COLORS.textLight} />
+        {assessments.map((item, index) => {
+          const color = difficultyColor(item.difficulty);
+          return (
+            <TouchableOpacity key={index} style={styles.mockRow}>
+              <Ionicons name="time-outline" size={18} color={COLORS.textLight} />
 
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.mockName}>{item.name}</Text>
-              <Text style={styles.mockWhen}>{item.when}</Text>
-            </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.mockName}>{item.name}</Text>
+                <Text style={styles.mockWhen}>{item.time_label}</Text>
+              </View>
 
-            <View
-              style={[styles.diffBadge, { backgroundColor: item.color + "20" }]}
-            >
-              <Text style={[styles.diffText, { color: item.color }]}>
-                {item.difficulty}
-              </Text>
-            </View>
+              <View
+                style={[styles.diffBadge, { backgroundColor: color + "20" }]}
+              >
+                <Text style={[styles.diffText, { color }]}>
+                  {item.difficulty}
+                </Text>
+              </View>
 
-            <Ionicons
-              name="chevron-forward"
-              size={16}
-              color={COLORS.textLight}
-              style={{ marginLeft: 6 }}
-            />
-          </TouchableOpacity>
-        ))}
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={COLORS.textLight}
+                style={{ marginLeft: 6 }}
+              />
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -101,3 +110,4 @@ const styles: any = {
   diffText: { fontSize: 11, fontWeight: "700" },
   detailsLink: { fontSize: 12, color: COLORS.primary, fontWeight: "600" },
 };
+ 

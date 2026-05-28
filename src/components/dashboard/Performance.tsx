@@ -1,25 +1,50 @@
-import React from "react";
+import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { DashboardData } from "@/src/libs/types/dashboard";
+import { DashboardData, SubjectHealth } from "@/src/libs/types/dashboard";
 
-const MAX_SCORE = 260;
-const CHART_H = 60;
+const CHART_H = 80;
 
 interface PerformanceProps {
   dashboardData: DashboardData | null;
 }
 
+const statusColor = (status: string | undefined) => {
+  const s = (status ?? "").toLowerCase();
+  if (s === "strong") return COLORS.green;
+  if (s === "average" || s === "moderate") return COLORS.orange;
+  if (s === "weak") return COLORS.red;
+  return COLORS.primary;
+};
+
 export default function Performance({ dashboardData }: PerformanceProps) {
   const router = useRouter();
+  const [tab, setTab] = useState<"mocks" | "assessments">("mocks");
 
-  const scores: any[] = dashboardData?.performance ?? [];
-  const subjects: any[] = dashboardData?.subjects ?? [];
+  const recent = dashboardData?.recent_performance;
+  const scores = recent?.scores ?? [];
+  const trend = recent?.trend ?? "";
+
+  const fromMocks = dashboardData?.subject_health?.from_mocks ?? [];
+  const fromAssessments = dashboardData?.subject_health?.from_assessments ?? [];
+  const activeSubjects: SubjectHealth[] =
+    tab === "mocks" ? fromMocks : fromAssessments;
+
+  const isImproving = trend === "improving";
+  const trendBg = isImproving ? COLORS.greenLight : COLORS.redLight;
+  const trendColor = isImproving ? COLORS.green : COLORS.red;
+  const trendLabel = isImproving ? "Improving" : "Needs work";
+  const trendIcon = isImproving ? "trending-up" : "trending-down";
+
+  const maxPct = Math.max(
+    1,
+    ...scores.map((s) => Math.abs(s.percentage ?? 0))
+  );
 
   return (
-    <View className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <View>
       {/* Recent Performance */}
       {scores.length > 0 && (
         <View style={styles.card}>
@@ -31,37 +56,40 @@ export default function Performance({ dashboardData }: PerformanceProps) {
               </Text>
             </View>
 
-            <View style={styles.improvingBadge}>
-              <Ionicons name="trending-up" size={13} color={COLORS.green} />
-              <Text style={styles.improvingText}>Improving</Text>
+            <View style={[styles.trendBadge, { backgroundColor: trendBg }]}>
+              <Ionicons name={trendIcon as any} size={13} color={trendColor} />
+              <Text style={[styles.trendBadgeText, { color: trendColor }]}>
+                {trendLabel}
+              </Text>
             </View>
           </View>
 
           <View style={styles.chartContainer}>
-            {scores.map((item: any, index: number) => (
-              <View key={index} style={styles.chartBarCol}>
-                <Text style={styles.chartBarValue}>{item.value}</Text>
-                <View
-                  style={[
-                    styles.chartBar,
-                    { height: (item.value / MAX_SCORE) * CHART_H },
-                  ]}
-                />
-                <Text style={styles.chartBarLabel}>{item.label}</Text>
-              </View>
-            ))}
+            {scores.map((item, index) => {
+              const h = Math.max(
+                4,
+                (Math.abs(item.percentage ?? 0) / maxPct) * CHART_H
+              );
+              return (
+                <View key={index} style={styles.chartBarCol}>
+                  <Text style={styles.chartBarValue}>{item.score}</Text>
+                  <View style={[styles.chartBar, { height: h }]} />
+                  <Text style={styles.chartBarLabel}>{item.date}</Text>
+                </View>
+              );
+            })}
           </View>
         </View>
       )}
 
       {/* Subject Health */}
-      {subjects.length > 0 && (
+      {(fromMocks.length > 0 || fromAssessments.length > 0) && (
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <View>
               <Text style={styles.cardTitle}>Subject Health</Text>
               <Text style={styles.cardSubtitle}>
-                Accuracy across all mocks
+                Accuracy across all {tab === "mocks" ? "mocks" : "assignments"}
               </Text>
             </View>
 
@@ -70,39 +98,74 @@ export default function Performance({ dashboardData }: PerformanceProps) {
             </TouchableOpacity>
           </View>
 
-          {subjects.map((item: any, index: number) => (
-            <View key={index} style={styles.subjectRow}>
-              <View
-                style={[styles.subjectCircle, { borderColor: item.color }]}
+          <View style={styles.tabsRow}>
+            <TouchableOpacity
+              onPress={() => setTab("mocks")}
+              style={[styles.tabBtn, tab === "mocks" && styles.tabBtnActive]}
+            >
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  tab === "mocks" && styles.tabBtnTextActive,
+                ]}
               >
-                <Text style={[styles.subjectPct, { color: item.color }]}>
-                  {item.percent}%
-                </Text>
-              </View>
+                Mocks {fromMocks.length}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setTab("assessments")}
+              style={[
+                styles.tabBtn,
+                tab === "assessments" && styles.tabBtnActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  tab === "assessments" && styles.tabBtnTextActive,
+                ]}
+              >
+                Assessments {fromAssessments.length}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <View style={styles.subjectNameRow}>
-                  <Text style={styles.subjectIcon}>{item.icon}</Text>
-                  <Text style={styles.subjectName}>{item.name}</Text>
-                  <Text style={[styles.subjectLevel, { color: item.color }]}>
-                    {item.level}
-                  </Text>
-                </View>
+          {activeSubjects.length === 0 ? (
+            <Text style={styles.emptyText}>No data yet.</Text>
+          ) : (
+            activeSubjects.map((item, index) => {
+              const color = statusColor(item.status);
+              const pct = Math.round(item.accuracy ?? 0);
+              return (
+                <View key={index} style={styles.subjectRow}>
+                  <View style={[styles.subjectCircle, { borderColor: color }]}>
+                    <Text style={[styles.subjectPct, { color }]}>{pct}%</Text>
+                  </View>
 
-                <View style={styles.subjectBarBg}>
-                  <View
-                    style={[
-                      styles.subjectBarFill,
-                      {
-                        width: `${item.percent}%`,
-                        backgroundColor: item.color,
-                      },
-                    ]}
-                  />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={styles.subjectNameRow}>
+                      <Text style={styles.subjectName}>{item.subject_name}</Text>
+                      <Text style={[styles.subjectLevel, { color }]}>
+                        {item.status}
+                      </Text>
+                    </View>
+
+                    <View style={styles.subjectBarBg}>
+                      <View
+                        style={[
+                          styles.subjectBarFill,
+                          {
+                            width: `${Math.min(100, Math.max(0, pct))}%`,
+                            backgroundColor: color,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
                 </View>
-              </View>
-            </View>
-          ))}
+              );
+            })
+          )}
         </View>
       )}
     </View>
@@ -138,21 +201,20 @@ const styles: any = {
     alignItems: "flex-start",
     marginBottom: 16,
   },
-  improvingBadge: {
+  trendBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: COLORS.greenLight,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  improvingText: { fontSize: 12, color: COLORS.green, fontWeight: "600" },
+  trendBadgeText: { fontSize: 12, fontWeight: "600" },
   chartContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    height: 90,
+    height: 110,
   },
   chartBarCol: { alignItems: "center", flex: 1, gap: 4 },
   chartBarValue: {
@@ -168,6 +230,32 @@ const styles: any = {
   },
   chartBarLabel: { fontSize: 9, color: COLORS.textLight },
 
+  tabsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
+  },
+  tabBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  tabBtnActive: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
+  },
+  tabBtnText: { fontSize: 12, fontWeight: "600", color: COLORS.textMedium },
+  tabBtnTextActive: { color: COLORS.primary },
+
+  emptyText: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontStyle: "italic",
+    paddingVertical: 8,
+  },
   subjectRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -188,7 +276,6 @@ const styles: any = {
     gap: 6,
     marginBottom: 6,
   },
-  subjectIcon: { fontSize: 14 },
   subjectName: {
     fontSize: 14,
     fontWeight: "600",
@@ -203,3 +290,4 @@ const styles: any = {
   },
   subjectBarFill: { height: 5, borderRadius: 4 },
 };
+ 

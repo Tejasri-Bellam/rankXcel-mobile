@@ -2,7 +2,8 @@ import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/src/styles/styles";
-import { DashboardUser, TargetExam } from "@/src/libs/types/dashboard";
+import { DashboardUser } from "@/src/libs/types/dashboard";
+import { TargetExam } from "@/src/libs/hooks/enrollment/useDashboard";
 
 interface GreetingProps {
   user: DashboardUser | null;
@@ -48,7 +49,7 @@ export default function Greeting({
 
         <View style={styles.examBadgesContainer}>
           {targetExams.map((item) => {
-            const examId = item.exam ?? item.id;
+            const examId = item.id;
             const isActive = examId === activeExamId;
 
             return (
@@ -69,8 +70,7 @@ export default function Greeting({
                     isActive && styles.examBadgeTextActive,
                   ]}
                 >
-                  {item.exam_name}
-                  {item.target_year ? ` ${item.target_year}` : ""}
+                  {item.name}
                 </Text>
 
                 {isActive && (
@@ -134,3 +134,4 @@ const styles: any = {
     color: COLORS.primary,
   },
 };
+ 
