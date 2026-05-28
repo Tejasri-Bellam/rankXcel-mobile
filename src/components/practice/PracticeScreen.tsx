@@ -1,8 +1,8 @@
 import { practiceStyles } from '@/src/styles/sidebar/practiceStyles';
 import { COLORS } from '@/src/styles/styles';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -140,6 +140,14 @@ export default function PracticeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    chapterName?: string;
+    subjectName?: string;
+    questionCount?: string;
+    durationMinutes?: string;
+    accuracyTrend?: string;
+    examId?: string;
+  }>();
 
   const [exams, setExams] = useState<OptionItem[]>([]);
   const [examsLoading, setExamsLoading] = useState(false);
@@ -155,6 +163,9 @@ export default function PracticeScreen() {
 
   const [practiceVisible, setPracticeVisible] = useState(false);
   const [activeChapter, setActiveChapter] = useState<ChapterItem | null>(null);
+  const [autoQuestionCount, setAutoQuestionCount] = useState<number | undefined>(undefined);
+  const [autoTimerMinutes, setAutoTimerMinutes] = useState<number | undefined>(undefined);
+  const autoLaunchHandledRef = useRef(false);
 
   const loadExams = useCallback(async () => {
     try {
@@ -223,6 +234,42 @@ export default function PracticeScreen() {
       loadPerformance(Number(selectedExam.id));
     }
   }, [selectedExam, loadPerformance]);
+
+  // Auto-open practice flow when navigated from dashboard's Today's Focus.
+  // Params arrive only once per navigation — guard with a ref so re-renders
+  // don't reopen the modal after the user closes it.
+  useEffect(() => {
+    if (autoLaunchHandledRef.current) return;
+    if (!params?.chapterName || !params?.subjectName || !params?.examId) return;
+    if (examsLoading) return;
+
+    autoLaunchHandledRef.current = true;
+
+    const examIdNum = Number(params.examId);
+    const matchedExam = exams.find((e) => Number(e.id) === examIdNum);
+    if (matchedExam) setSelectedExam(matchedExam);
+
+    setActiveChapter({
+      name: String(params.chapterName),
+      subjectName: String(params.subjectName),
+      topics: [],
+      accuracy: null,
+    });
+    const qc = Number(params.questionCount);
+    const dm = Number(params.durationMinutes);
+    setAutoQuestionCount(Number.isFinite(qc) && qc > 0 ? qc : undefined);
+    setAutoTimerMinutes(Number.isFinite(dm) && dm > 0 ? dm : undefined);
+    setPracticeVisible(true);
+
+    router.setParams({
+      chapterName: undefined,
+      subjectName: undefined,
+      questionCount: undefined,
+      durationMinutes: undefined,
+      accuracyTrend: undefined,
+      examId: undefined,
+    } as any);
+  }, [params, exams, examsLoading, router]);
 
   const activeSubject = useMemo(
     () => subjectGroups.find((g) => g.name === selectedSubject) ?? null,
@@ -491,9 +538,13 @@ export default function PracticeScreen() {
           visible={practiceVisible}
           chapter={activeChapter}
           examId={Number(selectedExam.id)}
+          initialQuestionCount={autoQuestionCount}
+          initialTimerMinutes={autoTimerMinutes}
           onClose={() => {
             setPracticeVisible(false);
             setActiveChapter(null);
+            setAutoQuestionCount(undefined);
+            setAutoTimerMinutes(undefined);
             if (selectedExam) loadPerformance(Number(selectedExam.id), true);
           }}
         />

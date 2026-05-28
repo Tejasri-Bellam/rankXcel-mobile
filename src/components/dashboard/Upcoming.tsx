@@ -38,7 +38,7 @@ export default function Upcoming({ dashboardData }: UpcomingProps) {
             </Text>
           </View>
 
-          <TouchableOpacity onPress={() => router.push("./mock-library")}>
+          <TouchableOpacity onPress={() => router.push("./assessments")}>
             <Text style={styles.detailsLink}>All →</Text>
           </TouchableOpacity>
         </View>

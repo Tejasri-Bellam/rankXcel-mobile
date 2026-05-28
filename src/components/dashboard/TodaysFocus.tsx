@@ -1,5 +1,6 @@
 import React from "react";
 import { Dimensions, Text, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { DashboardData } from "@/src/libs/types/dashboard";
@@ -8,6 +9,7 @@ const { width } = Dimensions.get("window");
 
 interface TodaysFocusProps {
   dashboardData: DashboardData | null;
+  examId: number | string | null;
 }
 
 const formatPercent = (n: number | null | undefined) => {
@@ -15,53 +17,69 @@ const formatPercent = (n: number | null | undefined) => {
   return `${Number(n).toFixed(1).replace(/\.0$/, "")}%`;
 };
 
-export default function TodaysFocus({ dashboardData }: TodaysFocusProps) {
+export default function TodaysFocus({ dashboardData, examId }: TodaysFocusProps) {
+  const router = useRouter();
   const overview = dashboardData?.overview;
   const todayFocus = dashboardData?.todays_focus ?? null;
 
+  const handleStartPractice = () => {
+    if (!todayFocus || examId == null) return;
+    router.push({
+      pathname: "/practice",
+      params: {
+        chapterName: todayFocus.chapter_name,
+        subjectName: todayFocus.subject_name,
+        questionCount: String(todayFocus.question_count),
+        durationMinutes: String(todayFocus.estimated_duration_minutes),
+        accuracyTrend: todayFocus.accuracy_trend ?? "",
+        examId: String(examId),
+      },
+    });
+  };
+
   const stats = overview
     ? [
-        {
-          id: "mocks_taken",
-          icon: "file-document-outline",
-          iconType: "MaterialCommunityIcons" as const,
-          value: String(overview.mocks_taken ?? 0),
-          label: "Mocks Taken",
-          delta: `+${overview.mocks_this_week ?? 0} this week`,
-          color: COLORS.primary,
-          bg: COLORS.primaryLight,
-        },
-        {
-          id: "mock_accuracy",
-          icon: "target",
-          iconType: "MaterialCommunityIcons" as const,
-          value: formatPercent(overview.avg_accuracy),
-          label: "Mock Accuracy",
-          delta: "",
-          color: COLORS.green,
-          bg: COLORS.greenLight,
-        },
-        {
-          id: "assessments_taken",
-          icon: "clipboard-text-outline",
-          iconType: "MaterialCommunityIcons" as const,
-          value: String(overview.assessments_taken ?? 0),
-          label: "Assessments Taken",
-          delta: `+${overview.assessments_this_week ?? 0} this week`,
-          color: COLORS.orange,
-          bg: COLORS.orangeLight,
-        },
-        {
-          id: "assessment_accuracy",
-          icon: "chart-bar",
-          iconType: "MaterialCommunityIcons" as const,
-          value: formatPercent(overview.assessments_avg_accuracy),
-          label: "Assessment Accuracy",
-          delta: "",
-          color: COLORS.primary,
-          bg: "#F3F0FF",
-        },
-      ]
+      {
+        id: "mocks_taken",
+        icon: "file-document-outline",
+        iconType: "MaterialCommunityIcons" as const,
+        value: String(overview.mocks_taken ?? 0),
+        label: "Mocks Taken",
+        delta: `+${overview.mocks_this_week ?? 0} this week`,
+        color: COLORS.primary,
+        bg: COLORS.primaryLight,
+      },
+      {
+        id: "mock_accuracy",
+        icon: "target",
+        iconType: "MaterialCommunityIcons" as const,
+        value: formatPercent(overview.avg_accuracy),
+        label: "Mock Accuracy",
+        delta: "",
+        color: COLORS.green,
+        bg: COLORS.greenLight,
+      },
+      {
+        id: "assessments_taken",
+        icon: "clipboard-text-outline",
+        iconType: "MaterialCommunityIcons" as const,
+        value: String(overview.assessments_taken ?? 0),
+        label: "Assessments Taken",
+        delta: `+${overview.assessments_this_week ?? 0} this week`,
+        color: COLORS.orange,
+        bg: COLORS.orangeLight,
+      },
+      {
+        id: "assessment_accuracy",
+        icon: "chart-bar",
+        iconType: "MaterialCommunityIcons" as const,
+        value: formatPercent(overview.assessments_avg_accuracy),
+        label: "Assessment Accuracy",
+        delta: "",
+        color: COLORS.primary,
+        bg: "#F3F0FF",
+      },
+    ]
     : [];
 
   return (
@@ -132,7 +150,11 @@ export default function TodaysFocus({ dashboardData }: TodaysFocusProps) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.startPracticeBtn}>
+          <TouchableOpacity
+            style={styles.startPracticeBtn}
+            onPress={handleStartPractice}
+            disabled={examId == null}
+          >
             <Text style={styles.startPracticeBtnText}>Start Practice →</Text>
           </TouchableOpacity>
         </View>
@@ -235,5 +257,4 @@ const styles: any = {
     fontWeight: "700",
     fontSize: 14,
   },
-};
- 
+}; 

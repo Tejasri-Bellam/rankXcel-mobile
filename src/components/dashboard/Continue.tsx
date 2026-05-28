@@ -1,7 +1,7 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "@/src/styles/styles";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DashboardData } from "@/src/libs/types/dashboard";
 
@@ -22,7 +22,7 @@ export default function Continue({ dashboardData }: ContinueProps) {
   return (
     <View>
       {/* Continue Card */}
-      {session && (
+      {session ? (
         <View style={styles.card}>
           <Text style={styles.continueLabel}>Continue where you left off</Text>
 
@@ -54,6 +54,26 @@ export default function Continue({ dashboardData }: ContinueProps) {
               <Text style={styles.resumeBtnText}>Resume</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      ) : (
+        <View style={[styles.card, styles.emptyCard]}>
+          <View style={styles.emptyIconBg}>
+            <MaterialCommunityIcons
+              name="book-open-page-variant-outline"
+              size={28}
+              color={COLORS.textLight}
+            />
+          </View>
+          <Text style={styles.emptyTitle}>No mock in progress</Text>
+          <Text style={styles.emptySub}>
+            Start a new mock from the library to begin tracking your progress.
+          </Text>
+          <TouchableOpacity
+            style={styles.browseBtn}
+            onPress={() => router.push("./mock-library")}
+          >
+            <Text style={styles.browseBtnText}>Browse Mock Library →</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -142,6 +162,42 @@ const styles: any = {
   },
   resumeBtnText: { color: COLORS.white, fontWeight: "700", fontSize: 13 },
 
+  emptyCard: {
+    alignItems: "center",
+    paddingVertical: 22,
+  },
+  emptyIconBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.textDark,
+  },
+  emptySub: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 6,
+    textAlign: "center",
+    paddingHorizontal: 12,
+  },
+  browseBtn: {
+    marginTop: 14,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    alignSelf: "stretch",
+    alignItems: "center",
+  },
+  browseBtnText: { color: COLORS.white, fontWeight: "700", fontSize: 13 },
+
   streakHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -170,6 +226,4 @@ const styles: any = {
     alignItems: "center",
   },
   bestStreakText: { fontSize: 13, fontWeight: "600", color: COLORS.orange },
-};
-
- 
+}; 

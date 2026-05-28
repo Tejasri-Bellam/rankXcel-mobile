@@ -47,10 +47,10 @@ const TAB_CONFIG: Record<
 };
 
 export default function AssessmentsScreen() {
-  const [data, setData]               = useState<any[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [tab, setTab]                 = useState<TabType>('live');
-  const [drawerOpen, setDrawerOpen]   = useState(false);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabType>('live');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
@@ -60,7 +60,7 @@ export default function AssessmentsScreen() {
       setLoading(true);
       const res = await getassessmentsService();
       console.log('resssss', res);
-      
+
       const raw: any = res?.data;
       const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
       setData(list);
@@ -70,14 +70,14 @@ export default function AssessmentsScreen() {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => { fetchAssessments(); }, []);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (drawerOpen)   { setDrawerOpen(false);   return true; }
-      if (profileOpen)  { setProfileOpen(false);  return true; }
-      if (selectedItem) { setSelectedItem(null);  return true; }
+      if (drawerOpen) { setDrawerOpen(false); return true; }
+      if (profileOpen) { setProfileOpen(false); return true; }
+      if (selectedItem) { setSelectedItem(null); return true; }
       return false;
     });
     return () => sub.remove();
@@ -115,28 +115,28 @@ export default function AssessmentsScreen() {
   console.log('filteredData', filteredData);
 
   const counts: Record<TabType, number> = {
-    live:      dataWithStatus.filter((d: any) => d.derived_status === 'live').length,
-    upcoming:  dataWithStatus.filter((d: any) => d.derived_status === 'upcoming').length,
+    live: dataWithStatus.filter((d: any) => d.derived_status === 'live').length,
+    upcoming: dataWithStatus.filter((d: any) => d.derived_status === 'upcoming').length,
     completed: dataWithStatus.filter((d: any) => d.derived_status === 'completed').length,
-    missed:    dataWithStatus.filter((d: any) => d.derived_status === 'missed').length,
+    missed: dataWithStatus.filter((d: any) => d.derived_status === 'missed').length,
   };
 
   const summary = `${counts.live} live · ${counts.upcoming} upcoming · ${counts.completed} completed`;
 
   const getButtonLabel = (t: TabType) => {
     switch (t) {
-      case 'live':      return 'Resume';
+      case 'live': return 'Resume';
       case 'completed': return 'Re-attempt';
-      case 'missed':    return 'Retry';
-      default:          return 'Start';
+      case 'missed': return 'Retry';
+      default: return 'Start';
     }
   };
 
   const getButtonColor = (t: TabType) => {
     switch (t) {
-      case 'live':   return COLORS.green;
+      case 'live': return COLORS.green;
       case 'missed': return COLORS.red;
-      default:       return COLORS.primary;
+      default: return COLORS.primary;
     }
   };
 
@@ -260,12 +260,12 @@ export default function AssessmentsScreen() {
       </View>
 
       {/* Tab bar */}
-    <ScrollView
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  contentContainerStyle={styles.tabsContainer}
-  style={{ maxHeight: 60 }}
->
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabsContainer}
+        style={{ maxHeight: 60 }}
+      >
         <TabButton value="live" />
         <TabButton value="upcoming" />
         <TabButton value="completed" />

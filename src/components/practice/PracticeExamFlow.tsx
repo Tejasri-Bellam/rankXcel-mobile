@@ -210,6 +210,8 @@ interface PracticeExamFlowProps {
   visible: boolean;
   chapter: ChapterItem;
   examId: number;
+  initialQuestionCount?: number;
+  initialTimerMinutes?: number;
   onClose: () => void;
 }
 
@@ -217,6 +219,8 @@ export const PracticeExamFlow = ({
   visible,
   chapter,
   examId,
+  initialQuestionCount,
+  initialTimerMinutes,
   onClose,
 }: PracticeExamFlowProps) => {
   const [screen, setScreen] = useState<Screen>('settings');
@@ -360,6 +364,8 @@ export const PracticeExamFlow = ({
           accuracy={chapter.accuracy}
           loading={creating}
           errorText={loadError}
+          initialQuestionCount={initialQuestionCount}
+          initialTimerMinutes={initialTimerMinutes}
           onBegin={handleBegin}
           onCancel={onClose}
         />
