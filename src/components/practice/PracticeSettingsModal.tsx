@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
 import { COLORS } from '@/src/styles/styles';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Difficulty, QuestionSlider } from './PracticeExamFlow';
 
@@ -9,6 +9,8 @@ interface Props {
   accuracy: number | null;
   loading?: boolean;
   errorText?: string | null;
+  initialQuestionCount?: number;
+  initialTimerMinutes?: number;
   onBegin: (questions: number, difficulty: Difficulty, timerMinutes: number) => void;
   onCancel: () => void;
 }
@@ -18,12 +20,16 @@ export default function PracticeSettingsModal({
   accuracy,
   loading = false,
   errorText,
+  initialQuestionCount,
+  initialTimerMinutes,
   onBegin,
   onCancel,
 }: Props) {
-  const [questionCount, setQuestionCount] = useState(20);
+  const [questionCount, setQuestionCount] = useState(initialQuestionCount ?? 20);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [timerText, setTimerText] = useState<string>('');
+  const [timerText, setTimerText] = useState<string>(
+    initialTimerMinutes && initialTimerMinutes > 0 ? String(initialTimerMinutes) : '',
+  );
 
   const difficulties: { value: Difficulty; label: string }[] = [
     { value: 'easy', label: 'Easy' },

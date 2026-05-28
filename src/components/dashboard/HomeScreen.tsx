@@ -62,7 +62,7 @@ export default function HomeScreen() {
               activeExamId={activeExamId}
               onSelectExam={setActiveExamId}
             />
-            <TodaysFocus dashboardData={dashboardData} />
+            <TodaysFocus dashboardData={dashboardData} examId={activeExamId} />
             <Continue dashboardData={dashboardData} />
             <Performance dashboardData={dashboardData} />
             <WeakChapter dashboardData={dashboardData} />
