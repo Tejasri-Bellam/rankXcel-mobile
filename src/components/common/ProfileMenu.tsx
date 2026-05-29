@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logoutService } from "@/src/libs/services/auth";
 import { getMeService } from "@/src/libs/services/profile";
+import { storageGetAccessToken } from "@/src/libs/storage";
 
 export const ProfileMenu = ({
   visible,
@@ -24,15 +25,25 @@ export const ProfileMenu = ({
     name: "",
     email: "",
   });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Fetch user details
   useEffect(() => {
     if (visible) {
-      fetchUser();
+      checkAuthAndFetchUser();
     }
   }, [visible]);
 
-  const fetchUser = async () => {
+  const checkAuthAndFetchUser = async () => {
+    const token = await storageGetAccessToken();
+    const loggedIn = !!token;
+    setIsLoggedIn(loggedIn);
+
+    if (!loggedIn) {
+      setUser({ name: "Guest", email: "" });
+      return;
+    }
+
     try {
       const res:any = await getMeService();
 
@@ -72,15 +83,17 @@ export const ProfileMenu = ({
       console.error("Logout Error:", error);
     } finally {
       await AsyncStorage.multiRemove([
-        "token",
+        "accessToken",
         "user",
       ]);
 
       console.log("Local session cleared");
 
+      setIsLoggedIn(false);
+
       onClose();
 
-      router.replace("/auth/login");
+      router.replace("/");
     }
   };
 
@@ -135,24 +148,48 @@ export const ProfileMenu = ({
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.profileItem}
-          onPress={confirmLogout}
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={18}
-            color="red"
-          />
-          <Text
-            style={[
-              styles.profileItemText,
-              { color: "red" },
-            ]}
+        {isLoggedIn ? (
+          <TouchableOpacity
+            style={styles.profileItem}
+            onPress={confirmLogout}
           >
-            Log out
-          </Text>
-        </TouchableOpacity>
+            <Ionicons
+              name="log-out-outline"
+              size={18}
+              color="red"
+            />
+            <Text
+              style={[
+                styles.profileItemText,
+                { color: "red" },
+              ]}
+            >
+              Log out
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.profileItem}
+            onPress={() => {
+              onClose();
+              router.push("/auth/login");
+            }}
+          >
+            <Ionicons
+              name="log-in-outline"
+              size={18}
+              color="#2563EB"
+            />
+            <Text
+              style={[
+                styles.profileItemText,
+                { color: "#2563EB" },
+              ]}
+            >
+              Login
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );

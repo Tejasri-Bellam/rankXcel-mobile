@@ -1,19 +1,20 @@
-import { useEffect, useState } from 'react';
-import React from 'react';
+import { getassessmentResultService } from '@/src/libs/services/assessments-attempts';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
+  ActivityIndicator,
   ScrollView,
   StatusBar,
-  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  ACCENT,
+  GRAY,
+  GREEN, RED,
   examResultStyles as styles,
-  GREEN, RED, GRAY, ACCENT,
 } from '../../styles/sidebar/assessments/results';
-import { getassessmentResultService } from '@/src/libs/services/assessments-attempts';
 
 // Types
 

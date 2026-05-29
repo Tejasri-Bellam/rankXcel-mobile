@@ -13,6 +13,7 @@ import {
 
 import { logoutService } from '@/src/libs/services/auth';
 import { getMeService } from '@/src/libs/services/profile';
+import { storageGetAccessToken } from '@/src/libs/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -42,15 +43,25 @@ export default function Sidebar({
     name: '',
     email: '',
   });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Fetch User
   useEffect(() => {
     if (visible) {
-      fetchUser();
+      checkAuthAndFetchUser();
     }
   }, [visible]);
 
-  const fetchUser = async () => {
+  const checkAuthAndFetchUser = async () => {
+    const token = await storageGetAccessToken();
+    const loggedIn = !!token;
+    setIsLoggedIn(loggedIn);
+
+    if (!loggedIn) {
+      setUser({ name: 'Guest', email: '' });
+      return;
+    }
+
     try {
       const res: any = await getMeService();
 
@@ -88,15 +99,17 @@ export default function Sidebar({
       console.error('Logout Error:', error);
     } finally {
       await AsyncStorage.multiRemove([
-        'token',
+        'accessToken',
         'user',
       ]);
 
       console.log('Local session cleared');
 
+      setIsLoggedIn(false);
+
       onClose();
 
-      router.replace('/auth/login');
+        router.replace("/");
     }
   };
 
@@ -275,20 +288,40 @@ export default function Sidebar({
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.logoutBtn}
-              onPress={confirmLogout}
-            >
-              <Ionicons
-                name="log-out-outline"
-                size={18}
-                color={COLORS.red}
-              />
+            {isLoggedIn ? (
+              <TouchableOpacity
+                style={styles.logoutBtn}
+                onPress={confirmLogout}
+              >
+                <Ionicons
+                  name="log-out-outline"
+                  size={18}
+                  color={COLORS.red}
+                />
 
-              <Text style={styles.logoutText}>
-                Log out
-              </Text>
-            </TouchableOpacity>
+                <Text style={styles.logoutText}>
+                  Log out
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.logoutBtn}
+                onPress={() => {
+                  onClose();
+                  router.push('/auth/login');
+                }}
+              >
+                <Ionicons
+                  name="log-in-outline"
+                  size={18}
+                  color={COLORS.primary}
+                />
+
+                <Text style={styles.loginText}>
+                  Login
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -401,6 +434,12 @@ const styles = StyleSheet.create({
 
   logoutText: {
     color: COLORS.red,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+
+  loginText: {
+    color: COLORS.primary,
     fontWeight: '600',
     fontSize: 14,
   },

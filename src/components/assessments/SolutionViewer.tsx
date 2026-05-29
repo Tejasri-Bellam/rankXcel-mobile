@@ -15,6 +15,29 @@ const GREEN = '#22C55E';
 const RED = '#EF4444';
 const GRAY = '#9898B0';
 
+const getQuestionId = (q: any): string | number | undefined =>
+  q?.question_id ?? q?.id;
+
+const getCorrectChoiceIds = (q: any): string[] => {
+  const choices: any[] = Array.isArray(q?.choices) ? q.choices : Array.isArray(q?.options) ? q.options : [];
+  return choices.filter((c: any) => c?.is_correct === true).map((c: any) => String(c.id));
+};
+
+const getApiSelectedIds = (q: any): string[] => {
+  const raw =
+    q?.your_answer?.selected_choice_ids ??
+    q?.selected_choice_ids ??
+    q?.selected_options ??
+    [];
+  return (Array.isArray(raw) ? raw : []).map((v: any) => String(v?.id ?? v));
+};
+
+const getChoiceExplanation = (q: any): string | null => {
+  const choices: any[] = Array.isArray(q?.choices) ? q.choices : Array.isArray(q?.options) ? q.options : [];
+  const correct = choices.find((c: any) => c?.is_correct === true);
+  return correct?.explanation ? String(correct.explanation) : null;
+};
+
 export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -25,14 +48,15 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     loadReview();
   }, []);
 
-  const sections: any[] = reviewData?.sections ?? reviewData?.results ?? [];
+  const questions: any[] = reviewData?.questions ?? [];
 
   const allQuestions = useMemo(
     () =>
-      sections.flatMap((s: any) =>
-        (s.questions ?? s.question ?? []).map((q: any) => ({ ...q, sectionName: s.name }))
-      ),
-    [reviewData]
+      questions.map((q: any) => ({
+        ...q,
+        sectionName: q?.section_name ?? '',
+      })),
+    [questions]
   );
 
   const totalQ = allQuestions.length;
@@ -40,29 +64,37 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const loadReview = async () => {
     try {
       setLoading(true);
+
       const res = await getassessmentReviewService(attemptId);
-      console.log('REVIEW API:', res);
+
+      console.log('REVIEW API:', JSON.stringify(res, null, 2));
+
       const data: any = res?.data ?? null;
+
       setReviewData(data);
 
-      //fetch Solutions
       if (data) {
-        const sections: any[] = data?.sections ?? data?.results ?? [];
-        const questions = sections.flatMap((s: any) =>
-          (s.questions ?? s.question ?? [])
-        );
+        const qs = data?.questions ?? [];
 
         const results = await Promise.allSettled(
-          questions.map((q: any) => getassessmentSolutionsService(q.id))
+          qs.map((q: any) => {
+            const qid = getQuestionId(q);
+            return qid != null
+              ? getassessmentSolutionsService(Number(qid))
+              : Promise.reject(new Error('no question id'));
+          })
         );
 
         const map: Record<string, any> = {};
-        questions.forEach((q: any, i: number) => {
+
+        qs.forEach((q: any, i: number) => {
           const r = results[i];
-          if (r.status === 'fulfilled' && r.value?.data) {
-            map[q.id] = r.value.data;
+          const qid = getQuestionId(q);
+          if (qid != null && r.status === 'fulfilled' && r.value?.data) {
+            map[String(qid)] = r.value.data;
           }
         });
+
         setSolutionsMap(map);
       }
     } catch (error) {
@@ -104,30 +136,45 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   }
 
   const currentQ = allQuestions[currentIndex];
-  const userAnswer = answers[currentQ?.id] || [];
-  const correctAnswers: string[] = (() => {
-    const topLevel =
-      currentQ?.correct_answers ??
-      currentQ?.correct_options ??
-      currentQ?.correct_choice_ids ??
-      null;
-    if (Array.isArray(topLevel) && topLevel.length > 0) {
-      return topLevel.map((v: any) => String(v?.id ?? v));
-    }
-    const opts: any[] = Array.isArray(currentQ?.options) ? currentQ.options : [];
-    return opts
-      .filter((o: any) => o?.is_correct === true || o?.correct === true)
-      .map((o: any) => String(o.id));
-  })();
+  const currentQId = getQuestionId(currentQ);
+  const choices: any[] = Array.isArray(currentQ?.choices)
+    ? currentQ.choices
+    : Array.isArray(currentQ?.options)
+      ? currentQ.options
+      : [];
 
-  const isCorrect =
-    correctAnswers.length === userAnswer.length &&
-    correctAnswers.every((a: string) => userAnswer.includes(a));
-  const isSkipped = userAnswer.length === 0;
+  const sortedChoices = [...choices].sort(
+    (a, b) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0)
+  );
 
-  // Solutions
-  const currentSolution = solutionsMap[currentQ?.id];
-  const explanation = currentSolution?.explanation ?? currentQ?.explanation ?? null;
+  const correctAnswers = getCorrectChoiceIds(currentQ);
+  const apiSelected = getApiSelectedIds(currentQ);
+
+  // Prefer just-submitted answers from props; fall back to API's your_answer.
+  const userAnswer = (currentQId != null && answers[String(currentQId)]?.length)
+    ? answers[String(currentQId)]
+    : apiSelected;
+
+  const isCorrect = currentQ?.outcome === 'correct' ||
+    (currentQ?.outcome == null &&
+      userAnswer.length > 0 &&
+      correctAnswers.length === userAnswer.length &&
+      correctAnswers.every((a: string) => userAnswer.includes(a)));
+  const isSkipped = currentQ?.outcome === 'unattempted' ||
+    currentQ?.outcome === 'skipped' ||
+    (currentQ?.outcome == null && userAnswer.length === 0);
+
+  const currentSolution = currentQId != null ? solutionsMap[String(currentQId)] : null;
+  const explanation =
+    currentSolution?.explanation ??
+    currentSolution?.solution ??
+    currentQ?.explanation ??
+    getChoiceExplanation(currentQ);
+
+  const questionText = currentQ?.question_text ?? currentQ?.text ?? currentQ?.statement ?? '';
+  const questionType = currentQ?.question_type ?? currentQ?.type ?? 'MCQ';
+  const marksCorrect = currentQ?.max_score ?? currentQ?.marks_correct ?? 4;
+  const marksIncorrect = currentQ?.marks_incorrect ?? -1;
 
   const getOptionState = (optId: string) => {
     const isCorrectOpt = correctAnswers.includes(optId);
@@ -137,22 +184,18 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     return 'neutral';
   };
 
-  const correctIdsFor = (q: any): string[] => {
-    const topLevel = q?.correct_answers ?? q?.correct_options ?? q?.correct_choice_ids ?? null;
-    if (Array.isArray(topLevel) && topLevel.length > 0) {
-      return topLevel.map((v: any) => String(v?.id ?? v));
-    }
-    const opts: any[] = Array.isArray(q?.options) ? q.options : [];
-    return opts
-      .filter((o: any) => o?.is_correct === true || o?.correct === true)
-      .map((o: any) => String(o.id));
-  };
-
   const getQuestionDotColor = (idx: number) => {
     const q = allQuestions[idx];
-    const ua = answers[q.id] || [];
+    if (q?.outcome === 'correct') return GREEN;
+    if (q?.outcome === 'wrong')   return RED;
+    if (q?.outcome === 'unattempted' || q?.outcome === 'skipped') return GRAY;
+
+    const qid = getQuestionId(q);
+    const ua = (qid != null && answers[String(qid)]?.length)
+      ? answers[String(qid)]
+      : getApiSelectedIds(q);
     if (ua.length === 0) return GRAY;
-    const ca = correctIdsFor(q);
+    const ca = getCorrectChoiceIds(q);
     const ok = ca.length === ua.length && ca.every((a: string) => ua.includes(a));
     return ok ? GREEN : RED;
   };
@@ -205,14 +248,14 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
       <View style={solutionViewerStyles.qMetaBar}>
         <Text style={solutionViewerStyles.qMetaLeft}>{currentIndex + 1} of {totalQ}</Text>
         <View style={solutionViewerStyles.qTypeBadge}>
-          <Text style={solutionViewerStyles.qTypeText}>{currentQ?.type}</Text>
+          <Text style={solutionViewerStyles.qTypeText}>{questionType}</Text>
         </View>
         <View style={solutionViewerStyles.marksBadges}>
           <View style={solutionViewerStyles.markBadgeGreen}>
-            <Text style={solutionViewerStyles.markText}>+{currentQ?.marks_correct}</Text>
+            <Text style={solutionViewerStyles.markText}>+{marksCorrect}</Text>
           </View>
           <View style={solutionViewerStyles.markBadgeRed}>
-            <Text style={solutionViewerStyles.markText}>{currentQ?.marks_incorrect}</Text>
+            <Text style={solutionViewerStyles.markText}>{marksIncorrect}</Text>
           </View>
         </View>
       </View>
@@ -222,13 +265,15 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
         contentContainerStyle={solutionViewerStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={solutionViewerStyles.questionText}>{stripHtml(currentQ?.text)}</Text>
+        <Text style={solutionViewerStyles.questionText}>{stripHtml(questionText)}</Text>
 
-        {currentQ?.options?.map((opt: any) => {
-          const state = getOptionState(opt.id);
+        {sortedChoices.map((opt: any, idx: number) => {
+          const optId = String(opt?.id);
+          const state = getOptionState(optId);
+          const letter = String.fromCharCode(65 + idx);
           return (
             <View
-              key={opt.id}
+              key={optId}
               style={[
                 solutionViewerStyles.optionRow,
                 state === 'correct' && solutionViewerStyles.optionCorrect,
@@ -248,7 +293,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                     (state === 'correct' || state === 'wrong') && { color: '#fff' },
                   ]}
                 >
-                  {opt.id}
+                  {letter}
                 </Text>
               </View>
               <Text
@@ -258,7 +303,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                   state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
                 ]}
               >
-                {stripHtml(opt.text)}
+                {stripHtml(opt?.text)}
               </Text>
               {state === 'correct' && <Text style={{ fontSize: 16, color: GREEN }}>✓</Text>}
               {state === 'wrong'   && <Text style={{ fontSize: 16, color: RED }}>✗</Text>}
@@ -279,12 +324,12 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
           </Text>
         </View>
 
-        
+
         {explanation && (
           <View style={solutionViewerStyles.explanationCard}>
             <View style={solutionViewerStyles.explanationHeader}>
               <Text style={solutionViewerStyles.explanationLabel}>💡 EXPLANATION</Text>
-              {explanation?.steps && (
+              {typeof explanation === 'object' && explanation?.steps && (
                 <View style={solutionViewerStyles.stepsChip}>
                   <Text style={solutionViewerStyles.stepsChipText}>
                     {explanation.steps.length} steps
@@ -293,20 +338,20 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               )}
             </View>
 
-            {explanation?.steps?.map((step: any, i: number) => (
+            {typeof explanation === 'object' && explanation?.steps?.map((step: any, i: number) => (
               <View key={i} style={solutionViewerStyles.explanationStep}>
                 <Text style={solutionViewerStyles.stepLabel}>Step {i + 1}. {stripHtml(step.title)}</Text>
                 <Text style={solutionViewerStyles.stepBody}>{stripHtml(step.body)}</Text>
               </View>
             ))}
 
-            {explanation?.summary && (
+            {typeof explanation === 'object' && explanation?.summary && (
               <Text style={solutionViewerStyles.explanationSummary}>
                 {stripHtml(explanation.summary)}
               </Text>
             )}
 
-            {!explanation?.steps && typeof explanation === 'string' && (
+            {typeof explanation === 'string' && (
               <Text style={solutionViewerStyles.stepBody}>{stripHtml(explanation)}</Text>
             )}
           </View>
@@ -340,3 +385,4 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     </SafeAreaView>
   );
 }
+ 
