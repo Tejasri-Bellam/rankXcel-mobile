@@ -21,7 +21,7 @@ import Header from '../common/Header';
 import { ProfileMenu } from '../common/ProfileMenu';
 import Sidebar from '../common/Sidebar';
 import { SORT_OPTIONS } from '../json/mockLibrary';
-import { mockLibraryStyles } from '@/src/styles/sidebar/mockLibraryStyles';
+import { mockLibraryStyles } from '@/src/styles/sidebar/mockExams/mockLibraryStyles';
 import { COLORS } from '@/src/styles/styles';
 import {
   createMockTestService,
@@ -90,7 +90,7 @@ const difficultyBg = (d: Difficulty | string | undefined): string => {
   return '#FEF2F2';
 };
 
-/* ----- Status helpers (uppercase, matching the API) ----- */
+// Status helpers
 const statusLabel = (s: MockStatus): string => {
   if (s === 'IN_PROGRESS') return 'In Progress';
   if (s === 'SUBMITTED') return 'Completed';
@@ -135,10 +135,9 @@ const formatDate = (iso: string | null | undefined): string => {
   }
 };
 
-/* ============================================================
-   Mock Card
-   ============================================================ */
-interface MockCardProps {
+// Mock Card
+
+   interface MockCardProps {
   mock: MockTest;
   onOpen: (id: string) => void;
   onStart: (id: string) => void;
@@ -433,8 +432,8 @@ const FilterModal: React.FC<FilterModalProps> = ({
   );
 };
 
-   // Request Mock Test Modal
-   
+// Request Mock Test Modal
+
 interface DifficultyOption {
   value: 'easy' | 'medium' | 'hard' | 'any';
   label: string;
@@ -944,9 +943,7 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
   );
 };
 
-/* ============================================================
-   Empty State
-   ============================================================ */
+//Empty State
 const EmptyState: React.FC<{ message: string }> = ({ message }) => (
   <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 }}>
     <Ionicons name="document-text-outline" size={48} color={COLORS.textLight} />
@@ -964,10 +961,8 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
   </View>
 );
 
-/* ============================================================
-   Main Screen
-   ============================================================ */
-type TabKey = 'all' | 'attempts' | 'requests';
+// Main Screen
+type TabKey = 'all' | 'attempts';
 
 export default function MockLibrary() {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
@@ -1070,8 +1065,7 @@ export default function MockLibrary() {
 
       const matchesTab: boolean =
         activeTab === 'all' ||
-        (activeTab === 'attempts' && m.status !== 'NOT_STARTED') ||
-        activeTab === 'requests';
+        (activeTab === 'attempts' && m.status !== 'NOT_STARTED');
 
       const matchesSearch: boolean =
         !q ||
@@ -1148,7 +1142,7 @@ export default function MockLibrary() {
     setSelectedDifficulties([]);
   };
 
-  const TABS: readonly TabKey[] = ['all', 'attempts', 'requests'] as const;
+  const TABS: readonly TabKey[] = ['all', 'attempts'] as const;
 
   if (resumeMock) {
     return (
@@ -1237,7 +1231,10 @@ export default function MockLibrary() {
             {TABS.map((tab) => (
               <TouchableOpacity
                 key={tab}
-                style={[mockLibraryStyles.tab, activeTab === tab && mockLibraryStyles.tabActive]}
+                style={[
+                  mockLibraryStyles.tab,
+                  activeTab === tab && mockLibraryStyles.tabActive,
+                ]}
                 onPress={() => setActiveTab(tab)}
               >
                 <Text
@@ -1246,13 +1243,8 @@ export default function MockLibrary() {
                     activeTab === tab && mockLibraryStyles.tabTextActive,
                   ]}
                 >
-                  {tab === 'all' ? 'All Mocks' : tab === 'attempts' ? 'My Attempts' : 'My Requests'}
+                  {tab === 'all' ? 'All Mocks' : 'My Attempts'}
                 </Text>
-                {tab === 'requests' && (
-                  <View style={mockLibraryStyles.tabBadge}>
-                    <Text style={mockLibraryStyles.tabBadgeText}>{totalCount}</Text>
-                  </View>
-                )}
               </TouchableOpacity>
             ))}
           </View>

@@ -24,6 +24,7 @@ interface Props {
   timeTakenSeconds: number;
   onBack: () => void;
   onViewSolutions?: () => void;
+  onViewAnalysis?: () => void;
   exam: any;
 }
 
@@ -80,6 +81,7 @@ export default function ExamResults({
   timeTakenSeconds,
   onBack,
   onViewSolutions,
+  onViewAnalysis,
   exam,
 }: Props) {
   const [result, setResult] = useState<any>(null);
@@ -451,16 +453,22 @@ export default function ExamResults({
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.nextRow} activeOpacity={0.7}>
-            <View style={[styles.nextIconBox, { backgroundColor: '#FFF0E8' }]}>
-              <Text style={{ fontSize: 18 }}>📈</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.nextLabel}>Detailed Analysis</Text>
-              <Text style={styles.nextSub}>Chapter-wise breakdown & AI insights</Text>
-            </View>
-            <Text style={styles.nextChevron}>›</Text>
-          </TouchableOpacity>
+          {onViewAnalysis && (
+            <TouchableOpacity
+              style={styles.nextRow}
+              onPress={onViewAnalysis}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.nextIconBox, { backgroundColor: '#FFF0E8' }]}>
+                <Text style={{ fontSize: 18 }}>📈</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.nextLabel}>Detailed Analysis</Text>
+                <Text style={styles.nextSub}>Chapter-wise breakdown & AI insights</Text>
+              </View>
+              <Text style={styles.nextChevron}>›</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.nextRow} onPress={onBack} activeOpacity={0.7}>
             <View style={[styles.nextIconBox, { backgroundColor: '#E8F5E9' }]}>
