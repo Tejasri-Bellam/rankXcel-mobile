@@ -26,7 +26,7 @@ export const mockDetailsStyles = StyleSheet.create({
   backText: { fontSize: 14, color: GRAY, fontWeight: '500' },
 
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 140 },
+  scrollContent: { padding: 20, paddingBottom: 60 },
 
   statusBadge: {
     alignSelf: 'flex-start',
@@ -74,7 +74,7 @@ export const mockDetailsStyles = StyleSheet.create({
     minWidth: '44%',
     backgroundColor: BG,
     borderRadius: 14,
-    padding: 16,
+    padding: 8,
     alignItems: 'center',
     gap: 4,
   },

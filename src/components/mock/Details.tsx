@@ -36,14 +36,11 @@ const STATUS_CONFIG = {
 } as const;
 
 const INSTRUCTIONS = [
-  'Read each question carefully before selecting your answer.',
-  'Your timer starts when you click "Start Mock". You must finish within the allotted duration.',
-  'Marking scheme: +4 for correct answers, -1 for incorrect MCQ answers, 0 for unattempted.',
+  'The timer starts when you click "Start Mock".',
+  'Answers are saved automatically when you click "Save & Next" or switch questions.',
   'You may switch between sections at any time during the exam.',
-  'Answers are saved automatically when you click "Save & Next".',
-  'Once you submit, the mock test cannot be resumed.',
-  'You can mark questions for review and revisit them before final submission.',
-  'Results and solutions will be available immediately after submission.',
+  'Once you submit, the exam cannot be resumed or modified.',
+  'Use the Question Palette on the right to track your progress across all questions.',
 ];
 
 const getExamName = (exam: MockTest['exam']): string =>
@@ -330,27 +327,33 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
         )}
 
         {/* Coverage */}
-        <View style={styles.coverageCard}>
-          <View style={styles.coverageHeader}>
-            <Text style={{ fontSize: 16 }}>🏷</Text>
-            <Text style={styles.coverageTitle}>Coverage</Text>
-          </View>
-          {coverageChips.length > 0 ? (
-            <View style={styles.coverageRow}>
-              {coverageChips.map((c, i) => (
-                <View key={i} style={styles.coverageChip}>
-                  <Text style={styles.coverageChipText}>{c}</Text>
-                </View>
-              ))}
+        {!isCompleted && (
+          <View style={styles.coverageCard}>
+            <View style={styles.coverageHeader}>
+              <Text style={{ fontSize: 16 }}>🏷</Text>
+              <Text style={styles.coverageTitle}>Coverage</Text>
             </View>
-          ) : (
-            <Text style={styles.coverageEmpty}>All topics</Text>
-          )}
-        </View>
-      </ScrollView>
 
+            {coverageChips.length > 0 ? (
+              <View style={styles.coverageRow}>
+                {coverageChips.map((c, i) => (
+                  <View key={i} style={styles.coverageChip}>
+                    <Text style={styles.coverageChipText}>{c}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.coverageEmpty}>All topics</Text>
+            )}
+          </View>
+        )}
+      </ScrollView>
       {/* Bottom CTA */}
-      <View style={styles.bottomBar}>
+      <View
+        style={[ styles.bottomBar,
+              {paddingBottom: 40, marginBottom: 10 },
+              ]}
+      >
         {isNotStarted && (
           <TouchableOpacity
             style={[styles.primaryBtn, !accepted && { opacity: 0.5 }]}

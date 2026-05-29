@@ -1,4 +1,3 @@
-// src/components/mock/styles/mockResultStyles.ts
 import { StyleSheet } from 'react-native';
 
 export const PRIMARY = '#1A1A2E';

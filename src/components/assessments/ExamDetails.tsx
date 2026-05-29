@@ -1,10 +1,8 @@
 // src/components/assessments/ExamDetails.tsx
 
 import React, { useEffect, useState } from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView,
-  StatusBar, ActivityIndicator, Alert, BackHandler,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView,
+          StatusBar, ActivityIndicator, Alert, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import ExamNavigator from './ExamNavigator';
@@ -13,6 +11,7 @@ import SolutionViewer from './SolutionViewer';
 import { assessmentStartService } from '@/src/libs/services/assessments-attempts';
 import { reattemptAssessmentService } from '@/src/libs/services/assessments';
 import { examDetailsStyles as styles } from '@/src/styles/sidebar/assessments/examDetails';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
   item: any;
@@ -247,8 +246,8 @@ export default function ExamDetails({ item, onBack }: Props) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: 120 }
+        styles.scrollContent,
+        {paddingBottom: showInstructions ? 160 : 190,},
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -356,9 +355,11 @@ export default function ExamDetails({ item, onBack }: Props) {
             <Text style={styles.instructionsTitle}>Assessment Instructions</Text>
             <Text style={styles.instructionsSub}>(Read before starting)</Text>
           </View>
-          <Text style={styles.instructionsChevron}>
-            {showInstructions ? '⌃' : '⌄'}
-          </Text>
+          <Ionicons
+            name={showInstructions ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#9898B0"
+          />
         </TouchableOpacity>
 
         {showInstructions && (
@@ -425,6 +426,53 @@ export default function ExamDetails({ item, onBack }: Props) {
         {/* Bottom CTA — Completed / Missed */}
         {(isCompleted || isMissed) && (
           <View style={styles.bottomBar}>
+
+            {/* ADD THIS */}
+            {isCompleted && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 12,
+                  marginBottom: 12,
+                }}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.resumeBtn,
+                    { flex: 1 },
+                  ]}
+                  onPress={() => setCurrentView('results')}
+                >
+                  <Text style={styles.resumeBtnText}>
+                    👁 View Results
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.completedBottomBtn,
+                    {
+                      flex: 1,
+                      backgroundColor: '#fff',
+                      borderWidth: 1,
+                      borderColor: '#6C5CE7',
+                    },
+                  ]}
+                  onPress={() => setCurrentView('solutions')}
+                >
+                  <Text
+                    style={[
+                      styles.completedBottomBtnText,
+                      { color: '#6C5CE7' },
+                    ]}
+                  >
+                    📖 View Solutions
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* KEEP YOUR EXISTING BUTTON EXACTLY SAME */}
             <TouchableOpacity
               style={[
                 styles.completedBottomBtn,
@@ -443,11 +491,12 @@ export default function ExamDetails({ item, onBack }: Props) {
               ) : (
                 <Text style={styles.completedBottomBtnText}>
                   🔄{isCompleted
-                  ? 'Re-attempt Assessment'
-                  : 'Retry Assessment'}
+                    ? 'Re-attempt Assessment'
+                    : 'Retry Assessment'}
                 </Text>
               )}
             </TouchableOpacity>
+
           </View>
         )}
     </ScrollView>
