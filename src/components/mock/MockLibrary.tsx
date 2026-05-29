@@ -36,26 +36,26 @@ import {
 } from '../../libs/services/mock-library';
 import { Difficulty, MockStatus, MockTest } from '@/src/libs/types/mock-library';
 import MockDetails from './Details';
- 
 
- 
-  // Type-safe
- 
+
+
+// Type-safe
+
 type NormalizedDifficulty = 'Easy' | 'Medium' | 'Hard';
- 
+
 // Type guards
 const isExamObject = (v: MockTest['exam']): v is ExamObject =>
   typeof v === 'object' && v !== null && 'name' in v;
- 
+
 const isSubjectObject = (v: MockTest['subject']): v is SubjectObject =>
   typeof v === 'object' && v !== null && 'name' in v;
- 
+
 const getExamName = (exam: MockTest['exam']): string =>
   isExamObject(exam) ? exam.name : String(exam || '');
- 
+
 const getSubjectName = (subject: MockTest['subject']): string =>
   isSubjectObject(subject) ? subject.name : String(subject || '');
- 
+
 // Normalize difficulty: API returns 'easy' | 'medium' | 'hard' (lowercase)
 const normalizeDifficulty = (d: Difficulty | string | undefined): NormalizedDifficulty => {
   if (!d) return 'Medium';
@@ -64,7 +64,7 @@ const normalizeDifficulty = (d: Difficulty | string | undefined): NormalizedDiff
   if (lower === 'hard') return 'Hard';
   return 'Medium';
 };
- 
+
 const examTagColor = (exam: string): string => {
   if (!exam) return COLORS.primary;
   const e = exam.toUpperCase();
@@ -75,40 +75,40 @@ const examTagColor = (exam: string): string => {
   if (e.includes('LIFE')) return '#0EA5E9';
   return COLORS.primary;
 };
- 
+
 const difficultyColor = (d: Difficulty | string | undefined): string => {
   const n = normalizeDifficulty(d);
   if (n === 'Easy') return COLORS.green;
   if (n === 'Medium') return COLORS.orange;
   return COLORS.red;
 };
- 
+
 const difficultyBg = (d: Difficulty | string | undefined): string => {
   const n = normalizeDifficulty(d);
   if (n === 'Easy') return '#F0FDF4';
   if (n === 'Medium') return '#FFFBEB';
   return '#FEF2F2';
 };
- 
+
 /* ----- Status helpers (uppercase, matching the API) ----- */
 const statusLabel = (s: MockStatus): string => {
   if (s === 'IN_PROGRESS') return 'In Progress';
   if (s === 'SUBMITTED') return 'Completed';
   return 'Not Started';
 };
- 
+
 const statusColor = (s: MockStatus): string => {
   if (s === 'IN_PROGRESS') return COLORS.primary;
   if (s === 'SUBMITTED') return COLORS.green;
   return COLORS.textLight;
 };
- 
+
 const statusBg = (s: MockStatus): string => {
   if (s === 'IN_PROGRESS') return '#EEF2FF';
   if (s === 'SUBMITTED') return '#F0FDF4';
   return '#F3F4F6';
 };
- 
+
 const formatDuration = (mins: number | null | undefined): string => {
   if (!mins) return '—';
   const h = Math.floor(mins / 60);
@@ -117,7 +117,7 @@ const formatDuration = (mins: number | null | undefined): string => {
   if (h > 0) return `${h} hr`;
   return `${m} min`;
 };
- 
+
 const formatDate = (iso: string | null | undefined): string => {
   if (!iso) return '';
   try {
@@ -134,7 +134,7 @@ const formatDate = (iso: string | null | undefined): string => {
     return '';
   }
 };
- 
+
 /* ============================================================
    Mock Card
    ============================================================ */
@@ -155,133 +155,133 @@ const MockCard: React.FC<MockCardProps> = ({
 }) => {
   const examName = getExamName(mock.exam);
   const subjectName = getSubjectName(mock.subject);
- 
+
   const tagColor = examTagColor(examName);
   const tagBg = tagColor + '15';
- 
+
   const isCompleted = mock.status === 'SUBMITTED';
   const isInProgress = mock.status === 'IN_PROGRESS';
   const isNotStarted = mock.status === 'NOT_STARTED';
- 
+
   const isLoading = actionLoadingId === String(mock.id);
- 
+
   const score = mock.score ?? 0;
   const maxScore = mock.max_score ?? mock.question_count ?? 0;
   const accuracy = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
   const percentile = mock.percentile ?? 0;
- 
+
   return (
-<TouchableOpacity
+    <TouchableOpacity
       style={mockLibraryStyles.mockCard}
       activeOpacity={0.85}
       onPress={() => onOpen(String(mock.id))}
     >
-<View style={mockLibraryStyles.mockCardTop}>
-<View style={[mockLibraryStyles.examTag, { backgroundColor: tagBg }]}>
-<Text style={[mockLibraryStyles.examTagText, { color: tagColor }]}>
+      <View style={mockLibraryStyles.mockCardTop}>
+        <View style={[mockLibraryStyles.examTag, { backgroundColor: tagBg }]}>
+          <Text style={[mockLibraryStyles.examTagText, { color: tagColor }]}>
             {examName}
-</Text>
-</View>
- 
+          </Text>
+        </View>
+
         <View
           style={[
             mockLibraryStyles.statusPill,
             { backgroundColor: statusBg(mock.status) },
           ]}
->
-<View
+        >
+          <View
             style={[
               mockLibraryStyles.statusDot,
               { backgroundColor: statusColor(mock.status) },
             ]}
           />
-<Text
+          <Text
             style={[
               mockLibraryStyles.statusText,
               { color: statusColor(mock.status) },
             ]}
->
+          >
             {statusLabel(mock.status)}
-</Text>
-</View>
-</View>
- 
+          </Text>
+        </View>
+      </View>
+
       <Text style={mockLibraryStyles.mockTitle}>
         {mock.title || `${examName} — Custom Mock`}
-</Text>
-<Text style={mockLibraryStyles.mockSubject}>{subjectName}</Text>
- 
+      </Text>
+      <Text style={mockLibraryStyles.mockSubject}>{subjectName}</Text>
+
       <View style={mockLibraryStyles.metaRow}>
-<View style={mockLibraryStyles.metaChip}>
-<Ionicons name="time-outline" size={13} color={COLORS.textMedium} />
-<Text style={mockLibraryStyles.metaChipText}>
+        <View style={mockLibraryStyles.metaChip}>
+          <Ionicons name="time-outline" size={13} color={COLORS.textMedium} />
+          <Text style={mockLibraryStyles.metaChipText}>
             {formatDuration(mock.total_duration_minutes)}
-</Text>
-</View>
- 
+          </Text>
+        </View>
+
         <View style={mockLibraryStyles.metaChip}>
-<Ionicons name="book-outline" size={13} color={COLORS.textMedium} />
-<Text style={mockLibraryStyles.metaChipText}>
+          <Ionicons name="book-outline" size={13} color={COLORS.textMedium} />
+          <Text style={mockLibraryStyles.metaChipText}>
             {mock.question_count ?? 0} Q
-</Text>
-</View>
- 
+          </Text>
+        </View>
+
         <View style={mockLibraryStyles.metaChip}>
-<Ionicons name="stats-chart-outline" size={13} color={COLORS.textMedium} />
-<Text style={mockLibraryStyles.metaChipText}>
+          <Ionicons name="stats-chart-outline" size={13} color={COLORS.textMedium} />
+          <Text style={mockLibraryStyles.metaChipText}>
             {mock.max_score ?? mock.question_count ?? 0} Marks
-</Text>
-</View>
-</View>
- 
+          </Text>
+        </View>
+      </View>
+
       <View
         style={[
           mockLibraryStyles.difficultyBadge,
           { backgroundColor: difficultyBg(mock.difficulty) },
         ]}
->
-<Text
+      >
+        <Text
           style={[
             mockLibraryStyles.difficultyText,
             { color: difficultyColor(mock.difficulty) },
           ]}
->
+        >
           {normalizeDifficulty(mock.difficulty)}
-</Text>
-</View>
- 
+        </Text>
+      </View>
+
       {isCompleted && (
-<View style={mockLibraryStyles.statsRow}>
-<View style={mockLibraryStyles.statItem}>
-<Text style={mockLibraryStyles.statValue}>
+        <View style={mockLibraryStyles.statsRow}>
+          <View style={mockLibraryStyles.statItem}>
+            <Text style={mockLibraryStyles.statValue}>
               {score}/{maxScore}
-</Text>
-<Text style={mockLibraryStyles.statLabel}>Score</Text>
-</View>
-<View style={mockLibraryStyles.statDivider} />
-<View style={mockLibraryStyles.statItem}>
-<Text style={mockLibraryStyles.statValue}>{percentile}%ile</Text>
-<Text style={mockLibraryStyles.statLabel}>Percentile</Text>
-</View>
-<View style={mockLibraryStyles.statDivider} />
-<View style={mockLibraryStyles.statItem}>
-<Text style={mockLibraryStyles.statValue}>{accuracy}%</Text>
-<Text style={mockLibraryStyles.statLabel}>Accuracy</Text>
-</View>
-</View>
+            </Text>
+            <Text style={mockLibraryStyles.statLabel}>Score</Text>
+          </View>
+          <View style={mockLibraryStyles.statDivider} />
+          <View style={mockLibraryStyles.statItem}>
+            <Text style={mockLibraryStyles.statValue}>{percentile}%ile</Text>
+            <Text style={mockLibraryStyles.statLabel}>Percentile</Text>
+          </View>
+          <View style={mockLibraryStyles.statDivider} />
+          <View style={mockLibraryStyles.statItem}>
+            <Text style={mockLibraryStyles.statValue}>{accuracy}%</Text>
+            <Text style={mockLibraryStyles.statLabel}>Accuracy</Text>
+          </View>
+        </View>
       )}
- 
+
       {isCompleted && mock.submitted_at && (
-<Text style={mockLibraryStyles.lastAttempt}>
+        <Text style={mockLibraryStyles.lastAttempt}>
           Last attempt: {formatDate(mock.submitted_at)}
-</Text>
+        </Text>
       )}
       {isInProgress && mock.started_at && (
-<Text style={mockLibraryStyles.lastAttempt}>
+        <Text style={mockLibraryStyles.lastAttempt}>
           Started: {formatDate(mock.started_at)}
-</Text>
+        </Text>
       )}
- 
+
       {(isNotStarted || isInProgress) && (
         <View style={mockLibraryStyles.actionRow}>
           {isNotStarted && (
@@ -319,10 +319,10 @@ const MockCard: React.FC<MockCardProps> = ({
           )}
         </View>
       )}
-</TouchableOpacity>
+    </TouchableOpacity>
   );
 };
- 
+
 /* ============================================================
    Filter Modal
    ============================================================ */
@@ -337,7 +337,7 @@ interface FilterModalProps {
   onApply: () => void;
   onReset: () => void;
 }
- 
+
 const FilterModal: React.FC<FilterModalProps> = ({
   visible,
   onClose,
@@ -355,87 +355,86 @@ const FilterModal: React.FC<FilterModalProps> = ({
         ? selectedExams.filter((x) => x !== e)
         : [...selectedExams, e]
     );
- 
+
   const toggleDiff = (d: NormalizedDifficulty): void =>
     setSelectedDifficulties(
       selectedDifficulties.includes(d)
         ? selectedDifficulties.filter((x) => x !== d)
         : [...selectedDifficulties, d]
     );
- 
+
   const DIFFICULTIES: NormalizedDifficulty[] = ['Easy', 'Medium', 'Hard'];
- 
+
   return (
-<Modal visible={visible} transparent animationType="fade">
-<TouchableWithoutFeedback onPress={onClose}>
-<View style={mockLibraryStyles.modalOverlay}>
-<TouchableWithoutFeedback>
-<View style={mockLibraryStyles.filterPanel}>
-<View style={mockLibraryStyles.filterHeader}>
-<Text style={mockLibraryStyles.filterPanelTitle}>Filters</Text>
-<TouchableOpacity onPress={onReset}>
-<Text style={mockLibraryStyles.filterResetText}>Reset</Text>
-</TouchableOpacity>
-</View>
- 
+    <Modal visible={visible} transparent animationType="fade">
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={mockLibraryStyles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={mockLibraryStyles.filterPanel}>
+              <View style={mockLibraryStyles.filterHeader}>
+                <Text style={mockLibraryStyles.filterPanelTitle}>Filters</Text>
+                <TouchableOpacity onPress={onReset}>
+                  <Text style={mockLibraryStyles.filterResetText}>Reset</Text>
+                </TouchableOpacity>
+              </View>
+
               <Text style={mockLibraryStyles.filterSection}>Exam</Text>
               {availableExams.map((exam) => (
-<TouchableOpacity
+                <TouchableOpacity
                   key={exam}
                   style={mockLibraryStyles.filterCheckRow}
                   onPress={() => toggleExam(exam)}
->
-<View
+                >
+                  <View
                     style={[
                       mockLibraryStyles.checkbox,
                       selectedExams.includes(exam) && mockLibraryStyles.checkboxActive,
                     ]}
->
+                  >
                     {selectedExams.includes(exam) && (
-<Ionicons name="checkmark" size={11} color={COLORS.white} />
+                      <Ionicons name="checkmark" size={11} color={COLORS.white} />
                     )}
-</View>
-<Text style={mockLibraryStyles.filterCheckLabel}>{exam}</Text>
-</TouchableOpacity>
+                  </View>
+                  <Text style={mockLibraryStyles.filterCheckLabel}>{exam}</Text>
+                </TouchableOpacity>
               ))}
- 
+
               <Text style={[mockLibraryStyles.filterSection, { marginTop: 16 }]}>
                 Difficulty
-</Text>
+              </Text>
               {DIFFICULTIES.map((d) => (
-<TouchableOpacity
+                <TouchableOpacity
                   key={d}
                   style={mockLibraryStyles.filterCheckRow}
                   onPress={() => toggleDiff(d)}
->
-<View
+                >
+                  <View
                     style={[
                       mockLibraryStyles.checkbox,
                       selectedDifficulties.includes(d) && mockLibraryStyles.checkboxActive,
                     ]}
->
+                  >
                     {selectedDifficulties.includes(d) && (
-<Ionicons name="checkmark" size={11} color={COLORS.white} />
+                      <Ionicons name="checkmark" size={11} color={COLORS.white} />
                     )}
-</View>
-<Text style={mockLibraryStyles.filterCheckLabel}>{d}</Text>
-</TouchableOpacity>
+                  </View>
+                  <Text style={mockLibraryStyles.filterCheckLabel}>{d}</Text>
+                </TouchableOpacity>
               ))}
- 
+
               <TouchableOpacity style={mockLibraryStyles.applyBtn} onPress={onApply}>
-<Text style={mockLibraryStyles.applyBtnText}>Apply Filters</Text>
-</TouchableOpacity>
-</View>
-</TouchableWithoutFeedback>
-</View>
-</TouchableWithoutFeedback>
-</Modal>
+                <Text style={mockLibraryStyles.applyBtnText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
   );
 };
- 
-/* ============================================================
-   Request Mock Test Modal
-   ============================================================ */
+
+   // Request Mock Test Modal
+   
 interface DifficultyOption {
   value: 'easy' | 'medium' | 'hard' | 'any';
   label: string;
@@ -896,16 +895,14 @@ const RequestMockModal: React.FC<RequestMockModalProps> = ({
   );
 };
 
-/* ============================================================
-   Sort Dropdown
-   ============================================================ */
+// Sort Dropdown
 interface SortDropdownProps {
   visible: boolean;
   selected: string;
   onSelect: (v: string) => void;
   onClose: () => void;
 }
- 
+
 const SortDropdown: React.FC<SortDropdownProps> = ({
   visible,
   selected,
@@ -914,12 +911,12 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
 }) => {
   if (!visible) return null;
   return (
-<TouchableWithoutFeedback onPress={onClose}>
-<View style={mockLibraryStyles.sortOverlay}>
-<TouchableWithoutFeedback>
-<View style={mockLibraryStyles.sortDropdown}>
+    <TouchableWithoutFeedback onPress={onClose}>
+      <View style={mockLibraryStyles.sortOverlay}>
+        <TouchableWithoutFeedback>
+          <View style={mockLibraryStyles.sortDropdown}>
             {(SORT_OPTIONS as readonly string[]).map((opt) => (
-<TouchableOpacity
+              <TouchableOpacity
                 key={opt}
                 style={[
                   mockLibraryStyles.sortOption,
@@ -929,31 +926,31 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
                   onSelect(opt);
                   onClose();
                 }}
->
-<Text
+              >
+                <Text
                   style={[
                     mockLibraryStyles.sortOptionText,
                     opt === selected && mockLibraryStyles.sortOptionTextActive,
                   ]}
->
+                >
                   {opt}
-</Text>
-</TouchableOpacity>
+                </Text>
+              </TouchableOpacity>
             ))}
-</View>
-</TouchableWithoutFeedback>
-</View>
-</TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
- 
+
 /* ============================================================
    Empty State
    ============================================================ */
 const EmptyState: React.FC<{ message: string }> = ({ message }) => (
-<View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 }}>
-<Ionicons name="document-text-outline" size={48} color={COLORS.textLight} />
-<Text
+  <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 }}>
+    <Ionicons name="document-text-outline" size={48} color={COLORS.textLight} />
+    <Text
       style={{
         fontSize: 16,
         fontWeight: '600',
@@ -961,17 +958,17 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
         marginTop: 16,
         textAlign: 'center',
       }}
->
+    >
       {message}
-</Text>
-</View>
+    </Text>
+  </View>
 );
- 
+
 /* ============================================================
    Main Screen
    ============================================================ */
 type TabKey = 'all' | 'attempts' | 'requests';
- 
+
 export default function MockLibrary() {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [profileOpen, setProfileOpen] = useState<boolean>(false);
@@ -983,8 +980,8 @@ export default function MockLibrary() {
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<
     NormalizedDifficulty[]
->([]);
- 
+  >([]);
+
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -993,10 +990,10 @@ export default function MockLibrary() {
   const [requestVisible, setRequestVisible] = useState<boolean>(false);
   const [selectedMock, setSelectedMock] = useState<MockTest | null>(null);
   const [resumeMock, setResumeMock] = useState<MockTest | null>(null);
- 
+
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
- 
+
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => setDebouncedSearch(searchText), 400);
@@ -1004,20 +1001,20 @@ export default function MockLibrary() {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
   }, [searchText]);
- 
+
   const loadMocks = useCallback(async (isRefresh = false): Promise<void> => {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
- 
+
       const response = await getMockTestsService();
- 
+
       // Robust parsing — service return shape can vary
       const r = response as unknown as {
         data?: MockTest[] | { results?: MockTest[] };
         results?: MockTest[];
       };
- 
+
       let data: MockTest[] = [];
       if (Array.isArray(r?.data)) {
         data = r.data;
@@ -1026,7 +1023,7 @@ export default function MockLibrary() {
       } else if (Array.isArray(r?.results)) {
         data = r.results;
       }
- 
+
       setAllMocks(data);
     } catch (err) {
       const message =
@@ -1038,7 +1035,7 @@ export default function MockLibrary() {
       setRefreshing(false);
     }
   }, []);
- 
+
   useEffect(() => {
     loadMocks();
   }, [loadMocks]);
@@ -1047,57 +1044,57 @@ export default function MockLibrary() {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (requestVisible) { setRequestVisible(false); return true; }
-      if (filterVisible)  { setFilterVisible(false); return true; }
-      if (sortVisible)    { setSortVisible(false);   return true; }
-      if (drawerOpen)     { setDrawerOpen(false);    return true; }
-      if (profileOpen)    { setProfileOpen(false);   return true; }
-      if (resumeMock)     { setResumeMock(null);     return true; }
-      if (selectedMock)   { setSelectedMock(null);   return true; }
+      if (filterVisible) { setFilterVisible(false); return true; }
+      if (sortVisible) { setSortVisible(false); return true; }
+      if (drawerOpen) { setDrawerOpen(false); return true; }
+      if (profileOpen) { setProfileOpen(false); return true; }
+      if (resumeMock) { setResumeMock(null); return true; }
+      if (selectedMock) { setSelectedMock(null); return true; }
       return false;
     });
     return () => sub.remove();
   }, [requestVisible, filterVisible, sortVisible, drawerOpen, profileOpen, resumeMock, selectedMock]);
- 
+
   const availableExams = useMemo<string[]>(() => {
     return Array.from(
       new Set(allMocks.map((m) => getExamName(m.exam)).filter(Boolean))
     );
   }, [allMocks]);
- 
+
   const filteredMocks = useMemo<MockTest[]>(() => {
     const q = debouncedSearch.toLowerCase();
- 
+
     const filtered = allMocks.filter((m) => {
       const examName = getExamName(m.exam);
       const subjectName = getSubjectName(m.subject);
- 
+
       const matchesTab: boolean =
         activeTab === 'all' ||
         (activeTab === 'attempts' && m.status !== 'NOT_STARTED') ||
         activeTab === 'requests';
- 
+
       const matchesSearch: boolean =
         !q ||
         (m.title ?? '').toLowerCase().includes(q) ||
         subjectName.toLowerCase().includes(q) ||
         examName.toLowerCase().includes(q);
- 
+
       const matchesExam: boolean =
         selectedExams.length === 0 || selectedExams.includes(examName);
- 
+
       const matchesDiff: boolean =
         selectedDifficulties.length === 0 ||
         selectedDifficulties.includes(normalizeDifficulty(m.difficulty));
- 
+
       return matchesTab && matchesSearch && matchesExam && matchesDiff;
     });
- 
+
     const order: Record<NormalizedDifficulty, number> = {
       Easy: 0,
       Medium: 1,
       Hard: 2,
     };
- 
+
     return [...filtered].sort((a, b) => {
       switch (selectedSort) {
         case 'Oldest First':
@@ -1126,11 +1123,11 @@ export default function MockLibrary() {
     selectedDifficulties,
     selectedSort,
   ]);
- 
+
   const totalCount = allMocks.length;
   const attempted = allMocks.filter((m) => m.status !== 'NOT_STARTED').length;
   const activeFilterCount = selectedExams.length + selectedDifficulties.length;
- 
+
   const handleOpen = (id: string): void => {
     const mock = allMocks.find((m) => String(m.id) === id);
     if (mock) setSelectedMock(mock);
@@ -1145,12 +1142,12 @@ export default function MockLibrary() {
     const mock = allMocks.find((m) => String(m.id) === id);
     if (mock) setResumeMock(mock);
   };
- 
+
   const resetFilters = (): void => {
     setSelectedExams([]);
     setSelectedDifficulties([]);
   };
- 
+
   const TABS: readonly TabKey[] = ['all', 'attempts', 'requests'] as const;
 
   if (resumeMock) {
@@ -1179,9 +1176,9 @@ export default function MockLibrary() {
   }
 
   return (
-<SafeAreaView style={mockLibraryStyles.safeArea}>
-<StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-<Header
+    <SafeAreaView style={mockLibraryStyles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <Header
         onMenuPress={() => setDrawerOpen(true)}
         onProfilePress={() => setProfileOpen(!profileOpen)}
       />
@@ -1190,168 +1187,168 @@ export default function MockLibrary() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-      <ScrollView
-        style={mockLibraryStyles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={mockLibraryStyles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-<RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => loadMocks(true)}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
-          />
-        }
->
-<View style={mockLibraryStyles.pageHeader}>
-<View style={{ flex: 1 }}>
-<Text style={mockLibraryStyles.pageTitle}>Mock Library</Text>
-<Text style={mockLibraryStyles.pageSubtitle}>
-              {totalCount} mock tests · {attempted} attempted
-</Text>
-</View>
-<TouchableOpacity
-            style={mockLibraryStyles.requestBtn}
-            onPress={() => setRequestVisible(true)}
-          >
-<Ionicons name="add" size={16} color={COLORS.white} />
-<Text style={mockLibraryStyles.requestBtnText}>Request Mock</Text>
-</TouchableOpacity>
-</View>
- 
-        <View style={mockLibraryStyles.searchBox}>
-<Ionicons name="search-outline" size={16} color={COLORS.textLight} />
-<TextInput
-            style={mockLibraryStyles.searchInput}
-            placeholder="Search mocks, topic..."
-            placeholderTextColor={COLORS.textLight}
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-          {searchText.length > 0 && (
-<TouchableOpacity onPress={() => setSearchText('')}>
-<Ionicons name="close-circle" size={16} color={COLORS.textLight} />
-</TouchableOpacity>
-          )}
-</View>
- 
-        <View style={mockLibraryStyles.tabRow}>
-          {TABS.map((tab) => (
-<TouchableOpacity
-              key={tab}
-              style={[mockLibraryStyles.tab, activeTab === tab && mockLibraryStyles.tabActive]}
-              onPress={() => setActiveTab(tab)}
->
-<Text
-                style={[
-                  mockLibraryStyles.tabText,
-                  activeTab === tab && mockLibraryStyles.tabTextActive,
-                ]}
->
-                {tab === 'all' ? 'All Mocks' : tab === 'attempts' ? 'My Attempts' : 'My Requests'}
-</Text>
-              {tab === 'requests' && (
-<View style={mockLibraryStyles.tabBadge}>
-<Text style={mockLibraryStyles.tabBadgeText}>{totalCount}</Text>
-</View>
-              )}
-</TouchableOpacity>
-          ))}
-</View>
- 
-        <View style={mockLibraryStyles.filterBar}>
-<TouchableOpacity
-            style={[
-              mockLibraryStyles.filterBtn,
-              activeFilterCount > 0 && mockLibraryStyles.filterBtnActive,
-            ]}
-            onPress={() => setFilterVisible(true)}
->
-<Ionicons
-              name="options-outline"
-              size={15}
-              color={activeFilterCount > 0 ? COLORS.primary : COLORS.textMedium}
+        <ScrollView
+          style={mockLibraryStyles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={mockLibraryStyles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadMocks(true)}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
             />
-<Text
+          }
+        >
+          <View style={mockLibraryStyles.pageHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={mockLibraryStyles.pageTitle}>Mock Library</Text>
+              <Text style={mockLibraryStyles.pageSubtitle}>
+                {totalCount} mock tests · {attempted} attempted
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={mockLibraryStyles.requestBtn}
+              onPress={() => setRequestVisible(true)}
+            >
+              <Ionicons name="add" size={16} color={COLORS.white} />
+              <Text style={mockLibraryStyles.requestBtnText}>Add Mock</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={mockLibraryStyles.searchBox}>
+            <Ionicons name="search-outline" size={16} color={COLORS.textLight} />
+            <TextInput
+              style={mockLibraryStyles.searchInput}
+              placeholder="Search mocks, topic..."
+              placeholderTextColor={COLORS.textLight}
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+            {searchText.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchText('')}>
+                <Ionicons name="close-circle" size={16} color={COLORS.textLight} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={mockLibraryStyles.tabRow}>
+            {TABS.map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[mockLibraryStyles.tab, activeTab === tab && mockLibraryStyles.tabActive]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text
+                  style={[
+                    mockLibraryStyles.tabText,
+                    activeTab === tab && mockLibraryStyles.tabTextActive,
+                  ]}
+                >
+                  {tab === 'all' ? 'All Mocks' : tab === 'attempts' ? 'My Attempts' : 'My Requests'}
+                </Text>
+                {tab === 'requests' && (
+                  <View style={mockLibraryStyles.tabBadge}>
+                    <Text style={mockLibraryStyles.tabBadgeText}>{totalCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={mockLibraryStyles.filterBar}>
+            <TouchableOpacity
               style={[
-                mockLibraryStyles.filterBtnText,
-                activeFilterCount > 0 && { color: COLORS.primary },
+                mockLibraryStyles.filterBtn,
+                activeFilterCount > 0 && mockLibraryStyles.filterBtnActive,
               ]}
->
-              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-</Text>
-</TouchableOpacity>
- 
-          <TouchableOpacity
-            style={mockLibraryStyles.sortBtn}
-            onPress={() => setSortVisible(!sortVisible)}
->
-<Text style={mockLibraryStyles.sortBtnText}>{selectedSort}</Text>
-<Ionicons
-              name={sortVisible ? 'chevron-up' : 'chevron-down'}
-              size={14}
-              color={COLORS.textMedium}
+              onPress={() => setFilterVisible(true)}
+            >
+              <Ionicons
+                name="options-outline"
+                size={15}
+                color={activeFilterCount > 0 ? COLORS.primary : COLORS.textMedium}
+              />
+              <Text
+                style={[
+                  mockLibraryStyles.filterBtnText,
+                  activeFilterCount > 0 && { color: COLORS.primary },
+                ]}
+              >
+                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={mockLibraryStyles.sortBtn}
+              onPress={() => setSortVisible(!sortVisible)}
+            >
+              <Text style={mockLibraryStyles.sortBtnText}>{selectedSort}</Text>
+              <Ionicons
+                name={sortVisible ? 'chevron-up' : 'chevron-down'}
+                size={14}
+                color={COLORS.textMedium}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {sortVisible && (
+            <SortDropdown
+              visible={sortVisible}
+              selected={selectedSort}
+              onSelect={setSelectedSort}
+              onClose={() => setSortVisible(false)}
             />
-</TouchableOpacity>
-</View>
- 
-        {sortVisible && (
-<SortDropdown
-            visible={sortVisible}
-            selected={selectedSort}
-            onSelect={setSelectedSort}
-            onClose={() => setSortVisible(false)}
-          />
-        )}
- 
-        {loading && (
-<View style={{ paddingTop: 48, alignItems: 'center' }}>
-<ActivityIndicator size="large" color={COLORS.primary} />
-<Text style={{ marginTop: 12, color: COLORS.textLight, fontSize: 13 }}>
-              Loading mock tests...
-</Text>
-</View>
-        )}
- 
-        {!loading && error && (
-<View style={{ alignItems: 'center', paddingTop: 48, paddingHorizontal: 24 }}>
-<Ionicons name="wifi-outline" size={40} color={COLORS.red} />
-<Text style={{ color: COLORS.red, fontSize: 14, marginTop: 12, textAlign: 'center' }}>
-              {error}
-</Text>
-<TouchableOpacity
-              style={[mockLibraryStyles.startBtn, { marginTop: 16, paddingHorizontal: 28 }]}
-              onPress={() => loadMocks()}
->
-<Text style={mockLibraryStyles.startBtnText}>Retry</Text>
-</TouchableOpacity>
-</View>
-        )}
- 
-        {!loading && !error && (
-<Text style={mockLibraryStyles.resultsCount}>
-            {filteredMocks.length} mocks found
-</Text>
-        )}
- 
-        {!loading && !error && filteredMocks.length === 0 && (
-<EmptyState message="No mock tests found. Try adjusting your filters or search." />
-        )}
- 
-        {!loading &&
-          !error &&
-          filteredMocks.map((mock) => (
-<MockCard
-              key={String(mock.id)}
-              mock={mock}
-              onOpen={handleOpen}
-              onStart={handleStart}
-              onResume={handleResume}
-              actionLoadingId={actionLoadingId}
-            />
-          ))}
-</ScrollView>
+          )}
+
+          {loading && (
+            <View style={{ paddingTop: 48, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={{ marginTop: 12, color: COLORS.textLight, fontSize: 13 }}>
+                Loading mock tests...
+              </Text>
+            </View>
+          )}
+
+          {!loading && error && (
+            <View style={{ alignItems: 'center', paddingTop: 48, paddingHorizontal: 24 }}>
+              <Ionicons name="wifi-outline" size={40} color={COLORS.red} />
+              <Text style={{ color: COLORS.red, fontSize: 14, marginTop: 12, textAlign: 'center' }}>
+                {error}
+              </Text>
+              <TouchableOpacity
+                style={[mockLibraryStyles.startBtn, { marginTop: 16, paddingHorizontal: 28 }]}
+                onPress={() => loadMocks()}
+              >
+                <Text style={mockLibraryStyles.startBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!loading && !error && (
+            <Text style={mockLibraryStyles.resultsCount}>
+              {filteredMocks.length} mocks found
+            </Text>
+          )}
+
+          {!loading && !error && filteredMocks.length === 0 && (
+            <EmptyState message="No mock tests found. Try adjusting your filters or search." />
+          )}
+
+          {!loading &&
+            !error &&
+            filteredMocks.map((mock) => (
+              <MockCard
+                key={String(mock.id)}
+                mock={mock}
+                onOpen={handleOpen}
+                onStart={handleStart}
+                onResume={handleResume}
+                actionLoadingId={actionLoadingId}
+              />
+            ))}
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <FilterModal
@@ -1373,7 +1370,7 @@ export default function MockLibrary() {
       />
 
       <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-<ProfileMenu visible={profileOpen} onClose={() => setProfileOpen(false)} />
-</SafeAreaView>
+      <ProfileMenu visible={profileOpen} onClose={() => setProfileOpen(false)} />
+    </SafeAreaView>
   );
 }

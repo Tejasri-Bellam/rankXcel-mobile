@@ -45,7 +45,7 @@ console.log('d', data);
       console.log("Access token stored successfully:", data?.token);
     }
 
-      router.push('/dashboard');
+      router.push('/welcome');
     } 
     catch (error: any) {
       Alert.alert(

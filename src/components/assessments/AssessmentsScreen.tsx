@@ -125,7 +125,7 @@ export default function AssessmentsScreen() {
 
   const getButtonLabel = (t: TabType) => {
     switch (t) {
-      case 'live': return 'Resume';
+      case 'live': return 'Start';
       case 'completed': return 'Re-attempt';
       case 'missed': return 'Retry';
       default: return 'Start';

@@ -82,6 +82,26 @@ export async function getExamTreeService(
   );
 }
 
+// Get Subjects for an Exam
+export async function getExamSubjectsService(
+  examId: number | string
+) {
+  return await genericGet(
+    `/v1/exams/${examId}/subjects/`,
+    true
+  );
+}
+
+// Get Chapters for a Subject
+export async function getSubjectChaptersService(
+  subjectId: number | string
+) {
+  return await genericGet(
+    `/v1/subjects/${subjectId}/chapters/`,
+    true
+  );
+}
+
 // Get Notifications
 export async function getNotificationsService() {
   return await genericGet(
