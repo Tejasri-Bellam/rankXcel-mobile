@@ -42,8 +42,8 @@ export const WelcomeJson = () => {
     },
 
     routes: {
-      onboarding: '../onboarding' as const,
-      dashboard: '../dashboard' as const,
+      onboarding: '/onboarding' as const,
+      dashboard: '/dashboard' as const,
     },
   };
 };

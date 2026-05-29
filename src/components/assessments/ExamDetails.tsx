@@ -48,18 +48,19 @@ export default function ExamDetails({ item, onBack }: Props) {
   const [timeTaken, setTimeTaken] = useState(0);
   const [startLoading, setStartLoading] = useState(false);
 
+  const status = item?.derived_status ?? item?.student_status;
+
   const [showInstructions, setShowInstructions] = useState(true);
   const [accepted, setAccepted] = useState(false);
   const [requireConfirmation, setRequireConfirmation] = useState(
-    item?.student_status === 'completed' ||
-    item?.student_status === 'missed'
+    status === 'completed' || status === 'missed'
   );
 
-  const isCompleted  = item?.latest_attempt_status === 'SUBMITTED';
+  const isCompleted  = item?.latest_attempt_status === 'SUBMITTED' || status === 'completed';
   const isInProgress = item?.latest_attempt_status === 'IN_PROGRESS';
-  const isMissed     = item?.student_status === 'missed';
-  const isLive       = item?.student_status === 'live';
-  const isUpcoming   = item?.student_status === 'upcoming';
+  const isMissed     = status === 'missed';
+  const isLive       = status === 'live';
+  const isUpcoming   = status === 'upcoming';
 
   // Reflect the current sub-view in the URL.
   useEffect(() => {
