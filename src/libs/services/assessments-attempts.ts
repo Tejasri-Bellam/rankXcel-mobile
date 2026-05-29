@@ -52,3 +52,10 @@ export async function getassessmentResultService(attemptId: number) {
 export async function getassessmentSolutionsService(id: number) {
   return await genericGet(`/v1/questions/${id}/solutions/`, true);
 }
+
+// Detailed Analysis
+export async function getAssessmentDetailedAnalysisService(
+  id: number | string
+) {
+  return await genericGet(`/v1/assessment-attempts/${id}/detailed-analysis/`, true);
+}

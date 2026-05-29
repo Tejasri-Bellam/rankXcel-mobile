@@ -17,17 +17,17 @@ export default function Index() {
     })();
   }, []);
 
-  if (checking) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
+  // if (checking) {
+  //   return (
+  //     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white }}>
+  //       <ActivityIndicator size="large" color={COLORS.primary} />
+  //     </View>
+  //   );
+  // }
 
-  if (hasToken) {
-    return <Redirect href="/dashboard" />;
-  }
+  // if (hasToken) {
+  //   return <Redirect href="/dashboard" />;
+  // }
 
   return <HomeScreen />;
 }

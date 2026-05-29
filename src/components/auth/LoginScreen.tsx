@@ -66,7 +66,7 @@ console.log('d', data);
       <ScrollView style={loginStyles.container}>
         <TouchableOpacity
           style={loginStyles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push("/")}
         >
           <Text style={loginStyles.backButtonText}>← Back</Text>
         </TouchableOpacity>

@@ -36,20 +36,27 @@ export default function MockExamNavigator({
   }, []);
 
   const normalizeQuestion = (q: any): any | null => {
-    if (!q || q.id == null) return null;
-    const choices = q.choices ?? q.options ?? q.answer_options ?? [];
+    // The mock-test-questions endpoint wraps each question; q.id is the
+    // junction-row id, not the real question id. The backend's per-response
+    // endpoint expects the real question id, so prefer question_id / question.id.
+    const realId = q?.question_id ?? q?.question?.id ?? q?.id;
+    if (!q || realId == null) return null;
+    const inner = q?.question ?? q;
+    const choices = inner.choices ?? inner.options ?? inner.answer_options
+      ?? q.choices ?? q.options ?? q.answer_options ?? [];
     return {
-      id: q.id,
-      text: q.question_text ?? q.text ?? q.statement ?? '',
-      type: q.question_type ?? q.type ?? 'MCQ',
+      id: realId,
+      text: inner.question_text ?? inner.text ?? inner.statement
+        ?? q.question_text ?? q.text ?? q.statement ?? '',
+      type: inner.question_type ?? inner.type ?? q.question_type ?? q.type ?? 'MCQ',
       options: (Array.isArray(choices) ? choices : []).map((c: any) => ({
         id: String(c?.id ?? c?.value ?? ''),
         text: c?.text ?? c?.label ?? String(c ?? ''),
       })),
-      marks_correct: q.marks_correct ?? 4,
-      marks_incorrect: q.marks_incorrect ?? -1,
-      chapter_name: q.chapter_name ?? q.chapter ?? null,
-      subject: q.subject_name ?? q.subject ?? null,
+      marks_correct: q.marks_correct ?? inner.marks_correct ?? 4,
+      marks_incorrect: q.marks_incorrect ?? inner.marks_incorrect ?? -1,
+      chapter_name: q.chapter_name ?? q.chapter ?? inner.chapter_name ?? inner.chapter ?? null,
+      subject: q.subject_name ?? q.subject ?? inner.subject_name ?? inner.subject ?? null,
       selected_options: q.selected_options ?? q.selected_choices ?? q.response?.selected_options,
     };
   };

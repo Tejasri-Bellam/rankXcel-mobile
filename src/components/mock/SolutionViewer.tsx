@@ -29,110 +29,38 @@ const RED   = '#EF4444';
 const GRAY  = '#9898B0';
 const ACCENT_BORDER = '#6C5CE7';
 
-const normalizeQuestion = (q: any, sectionName?: string): any | null => {
-  const id = q?.id ?? q?.question_id;
-  if (id == null) return null;
+const getQuestionId = (q: any): string | number | undefined =>
+  q?.question_id ?? q?.id;
 
-  const rawChoices: any[] = Array.isArray(q.choices)
-    ? q.choices
-    : Array.isArray(q.options)
-      ? q.options
-      : Array.isArray(q.answer_options)
-        ? q.answer_options
-        : [];
+const getChoices = (q: any): any[] =>
+  Array.isArray(q?.choices) ? q.choices
+    : Array.isArray(q?.options) ? q.options
+    : [];
 
-  // Sort by sort_order if present, so A/B/C/D stays consistent with admin order.
-  const sortedChoices = [...rawChoices].sort(
-    (a, b) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0),
-  );
+const correctIdsFor = (q: any): string[] => {
+  const topLevel =
+    q?.correct_answers ?? q?.correct_options ?? q?.correct_choice_ids ?? null;
+  if (Array.isArray(topLevel) && topLevel.length > 0) {
+    return topLevel.map((v: any) => String(v?.id ?? v));
+  }
+  return getChoices(q)
+    .filter((o: any) => o?.is_correct === true || o?.correct === true)
+    .map((o: any) => String(o.id));
+};
 
-  // correct_answers can come from either a top-level array or be derived
-  // from each choice's is_correct flag (the shape /review/ actually returns).
-  const correctFromChoices = sortedChoices
-    .filter((c: any) => c?.is_correct === true)
-    .map((c: any) => String(c.id));
-  const correctTopLevel =
-    q.correct_answers ?? q.correct_options ?? q.correct_choice_ids ?? null;
-  const correct = Array.isArray(correctTopLevel) && correctTopLevel.length > 0
-    ? correctTopLevel
-    : correctFromChoices;
-
-  // selected_options: prefer top-level fields, fall back to your_answer.selected_choice_ids.
-  const selectedRaw =
-    q.selected_options ??
-    q.selected_choice_ids ??
-    q.response?.selected_choice_ids ??
-    q.your_answer?.selected_choice_ids ??
+const selectedIdsFor = (q: any): string[] => {
+  const raw =
+    q?.your_answer?.selected_choice_ids ??
+    q?.selected_options ??
+    q?.selected_choice_ids ??
+    q?.response?.selected_choice_ids ??
     [];
-
-  // Explanation: top-level, or pull from the correct choice's explanation.
-  const correctChoice = sortedChoices.find((c: any) => c?.is_correct === true);
-  const choiceExplanation = correctChoice?.explanation
-    ? stripHtml(correctChoice.explanation)
-    : null;
-
-  return {
-    id,
-    text: stripHtml(q.question_text ?? q.text ?? q.statement ?? ''),
-    type: q.question_type ?? q.type ?? 'MCQ',
-    options: sortedChoices.map((c: any) => ({
-      id: String(c?.id ?? c?.value ?? ''),
-      text: stripHtml(c?.text ?? c?.label ?? String(c ?? '')),
-    })),
-    marks_correct: Number(q.max_score ?? q.marks_correct ?? 4),
-    marks_incorrect: Number(
-      q.marks_incorrect ?? q.marks_wrong ?? q.negative_marks ?? -1,
-    ),
-    correct_answers: correct.map((v: any) => String(v)),
-    selected_options: (Array.isArray(selectedRaw) ? selectedRaw : []).map((v: any) => String(v)),
-    explanation: q.explanation || choiceExplanation || null,
-    sectionName: sectionName ?? q.subject_name ?? q.subject ?? null,
-    outcome: q.outcome ?? null,
-    score_earned: q.score_earned ?? null,
-  };
+  return (Array.isArray(raw) ? raw : []).map((v: any) => String(v?.id ?? v));
 };
 
-const looksLikeQuestion = (o: any): boolean =>
-  !!o && typeof o === 'object' && (o.id != null || o.question_id != null) &&
-  (typeof o.question_text === 'string' ||
-    typeof o.text === 'string' ||
-    typeof o.statement === 'string' ||
-    Array.isArray(o.choices) ||
-    Array.isArray(o.options));
-
-const findQuestionsArray = (node: any, depth = 0): any[] | null => {
-  if (!node || depth > 6) return null;
-  if (Array.isArray(node) && node.length > 0 && node.every(looksLikeQuestion)) return node;
-  if (typeof node === 'object') {
-    for (const key of Object.keys(node)) {
-      const found = findQuestionsArray(node[key], depth + 1);
-      if (found) return found;
-    }
-  }
-  return null;
-};
-
-const extractQuestionsFromReview = (raw: any): any[] => {
-  if (!raw) return [];
-  // 1) Pre-grouped sections (assessments shape).
-  if (Array.isArray(raw?.sections) && raw.sections.length > 0) {
-    return raw.sections.flatMap((s: any) =>
-      (s.questions ?? s.question ?? [])
-        .map((q: any) => normalizeQuestion(q, s?.name ?? s?.subject_name))
-        .filter(Boolean),
-    );
-  }
-  // 2) Flat list at common keys.
-  for (const key of ['questions', 'results', 'question_breakdown', 'data']) {
-    const arr = raw?.[key];
-    if (Array.isArray(arr) && arr.length > 0 && arr.every(looksLikeQuestion)) {
-      return arr.map((q: any) => normalizeQuestion(q)).filter(Boolean);
-    }
-  }
-  // 3) Anywhere nested.
-  const found = findQuestionsArray(raw);
-  if (found) return found.map((q) => normalizeQuestion(q)).filter(Boolean);
-  return [];
+const getChoiceExplanation = (q: any): string | null => {
+  const correct = getChoices(q).find((c: any) => c?.is_correct === true);
+  return correct?.explanation ? String(correct.explanation) : null;
 };
 
 export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
@@ -145,9 +73,15 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
 
   useEffect(() => { loadReview(); }, []);
 
+  const questions: any[] = reviewData?.questions ?? [];
+
   const allQuestions = useMemo(
-    () => extractQuestionsFromReview(reviewData),
-    [reviewData]
+    () =>
+      questions.map((q: any) => ({
+        ...q,
+        sectionName: q?.section_name ?? q?.subject_name ?? q?.subject ?? '',
+      })),
+    [questions]
   );
 
   const totalQ = allQuestions.length;
@@ -157,32 +91,27 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
       setLoading(true);
       const res = await getMockTestReviewService(mockId);
       console.log('MOCK REVIEW API:', JSON.stringify(res, null, 2));
-      // The API wrapper may return { data: ... } or the payload directly.
-      const data: any = (res as any)?.data ?? res ?? null;
+      const data: any = res?.data ?? null;
       setReviewData(data);
 
-      const qs = extractQuestionsFromReview(data);
-      console.log(
-        'MOCK NORMALIZED QUESTIONS:',
-        qs.length,
-        qs[0] ? {
-          id: qs[0].id,
-          textPreview: qs[0].text?.slice(0, 60),
-          options: qs[0].options?.length,
-          correct: qs[0].correct_answers,
-          selected: qs[0].selected_options,
-          outcome: qs[0].outcome,
-        } : 'no questions',
-      );
-      if (qs.length > 0) {
+      if (data) {
+        const qs = data?.questions ?? [];
+
         const results = await Promise.allSettled(
-          qs.map((q: any) => getQuestionSolutionService(q.id))
+          qs.map((q: any) => {
+            const qid = getQuestionId(q);
+            return qid != null
+              ? getQuestionSolutionService(qid)
+              : Promise.reject(new Error('no question id'));
+          })
         );
+
         const map: Record<string, any> = {};
         qs.forEach((q: any, i: number) => {
           const r = results[i];
-          if (r.status === 'fulfilled' && (r.value as any)?.data) {
-            map[String(q.id)] = (r.value as any).data;
+          const qid = getQuestionId(q);
+          if (qid != null && r.status === 'fulfilled' && (r.value as any)?.data) {
+            map[String(qid)] = (r.value as any).data;
           }
         });
         setSolutionsMap(map);
@@ -217,25 +146,40 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
   }
 
   const currentQ = allQuestions[currentIndex];
+  const currentQId = getQuestionId(currentQ);
+  const currentChoices = getChoices(currentQ);
+  const sortedChoices = [...currentChoices].sort(
+    (a, b) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0)
+  );
 
-  // Prefer answers from props (just-submitted exam), fall back to API selected_options.
-  const userAnswer = (answers[currentQ?.id] && answers[currentQ.id].length > 0)
-    ? answers[currentQ.id]
-    : currentQ?.selected_options ?? [];
+  const correctAnswers = correctIdsFor(currentQ);
+  const apiSelected = selectedIdsFor(currentQ);
 
-  const correctAnswers: string[] = currentQ?.correct_answers ?? [];
+  // Prefer answers from props (just-submitted exam), fall back to API selected.
+  const userAnswer = (currentQId != null && answers[String(currentQId)]?.length)
+    ? answers[String(currentQId)]
+    : apiSelected;
 
-  // Prefer the API's outcome — authoritative.
   const isCorrect = currentQ?.outcome === 'correct' ||
     (currentQ?.outcome == null &&
+      userAnswer.length > 0 &&
       correctAnswers.length === userAnswer.length &&
       correctAnswers.every((a: string) => userAnswer.includes(a)));
   const isSkipped = currentQ?.outcome === 'skipped' ||
     currentQ?.outcome === 'unattempted' ||
     (currentQ?.outcome == null && userAnswer.length === 0);
 
-  const currentSolution = solutionsMap[String(currentQ?.id)];
-  const explanation = currentSolution?.explanation ?? currentSolution?.solution ?? currentQ?.explanation ?? null;
+  const currentSolution = currentQId != null ? solutionsMap[String(currentQId)] : null;
+  const explanation =
+    currentSolution?.explanation ??
+    currentSolution?.solution ??
+    currentQ?.explanation ??
+    getChoiceExplanation(currentQ);
+
+  const questionText = currentQ?.question_text ?? currentQ?.text ?? currentQ?.statement ?? '';
+  const questionType = currentQ?.question_type ?? currentQ?.type ?? 'MCQ';
+  const marksCorrect = Number(currentQ?.max_score ?? currentQ?.marks_correct ?? 4);
+  const marksIncorrect = Number(currentQ?.marks_incorrect ?? -1);
 
   const getOptionState = (optId: string) => {
     const isCorrectOpt = correctAnswers.includes(optId);
@@ -247,14 +191,16 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
 
   const getDotColor = (idx: number) => {
     const q = allQuestions[idx];
-    // Prefer the API's outcome field if present — authoritative.
     if (q?.outcome === 'correct') return GREEN;
     if (q?.outcome === 'wrong')   return RED;
     if (q?.outcome === 'skipped' || q?.outcome === 'unattempted') return GRAY;
 
-    const ua = (answers[q.id]?.length ? answers[q.id] : q.selected_options) ?? [];
+    const qid = getQuestionId(q);
+    const ua = (qid != null && answers[String(qid)]?.length)
+      ? answers[String(qid)]
+      : selectedIdsFor(q);
     if (ua.length === 0) return GRAY;
-    const ca = q.correct_answers ?? [];
+    const ca = correctIdsFor(q);
     const ok = ca.length === ua.length && ca.every((a: string) => ua.includes(a));
     return ok ? GREEN : RED;
   };
@@ -341,36 +287,26 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
             <Text style={styles.qMetaLeft}>Q {currentIndex + 1} of {totalQ}</Text>
             <View style={styles.qTypeBadge}>
               <Text style={styles.qTypeText}>
-                {String(currentQ?.type ?? 'MCQ').toUpperCase()}
+                {String(questionType).toUpperCase()}
               </Text>
             </View>
             <View style={styles.marksInline}>
-              {(() => {
-                const mc = Number(currentQ?.marks_correct ?? 4);
-                const mi = Number(currentQ?.marks_incorrect ?? -1);
-                if (isSkipped) {
-                  return (
-                    <>
-                      <Text style={[styles.marksEarned, styles.marksEarnedSkipped]}>0</Text>
-                      <Text style={styles.marksTotal}>/{mc}</Text>
-                    </>
-                  );
-                }
-                if (isCorrect) {
-                  return (
-                    <>
-                      <Text style={[styles.marksEarned, styles.marksEarnedCorrect]}>+{mc}</Text>
-                      <Text style={styles.marksTotal}>/{mc}</Text>
-                    </>
-                  );
-                }
-                return (
-                  <>
-                    <Text style={[styles.marksEarned, styles.marksEarnedWrong]}>{mi}</Text>
-                    <Text style={styles.marksTotal}>/{mc}</Text>
-                  </>
-                );
-              })()}
+              {isSkipped ? (
+                <>
+                  <Text style={[styles.marksEarned, styles.marksEarnedSkipped]}>0</Text>
+                  <Text style={styles.marksTotal}>/{marksCorrect}</Text>
+                </>
+              ) : isCorrect ? (
+                <>
+                  <Text style={[styles.marksEarned, styles.marksEarnedCorrect]}>+{marksCorrect}</Text>
+                  <Text style={styles.marksTotal}>/{marksCorrect}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.marksEarned, styles.marksEarnedWrong]}>{marksIncorrect}</Text>
+                  <Text style={styles.marksTotal}>/{marksCorrect}</Text>
+                </>
+              )}
             </View>
           </View>
 
@@ -385,14 +321,15 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
               </View>
             )}
 
-            <Text style={styles.questionText}>{stripHtml(currentQ?.text)}</Text>
+            <Text style={styles.questionText}>{stripHtml(questionText)}</Text>
 
-            {currentQ?.options?.map((opt: any, idx: number) => {
-              const state = getOptionState(String(opt.id));
+            {sortedChoices.map((opt: any, idx: number) => {
+              const optId = String(opt?.id ?? opt?.value ?? idx);
+              const state = getOptionState(optId);
               const letter = String.fromCharCode(65 + idx);
               return (
                 <View
-                  key={opt.id}
+                  key={optId}
                   style={[
                     styles.optionRow,
                     state === 'correct' && styles.optionCorrect,
@@ -422,7 +359,7 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
                       state === 'wrong'   && { color: '#991B1B', fontWeight: '600' },
                     ]}
                   >
-                    {stripHtml(opt.text)}
+                    {stripHtml(opt?.text ?? opt?.label)}
                   </Text>
                   {state === 'correct' && <Text style={{ fontSize: 16, color: GREEN }}>✓</Text>}
                   {state === 'wrong'   && <Text style={{ fontSize: 16, color: RED }}>✗</Text>}
@@ -453,32 +390,32 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
                 <View style={styles.explanationBadge}>
                   <Text style={styles.explanationBadgeText}>
                     {(() => {
-                      if (!correctAnswers[0] || !Array.isArray(currentQ?.options)) return '?';
-                      const idx = currentQ.options.findIndex((o: any) => String(o.id) === String(correctAnswers[0]));
+                      if (!correctAnswers[0] || sortedChoices.length === 0) return '?';
+                      const idx = sortedChoices.findIndex((o: any) => String(o?.id) === String(correctAnswers[0]));
                       return idx >= 0 ? String.fromCharCode(65 + idx) : '?';
                     })()}
                   </Text>
                 </View>
                 <Text style={styles.explanationLabel}>EXPLANATION</Text>
-                {explanation?.steps && (
+                {typeof explanation === 'object' && explanation?.steps && (
                   <View style={styles.stepsChip}>
                     <Text style={styles.stepsChipText}>{explanation.steps.length} steps</Text>
                   </View>
                 )}
               </View>
 
-              {explanation?.steps?.map((step: any, i: number) => (
+              {typeof explanation === 'object' && explanation?.steps?.map((step: any, i: number) => (
                 <View key={i} style={styles.explanationStep}>
                   <Text style={styles.stepLabel}>Step {i + 1}. {stripHtml(step.title)}</Text>
                   <Text style={styles.stepBody}>{stripHtml(step.body)}</Text>
                 </View>
               ))}
 
-              {explanation?.summary && (
+              {typeof explanation === 'object' && explanation?.summary && (
                 <Text style={styles.explanationSummary}>{stripHtml(explanation.summary)}</Text>
               )}
 
-              {!explanation?.steps && typeof explanation === 'string' && (
+              {typeof explanation === 'string' && (
                 <Text style={styles.stepBody}>{stripHtml(explanation)}</Text>
               )}
 
@@ -567,3 +504,4 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
     </SafeAreaView>
   );
 }
+ 
