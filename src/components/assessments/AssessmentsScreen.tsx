@@ -1,15 +1,9 @@
-// src/components/assessments/AssessmentsScreen.tsx
-
 import { COLORS } from '@/src/styles/styles';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, StatusBar, TouchableOpacity, View, Text, BackHandler,
+  ActivityIndicator, TouchableOpacity, View, Text, BackHandler,
 } from 'react-native';
 import { FlatList, ScrollView } from 'react-native-gesture-handler';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../common/Header';
-import Sidebar from '../common/Sidebar';
-import { ProfileMenu } from '../common/ProfileMenu';
 import { getassessmentsService } from '@/src/libs/services/assessments';
 import ExamDetails from './ExamDetails';
 import { assessmentsStyles as styles } from '@/src/styles/sidebar/assessmentsStyles';
@@ -50,8 +44,6 @@ export default function AssessmentsScreen() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabType>('live');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
 
@@ -75,13 +67,11 @@ export default function AssessmentsScreen() {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (drawerOpen) { setDrawerOpen(false); return true; }
-      if (profileOpen) { setProfileOpen(false); return true; }
       if (selectedItem) { setSelectedItem(null); return true; }
       return false;
     });
     return () => sub.remove();
-  }, [drawerOpen, profileOpen, selectedItem]);
+  }, [selectedItem]);
 
   // Detail view
   if (selectedItem) {
@@ -169,70 +159,69 @@ export default function AssessmentsScreen() {
     const cfg = TAB_CONFIG[tab];
     const isCompleted = tab === 'completed';
 
-    return (
-      <TouchableOpacity activeOpacity={0.85} onPress={() => setSelectedItem(item)}>
-        <View style={styles.card}>
-          {/* Left accent bar */}
-          <View style={[styles.cardAccentBar, { backgroundColor: cfg.accentColor }]} />
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={() => setSelectedItem(item)}>
+      <View style={styles.card}>
+      {/* Left accent bar */}
+      <View style={[styles.cardAccentBar, { backgroundColor: cfg.accentColor }]} />
 
-          <View style={styles.cardContent}>
-            {/* Status badge pill */}
-            <View style={[styles.badgeChip, { backgroundColor: cfg.accentBg }]}>
-              <View style={[styles.badgeDot, { backgroundColor: cfg.accentColor }]} />
-              <Text style={[styles.badgeText, { color: cfg.accentColor }]}>
-                {cfg.label.toUpperCase()}
-              </Text>
-            </View>
-
-            {/* Title */}
-            <Text style={styles.cardTitle}>{item.name}</Text>
-
-            {/* Subtitle */}
-            <Text style={styles.cardDesc}>
-              {item.exam?.name || item.description || ''}
-            </Text>
-
-            {/* Meta row + action button */}
-            <View style={[styles.metaRow, { justifyContent: 'space-between' }]}>
-              {/* Left: meta info */}
-              <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaIcon}>⏱</Text>
-                  <Text style={styles.metaText}>{item.total_duration_minutes} min</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaIcon}>📋</Text>
-                  <Text style={styles.metaText}>{item.question_count} Q</Text>
-                </View>
-                {isCompleted && (
-                  <View style={styles.metaItem}>
-                    <Text style={styles.metaIcon}>📊</Text>
-                    <Text style={styles.metaText}>
-                      {item.score != null ? `${item.score} Marks` : '0 Marks'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Right: action button */}
-              <TouchableOpacity
-                style={
-                  isCompleted
-                    ? styles.completedBtn
-                    : [styles.primaryBtn, { backgroundColor: getButtonColor(tab) }]
-                }
-                onPress={() => setSelectedItem(item)}
-              >
-                <Text style={isCompleted ? styles.completedBtnText : styles.primaryBtnText}>
-                  {getButtonLabel(tab)}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      <View style={styles.cardContent}>
+      {/* Status badge pill */}
+      <View style={[styles.badgeChip, { backgroundColor: cfg.accentBg }]}>
+        <View style={[styles.badgeDot, { backgroundColor: cfg.accentColor }]} />
+          <Text style={[styles.badgeText, { color: cfg.accentColor }]}>
+            {cfg.label.toUpperCase()}
+          </Text>
         </View>
-      </TouchableOpacity>
-    );
-  };
+
+      {/* Title */}
+      <Text style={styles.cardTitle}>{item.name}</Text>
+
+      {/* Subtitle */}
+      <Text style={styles.cardDesc}>
+        {item.exam?.name || item.description || ''}
+      </Text>
+
+      {/* Meta row + action button */}
+        <View style={[styles.metaRow, { justifyContent: 'space-between' }]}>
+        {/* Left: meta info */}
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <Text style={styles.metaIcon}>⏱</Text>
+              <Text style={styles.metaText}>{item.total_duration_minutes} min</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Text style={styles.metaIcon}>📋</Text>
+              <Text style={styles.metaText}>{item.question_count} Q</Text>
+            </View>
+      {isCompleted && (
+        <View style={styles.metaItem}>
+          <Text style={styles.metaIcon}>📊</Text>
+          <Text style={styles.metaText}>
+            {item.score != null ? `${item.score} Marks` : '0 Marks'}
+          </Text>
+        </View>
+      )}
+          </View>
+
+      `{/* Right: action button */}
+        <TouchableOpacity
+          style={
+            isCompleted
+            ? styles.completedBtn
+            : [styles.primaryBtn, { backgroundColor: getButtonColor(tab) }]
+          }
+            onPress={() => setSelectedItem(item)}>
+          <Text style={isCompleted ? styles.completedBtnText : styles.primaryBtnText}>
+            {getButtonLabel(tab)}
+          </Text>
+        </TouchableOpacity>
+        </View>
+      </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
   // Empty state
   const renderEmpty = () => (
@@ -246,13 +235,7 @@ export default function AssessmentsScreen() {
 
   // Main render
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <Header
-        onMenuPress={() => setDrawerOpen(true)}
-        onProfilePress={() => setProfileOpen(true)}
-      />
-
+    <View style={styles.safeArea}>
       {/* Page title */}
       <View style={styles.pageTitleRow}>
         <Text style={styles.pageTitle}>Assessments</Text>
@@ -291,8 +274,6 @@ export default function AssessmentsScreen() {
         )}
       </View>
 
-      <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <ProfileMenu visible={profileOpen} onClose={() => setProfileOpen(false)} />
-    </SafeAreaView>
+    </View>
   );
 }

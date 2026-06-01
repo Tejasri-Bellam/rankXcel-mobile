@@ -1,13 +1,8 @@
-import React, { useState } from "react";
-import { ActivityIndicator, ScrollView, StatusBar, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React from "react";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { COLORS } from "@/src/styles/styles";
-
-import Header from "../common/Header";
-import Sidebar from "../common/Sidebar";
-import { ProfileMenu } from "../common/ProfileMenu";
 
 import Greeting from "./Greeting";
 import TodaysFocus from "./TodaysFocus";
@@ -18,8 +13,6 @@ import Upcoming from "./Upcoming";
 import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
 
 export default function HomeScreen() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const router = useRouter();
 
   const {
@@ -33,14 +26,7 @@ export default function HomeScreen() {
   } = useDashboard();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-
-      <Header
-        onMenuPress={() => setDrawerOpen(true)}
-        onProfilePress={() => setProfileOpen(!profileOpen)}
-      />
-
+    <View style={styles.safeArea}>
       {isLoading && !dashboardData ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -70,13 +56,7 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       )}
-
-      <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <ProfileMenu
-        visible={profileOpen}
-        onClose={() => setProfileOpen(false)}
-      />
-    </SafeAreaView>
+    </View>
   );
 }
 

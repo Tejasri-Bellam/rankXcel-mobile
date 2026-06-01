@@ -23,14 +23,9 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
-  StatusBar,
   Switch,
 } from 'react-native';
 import { storageSetAccessToken } from '@/src/libs/storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../common/Header';
-import Sidebar from '../common/Sidebar';
-import { ProfileMenu } from '../common/ProfileMenu';
 
 const { width } = Dimensions.get('window');
 
@@ -84,8 +79,6 @@ const LabeledInput = ({
 export default function ProfileScreen() {
   const router = useRouter();
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
@@ -357,24 +350,17 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView
-        style={profileStyles.safeArea}>
+      <View style={profileStyles.safeArea}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={{ marginTop: 12, color: COLORS.textLight }}>Loading profile...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={profileStyles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <Header
-        onMenuPress={() => setDrawerOpen(true)}
-        onProfilePress={() => setProfileOpen(!profileOpen)}
-      />
-
+    <View style={profileStyles.safeArea}>
       <TouchableOpacity
         style={profileStyles.backButton}
         onPress={() => router.back()}
@@ -588,8 +574,7 @@ export default function ProfileScreen() {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <ProfileMenu visible={profileOpen} onClose={() => setProfileOpen(false)} />
-    </SafeAreaView>
+    </View>
   );
 }
+ 

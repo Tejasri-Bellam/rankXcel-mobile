@@ -7,15 +7,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
-  StatusBar,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../common/Header';
-import { ProfileMenu } from '../common/ProfileMenu';
-import Sidebar from '../common/Sidebar';
 import PracticeExamFlow from './PracticeExamFlow';
 import {
   getMyTargetExamsOptionsService,
@@ -137,8 +132,6 @@ const normalizePerformance = (raw: any): SubjectGroup[] => {
 };
 
 export default function PracticeScreen() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<{
     chapterName?: string;
@@ -287,13 +280,7 @@ export default function PracticeScreen() {
   };
 
   return (
-    <SafeAreaView style={practiceStyles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <Header
-        onMenuPress={() => setDrawerOpen(true)}
-        onProfilePress={() => setProfileOpen(!profileOpen)}
-      />
-
+    <View style={practiceStyles.safeArea}>
       <ScrollView
         style={practiceStyles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -550,8 +537,6 @@ export default function PracticeScreen() {
         />
       )}
 
-      <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <ProfileMenu visible={profileOpen} onClose={() => setProfileOpen(false)} />
-    </SafeAreaView>
+    </View>
   );
 }

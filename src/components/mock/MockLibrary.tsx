@@ -9,17 +9,12 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../common/Header';
-import { ProfileMenu } from '../common/ProfileMenu';
-import Sidebar from '../common/Sidebar';
 import { SORT_OPTIONS } from '../json/mockLibrary';
 import { mockLibraryStyles } from '@/src/styles/sidebar/mockExams/mockLibraryStyles';
 import { COLORS } from '@/src/styles/styles';
@@ -965,8 +960,6 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
 type TabKey = 'all' | 'attempts';
 
 export default function MockLibrary() {
-  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
-  const [profileOpen, setProfileOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [searchText, setSearchText] = useState<string>('');
   const [sortVisible, setSortVisible] = useState<boolean>(false);
@@ -1041,14 +1034,12 @@ export default function MockLibrary() {
       if (requestVisible) { setRequestVisible(false); return true; }
       if (filterVisible) { setFilterVisible(false); return true; }
       if (sortVisible) { setSortVisible(false); return true; }
-      if (drawerOpen) { setDrawerOpen(false); return true; }
-      if (profileOpen) { setProfileOpen(false); return true; }
       if (resumeMock) { setResumeMock(null); return true; }
       if (selectedMock) { setSelectedMock(null); return true; }
       return false;
     });
     return () => sub.remove();
-  }, [requestVisible, filterVisible, sortVisible, drawerOpen, profileOpen, resumeMock, selectedMock]);
+  }, [requestVisible, filterVisible, sortVisible, resumeMock, selectedMock]);
 
   const availableExams = useMemo<string[]>(() => {
     return Array.from(
@@ -1170,13 +1161,7 @@ export default function MockLibrary() {
   }
 
   return (
-    <SafeAreaView style={mockLibraryStyles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <Header
-        onMenuPress={() => setDrawerOpen(true)}
-        onProfilePress={() => setProfileOpen(!profileOpen)}
-      />
-
+    <View style={mockLibraryStyles.safeArea}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1361,8 +1346,6 @@ export default function MockLibrary() {
         onCreated={() => loadMocks(true)}
       />
 
-      <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <ProfileMenu visible={profileOpen} onClose={() => setProfileOpen(false)} />
-    </SafeAreaView>
+    </View>
   );
 }
