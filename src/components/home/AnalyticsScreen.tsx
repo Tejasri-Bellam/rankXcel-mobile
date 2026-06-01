@@ -5,15 +5,10 @@ import React, { useState } from 'react';
 import {
     Dimensions,
     ScrollView,
-    StatusBar,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../common/Header';
-import { ProfileMenu } from '../common/ProfileMenu';
-import Sidebar from '../common/Sidebar';
 import { analyticsdata } from '../json/analytics';
 
 const { width } = Dimensions.get('window');
@@ -158,19 +153,13 @@ const ChapterRow = ({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function AnalyticsScreen() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [period, setPeriod] = useState<PeriodType>('30d');
   const analytics = analyticsdata();
   const { scoreData, timeData, subjectSplit, weakChapters, mockHistory, rankProgression } = analytics;
   const periods: PeriodType[] = ['7d', '30d', '90d', 'All'];
 
   return (
-    <SafeAreaView style={analyticsStyles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      <Header
-        onMenuPress={() => setDrawerOpen(true)}
-        onProfilePress={() => {}} /> 
-
+    <View style={analyticsStyles.safeArea}>
       <ScrollView
         style={analyticsStyles.scroll}
         showsVerticalScrollIndicator={false}
@@ -352,15 +341,10 @@ export default function AnalyticsScreen() {
         </View>
       </ScrollView>
 
-      <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-
-        <ProfileMenu
-          visible={false}
-          onClose={() => {}}
-        />
-    </SafeAreaView>
+    </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
+ 
