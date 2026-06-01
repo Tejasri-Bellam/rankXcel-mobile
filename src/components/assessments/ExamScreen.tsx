@@ -457,267 +457,279 @@ export default function ExamScreen({
     (s: any) => s.questions.filter((q: any) => (answers[q.id] || []).length > 0).length
   );
  
-  return (
-<SafeAreaView style={styles.safeArea}>
-<StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
- 
-      {/* Top bar */}
-<View style={styles.topBar}>
-<View style={styles.topLeft}>
-<Text style={styles.examLabel}>Mock Test</Text>
-<Text style={styles.examName}>{exam?.name ?? 'Assessment'}</Text>
-</View>
-<View style={styles.timerBox}>
-<Text style={styles.timerLabel}>TIME LEFT</Text>
-<Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
-</View>
-<TouchableOpacity
-          style={styles.submitTopBtn}
-          onPress={() => setShowSubmitModal(true)}
-          disabled={isSubmitting}
->
-<Text style={styles.submitTopBtnText}>⚑  Submit</Text>
-</TouchableOpacity>
-</View>
- 
-      {/* Tab switch warning */}
-      {showTabWarning && (
-<View style={styles.tabWarningBanner}>
-<Text style={styles.tabWarningIcon}>⚠</Text>
-<Text style={styles.tabWarningText}>
-            Tab switch detected ({tabSwitchCount} time{tabSwitchCount > 1 ? 's' : ''}). This is
-            being recorded.
-</Text>
-</View>
-      )}
- 
-      {/* Section tabs */}
-<View style={styles.sectionTabsRow}>
-        {exam.sections.map((section: any, idx: number) => (
-<TouchableOpacity
-            key={section.id}
-            style={[styles.sectionTab, activeSectionIdx === idx && styles.sectionTabActive]}
-            onPress={() => {
-              setActiveSectionIdx(idx);
-              setActiveQIdx(0);
-            }}
->
-<Text
+ return (
+  <SafeAreaView style={styles.safeArea}>
+    <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+
+    {/* Top bar */}
+    <View style={styles.topBar}>
+      <View style={styles.topLeft}>
+        <Text style={styles.examLabel}>Mock Test</Text>
+        <Text style={styles.examName}>{exam?.name ?? "Assessment"}</Text>
+      </View>
+
+      <View style={styles.timerBox}>
+        <Text style={styles.timerLabel}>TIME LEFT</Text>
+        <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
+      </View>
+
+      <TouchableOpacity
+        style={styles.submitTopBtn}
+        onPress={() => setShowSubmitModal(true)}
+        disabled={isSubmitting}
+      >
+        <Text style={styles.submitTopBtnText}>⚑ Submit</Text>
+      </TouchableOpacity>
+    </View>
+
+    {/* Tab switch warning */}
+    {showTabWarning && (
+      <View style={styles.tabWarningBanner}>
+        <Text style={styles.tabWarningIcon}>⚠</Text>
+        <Text style={styles.tabWarningText}>
+          Tab switch detected ({tabSwitchCount} time
+          {tabSwitchCount > 1 ? "s" : ""}). This is being recorded.
+        </Text>
+      </View>
+    )}
+
+    {/* Section tabs */}
+    <View style={styles.sectionTabsRow}>
+      {exam.sections.map((section: any, idx: number) => (
+        <TouchableOpacity
+          key={section.id}
+          style={[
+            styles.sectionTab,
+            activeSectionIdx === idx && styles.sectionTabActive,
+          ]}
+          onPress={() => {
+            setActiveSectionIdx(idx);
+            setActiveQIdx(0);
+          }}
+        >
+          <Text
+            style={[
+              styles.sectionTabText,
+              activeSectionIdx === idx && styles.sectionTabTextActive,
+            ]}
+          >
+            {section.name}
+          </Text>
+
+          <Text
+            style={[
+              styles.sectionTabCount,
+              activeSectionIdx === idx && styles.sectionTabCountActive,
+            ]}
+          >
+            {sectionAnswered[idx]}/
+            {section.total_questions ?? section.questions?.length ?? 0}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+
+    {/* Question content */}
+    {activeQuestion ? (
+      <ScrollView
+        style={styles.questionScroll}
+        contentContainerStyle={styles.questionScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.qMetaRow}>
+          <Text style={styles.qNumber}>
+            Q {qNumberInSection} of {totalInSection}
+          </Text>
+
+          <View style={styles.qTypeBadge}>
+            <Text style={styles.qTypeText}>{activeQuestion.type}</Text>
+          </View>
+
+          <View style={styles.marksBadges}>
+            <View style={styles.correctMarkBadge}>
+              <Text style={styles.marksBadgeText}>
+                +{activeQuestion.marks_correct} marks
+              </Text>
+            </View>
+
+            <View style={styles.wrongMarkBadge}>
+              <Text style={styles.marksBadgeText}>
+                {activeQuestion.marks_incorrect} marks
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={styles.questionText}>
+          {stripHtml(activeQuestion.text)}
+        </Text>
+
+        <Text style={styles.selectLabel}>
+          {isMultiSelectType(activeQuestion.type)
+            ? "Select one or more correct options"
+            : "Select one correct option"}
+        </Text>
+
+        {activeQuestion.options?.map((option: any, index: number) => {
+          const isSelected = selectedOptions.includes(option.id);
+
+          return (
+            <TouchableOpacity
+              key={String.fromCharCode(65 + index)}
               style={[
-                styles.sectionTabText,
-                activeSectionIdx === idx && styles.sectionTabTextActive,
+                styles.optionRow,
+                isSelected && styles.optionRowSelected,
               ]}
->
-              {section.name}
-</Text>
-<Text
+              onPress={() => handleOptionSelect(option.id)}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.optionBubble,
+                  isSelected && styles.optionBubbleSelected,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.optionBubbleText,
+                    isSelected && styles.optionBubbleTextSelected,
+                  ]}
+                >
+                  {String.fromCharCode(65 + index)}
+                </Text>
+              </View>
+
+              <Text
+                style={[
+                  styles.optionText,
+                  isSelected && styles.optionTextSelected,
+                ]}
+              >
+                {stripHtml(option.text)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    ) : (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text style={{ color: "#9898B0" }}>
+          No question available.
+        </Text>
+      </View>
+    )}
+
+    {/* Bottom action row */}
+    <View style={styles.bottomActionRow}>
+      <TouchableOpacity
+        style={styles.actionBtn}
+        onPress={handleMarkForReview}
+      >
+        <Text style={styles.actionBtnText}>
+          🔖 Mark for Review
+        </Text>
+      </TouchableOpacity>
+
+      <View style={styles.notVisitedDot} />
+      <Text style={styles.notVisitedLabel}>Not Answered</Text>
+    </View>
+
+    {/* Nav row */}
+    <View style={styles.navRow}>
+      <TouchableOpacity style={styles.navBtn} onPress={handlePrev}>
+        <Text style={styles.navBtnText}>‹ Prev</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.saveNextBtn}
+        onPress={handleSaveAndNext}
+      >
+        <Text style={styles.saveNextBtnText}>
+          💾 Save & Next
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navBtn} onPress={handleNext}>
+        <Text style={styles.navBtnText}>Next ›</Text>
+      </TouchableOpacity>
+    </View>
+
+    {/* Submit Modal */}
+    <Modal
+      visible={showSubmitModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowSubmitModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalBox}>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalTitleRow}>
+              <Text style={styles.modalWarningIcon}>⚠</Text>
+
+              <View>
+                <Text style={styles.modalTitle}>Submit Exam?</Text>
+                <Text style={styles.modalSubtitle}>
+                  This action cannot be undone.
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setShowSubmitModal(false)}
+            >
+              <Text style={styles.modalClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalStatsRow}>
+            <View
               style={[
-                styles.sectionTabCount,
-                activeSectionIdx === idx && styles.sectionTabCountActive,
+                styles.modalStatBox,
+                styles.modalStatBoxGreen,
               ]}
->
-              {sectionAnswered[idx]}/{section.total_questions ?? section.questions?.length ?? 0}
-</Text>
-</TouchableOpacity>
-        ))}
-</View>
- 
-      {/* Question content */}
-      {activeQuestion ? (
-<ScrollView
-          style={styles.questionScroll}
-          contentContainerStyle={styles.questionScrollContent}
-          showsVerticalScrollIndicator={false}
->
-<View style={styles.qMetaRow}>
-<Text style={styles.qNumber}>
-              Q {qNumberInSection} of {totalInSection}
-</Text>
-<View style={styles.qTypeBadge}>
-<Text style={styles.qTypeText}>{activeQuestion.type}</Text>
-</View>
-<View style={styles.marksBadges}>
-<View style={styles.correctMarkBadge}>
-<Text style={styles.marksBadgeText}>+{activeQuestion.marks_correct} marks</Text>
-</View>
-<View style={styles.wrongMarkBadge}>
-<Text style={styles.marksBadgeText}>{activeQuestion.marks_incorrect} marks</Text>
-</View>
-</View>
-</View>
- 
-          <Text style={styles.questionText}>{stripHtml(activeQuestion.text)}</Text>
- 
-          <Text style={styles.selectLabel}>
-            {isMultiSelectType(activeQuestion.type)
-              ? 'Select one or more correct options'
-              : 'Select one correct option'}
-</Text>
- 
-          {activeQuestion.options?.map((option: any, index: number) => {
-            const isSelected = selectedOptions.includes(option.id);
- 
-            return (
-<TouchableOpacity
-                key={String.fromCharCode(65 + index)}
-                style={[styles.optionRow, isSelected && styles.optionRowSelected]}
-                onPress={() => handleOptionSelect(option.id)}
-                activeOpacity={0.8}
->
-<View style={[styles.optionBubble, isSelected && styles.optionBubbleSelected]}>
-<Text
-                    style={[
-                      styles.optionBubbleText,
-                      isSelected && styles.optionBubbleTextSelected,
-                    ]}
->
-                    {String.fromCharCode(65 + index)}
-</Text>
-</View>
- 
-                <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                  {stripHtml(option.text)}
-</Text>
-</TouchableOpacity>
-            );
-          })}
-</ScrollView>
-      ) : (
-<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-<Text style={{ color: '#9898B0' }}>No question available.</Text>
-</View>
-      )}
- 
-      {/* Bottom action row */}
-<View style={styles.bottomActionRow}>
-<TouchableOpacity style={styles.actionBtn} onPress={handleMarkForReview}>
-<Text style={styles.actionBtnText}>🔖 Mark for Review</Text>
-</TouchableOpacity>
-<View style={styles.notVisitedDot} />
-<Text style={styles.notVisitedLabel}>Not Answered</Text>
-</View>
- 
-      {/* Nav row */}
-<View style={styles.navRow}>
-<TouchableOpacity style={styles.navBtn} onPress={handlePrev}>
-<Text style={styles.navBtnText}>‹ Prev</Text>
-</TouchableOpacity>
-<TouchableOpacity style={styles.saveNextBtn} onPress={handleSaveAndNext}>
-<Text style={styles.saveNextBtnText}>💾 Save & Next</Text>
-</TouchableOpacity>
-<TouchableOpacity style={styles.navBtn} onPress={handleNext}>
-<Text style={styles.navBtnText}>Next ›</Text>
-</TouchableOpacity>
-</View>
- 
-      {/* Submit Modal */}
-<Modal
-        visible={showSubmitModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSubmitModal(false)}
->
-<View style={styles.modalOverlay}>
-<View style={styles.modalBox}>
-<View style={styles.modalHeader}>
-<View style={styles.modalTitleRow}>
-<Text style={styles.modalWarningIcon}>⚠</Text>
-<View>
-<Text style={styles.modalTitle}>Submit Exam?</Text>
-<Text style={styles.modalSubtitle}>This action cannot be undone.</Text>
-</View>
-</View>
-<TouchableOpacity onPress={() => setShowSubmitModal(false)}>
-<Text style={styles.modalClose}>✕</Text>
-</TouchableOpacity>
-</View>
- 
-            <View style={styles.modalStatsRow}>
-<View style={[styles.modalStatBox, styles.modalStatBoxGreen]}>
-<Text style={styles.modalStatValue}>{summary.answered}</Text>
-<Text style={[styles.modalStatLabel, { color: '#22C55E' }]}>Answered</Text>
-</View>
-<View style={[styles.modalStatBox, styles.modalStatBoxRed]}>
-<Text style={styles.modalStatValue}>{summary.notAnswered}</Text>
-<Text style={[styles.modalStatLabel, { color: '#EF4444' }]}>Not Answered</Text>
-</View>
-</View>
- 
-            <View style={styles.modalStatsRow}>
-<View style={[styles.modalStatBox, styles.modalStatBoxPurple]}>
-<Text style={styles.modalStatValue}>{summary.markedForReview}</Text>
-<Text style={[styles.modalStatLabel, { color: '#8B5CF6' }]}>
-                  Marked for Review
-</Text>
-</View>
-<View style={[styles.modalStatBox, styles.modalStatBoxGray]}>
-<Text style={styles.modalStatValue}>{summary.notVisited}</Text>
-<Text style={[styles.modalStatLabel, { color: '#6B7280' }]}>Not Visited</Text>
-</View>
-</View>
- 
-            <View style={styles.sectionTable}>
-<View style={styles.sectionTableHeader}>
-<Text
-                  style={[styles.sectionTableCell, styles.sectionTableHeaderText, { flex: 2 }]}
->
-                  SECTION
-</Text>
-<Text style={[styles.sectionTableCell, styles.sectionTableHeaderText]}>
-                  TOTAL
-</Text>
-<Text style={[styles.sectionTableCell, styles.sectionTableHeaderText]}>ANS.</Text>
-<Text style={[styles.sectionTableCell, styles.sectionTableHeaderText]}>
-                  NOT ANS.
-</Text>
-</View>
-              {sectionSummary.map((s: any, idx: number) => (
-<View key={idx} style={styles.sectionTableRow}>
-<Text style={[styles.sectionTableCell, { flex: 2 }]}>{s.name}</Text>
-<Text style={styles.sectionTableCell}>{s.total}</Text>
-<Text style={[styles.sectionTableCell, { color: '#22C55E' }]}>
-                    {s.answered}
-</Text>
-<Text style={[styles.sectionTableCell, { color: '#EF4444' }]}>
-                    {s.notAnswered}
-</Text>
-</View>
-              ))}
-</View>
- 
-            {tabSwitchCount > 0 && (
-<View style={styles.tabSwitchWarning}>
-<Text style={styles.tabSwitchWarningIcon}>⚠</Text>
-<Text style={styles.tabSwitchWarningText}>
-                  {tabSwitchCount} tab switch{tabSwitchCount > 1 ? 'es' : ''} detected. This will
-                  be recorded.
-</Text>
-</View>
-            )}
- 
-            <View style={styles.modalBtnRow}>
-<TouchableOpacity
-                style={styles.goBackBtn}
-                onPress={() => setShowSubmitModal(false)}
-                disabled={isSubmitting}
->
-<Text style={styles.goBackBtnText}>Go Back to Exam</Text>
-</TouchableOpacity>
-<TouchableOpacity
-                style={styles.submitExamBtn}
-                onPress={handleFinalSubmit}
-                disabled={isSubmitting}
->
-                {isSubmitting ? (
-<ActivityIndicator size="small" color="#fff" />
-                ) : (
-<Text style={styles.submitExamBtnText}>Submit Exam</Text>
-                )}
-</TouchableOpacity>
-</View>
-</View>
-</View>
-</Modal>
-</SafeAreaView>
-  );
+            >
+              <Text style={styles.modalStatValue}>
+                {summary.answered}
+              </Text>
+              <Text
+                style={[
+                  styles.modalStatLabel,
+                  { color: "#22C55E" },
+                ]}
+              >
+                Answered
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.modalStatBox,
+                styles.modalStatBoxRed,
+              ]}
+            >
+              <Text style={styles.modalStatValue}>
+                {summary.notAnswered}
+              </Text>
+              <Text
+                style={[
+                  styles.modalStatLabel,
+                  { color: "#EF4444" },
+                ]}
+              >
+                Not Answered
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  </SafeAreaView>
+);
 }

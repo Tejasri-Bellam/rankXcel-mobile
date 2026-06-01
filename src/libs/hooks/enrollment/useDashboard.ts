@@ -44,7 +44,7 @@ interface UseDashboardResult {
   isLoading: boolean;
   error: string | null;
   setActiveExamId: (id: number | string) => void;
-  refresh: () => void;
+  refresh: () => Promise<void>;
 }
 
 interface TargetExamResponse {

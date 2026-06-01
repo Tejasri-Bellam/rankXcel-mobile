@@ -53,7 +53,7 @@ export default function ForgotPasswordScreen() {
     animateIn();
   }, [step]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // Handlers
 
   const handleSendResetLink = async () => {
     if (!email.trim()) {
@@ -106,7 +106,7 @@ export default function ForgotPasswordScreen() {
     router.back();
   };
 
-  // ─── Logo Component ───────────────────────────────────────────────────────
+  // Logo Component
   const Logo = () => (
     <View style={forgotPasswordStyles.logoContainer}>
       <View style={forgotPasswordStyles.logoBox}>
@@ -116,98 +116,126 @@ export default function ForgotPasswordScreen() {
     </View>
   );
 
-  // ─── Email Step ───────────────────────────────────────────────────────────
+  // Email Step
   if (step === 'email') {
-    return (
-      <SafeAreaView style={forgotPasswordStyles.safeArea}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={forgotPasswordStyles.flex}
+  return (
+  <SafeAreaView style={forgotPasswordStyles.safeArea}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={forgotPasswordStyles.flex}
+    >
+      <ScrollView
+        contentContainerStyle={forgotPasswordStyles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View
+          style={[
+            forgotPasswordStyles.card,
+            {
+              transform: [{ translateY: slideAnim }],
+              opacity: fadeAnim,
+            },
+          ]}
         >
-          <ScrollView
-            contentContainerStyle={forgotPasswordStyles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <Animated.View
-              style={[
-                forgotPasswordStyles.card,
-                {
-                  transform: [{ translateY: slideAnim }],
-                  opacity: fadeAnim,
-                },
-              ]}
-            >
-              <Logo />
+          <Logo />
 
-              <View style={forgotPasswordStyles.headerSection}>
-                <Text style={forgotPasswordStyles.title}>Reset your password</Text>
-                <Text style={forgotPasswordStyles.subtitle}>
-                  Enter your email address and we'll send you a link to reset your password.
-                </Text>
-              </View>
+          <View style={forgotPasswordStyles.headerSection}>
+            <Text style={forgotPasswordStyles.title}>
+              Reset your password
+            </Text>
 
-              <View style={forgotPasswordStyles.form}>
-                <View style={forgotPasswordStyles.inputGroup}>
-                  <Text style={forgotPasswordStyles.label}>
-                    Email address <Text style={forgotPasswordStyles.required}>*</Text>
+            <Text style={forgotPasswordStyles.subtitle}>
+              Enter your email address and we'll send you a link to reset your
+              password.
+            </Text>
+          </View>
+
+          <View style={forgotPasswordStyles.form}>
+            <View style={forgotPasswordStyles.inputGroup}>
+              <Text style={forgotPasswordStyles.label}>
+                Email address{" "}
+                <Text style={forgotPasswordStyles.required}>*</Text>
+              </Text>
+
+              <View
+                style={[
+                  forgotPasswordStyles.inputWrapper,
+                  emailFocused &&
+                    forgotPasswordStyles.inputWrapperFocused,
+                ]}
+              >
+                <View
+                  style={forgotPasswordStyles.inputIconContainer}
+                >
+                  <Text style={forgotPasswordStyles.inputIcon}>
+                    ✉
                   </Text>
-                  <View
-                    style={[
-                      forgotPasswordStyles.inputWrapper,
-                      emailFocused && forgotPasswordStyles.inputWrapperFocused,
-                    ]}
-                  >
-                    <View style={forgotPasswordStyles.inputIconContainer}>
-                      {/* Mail icon using unicode */}
-                      <Text style={forgotPasswordStyles.inputIcon}>✉</Text>
-                    </View>
-                    <TextInput
-                      style={forgotPasswordStyles.textInput}
-                      placeholder="you@example.com"
-                      placeholderTextColor="#9CA3AF"
-                      value={email}
-                      onChangeText={setEmail}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!loading}
-                      onFocus={() => setEmailFocused(true)}
-                      onBlur={() => setEmailFocused(false)}
-                    />
-                  </View>
                 </View>
 
-                <TouchableOpacity
-                  style={[forgotPasswordStyles.primaryBtn, loading && forgotPasswordStyles.primaryBtnDisabled]}
-                  onPress={handleSendResetLink}
-                  disabled={loading}
-                  activeOpacity={0.85}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={forgotPasswordStyles.primaryBtnText}>Send Reset Link</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={forgotPasswordStyles.backRow}
-                  onPress={handleBackToLogin}
-                  activeOpacity={0.7}
-                >
-                  <Text style={forgotPasswordStyles.backArrow}>←</Text>
-                  <Text style={forgotPasswordStyles.backText}> Back to login</Text>
-                </TouchableOpacity>
+                <TextInput
+                  style={forgotPasswordStyles.textInput}
+                  placeholder="you@example.com"
+                  placeholderTextColor="#9CA3AF"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setEmailFocused(false)}
+                />
               </View>
-            </Animated.View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
+            </View>
+
+            <TouchableOpacity
+              style={[
+                forgotPasswordStyles.primaryBtn,
+                loading &&
+                  forgotPasswordStyles.primaryBtnDisabled,
+              ]}
+              onPress={handleSendResetLink}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator
+                  color="#fff"
+                  size="small"
+                />
+              ) : (
+                <Text
+                  style={forgotPasswordStyles.primaryBtnText}
+                >
+                  Send Reset Link
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={forgotPasswordStyles.backRow}
+              onPress={handleBackToLogin}
+              activeOpacity={0.7}
+            >
+              <Text style={forgotPasswordStyles.backArrow}>
+                ←
+              </Text>
+
+              <Text style={forgotPasswordStyles.backText}>
+                {" "}
+                Back to login
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
+);
   }
 
-  // ─── Check Email Step ─────────────────────────────────────────────────────
+  // Check Email Step
   return (
     <SafeAreaView style={forgotPasswordStyles.safeArea}>
       <ScrollView
