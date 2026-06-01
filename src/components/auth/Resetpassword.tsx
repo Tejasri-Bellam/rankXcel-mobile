@@ -10,14 +10,13 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
-  StyleSheet,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { resetPasswordConfirmService } from '@/src/libs/services/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { resetPasswordStyles } from '@/src/styles/auth/resetPasswordStyles';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// Main Screen
 export default function ResetPasswordConfirmScreen() {
   const { uidb64, token } = useLocalSearchParams<{ uidb64: string; token: string }>();
 
@@ -38,7 +37,7 @@ export default function ResetPasswordConfirmScreen() {
     ]).start();
   }, []);
 
-  // ── Password strength indicator ──────────────────────────────────────────
+  // Password strength indicator
   const getPasswordStrength = (pwd: string): { label: string; color: string; pct: number } => {
     if (pwd.length === 0) return { label: '', color: '#E5E7EB', pct: 0 };
     if (pwd.length < 6) return { label: 'Too short', color: '#EF4444', pct: 20 };
@@ -56,7 +55,7 @@ export default function ResetPasswordConfirmScreen() {
   const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
 
-  // ── Handler ───────────────────────────────────────────────────────────────
+  // Handler
   const handleResetPassword = async () => {
     if (!newPassword || !confirmPassword) {
       Alert.alert('Error', 'Please fill in both password fields.');
@@ -94,7 +93,7 @@ export default function ResetPasswordConfirmScreen() {
     }
   };
 
-  // ── Logo ──────────────────────────────────────────────────────────────────
+  // Logo
   const Logo = () => (
     <View style={resetPasswordStyles.logoContainer}>
       <View style={resetPasswordStyles.logoBox}>
@@ -104,7 +103,7 @@ export default function ResetPasswordConfirmScreen() {
     </View>
   );
 
-  // ── Success state ─────────────────────────────────────────────────────────
+  // Success state
   if (success) {
     return (
       <SafeAreaView style={resetPasswordStyles.safeArea}>
@@ -135,7 +134,7 @@ export default function ResetPasswordConfirmScreen() {
     );
   }
 
-  // ── Main form ─────────────────────────────────────────────────────────────
+  // Main form
   return (
     <SafeAreaView style={resetPasswordStyles.safeArea}>
       <KeyboardAvoidingView

@@ -1,5 +1,11 @@
 import React from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 
 import { COLORS } from "@/src/styles/styles";
@@ -23,7 +29,19 @@ export default function HomeScreen() {
     isLoading,
     error,
     setActiveExamId,
+    refresh,
   } = useDashboard();
+
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh]);
 
   return (
     <View style={styles.safeArea}>
@@ -40,6 +58,14 @@ export default function HomeScreen() {
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
         >
           <View className="bg-white rounded-lg shadow-md p-6 mb-6">
             <Greeting
