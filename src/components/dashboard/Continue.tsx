@@ -20,108 +20,146 @@ export default function Continue({ dashboardData }: ContinueProps) {
     : 0;
 
   return (
-    <View>
-      {/* Continue Card */}
-      {session ? (
-        <View style={styles.card}>
-          <Text style={styles.continueLabel}>Continue where you left off</Text>
+  <View>
+    {/* Continue Card */}
+    {session ? (
+      <View style={styles.card}>
+        <Text style={styles.continueLabel}>
+          Continue where you left off
+        </Text>
 
-          <View style={styles.continueRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.continueTitle}>{session.test_name}</Text>
-              <Text style={styles.continueSub}>
-                Last section: {session.last_section} · {session.time_ago}
-              </Text>
+        <View style={styles.continueRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.continueTitle}>
+              {session.test_name}
+            </Text>
 
-              <View style={styles.progressBarBg}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${session.progress_percentage ?? 0}%` },
-                  ]}
-                />
-              </View>
+            <Text style={styles.continueSub}>
+              Last section: {session.last_section} ·{" "}
+              {session.time_ago}
+            </Text>
 
-              <Text style={styles.progressText}>
-                {attemptedCount} of {session.total_questions} questions attempted
-              </Text>
+            <View style={styles.progressBarBg}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    width: `${
+                      session.progress_percentage ?? 0
+                    }%`,
+                  },
+                ]}
+              />
             </View>
 
-            <TouchableOpacity
-              style={styles.resumeBtn}
-              onPress={() => router.push("./mock-library")}
-            >
-              <Text style={styles.resumeBtnText}>Resume</Text>
-            </TouchableOpacity>
+            <Text style={styles.progressText}>
+              {attemptedCount} of {session.total_questions}
+              {" "}questions attempted
+            </Text>
           </View>
-        </View>
-      ) : (
-        <View style={[styles.card, styles.emptyCard]}>
-          <View style={styles.emptyIconBg}>
-            <MaterialCommunityIcons
-              name="book-open-page-variant-outline"
-              size={28}
-              color={COLORS.textLight}
-            />
-          </View>
-          <Text style={styles.emptyTitle}>No mock in progress</Text>
-          <Text style={styles.emptySub}>
-            Start a new mock from the library to begin tracking your progress.
-          </Text>
+
           <TouchableOpacity
-            style={styles.browseBtn}
+            style={styles.resumeBtn}
             onPress={() => router.push("./mock-library")}
           >
-            <Text style={styles.browseBtnText}>Browse Mock Library →</Text>
+            <Text style={styles.resumeBtnText}>Resume</Text>
           </TouchableOpacity>
         </View>
-      )}
+      </View>
+    ) : (
+      <View style={[styles.card, styles.emptyCard]}>
+        <View style={styles.emptyIconBg}>
+          <MaterialCommunityIcons
+            name="book-open-page-variant-outline"
+            size={28}
+            color={COLORS.textLight}
+          />
+        </View>
 
-      {/* Streak Card */}
-      {streak && (
-        <View style={styles.card}>
-          <View style={styles.streakHeader}>
-            <View>
-              <Text style={styles.streakTitle}>
-                🔥 {streak.current_streak ?? 0} Day Streak
-              </Text>
-              <Text style={styles.streakSub}>
-                {(streak.current_streak ?? 0) > 0
-                  ? "Keep it going!"
-                  : "Start a session today!"}
-              </Text>
-            </View>
-          </View>
+        <Text style={styles.emptyTitle}>
+          No mock in progress
+        </Text>
 
-          <View style={styles.streakDays}>
-            {(streak.streak_days ?? []).map((item, index) => (
-              <View key={index} style={styles.streakDayCol}>
-                <View
-                  style={[
-                    styles.streakDayBubble,
-                    item.completed && styles.streakDayBubbleActive,
-                  ]}
-                >
-                  {item.completed ? (
-                    <Ionicons name="checkmark" size={14} color={COLORS.white} />
-                  ) : (
-                    <Text style={styles.streakDayText}>{item.day}</Text>
-                  )}
-                </View>
-                <Text style={styles.streakDayLabel}>{item.day}</Text>
-              </View>
-            ))}
-          </View>
+        <Text style={styles.emptySub}>
+          Start a new mock from the library to begin
+          tracking your progress.
+        </Text>
 
-          <View style={styles.bestStreakRow}>
-            <Text style={styles.bestStreakText}>
-              🏆 Best streak: {streak.best_streak ?? 0} days
+        <TouchableOpacity
+          style={styles.browseBtn}
+          onPress={() => router.push("./mock-library")}
+        >
+          <Text style={styles.browseBtnText}>
+            Browse Mock Library →
+          </Text>
+        </TouchableOpacity>
+      </View>
+    )}
+
+    {/* Streak Card */}
+    {streak && (
+      <View style={styles.card}>
+        <View style={styles.streakHeader}>
+          <View>
+            <Text style={styles.streakTitle}>
+              🔥 {streak.current_streak ?? 0} Day Streak
+            </Text>
+
+            <Text style={styles.streakSub}>
+              {(streak.current_streak ?? 0) > 0
+                ? "Keep it going!"
+                : "Start a session today!"}
             </Text>
           </View>
         </View>
-      )}
-    </View>
-  );
+
+        <View style={styles.streakDays}>
+          {(streak.streak_days ?? []).map(
+            (item, index) => (
+              <View
+                key={index}
+                style={styles.streakDayCol}
+              >
+                <View
+                  style={[
+                    styles.streakDayBubble,
+                    item.completed &&
+                      styles.streakDayBubbleActive,
+                  ]}
+                >
+                  {item.completed ? (
+                    <Ionicons
+                      name="checkmark"
+                      size={14}
+                      color={COLORS.white}
+                    />
+                  ) : (
+                    <Text
+                      style={styles.streakDayText}
+                    >
+                      {item.day}
+                    </Text>
+                  )}
+                </View>
+
+                <Text style={styles.streakDayLabel}>
+                  {item.day}
+                </Text>
+              </View>
+            )
+          )}
+        </View>
+
+        <View style={styles.bestStreakRow}>
+          <Text style={styles.bestStreakText}>
+            🏆 Best streak: {streak.best_streak ?? 0}
+            {" "}days
+          </Text>
+        </View>
+      </View>
+    )}
+  </View>
+);
 }
 
 const styles: any = {

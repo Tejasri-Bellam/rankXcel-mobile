@@ -83,7 +83,7 @@ const SignupScreen= () => {
 };
 
   return (
-    <SafeAreaView style={signupStyles.container}>
+    <View style={signupStyles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={signupStyles.keyboardView}
@@ -195,7 +195,7 @@ const SignupScreen= () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

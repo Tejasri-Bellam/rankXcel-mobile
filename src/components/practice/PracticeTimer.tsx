@@ -26,7 +26,7 @@ const TimerDisplay = ({ running }: { running: boolean }) => {
   const ss = String(seconds % 60).padStart(2, '0');
 
     return (
-        <View className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <View style={timerStyles.container}>
                 <Ionicons name="timer-outline" size={14} color={COLORS.primary} />
                 <Text style={timerStyles.text}>{mm}:{ss}</Text>

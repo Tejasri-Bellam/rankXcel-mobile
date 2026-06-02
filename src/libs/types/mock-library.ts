@@ -1,3 +1,5 @@
+import { OptionItem } from "../services/mock-library";
+
 export type MockStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED';
  
 // Difficulty as returned by API (lowercase) — also accept normalized form
@@ -8,12 +10,23 @@ export type ExamTag = string;
  
 // Test types from API
 export type TestType = 'PRACTICE_TEST' | 'MOCK_TEST' | string;
+
+export type ApiErrorShape = {
+  status: number;
+  errors: Record<string, string[] | undefined>;
+  body?: Record<string, unknown>;
+};
  
 // Nested exam object from API
 export interface ExamObject {
   id: number;
   code: string;
   name: string;
+}
+
+export interface DifficultyOption {
+  value: 'easy' | 'medium' | 'hard' | 'any';
+  label: string;
 }
  
 // Nested subject object from API
@@ -51,4 +64,29 @@ export interface MockListResponse {
     results: MockTest[];
   };
   status: number;
+}
+
+// Props for the OptionDropdown component
+export interface OptionDropdownProps {
+  value: OptionItem | null;
+  options: OptionItem[];
+  placeholder: string;
+  disabled?: boolean;
+  loading?: boolean;
+  onSelect: (item: OptionItem) => void;
+}
+
+// Props for the RequestMockModal component
+export interface RequestMockModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onCreated: (mockId: string) => void;
+}
+
+// Sort Dropdown
+export interface SortDropdownProps {
+  visible: boolean;
+  selected: string;
+  onSelect: (v: string) => void;
+  onClose: () => void;
 }

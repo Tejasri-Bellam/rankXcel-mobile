@@ -119,7 +119,7 @@ export default function ForgotPasswordScreen() {
   // Email Step
   if (step === 'email') {
   return (
-  <SafeAreaView style={forgotPasswordStyles.safeArea}>
+  <View style={forgotPasswordStyles.safeArea}>
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={forgotPasswordStyles.flex}
@@ -231,13 +231,13 @@ export default function ForgotPasswordScreen() {
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView>
+  </View>
 );
   }
 
   // Check Email Step
   return (
-    <SafeAreaView style={forgotPasswordStyles.safeArea}>
+    <View style={forgotPasswordStyles.safeArea}>
       <ScrollView
         contentContainerStyle={forgotPasswordStyles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -319,6 +319,6 @@ export default function ForgotPasswordScreen() {
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

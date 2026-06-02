@@ -14,6 +14,8 @@ import {
 import { logoutService } from '@/src/libs/services/auth';
 import { getMeService } from '@/src/libs/services/profile';
 import { storageGetAccessToken } from '@/src/libs/storage';
+import { Picker } from '@react-native-picker/picker';
+import { getCountriesService } from '@/src/libs/services/countries';
 
 const { width } = Dimensions.get('window');
 
@@ -45,10 +47,18 @@ export default function Sidebar({
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  const [countries, setCountries] = useState<any[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState('');
+
   // Fetch User
+  useEffect(() => {
+    loadSavedCountry();
+  }, []);
+
   useEffect(() => {
     if (visible) {
       checkAuthAndFetchUser();
+      fetchCountries();
     }
   }, [visible]);
 
@@ -182,6 +192,43 @@ export default function Sidebar({
     },
   ];
 
+  const onCountryChange = async (value: string) => {
+    setSelectedCountry(value);
+
+    await AsyncStorage.setItem(
+      "selectedCountry",
+      value
+    );
+  };
+
+  const loadSavedCountry = async () => {
+  try {
+    const saved = await AsyncStorage.getItem(
+      'selectedCountry'
+    );
+
+    if (saved) {
+      setSelectedCountry(saved);
+    }
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+  const fetchCountries = async () => {
+    try {
+      const res: any = await getCountriesService();
+
+      console.log('Countries:', res);
+
+      setCountries(Array.isArray(res) ? res : res?.data || res?.results || []);
+    } catch (error) {
+      console.error(
+        'Country API Error:',
+        error
+      );
+    }
+  };
   return (
     <TouchableOpacity
       style={styles.drawerOverlay}
@@ -278,6 +325,33 @@ export default function Sidebar({
 
           {/* Footer */}
           <View style={styles.drawerFooter}>
+            <View style={styles.countryContainer}>
+              <Text style={styles.countryLabel}>
+                Select Country
+              </Text>
+
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={selectedCountry}
+                  onValueChange={(value) =>
+                    onCountryChange(String(value))
+                  }
+                >
+                  <Picker.Item
+                    label="Select Country"
+                    value=""
+                  />
+
+                  {countries.map((country) => (
+                    <Picker.Item
+                      key={country.id}
+                      label={country.name}
+                      value={String(country.id)}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
             <View>
               <Text style={styles.drawerUserName}>
                 {user.name}
@@ -443,4 +517,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+
+  countryContainer: {
+  marginBottom: 16,
+},
+
+countryLabel: {
+  fontSize: 12,
+  fontWeight: '600',
+  color: COLORS.textMedium,
+  marginBottom: 6,
+},
+
+pickerWrapper: {
+  borderWidth: 1,
+  borderColor: COLORS.border,
+  borderRadius: 8,
+  overflow: 'hidden',
+},
 });

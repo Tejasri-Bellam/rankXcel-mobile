@@ -146,7 +146,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
     setCurrentView('exam');
   };
 
-  // ── Sub-screen routing ──────────────────────────────────────────────────
+  // Sub-screen routing
   if (currentView === 'exam') {
     return (
       <MockExamNavigator
@@ -197,7 +197,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
     );
   }
 
-  // ── Detail Screen ───────────────────────────────────────────────────────
+  // Detail Screen
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />

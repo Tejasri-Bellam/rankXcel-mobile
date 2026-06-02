@@ -15,7 +15,7 @@ const HomeScreen = () => {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={homeStyles.container}>
+    <View style={homeStyles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}
@@ -360,7 +360,7 @@ const HomeScreen = () => {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

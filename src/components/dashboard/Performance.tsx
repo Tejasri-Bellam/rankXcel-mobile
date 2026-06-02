@@ -44,132 +44,227 @@ export default function Performance({ dashboardData }: PerformanceProps) {
   );
 
   return (
-    <View>
-      {/* Recent Performance */}
-      {scores.length > 0 && (
-        <View style={styles.card}>
-          <View style={styles.perfHeader}>
-            <View>
-              <Text style={styles.cardTitle}>Recent Performance</Text>
-              <Text style={styles.cardSubtitle}>
-                Last {scores.length} mock scores
-              </Text>
-            </View>
+  <View>
+    {/* Recent Performance */}
+    {scores.length > 0 && (
+      <View style={styles.card}>
+        <View style={styles.perfHeader}>
+          <View>
+            <Text style={styles.cardTitle}>
+              Recent Performance
+            </Text>
 
-            <View style={[styles.trendBadge, { backgroundColor: trendBg }]}>
-              <Ionicons name={trendIcon as any} size={13} color={trendColor} />
-              <Text style={[styles.trendBadgeText, { color: trendColor }]}>
-                {trendLabel}
-              </Text>
-            </View>
+            <Text style={styles.cardSubtitle}>
+              Last {scores.length} mock scores
+            </Text>
           </View>
 
-          <View style={styles.chartContainer}>
-            {scores.map((item, index) => {
-              const h = Math.max(
-                4,
-                (Math.abs(item.percentage ?? 0) / maxPct) * CHART_H
-              );
-              return (
-                <View key={index} style={styles.chartBarCol}>
-                  <Text style={styles.chartBarValue}>{item.score}</Text>
-                  <View style={[styles.chartBar, { height: h }]} />
-                  <Text style={styles.chartBarLabel}>{item.date}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-      )}
+          <View
+            style={[
+              styles.trendBadge,
+              { backgroundColor: trendBg },
+            ]}
+          >
+            <Ionicons
+              name={trendIcon as any}
+              size={13}
+              color={trendColor}
+            />
 
-      {/* Subject Health */}
-      {(fromMocks.length > 0 || fromAssessments.length > 0) && (
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <View>
-              <Text style={styles.cardTitle}>Subject Health</Text>
-              <Text style={styles.cardSubtitle}>
-                Accuracy across all {tab === "mocks" ? "mocks" : "assignments"}
-              </Text>
-            </View>
-
-            <TouchableOpacity onPress={() => router.push("/analytics")}>
-              <Text style={styles.detailsLink}>Details →</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.tabsRow}>
-            <TouchableOpacity
-              onPress={() => setTab("mocks")}
-              style={[styles.tabBtn, tab === "mocks" && styles.tabBtnActive]}
-            >
-              <Text
-                style={[
-                  styles.tabBtnText,
-                  tab === "mocks" && styles.tabBtnTextActive,
-                ]}
-              >
-                Mocks {fromMocks.length}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setTab("assessments")}
+            <Text
               style={[
-                styles.tabBtn,
-                tab === "assessments" && styles.tabBtnActive,
+                styles.trendBadgeText,
+                { color: trendColor },
               ]}
             >
-              <Text
-                style={[
-                  styles.tabBtnText,
-                  tab === "assessments" && styles.tabBtnTextActive,
-                ]}
+              {trendLabel}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.chartContainer}>
+          {scores.map((item, index) => {
+            const h = Math.max(
+              4,
+              (Math.abs(item.percentage ?? 0) / maxPct) *
+                CHART_H
+            );
+
+            return (
+              <View
+                key={index}
+                style={styles.chartBarCol}
               >
-                Assessments {fromAssessments.length}
-              </Text>
-            </TouchableOpacity>
+                <Text style={styles.chartBarValue}>
+                  {item.score}
+                </Text>
+
+                <View
+                  style={[
+                    styles.chartBar,
+                    { height: h },
+                  ]}
+                />
+
+                <Text style={styles.chartBarLabel}>
+                  {item.date}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    )}
+
+    {/* Subject Health */}
+    {(fromMocks.length > 0 ||
+      fromAssessments.length > 0) && (
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <View>
+            <Text style={styles.cardTitle}>
+              Subject Health
+            </Text>
+
+            <Text style={styles.cardSubtitle}>
+              Accuracy across all{" "}
+              {tab === "mocks"
+                ? "mocks"
+                : "assignments"}
+            </Text>
           </View>
 
-          {activeSubjects.length === 0 ? (
-            <Text style={styles.emptyText}>No data yet.</Text>
-          ) : (
-            activeSubjects.map((item, index) => {
-              const color = statusColor(item.status);
-              const pct = Math.round(item.accuracy ?? 0);
-              return (
-                <View key={index} style={styles.subjectRow}>
-                  <View style={[styles.subjectCircle, { borderColor: color }]}>
-                    <Text style={[styles.subjectPct, { color }]}>{pct}%</Text>
+          <TouchableOpacity
+            onPress={() => router.push("/analytics")}
+          >
+            <Text style={styles.detailsLink}>
+              Details →
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.tabsRow}>
+          <TouchableOpacity
+            onPress={() => setTab("mocks")}
+            style={[
+              styles.tabBtn,
+              tab === "mocks" &&
+                styles.tabBtnActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabBtnText,
+                tab === "mocks" &&
+                  styles.tabBtnTextActive,
+              ]}
+            >
+              Mocks {fromMocks.length}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setTab("assessments")}
+            style={[
+              styles.tabBtn,
+              tab === "assessments" &&
+                styles.tabBtnActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabBtnText,
+                tab === "assessments" &&
+                  styles.tabBtnTextActive,
+              ]}
+            >
+              Assessments {fromAssessments.length}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeSubjects.length === 0 ? (
+          <Text style={styles.emptyText}>
+            No data yet.
+          </Text>
+        ) : (
+          activeSubjects.map((item, index) => {
+            const color = statusColor(item.status);
+            const pct = Math.round(
+              item.accuracy ?? 0
+            );
+
+            return (
+              <View
+                key={index}
+                style={styles.subjectRow}
+              >
+                <View
+                  style={[
+                    styles.subjectCircle,
+                    { borderColor: color },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.subjectPct,
+                      { color },
+                    ]}
+                  >
+                    {pct}%
+                  </Text>
+                </View>
+
+                <View
+                  style={{
+                    flex: 1,
+                    marginLeft: 12,
+                  }}
+                >
+                  <View
+                    style={styles.subjectNameRow}
+                  >
+                    <Text
+                      style={styles.subjectName}
+                    >
+                      {item.subject_name}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.subjectLevel,
+                        { color },
+                      ]}
+                    >
+                      {item.status}
+                    </Text>
                   </View>
 
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <View style={styles.subjectNameRow}>
-                      <Text style={styles.subjectName}>{item.subject_name}</Text>
-                      <Text style={[styles.subjectLevel, { color }]}>
-                        {item.status}
-                      </Text>
-                    </View>
-
-                    <View style={styles.subjectBarBg}>
-                      <View
-                        style={[
-                          styles.subjectBarFill,
-                          {
-                            width: `${Math.min(100, Math.max(0, pct))}%`,
-                            backgroundColor: color,
-                          },
-                        ]}
-                      />
-                    </View>
+                  <View
+                    style={styles.subjectBarBg}
+                  >
+                    <View
+                      style={[
+                        styles.subjectBarFill,
+                        {
+                          width: `${Math.min(
+                            100,
+                            Math.max(0, pct)
+                          )}%`,
+                          backgroundColor: color,
+                        },
+                      ]}
+                    />
                   </View>
                 </View>
-              );
-            })
-          )}
-        </View>
-      )}
-    </View>
-  );
+              </View>
+            );
+          })
+        )}
+      </View>
+    )}
+  </View>
+);
 }
 
 const styles: any = {

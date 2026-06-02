@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
-import { COLORS } from '../styles';
+import { COLORS } from '../../styles';
+
 
 export const practiceStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.white },

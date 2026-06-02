@@ -153,8 +153,6 @@ const findQuestionsArray = (node: any, depth = 0): any[] | null => {
 const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
   if (!q) return null;
 
-  // The /questions/ endpoint may wrap the real question: { id: <join_id>, question: {...}, question_id: 87, ... }
-  // Prefer question_id / question.id (the question-bank id) since that's what the /responses/<id>/ endpoint expects.
   const realId =
     q.question_id ??
     q.question?.id ??

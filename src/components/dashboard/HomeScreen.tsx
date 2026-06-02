@@ -9,26 +9,23 @@ import {
 import { useRouter } from "expo-router";
 
 import { COLORS } from "@/src/styles/styles";
-
-import Greeting from "./Greeting";
 import TodaysFocus from "./TodaysFocus";
 import Continue from "./Continue";
 import Performance from "./Performance";
 import WeakChapter from "./WeakChapter";
 import Upcoming from "./Upcoming";
 import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
+import Greeting from "./Greeting";
 
 export default function HomeScreen() {
   const router = useRouter();
 
   const {
     user,
-    targetExams,
     activeExamId,
     dashboardData,
     isLoading,
     error,
-    setActiveExamId,
     refresh,
   } = useDashboard();
 
@@ -67,13 +64,8 @@ export default function HomeScreen() {
             />
           }
         >
-          <View className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <Greeting
-              user={user}
-              targetExams={targetExams}
-              activeExamId={activeExamId}
-              onSelectExam={setActiveExamId}
-            />
+          <View style={styles.greetingSection}>
+            <Greeting user={user} />
             <TodaysFocus dashboardData={dashboardData} examId={activeExamId} />
             <Continue dashboardData={dashboardData} />
             <Performance dashboardData={dashboardData} />
@@ -89,7 +81,7 @@ export default function HomeScreen() {
 const styles: any = {
   safeArea: { flex: 1, backgroundColor: COLORS.white },
   scrollView: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { paddingBottom: 24 },
+  scrollContent: { paddingBottom: 30 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   errorText: { color: COLORS.textLight, fontSize: 14, textAlign: "center", paddingHorizontal: 32 },
 };

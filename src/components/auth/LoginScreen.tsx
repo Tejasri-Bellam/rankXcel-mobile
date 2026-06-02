@@ -58,7 +58,7 @@ console.log('d', data);
   };
 
   return (
-    <SafeAreaView style={loginStyles.container}>
+    <View style={loginStyles.container}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={loginStyles.keyboardView}
@@ -137,7 +137,7 @@ console.log('d', data);
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

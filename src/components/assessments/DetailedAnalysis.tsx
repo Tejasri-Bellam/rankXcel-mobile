@@ -9,9 +9,7 @@ import {
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { mockAnalysisStyles as styles } from "@/src/styles/sidebar/mockExams/detailedAnalysis";
-
 import {
   getAssessmentDetailedAnalysisService,
   getassessmentResultService,
@@ -270,7 +268,7 @@ export default function AssessmentDetailedAnalysis({
 
   if (loading) {
     return (
-      <SafeAreaView
+      <View
         style={{
           flex: 1,
           alignItems: "center",
@@ -286,12 +284,12 @@ export default function AssessmentDetailedAnalysis({
         color: "#9898B0",
         }}
     >Loading analysis…</Text>
-    </SafeAreaView>
+    </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       <View style={styles.header}>
@@ -534,6 +532,6 @@ export default function AssessmentDetailedAnalysis({
   </View>
 )}
 </ScrollView>
-</SafeAreaView>
+</View>
 );
 }
