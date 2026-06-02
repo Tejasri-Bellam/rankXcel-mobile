@@ -1,9 +1,14 @@
-// src/components/assessments/ExamDetails.tsx
-
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView,
-          StatusBar, ActivityIndicator, Alert, BackHandler } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
+  BackHandler } from 'react-native';
+
 import { router } from 'expo-router';
 import ExamNavigator from './ExamNavigator';
 import ExamResults from './ExamResults';
@@ -232,7 +237,7 @@ export default function ExamDetails({ item, onBack }: Props) {
   const schedule = formatSchedule();
 
   return (
-    <SafeAreaView style={styles.safeArea}  edges={['top', 'bottom']}>
+    <View style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}
@@ -500,6 +505,6 @@ export default function ExamDetails({ item, onBack }: Props) {
           </View>
         )}
     </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -1,5 +1,3 @@
-// src/components/mock/MockExamNavigator.tsx
-
 import React, { useEffect, useState } from 'react';
 import {
   Text,

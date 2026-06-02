@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -31,6 +31,7 @@ import {
 } from '../../libs/services/mock-library';
 import { Difficulty, MockStatus, MockTest } from '@/src/libs/types/mock-library';
 import MockDetails from './Details';
+import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 
 
 
@@ -50,6 +51,9 @@ const getExamName = (exam: MockTest['exam']): string =>
 
 const getSubjectName = (subject: MockTest['subject']): string =>
   isSubjectObject(subject) ? subject.name : String(subject || '');
+
+const getExamId = (exam: MockTest['exam']): number | null =>
+  isExamObject(exam) ? exam.id : null;
 
 // Normalize difficulty: API returns 'easy' | 'medium' | 'hard' (lowercase)
 const normalizeDifficulty = (d: Difficulty | string | undefined): NormalizedDifficulty => {
@@ -317,17 +321,12 @@ const MockCard: React.FC<MockCardProps> = ({
   );
 };
 
-/* ============================================================
-   Filter Modal
-   ============================================================ */
+  // Filter Modal
 interface FilterModalProps {
   visible: boolean;
   onClose: () => void;
-  selectedExams: string[];
-  setSelectedExams: (v: string[]) => void;
   selectedDifficulties: NormalizedDifficulty[];
   setSelectedDifficulties: (v: NormalizedDifficulty[]) => void;
-  availableExams: string[];
   onApply: () => void;
   onReset: () => void;
 }
@@ -335,21 +334,11 @@ interface FilterModalProps {
 const FilterModal: React.FC<FilterModalProps> = ({
   visible,
   onClose,
-  selectedExams,
-  setSelectedExams,
   selectedDifficulties,
   setSelectedDifficulties,
-  availableExams,
   onApply,
   onReset,
 }) => {
-  const toggleExam = (e: string): void =>
-    setSelectedExams(
-      selectedExams.includes(e)
-        ? selectedExams.filter((x) => x !== e)
-        : [...selectedExams, e]
-    );
-
   const toggleDiff = (d: NormalizedDifficulty): void =>
     setSelectedDifficulties(
       selectedDifficulties.includes(d)
@@ -372,30 +361,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
                 </TouchableOpacity>
               </View>
 
-              <Text style={mockLibraryStyles.filterSection}>Exam</Text>
-              {availableExams.map((exam) => (
-                <TouchableOpacity
-                  key={exam}
-                  style={mockLibraryStyles.filterCheckRow}
-                  onPress={() => toggleExam(exam)}
-                >
-                  <View
-                    style={[
-                      mockLibraryStyles.checkbox,
-                      selectedExams.includes(exam) && mockLibraryStyles.checkboxActive,
-                    ]}
-                  >
-                    {selectedExams.includes(exam) && (
-                      <Ionicons name="checkmark" size={11} color={COLORS.white} />
-                    )}
-                  </View>
-                  <Text style={mockLibraryStyles.filterCheckLabel}>{exam}</Text>
-                </TouchableOpacity>
-              ))}
-
-              <Text style={[mockLibraryStyles.filterSection, { marginTop: 16 }]}>
-                Difficulty
-              </Text>
+              <Text style={mockLibraryStyles.filterSection}>Difficulty</Text>
               {DIFFICULTIES.map((d) => (
                 <TouchableOpacity
                   key={d}
@@ -571,12 +537,14 @@ interface RequestMockModalProps {
   visible: boolean;
   onClose: () => void;
   onCreated: (mockId: string) => void;
+  defaultExamId?: number | string | null;
 }
 
 const RequestMockModal: React.FC<RequestMockModalProps> = ({
   visible,
   onClose,
   onCreated,
+  defaultExamId,
 }) => {
   const [exams, setExams] = useState<OptionItem[]>([]);
   const [subjects, setSubjects] = useState<OptionItem[]>([]);
@@ -618,14 +586,20 @@ const RequestMockModal: React.FC<RequestMockModalProps> = ({
       try {
         setExamsLoading(true);
         const res = await getMyTargetExamsOptionsService();
-        setExams(toOptionsArray(res));
+        const list = toOptionsArray(res);
+        setExams(list);
+        // Default the form to the exam selected in the header.
+        if (defaultExamId != null) {
+          const match = list.find((e) => String(e.id) === String(defaultExamId));
+          if (match) setSelectedExam(match);
+        }
       } catch (err) {
         console.log('Failed to load target exams', err);
       } finally {
         setExamsLoading(false);
       }
     })();
-  }, [visible, resetForm]);
+  }, [visible, resetForm, defaultExamId]);
 
   useEffect(() => {
     if (!selectedExam) return;
@@ -965,10 +939,12 @@ export default function MockLibrary() {
   const [sortVisible, setSortVisible] = useState<boolean>(false);
   const [filterVisible, setFilterVisible] = useState<boolean>(false);
   const [selectedSort, setSelectedSort] = useState<string>('Newest First');
-  const [selectedExams, setSelectedExams] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<
     NormalizedDifficulty[]
   >([]);
+
+  // Mocks are scoped to the exam selected in the header.
+  const { activeExamId } = useTargetExam();
 
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -1041,16 +1017,21 @@ export default function MockLibrary() {
     return () => sub.remove();
   }, [requestVisible, filterVisible, sortVisible, resumeMock, selectedMock]);
 
-  const availableExams = useMemo<string[]>(() => {
-    return Array.from(
-      new Set(allMocks.map((m) => getExamName(m.exam)).filter(Boolean))
-    );
-  }, [allMocks]);
+  // Only mocks for the header-selected exam. Mocks whose exam id can't be
+  // resolved are kept so nothing is hidden on an unexpected shape.
+  const examScopedMocks = useMemo<MockTest[]>(() => {
+    if (activeExamId == null) return allMocks;
+    return allMocks.filter((m) => {
+      const examId = getExamId(m.exam);
+      if (examId == null) return true;
+      return String(examId) === String(activeExamId);
+    });
+  }, [allMocks, activeExamId]);
 
   const filteredMocks = useMemo<MockTest[]>(() => {
     const q = debouncedSearch.toLowerCase();
 
-    const filtered = allMocks.filter((m) => {
+    const filtered = examScopedMocks.filter((m) => {
       const examName = getExamName(m.exam);
       const subjectName = getSubjectName(m.subject);
 
@@ -1064,14 +1045,11 @@ export default function MockLibrary() {
         subjectName.toLowerCase().includes(q) ||
         examName.toLowerCase().includes(q);
 
-      const matchesExam: boolean =
-        selectedExams.length === 0 || selectedExams.includes(examName);
-
       const matchesDiff: boolean =
         selectedDifficulties.length === 0 ||
         selectedDifficulties.includes(normalizeDifficulty(m.difficulty));
 
-      return matchesTab && matchesSearch && matchesExam && matchesDiff;
+      return matchesTab && matchesSearch && matchesDiff;
     });
 
     const order: Record<NormalizedDifficulty, number> = {
@@ -1101,17 +1079,16 @@ export default function MockLibrary() {
       }
     });
   }, [
-    allMocks,
+    examScopedMocks,
     debouncedSearch,
     activeTab,
-    selectedExams,
     selectedDifficulties,
     selectedSort,
   ]);
 
-  const totalCount = allMocks.length;
-  const attempted = allMocks.filter((m) => m.status !== 'NOT_STARTED').length;
-  const activeFilterCount = selectedExams.length + selectedDifficulties.length;
+  const totalCount = examScopedMocks.length;
+  const attempted = examScopedMocks.filter((m) => m.status !== 'NOT_STARTED').length;
+  const activeFilterCount = selectedDifficulties.length;
 
   const handleOpen = (id: string): void => {
     const mock = allMocks.find((m) => String(m.id) === id);
@@ -1129,7 +1106,6 @@ export default function MockLibrary() {
   };
 
   const resetFilters = (): void => {
-    setSelectedExams([]);
     setSelectedDifficulties([]);
   };
 
@@ -1331,11 +1307,8 @@ export default function MockLibrary() {
       <FilterModal
         visible={filterVisible}
         onClose={() => setFilterVisible(false)}
-        selectedExams={selectedExams}
-        setSelectedExams={setSelectedExams}
         selectedDifficulties={selectedDifficulties}
         setSelectedDifficulties={setSelectedDifficulties}
-        availableExams={availableExams}
         onApply={() => setFilterVisible(false)}
         onReset={resetFilters}
       />
@@ -1344,6 +1317,7 @@ export default function MockLibrary() {
         visible={requestVisible}
         onClose={() => setRequestVisible(false)}
         onCreated={() => loadMocks(true)}
+        defaultExamId={activeExamId}
       />
 
     </View>

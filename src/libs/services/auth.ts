@@ -1,4 +1,3 @@
-// import { genericGETService, genericPOSTService, genericPATCHService, genericDELETEService } from "./api";
 import { LoginPayload, SignupPayload, ForgotPasswordPayload, ResetPasswordConfirmPayload, VerifyEmailPayload, ResendOtpPayload, UpdateProfilePayload, } from "../types/auth";
 import { genericPost } from "./genericService";
 

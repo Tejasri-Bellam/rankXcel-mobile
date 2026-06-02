@@ -3,7 +3,6 @@ import { COLORS } from './styles';
 
 export const onboardingStyles = StyleSheet.create({
   safeArea: {
-    flex: 1,
     backgroundColor: COLORS.background,
   },
   scroll: {

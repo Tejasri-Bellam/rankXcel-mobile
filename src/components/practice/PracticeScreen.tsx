@@ -1,8 +1,17 @@
-import { practiceStyles } from '@/src/styles/sidebar/practiceStyles';
-import { COLORS } from '@/src/styles/styles';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTargetExam } from "@/src/libs/context/TagretExamContext";
+import { getSubjectOptionsService } from "@/src/libs/services/mock-library";
+import { getChapterPerformanceService } from "@/src/libs/services/practice";
+import { practiceStyles } from "@/src/styles/sidebar/practice/practiceStyles";
+import { COLORS } from "@/src/styles/styles";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -10,14 +19,8 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import PracticeExamFlow from './PracticeExamFlow';
-import {
-  getMyTargetExamsOptionsService,
-  getSubjectOptionsService,
-  OptionItem,
-} from '@/src/libs/services/mock-library';
-import { getChapterPerformanceService } from '@/src/libs/services/practice';
+} from "react-native";
+import PracticeExamFlow from "./PracticeExamFlow";
 
 export interface TopicItem {
   name: string;
@@ -44,11 +47,15 @@ const getAccuracyColor = (accuracy: number) => {
 
 const toArray = (raw: unknown): any[] => {
   if (Array.isArray(raw)) return raw;
-  if (raw && typeof raw === 'object') {
+  if (raw && typeof raw === "object") {
     const r = raw as { results?: any[]; data?: any[] | { results?: any[] } };
     if (Array.isArray(r.results)) return r.results;
     if (Array.isArray(r.data)) return r.data;
-    if (r.data && typeof r.data === 'object' && Array.isArray((r.data as any).results)) {
+    if (
+      r.data &&
+      typeof r.data === "object" &&
+      Array.isArray((r.data as any).results)
+    ) {
       return (r.data as { results: any[] }).results;
     }
   }
@@ -56,17 +63,24 @@ const toArray = (raw: unknown): any[] => {
 };
 
 const unwrap = (res: any): any =>
-  res && typeof res === 'object' && 'data' in res ? (res as any).data : res;
+  res && typeof res === "object" && "data" in res ? (res as any).data : res;
 
 const AccuracyRing = ({ pct, color }: { pct: number; color: string }) => {
   const size = 42;
   const stroke = 3.5;
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{
+        width: size,
+        height: size,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
       <View
         style={{
-          position: 'absolute',
+          position: "absolute",
           width: size,
           height: size,
           borderRadius: size / 2,
@@ -76,18 +90,20 @@ const AccuracyRing = ({ pct, color }: { pct: number; color: string }) => {
       />
       <View
         style={{
-          position: 'absolute',
+          position: "absolute",
           width: size,
           height: size,
           borderRadius: size / 2,
           borderWidth: stroke,
           borderColor: color,
-          borderRightColor: 'transparent',
-          borderBottomColor: pct > 50 ? color : 'transparent',
-          transform: [{ rotate: '-90deg' }],
+          borderRightColor: "transparent",
+          borderBottomColor: pct > 50 ? color : "transparent",
+          transform: [{ rotate: "-90deg" }],
         }}
       />
-      <Text style={{ fontSize: 11, fontWeight: '700', color: color }}>{pct}%</Text>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: color }}>
+        {pct}%
+      </Text>
     </View>
   );
 };
@@ -107,9 +123,13 @@ const normalizePerformance = (raw: any): SubjectGroup[] => {
   const subjectMap = new Map<string, SubjectGroup>();
 
   list.forEach((entry: any) => {
-    if (!entry || typeof entry !== 'object') return;
-    const subjectName = String(entry.subject_name ?? entry.subject ?? 'Subject');
-    const chapterName = String(entry.chapter_name ?? entry.chapter ?? entry.name ?? '');
+    if (!entry || typeof entry !== "object") return;
+    const subjectName = String(
+      entry.subject_name ?? entry.subject ?? "Subject",
+    );
+    const chapterName = String(
+      entry.chapter_name ?? entry.chapter ?? entry.name ?? "",
+    );
     if (!chapterName) return;
 
     if (!subjectMap.has(subjectName)) {
@@ -117,7 +137,7 @@ const normalizePerformance = (raw: any): SubjectGroup[] => {
     }
     const topicsRaw = Array.isArray(entry.topics) ? entry.topics : [];
     const topics: TopicItem[] = topicsRaw.map((t: any) => ({
-      name: String(t?.topic_name ?? t?.name ?? ''),
+      name: String(t?.topic_name ?? t?.name ?? ""),
       accuracy: parseAccuracy(t?.percentage ?? t?.accuracy),
     }));
     subjectMap.get(subjectName)!.chapters.push({
@@ -142,9 +162,8 @@ export default function PracticeScreen() {
     examId?: string;
   }>();
 
-  const [exams, setExams] = useState<OptionItem[]>([]);
-  const [examsLoading, setExamsLoading] = useState(false);
-  const [selectedExam, setSelectedExam] = useState<OptionItem | null>(null);
+  // Active exam comes from the header selector (shared app-wide).
+  const { activeExamId } = useTargetExam();
 
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
@@ -152,27 +171,19 @@ export default function PracticeScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
+  const [expandedChapters, setExpandedChapters] = useState<
+    Record<string, boolean>
+  >({});
 
   const [practiceVisible, setPracticeVisible] = useState(false);
   const [activeChapter, setActiveChapter] = useState<ChapterItem | null>(null);
-  const [autoQuestionCount, setAutoQuestionCount] = useState<number | undefined>(undefined);
-  const [autoTimerMinutes, setAutoTimerMinutes] = useState<number | undefined>(undefined);
+  const [autoQuestionCount, setAutoQuestionCount] = useState<
+    number | undefined
+  >(undefined);
+  const [autoTimerMinutes, setAutoTimerMinutes] = useState<number | undefined>(
+    undefined,
+  );
   const autoLaunchHandledRef = useRef(false);
-
-  const loadExams = useCallback(async () => {
-    try {
-      setExamsLoading(true);
-      const res = await getMyTargetExamsOptionsService();
-      const list = toArray(unwrap(res));
-      setExams(list);
-      setSelectedExam((prev) => prev ?? (list.length > 0 ? list[0] : null));
-    } catch (err) {
-      console.log('Failed to load target exams', err);
-    } finally {
-      setExamsLoading(false);
-    }
-  }, []);
 
   const loadPerformance = useCallback(
     async (examId: number, isRefresh = false) => {
@@ -190,7 +201,7 @@ export default function PracticeScreen() {
         // Make sure every known subject for this exam appears as a tab (even if no chapters yet)
         const subjectsList = toArray(unwrap(subjRes));
         subjectsList.forEach((s: any) => {
-          const name = String(s?.name ?? s?.code ?? 'Subject');
+          const name = String(s?.name ?? s?.code ?? "Subject");
           if (!groups.find((g) => g.name === name)) {
             groups.push({ name, chapters: [] });
           }
@@ -206,8 +217,9 @@ export default function PracticeScreen() {
           setSelectedSubject(null);
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to load chapters.';
-        console.log('Practice performance error:', err);
+        const msg =
+          err instanceof Error ? err.message : "Failed to load chapters.";
+        console.log("Practice performance error:", err);
         setError(msg);
       } finally {
         setGroupsLoading(false);
@@ -218,15 +230,11 @@ export default function PracticeScreen() {
   );
 
   useEffect(() => {
-    loadExams();
-  }, [loadExams]);
-
-  useEffect(() => {
-    if (selectedExam?.id) {
+    if (activeExamId != null) {
       setSelectedSubject(null);
-      loadPerformance(Number(selectedExam.id));
+      loadPerformance(Number(activeExamId));
     }
-  }, [selectedExam, loadPerformance]);
+  }, [activeExamId, loadPerformance]);
 
   // Auto-open practice flow when navigated from dashboard's Today's Focus.
   // Params arrive only once per navigation — guard with a ref so re-renders
@@ -234,13 +242,9 @@ export default function PracticeScreen() {
   useEffect(() => {
     if (autoLaunchHandledRef.current) return;
     if (!params?.chapterName || !params?.subjectName || !params?.examId) return;
-    if (examsLoading) return;
+    if (activeExamId == null) return;
 
     autoLaunchHandledRef.current = true;
-
-    const examIdNum = Number(params.examId);
-    const matchedExam = exams.find((e) => Number(e.id) === examIdNum);
-    if (matchedExam) setSelectedExam(matchedExam);
 
     setActiveChapter({
       name: String(params.chapterName),
@@ -262,7 +266,7 @@ export default function PracticeScreen() {
       accuracyTrend: undefined,
       examId: undefined,
     } as any);
-  }, [params, exams, examsLoading, router]);
+  }, [params, activeExamId, router]);
 
   const activeSubject = useMemo(
     () => subjectGroups.find((g) => g.name === selectedSubject) ?? null,
@@ -288,7 +292,10 @@ export default function PracticeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => selectedExam && loadPerformance(Number(selectedExam.id), true)}
+            onRefresh={() =>
+              activeExamId != null &&
+              loadPerformance(Number(activeExamId), true)
+            }
             colors={[COLORS.primary]}
             tintColor={COLORS.primary}
           />
@@ -296,12 +303,19 @@ export default function PracticeScreen() {
       >
         {/* Hero Banner */}
         <View style={practiceStyles.heroBanner}>
-          <TouchableOpacity style={practiceStyles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={practiceStyles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={18} color={COLORS.textDark} />
           </TouchableOpacity>
 
           <View style={practiceStyles.heroIconCircle}>
-            <MaterialCommunityIcons name="lightning-bolt" size={28} color={COLORS.primary} />
+            <MaterialCommunityIcons
+              name="lightning-bolt"
+              size={28}
+              color={COLORS.primary}
+            />
           </View>
 
           <View style={{ flex: 1 }}>
@@ -311,52 +325,6 @@ export default function PracticeScreen() {
             </Text>
           </View>
         </View>
-
-        {/* Exam List */}
-        <Text style={practiceStyles.sectionLabel}>YOUR TARGET EXAMS</Text>
-        {examsLoading ? (
-          <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          </View>
-        ) : exams.length === 0 ? (
-          <View style={practiceStyles.emptyState}>
-            <MaterialCommunityIcons name="book-open-page-variant-outline" size={48} color={COLORS.border} />
-            <Text style={practiceStyles.emptyText}>No target exams found</Text>
-          </View>
-        ) : (
-          <View style={practiceStyles.examList}>
-            {exams.map((exam) => {
-              const isActive = exam.id === selectedExam?.id;
-              return (
-                <TouchableOpacity
-                  key={String(exam.id)}
-                  style={[practiceStyles.examRow, isActive && practiceStyles.examRowActive]}
-                  onPress={() => setSelectedExam(exam)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[practiceStyles.examIconBox, isActive && practiceStyles.examIconBoxActive]}>
-                    <MaterialCommunityIcons
-                      name="book-open-outline"
-                      size={20}
-                      color={isActive ? COLORS.primary : COLORS.textLight}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[practiceStyles.examName, isActive && practiceStyles.examNameActive]}>
-                      {exam.name}
-                    </Text>
-                    {exam.code ? (
-                      <Text style={practiceStyles.examSubtitle}>{exam.code}</Text>
-                    ) : null}
-                  </View>
-                  {isActive && (
-                    <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
 
         {/* Subject Tabs */}
         {subjectGroups.length > 0 && (
@@ -371,14 +339,16 @@ export default function PracticeScreen() {
                 key={subj.name}
                 style={[
                   practiceStyles.subjectTab,
-                  selectedSubject === subj.name && practiceStyles.subjectTabActive,
+                  selectedSubject === subj.name &&
+                    practiceStyles.subjectTabActive,
                 ]}
                 onPress={() => setSelectedSubject(subj.name)}
               >
                 <Text
                   style={[
                     practiceStyles.subjectTabText,
-                    selectedSubject === subj.name && practiceStyles.subjectTabTextActive,
+                    selectedSubject === subj.name &&
+                      practiceStyles.subjectTabTextActive,
                   ]}
                 >
                   {subj.name}
@@ -390,16 +360,31 @@ export default function PracticeScreen() {
 
         {/* Chapter List */}
         {groupsLoading ? (
-          <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+          <View style={{ paddingVertical: 40, alignItems: "center" }}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={{ marginTop: 12, color: COLORS.textLight, fontSize: 13 }}>
+            <Text
+              style={{ marginTop: 12, color: COLORS.textLight, fontSize: 13 }}
+            >
               Loading chapters...
             </Text>
           </View>
         ) : error ? (
-          <View style={{ alignItems: 'center', paddingTop: 48, paddingHorizontal: 24 }}>
+          <View
+            style={{
+              alignItems: "center",
+              paddingTop: 48,
+              paddingHorizontal: 24,
+            }}
+          >
             <Ionicons name="wifi-outline" size={40} color={COLORS.red} />
-            <Text style={{ color: COLORS.red, fontSize: 14, marginTop: 12, textAlign: 'center' }}>
+            <Text
+              style={{
+                color: COLORS.red,
+                fontSize: 14,
+                marginTop: 12,
+                textAlign: "center",
+              }}
+            >
               {error}
             </Text>
             <TouchableOpacity
@@ -410,9 +395,13 @@ export default function PracticeScreen() {
                 borderRadius: 10,
                 backgroundColor: COLORS.primary,
               }}
-              onPress={() => selectedExam && loadPerformance(Number(selectedExam.id))}
+              onPress={() =>
+                activeExamId != null && loadPerformance(Number(activeExamId))
+              }
             >
-              <Text style={{ color: COLORS.white, fontWeight: '700' }}>Retry</Text>
+              <Text style={{ color: COLORS.white, fontWeight: "700" }}>
+                Retry
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -424,33 +413,42 @@ export default function PracticeScreen() {
                   size={48}
                   color={COLORS.border}
                 />
-                <Text style={practiceStyles.emptyText}>No chapters found for this subject</Text>
+                <Text style={practiceStyles.emptyText}>
+                  No chapters found for this subject
+                </Text>
               </View>
             ) : (
-              chapters.map((chapter) => {
-                const expanded = !!expandedChapters[chapter.name];
-                const topics = Array.isArray(chapter.topics) ? chapter.topics : [];
+              chapters.map((chapter, index) => {
+                // Chapter names can repeat within a subject, so key by name + index.
+                const chapterKey = `${chapter.name}-${index}`;
+                const expanded = !!expandedChapters[chapterKey];
+                const topics = Array.isArray(chapter.topics)
+                  ? chapter.topics
+                  : [];
                 const topicsCount = topics.length;
                 return (
-                  <View key={chapter.name}>
+                  <View key={chapterKey}>
                     <TouchableOpacity
                       style={practiceStyles.chapterRow}
                       activeOpacity={0.75}
-                      onPress={() => toggleChapter(chapter.name)}
+                      onPress={() => toggleChapter(chapterKey)}
                     >
                       <View style={practiceStyles.chapterLeft}>
                         <View style={practiceStyles.chapterExpandIcon}>
                           <Ionicons
-                            name={expanded ? 'chevron-up' : 'chevron-down'}
+                            name={expanded ? "chevron-up" : "chevron-down"}
                             size={14}
                             color={COLORS.textLight}
                           />
                         </View>
 
                         <View style={{ flex: 1 }}>
-                          <Text style={practiceStyles.chapterName}>{chapter.name}</Text>
+                          <Text style={practiceStyles.chapterName}>
+                            {chapter.name}
+                          </Text>
                           <Text style={practiceStyles.chapterTopics}>
-                            {topicsCount} {topicsCount === 1 ? 'topic' : 'topics'}
+                            {topicsCount}{" "}
+                            {topicsCount === 1 ? "topic" : "topics"}
                           </Text>
                         </View>
                       </View>
@@ -474,34 +472,45 @@ export default function PracticeScreen() {
                             handlePracticePress(chapter);
                           }}
                         >
-                          <Ionicons name="play-circle-outline" size={22} color={COLORS.primary} />
+                          <Ionicons
+                            name="play-circle-outline"
+                            size={22}
+                            color={COLORS.primary}
+                          />
                         </TouchableOpacity>
                       </View>
                     </TouchableOpacity>
 
                     {expanded && topics.length > 0 && (
-                      <View style={{ backgroundColor: COLORS.background, paddingLeft: 38 }}>
-                        {topics.map((topic) => (
+                      <View
+                        style={{
+                          backgroundColor: COLORS.background,
+                          paddingLeft: 38,
+                        }}
+                      >
+                        {topics.map((topic, topicIndex) => (
                           <View
-                            key={topic.name}
+                            key={`${topic.name}-${topicIndex}`}
                             style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "space-between",
                               paddingHorizontal: 14,
                               paddingVertical: 12,
                               borderBottomWidth: 1,
                               borderBottomColor: COLORS.border,
                             }}
                           >
-                            <Text style={{ fontSize: 13, color: COLORS.textMedium }}>
+                            <Text
+                              style={{ fontSize: 13, color: COLORS.textMedium }}
+                            >
                               {topic.name}
                             </Text>
                             {topic.accuracy !== null && (
                               <Text
                                 style={{
                                   fontSize: 12,
-                                  fontWeight: '700',
+                                  fontWeight: "700",
                                   color: getAccuracyColor(topic.accuracy),
                                 }}
                               >
@@ -520,11 +529,11 @@ export default function PracticeScreen() {
         )}
       </ScrollView>
 
-      {activeChapter && selectedExam && (
+      {activeChapter && activeExamId != null && (
         <PracticeExamFlow
           visible={practiceVisible}
           chapter={activeChapter}
-          examId={Number(selectedExam.id)}
+          examId={Number(activeExamId)}
           initialQuestionCount={autoQuestionCount}
           initialTimerMinutes={autoTimerMinutes}
           onClose={() => {
@@ -532,11 +541,11 @@ export default function PracticeScreen() {
             setActiveChapter(null);
             setAutoQuestionCount(undefined);
             setAutoTimerMinutes(undefined);
-            if (selectedExam) loadPerformance(Number(selectedExam.id), true);
+            if (activeExamId != null)
+              loadPerformance(Number(activeExamId), true);
           }}
         />
       )}
-
     </View>
   );
 }

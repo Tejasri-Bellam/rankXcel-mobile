@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { COLORS } from "@/src/styles/styles";
 import { AnswerState } from "./PracticeExamFlow";
+import React from "react";
 
 export default function PracticeProgress({
     current,

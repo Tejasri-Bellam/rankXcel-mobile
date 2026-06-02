@@ -7,6 +7,7 @@ import { FlatList, ScrollView } from 'react-native-gesture-handler';
 import { getassessmentsService } from '@/src/libs/services/assessments';
 import ExamDetails from './ExamDetails';
 import { assessmentsStyles as styles } from '@/src/styles/sidebar/assessmentsStyles';
+import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 
 type TabType = 'live' | 'upcoming' | 'completed' | 'missed';
 
@@ -45,6 +46,9 @@ export default function AssessmentsScreen() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabType>('live');
   const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  // Scope assessments to the exam selected in the header.
+  const { activeExamId } = useTargetExam();
 
 
   const fetchAssessments = async () => {
@@ -96,13 +100,19 @@ export default function AssessmentsScreen() {
     return 'missed';
   };
 
-  const dataWithStatus = data.map((item: any) => ({
+  const matchesActiveExam = (item: any): boolean => {
+    if (activeExamId == null) return true;
+    const examId = item?.exam?.id;
+    if (examId == null) return true;
+    return String(examId) === String(activeExamId);
+  };
+
+  const dataWithStatus = data.filter(matchesActiveExam).map((item: any) => ({
     ...item,
     derived_status: deriveStatus(item),
   }));
 
   const filteredData = dataWithStatus.filter((item: any) => item.derived_status === tab);
-  console.log('filteredData', filteredData);
 
   const counts: Record<TabType, number> = {
     live: dataWithStatus.filter((d: any) => d.derived_status === 'live').length,
@@ -204,7 +214,7 @@ export default function AssessmentsScreen() {
       )}
           </View>
 
-      `{/* Right: action button */}
+      {/* Right: action button */}
         <TouchableOpacity
           style={
             isCompleted

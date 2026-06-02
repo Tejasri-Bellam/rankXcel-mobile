@@ -106,7 +106,7 @@ export default function ResetPasswordConfirmScreen() {
   // Success state
   if (success) {
     return (
-      <SafeAreaView style={resetPasswordStyles.safeArea}>
+      <View style={resetPasswordStyles.safeArea}>
         <ScrollView contentContainerStyle={resetPasswordStyles.scrollContent} showsVerticalScrollIndicator={false}>
           <Animated.View style={[resetPasswordStyles.card, { opacity: fadeAnim }]}>
             <Logo />
@@ -130,13 +130,13 @@ export default function ResetPasswordConfirmScreen() {
             </TouchableOpacity>
           </Animated.View>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Main form
   return (
-    <SafeAreaView style={resetPasswordStyles.safeArea}>
+    <View style={resetPasswordStyles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={resetPasswordStyles.flex}
@@ -265,6 +265,6 @@ export default function ResetPasswordConfirmScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }

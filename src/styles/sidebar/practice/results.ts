@@ -1,0 +1,150 @@
+import { StyleSheet } from "react-native";
+import { COLORS } from "../../styles";
+
+export const resStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  card: {
+    width: '100%',
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  banner: {
+    backgroundColor: COLORS.red,
+    padding: 24,
+    alignItems: 'center',
+    gap: 4,
+    position: 'relative',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.white,
+    opacity: 0.9,
+  },
+  scoreLarge: {
+    fontSize: 52,
+    fontWeight: '900',
+    color: COLORS.white,
+    lineHeight: 60,
+  },
+  timeTaken: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.textDark,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 8,
+  },
+  accuracySection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 8,
+  },
+  accRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  accLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textMedium,
+  },
+  accValue: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  accTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.border,
+  },
+  accFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    paddingTop: 0,
+  },
+  hubBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  hubText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.textMedium,
+  },
+  tryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+});

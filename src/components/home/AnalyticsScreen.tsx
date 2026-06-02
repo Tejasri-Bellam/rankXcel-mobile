@@ -15,7 +15,7 @@ const { width } = Dimensions.get('window');
 
 type PeriodType = '7d' | '30d' | '90d' | 'All';
 
-// ─── Mini Bar Chart ───────────────────────────────────────────────────────────
+// Mini Bar Chart
 
 const BarChart = ({
   data,
@@ -47,7 +47,7 @@ const BarChart = ({
   );
 };
 
-// ─── Donut Chart (simple segments) ────────────────────────────────────────────
+// Donut Chart
 
 const SubjectDonut = ({
   data,
@@ -81,7 +81,7 @@ const SubjectDonut = ({
   </View>
 );
 
-// ─── Stat Pill ────────────────────────────────────────────────────────────────
+// Stat Pill
 
 const StatPill = ({
   icon,
@@ -112,7 +112,7 @@ const StatPill = ({
   </View>
 );
 
-// ─── Chapter Row ──────────────────────────────────────────────────────────────
+// Chapter Row
 
 const ChapterRow = ({
   rank,
@@ -150,7 +150,7 @@ const ChapterRow = ({
   </View>
 );
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// Main Screen
 
 export default function AnalyticsScreen() {
   const [period, setPeriod] = useState<PeriodType>('30d');
@@ -344,7 +344,3 @@ export default function AnalyticsScreen() {
     </View>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
- 

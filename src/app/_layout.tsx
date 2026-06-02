@@ -8,6 +8,7 @@ import Header from "@/src/components/common/Header";
 import Sidebar from "@/src/components/common/Sidebar";
 import { ProfileMenu } from "@/src/components/common/ProfileMenu";
 import { COLORS } from "@/src/styles/styles";
+import { TargetExamProvider } from "../libs/context/TagretExamContext";
 
 const HEADER_ROUTES = [
   "/dashboard",
@@ -40,7 +41,6 @@ function AppShell() {
   return (
     <>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: COLORS.white }}>
         {showHeader && (
           <Header
             onMenuPress={() => setDrawerOpen(true)}
@@ -51,7 +51,6 @@ function AppShell() {
           <Stack screenOptions={{ headerShown: false }} />
         </View> */}
         <Stack screenOptions={{ headerShown: false }} />
-      </SafeAreaView>
       {showHeader && (
         <>
           <Sidebar visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
@@ -66,9 +65,12 @@ export default function Layout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppShell />
+        <TargetExamProvider>
+          <SafeAreaView style={{ flex: 1}}>
+          <AppShell />
+          </SafeAreaView>
+        </TargetExamProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
-}
- 
+} 

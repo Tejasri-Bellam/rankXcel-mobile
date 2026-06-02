@@ -1,22 +1,15 @@
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text, View } from "react-native";
 import { COLORS } from "@/src/styles/styles";
 import { DashboardUser } from "@/src/libs/types/dashboard";
 import { TargetExam } from "@/src/libs/hooks/enrollment/useDashboard";
 
 interface GreetingProps {
   user: DashboardUser | null;
-  targetExams: TargetExam[];
-  activeExamId: number | string | null;
-  onSelectExam: (id: number | string) => void;
 }
 
 export default function Greeting({
   user,
-  targetExams,
-  activeExamId,
-  onSelectExam,
 }: GreetingProps) {
   const getFirstName = (fullName: string) => {
     if (!fullName) return "User";
@@ -24,7 +17,6 @@ export default function Greeting({
   };
 
   const firstName = getFirstName(user?.name ?? "");
-
   const now = new Date();
   const hour = now.getHours();
   let greeting = "Good morning";
@@ -39,7 +31,7 @@ export default function Greeting({
   });
 
   return (
-    <View className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <View style={styles.greetingSection}>
       <View style={styles.greetingSection}>
         <Text style={styles.greetingText}>
           {greeting}, {firstName}! 👋
@@ -47,7 +39,7 @@ export default function Greeting({
 
         <Text style={styles.greetingDate}>{formattedDate}</Text>
 
-        <View style={styles.examBadgesContainer}>
+        {/* <View style={styles.examBadgesContainer}>
           {targetExams.map((item) => {
             const examId = item.id;
             const isActive = examId === activeExamId;
@@ -83,7 +75,7 @@ export default function Greeting({
               </TouchableOpacity>
             );
           })}
-        </View>
+        </View> */}
       </View>
     </View>
   );
@@ -91,9 +83,8 @@ export default function Greeting({
 
 const styles: any = {
   greetingSection: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
+    paddingHorizontal: 10,
+    paddingTop: 10,
   },
   greetingText: {
     fontSize: 20,
