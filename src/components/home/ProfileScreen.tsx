@@ -30,7 +30,7 @@ import { storageSetAccessToken } from '@/src/libs/storage';
 const { width } = Dimensions.get('window');
 
 // Types
-type ExamEntry = { id: number; name: string; year: string };
+type ExamEntry = { id: number; name: string; year: string; percentage?: string };
 type NotifKey = 'mockResults' | 'weeklyTips' | 'mockNotif' | 'practiceReminders' | 'productUpdates';
 
 const NOTIFICATION_ITEMS: { key: NotifKey; label: string; channel: string }[] = [
@@ -104,6 +104,7 @@ export default function ProfileScreen() {
   const [selectedExamId, setSelectedExamId] = useState<number | ''>('');
   const [selectedExamName, setSelectedExamName] = useState('');
   const [targetYear, setTargetYear] = useState('');
+  const [targetPercentage, setTargetPercentage] = useState('');
   const [examDropdownOpen, setExamDropdownOpen] = useState(false);
   const [examOptions, setExamOptions] = useState<{ id: number; name: string }[]>([]);
 
@@ -260,9 +261,11 @@ export default function ProfileScreen() {
     const payload: {
       exam: number | string;
       target_year: number;
+      target_percentage?: number;
     } = {
       exam: selectedExamId,
       target_year: Number(targetYear),
+      ...(targetPercentage ? { target_percentage: Number(targetPercentage) } : {}),
     };
     console.log('payload', payload);
 
@@ -275,6 +278,7 @@ export default function ProfileScreen() {
         setSelectedExamId('');
         setSelectedExamName('');
         setTargetYear("");
+        setTargetPercentage('');
 
         fetchPreferences();
       }
@@ -469,6 +473,15 @@ export default function ProfileScreen() {
 
             <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Target Year *</Text>
             <TextInput style={profileStyles.textInput} value={targetYear} onChangeText={setTargetYear} placeholder="e.g. 2026" placeholderTextColor={COLORS.textLight} keyboardType="numeric" />
+            <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Target Percentage</Text>
+            <TextInput
+              style={profileStyles.textInput}
+              value={targetPercentage}
+              onChangeText={setTargetPercentage}
+              placeholder="e.g. 95"
+              placeholderTextColor={COLORS.textLight}
+              keyboardType="numeric"
+            />
 
             <TouchableOpacity style={profileStyles.addExamBtn} onPress={handleAddExam}>
               <Ionicons name="add" size={16} color={COLORS.white} />

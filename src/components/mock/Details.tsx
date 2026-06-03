@@ -199,7 +199,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
 
   // Detail Screen
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <View style={styles.safeArea} >
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}
@@ -351,7 +351,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
       {/* Bottom CTA */}
       <View
         style={[ styles.bottomBar,
-              {paddingBottom: 40, marginBottom: 10 },
+              {paddingBottom: 40, marginBottom: 0 },
               ]}
       >
         {isNotStarted && (
@@ -396,6 +396,6 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

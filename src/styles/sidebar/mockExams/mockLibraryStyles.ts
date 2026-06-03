@@ -652,4 +652,31 @@ export const mockLibraryStyles = StyleSheet.create({
     right: 16,
     padding: 4,
   },
+  dropdown: {
+  height: 50,
+  borderWidth: 1,
+  borderColor: COLORS.border,
+  borderRadius: 12,
+  paddingHorizontal: 12,
+  backgroundColor: COLORS.white,
+},
+
+placeholderStyle: {
+  fontSize: 14,
+  color: COLORS.textLight,
+},
+
+selectedTextStyle: {
+  fontSize: 14,
+  color: COLORS.textDark,
+},
+
+inputSearchStyle: {
+  height: 40,
+  fontSize: 14,
+},
+
+itemTextStyle: {
+  fontSize: 14,
+},
 });

@@ -296,7 +296,7 @@ export default function MockExamScreen({
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
 
       {/* Top bar */}
@@ -514,6 +514,6 @@ export default function MockExamScreen({
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }

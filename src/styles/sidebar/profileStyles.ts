@@ -97,6 +97,14 @@ backText: {
     fontSize: 14,
     color: COLORS.textDark,
   },
+  addExamInlineRow: {
+  flexDirection: 'row',
+  gap: 10,
+  marginTop: 8,
+},
+addExamInlineField: {
+  flex: 1,
+},
 
   // ── Save button ──
   saveBtn: {
