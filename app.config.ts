@@ -1,16 +1,16 @@
 import { ConfigContext, ExpoConfig } from "@expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
-  const appName = process.env.APP_NAME || "rankXcel-mobile";
-  const packageName =
-    process.env.APP_PACKAGE_NAME || "com.rankxcelmobile.dev";
+  const appName = process.env.APP_NAME || "RankXcel Dev";
+  const packageName = process.env.APP_PACKAGE_NAME || "com.rankxcel.mobile.dev";
   const appVersion = process.env.EXPO_PUBLIC_APP_VERSION || "1.0.0";
   const appVersionCode = parseInt(process.env.APP_VERSION_CODE || "1");
-  const appScheme = process.env.APP_SCHEME || "rankxcelmobile-dev";
+  const appScheme = process.env.APP_SCHEME || "rankxcel-mobile-dev";
   const deepLinkDomain =
-    process.env.EXPO_PUBLIC_DEEP_LINK_DOMAIN || "eventsui.wmlit.com";
+    process.env.EXPO_PUBLIC_DEEP_LINK_DOMAIN || "rankxcel.wmlit.com";
 
   return {
+    ...config,
     name: appName,
     slug: "rankXcel-mobile",
     version: appVersion,
@@ -22,9 +22,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
     ios: {
       supportsTablet: true,
+      bundleIdentifier: packageName,
+      buildNumber: String(appVersionCode),
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+        CFBundleDisplayName: appName,
+        CFBundleName: appName,
+      },
     },
 
     android: {
+      package: packageName,
+      versionCode: appVersionCode,
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -33,8 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
-      package: "com.tejasribellam.rankXcelmobile",
-      versionCode: appVersionCode,
+      permissions: ["INTERNET"],
     },
 
     web: {
@@ -62,10 +70,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       typedRoutes: true,
       reactCompiler: true,
     },
-
     extra: {
       deepLinkDomain,
+      eas: {
+        projectId: "7071fa32-b257-4efc-b8e1-ccfe3c45fd0c"
+      }
     },
+    owner: "wmlit"
   };
 };
- 

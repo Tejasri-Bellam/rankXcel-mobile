@@ -5,14 +5,64 @@
   },
   "build": {
     "development": {
-      "developmentClient": true,
-      "distribution": "internal"
+      "developmentClient": false,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "development",
+        "APP_NAME": "RankXcel Dev",
+        "APP_SCHEME": "rankxcel-mobile-dev",
+        "APP_PACKAGE_NAME": "com.rankxcel.mobile.dev",
+        "APP_VERSION_CODE": "1",
+        "EXPO_PUBLIC_APP_VERSION": "1.0.0",
+        "EXPO_PUBLIC_APP_ENV": "dev",
+        "EXPO_PUBLIC_API_BASE_URL": "https://rankxcelapi.wmlit.com/api",
+        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "rankxcel.wmlit.com"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "developmentClient": false,
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "scheme": "rankxcel-mobile-dev",
+        "image": "latest",
+        "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "preview",
+        "APP_NAME": "RankXcel Dev",
+        "APP_SCHEME": "rankxcel-mobile-dev",
+        "APP_PACKAGE_NAME": "com.rankxcel.mobile.dev",
+        "APP_VERSION_CODE": "1",
+        "EXPO_PUBLIC_APP_VERSION": "1.0.0",
+        "EXPO_PUBLIC_APP_ENV": "qa",
+        "EXPO_PUBLIC_API_BASE_URL": "https://rankxcelapi.wmlit.com/api",
+        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "rankxcel.wmlit.com"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "developmentClient": false,
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "scheme": "rankxcel-mobile",
+        "image": "latest",
+        "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENVIRONMENT": "production",
+        "APP_NAME": "RankXcel",
+        "APP_SCHEME": "rankxcel-mobile",
+        "APP_PACKAGE_NAME": "com.rankxcel.mobile",
+        "APP_VERSION_CODE": "1",
+        "EXPO_PUBLIC_APP_VERSION": "1.0.0",
+        "EXPO_PUBLIC_APP_ENV": "prod",
+        "EXPO_PUBLIC_API_BASE_URL": "https://rankxcelapi.wmlit.com/api",
+        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "rankxcel.wmlit.com"
+      }
     }
   },
   "submit": {
