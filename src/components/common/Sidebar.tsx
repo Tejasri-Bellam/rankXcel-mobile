@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,7 +15,6 @@ import {
 import { logoutService } from '@/src/libs/services/auth';
 import { getMeService } from '@/src/libs/services/profile';
 import { storageGetAccessToken } from '@/src/libs/storage';
-import { Picker } from '@react-native-picker/picker';
 import { getCountriesService } from '@/src/libs/services/countries';
 
 const { width } = Dimensions.get('window');
@@ -49,6 +49,7 @@ export default function Sidebar({
 
   const [countries, setCountries] = useState<any[]>([]);
   const [selectedCountry, setSelectedCountry] = useState('');
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
 
   // Fetch User
   useEffect(() => {
@@ -141,8 +142,6 @@ export default function Sidebar({
     );
   };
 
-  if (!visible) return null;
-
   const navItems = [
     {
       icon: 'grid-outline',
@@ -194,6 +193,7 @@ export default function Sidebar({
 
   const onCountryChange = async (value: string) => {
     setSelectedCountry(value);
+    setCountryDropdownOpen(false);
 
     await AsyncStorage.setItem(
       "selectedCountry",
@@ -229,6 +229,9 @@ export default function Sidebar({
       );
     }
   };
+
+  if (!visible) return null;
+
   return (
     <TouchableOpacity
       style={styles.drawerOverlay}
@@ -324,35 +327,83 @@ export default function Sidebar({
           })}
 
           {/* Footer */}
-          <View style={styles.drawerFooter}>
             <View style={styles.countryContainer}>
               <Text style={styles.countryLabel}>
                 Select Country
               </Text>
 
               <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={selectedCountry}
-                  onValueChange={(value) =>
-                    onCountryChange(String(value))
+                {countryDropdownOpen && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView
+                      nestedScrollEnabled
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      {countries.map((country) => {
+                        const isSelected =
+                          String(country.id) === selectedCountry;
+
+                        return (
+                          <TouchableOpacity
+                            key={country.id}
+                            style={[
+                              styles.dropdownItem,
+                              isSelected &&
+                                styles.dropdownItemSelected,
+                            ]}
+                            onPress={() =>
+                              onCountryChange(String(country.id))
+                            }
+                          >
+                            <Text
+                              style={[
+                                styles.dropdownItemText,
+                                isSelected &&
+                                  styles.dropdownItemTextSelected,
+                              ]}
+                            >
+                              {country.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.dropdownTrigger}
+                  activeOpacity={0.7}
+                  onPress={() =>
+                    setCountryDropdownOpen((prev) => !prev)
                   }
                 >
-                  <Picker.Item
-                    label="Select Country"
-                    value=""
-                  />
+                  <Text
+                    style={[
+                      styles.dropdownTriggerText,
+                      !selectedCountry &&
+                        styles.dropdownPlaceholderText,
+                    ]}
+                  >
+                    {countries.find(
+                      (c) => String(c.id) === selectedCountry
+                    )?.name || 'Select Country'}
+                  </Text>
 
-                  {countries.map((country) => (
-                    <Picker.Item
-                      key={country.id}
-                      label={country.name}
-                      value={String(country.id)}
-                    />
-                  ))}
-                </Picker>
+                  <Ionicons
+                    name={
+                      countryDropdownOpen
+                        ? 'chevron-up'
+                        : 'chevron-down'
+                    }
+                    size={18}
+                    color={COLORS.textMedium}
+                  />
+                </TouchableOpacity>
               </View>
             </View>
-            <View>
+            <View style={styles.drawerFooter}>
+            <View >
               <Text style={styles.drawerUserName}>
                 {user.name}
               </Text>
@@ -530,9 +581,67 @@ countryLabel: {
 },
 
 pickerWrapper: {
+  position: 'relative',
+},
+
+dropdownTrigger: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
   borderWidth: 1,
   borderColor: COLORS.border,
   borderRadius: 8,
-  overflow: 'hidden',
+  paddingHorizontal: 12,
+  paddingVertical: 10,
+  backgroundColor: COLORS.white,
+},
+
+dropdownTriggerText: {
+  fontSize: 14,
+  color: COLORS.textDark,
+},
+
+dropdownPlaceholderText: {
+  color: COLORS.textLight,
+},
+
+dropdownList: {
+  position: 'absolute',
+  bottom: '100%',
+  left: 0,
+  right: 0,
+  marginBottom: 6,
+  maxHeight: 200,
+  borderWidth: 1,
+  borderColor: COLORS.border,
+  borderRadius: 8,
+  backgroundColor: COLORS.white,
+  zIndex: 10,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  elevation: 4,
+},
+
+dropdownItem: {
+  paddingHorizontal: 12,
+  paddingVertical: 11,
+  borderBottomWidth: 1,
+  borderBottomColor: COLORS.border,
+},
+
+dropdownItemSelected: {
+  backgroundColor: '#F0EFFF',
+},
+
+dropdownItemText: {
+  fontSize: 14,
+  color: COLORS.textMedium,
+},
+
+dropdownItemTextSelected: {
+  color: COLORS.primary,
+  fontWeight: '600',
 },
 });

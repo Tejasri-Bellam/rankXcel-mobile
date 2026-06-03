@@ -1,6 +1,5 @@
 import { genericGet, genericPost, genericPut } from "./genericService";
 
-
 // Get Attempt
 export async function getassessmentAttemptsService(attemptId: number) {
   return await genericGet(`/v1/assessment-attempts/${attemptId}/`,true);
@@ -11,12 +10,6 @@ export async function assessmentStartService(attemptId: number) {
     { isMultipart: false, useAccessToken: true }
   );
 }
-
-// Get Questions
-// export async function getassessmentsQuestionsService(id: number) {
-//   console.log("Getting questions for assessment id:", id);
-//   return await genericGet(`/v1/student/assessments/${id}/questions/`,true);
-// }
 
 // Save Answer
 export async function updateAssessmentResponsesService(

@@ -1,12 +1,6 @@
 export interface ApiError {
   status: number;
   errors: ApiErrorFields;
-  /**
-   * Raw response body from the server (when the response was JSON).
-   * Useful for reading structured error metadata (e.g. assessment gate
-   * fields like `gate_status`, `unlocks_at`, `window_open`) without
-   * adding a dedicated field to ApiError for every new contract.
-   */
   body?: Record<string, unknown>;
 }
  
