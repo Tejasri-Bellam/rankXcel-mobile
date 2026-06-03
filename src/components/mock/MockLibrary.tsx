@@ -730,7 +730,7 @@ const RequestMockModal: React.FC<RequestMockModalProps> = ({
                 <Ionicons name="close" size={18} color={COLORS.textMedium} />
               </TouchableOpacity>
 
-              <Text style={mockLibraryStyles.requestTitle}>Request Mock Test</Text>
+              <Text style={mockLibraryStyles.requestTitle}>Add Mock Test</Text>
               <Text style={mockLibraryStyles.requestSubtitle}>
                 Configure your custom mock test. We&apos;ll prepare it based on your preferences.
               </Text>
@@ -971,7 +971,8 @@ export default function MockLibrary() {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
 
-      const response = await getMockTestsService();
+      // Scope the request to the selected target exam (&exam_id=<id>).
+      const response = await getMockTestsService(activeExamId ?? undefined);
 
       // Robust parsing — service return shape can vary
       const r = response as unknown as {
@@ -998,7 +999,7 @@ export default function MockLibrary() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [activeExamId]);
 
   useEffect(() => {
     loadMocks();

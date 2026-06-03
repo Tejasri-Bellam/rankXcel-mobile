@@ -65,8 +65,9 @@ export interface MockResponse<T = any> {
 }
 
 // Mock Tests
-export async function getMockTestsService() {
-  return await genericGet(`/v1/mock-tests/?test_type=MOCK_TEST`, true);
+export async function getMockTestsService(examId?: number | string) {
+  const examQs = examId != null ? `&exam_id=${examId}` : '';
+  return await genericGet(`/v1/mock-tests/?test_type=MOCK_TEST${examQs}`, true);
 }
 
 // Mock Test By ID

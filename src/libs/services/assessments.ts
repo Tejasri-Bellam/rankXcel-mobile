@@ -1,9 +1,11 @@
 import { genericGet, genericPost } from "./genericService";
-
-// Get All Assessments
-export async function getassessmentsService() {
-  return await genericGet("/v1/student/assessments/", true);
+ 
+// Get All Assessments (optionally scoped to a target exam: ?exam_id=<id>)
+export async function getassessmentsService(examId?: number | string) {
+  const qs = examId != null ? `?exam_id=${examId}` : "";
+  return await genericGet(`/v1/student/assessments/${qs}`, true);
 }
+
 
 // Get Single Assessment
 export async function getassessmentsIdService(id: number) {

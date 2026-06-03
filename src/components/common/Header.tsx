@@ -337,8 +337,7 @@ const styles: any = ({
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-  },
+    shadowOffset: { width: 0, height: 4 },  },
 
   dropdownTitle: {
     fontSize: 12,

@@ -1249,12 +1249,22 @@ paths:
       operationId: exams_list
       description: CRUD for Exam configs.
       parameters:
+      - in: query
+        name: country
+        schema:
+          type: integer
       - name: page
         required: false
         in: query
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
       tags:
       - exams
       security:
@@ -1294,195 +1304,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Exam'
           description: ''
-  /api/v1/exams/{exam_id}/subjects/:
-    get:
-      operationId: exams_subjects_list
-      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
-      parameters:
-      - in: path
-        name: exam_id
-        schema:
-          type: integer
-        required: true
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      tags:
-      - exams
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedExamSubjectList'
-          description: ''
-    post:
-      operationId: exams_subjects_create
-      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
-      parameters:
-      - in: path
-        name: exam_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - exams
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExamSubject'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ExamSubject'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ExamSubject'
-        required: true
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExamSubject'
-          description: ''
-  /api/v1/exams/{exam_id}/subjects/{id}/:
-    get:
-      operationId: exams_subjects_retrieve
-      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
-      parameters:
-      - in: path
-        name: exam_id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this exam subject.
-        required: true
-      tags:
-      - exams
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExamSubject'
-          description: ''
-    put:
-      operationId: exams_subjects_update
-      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
-      parameters:
-      - in: path
-        name: exam_id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this exam subject.
-        required: true
-      tags:
-      - exams
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExamSubject'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ExamSubject'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ExamSubject'
-        required: true
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExamSubject'
-          description: ''
-    patch:
-      operationId: exams_subjects_partial_update
-      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
-      parameters:
-      - in: path
-        name: exam_id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this exam subject.
-        required: true
-      tags:
-      - exams
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedExamSubject'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedExamSubject'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedExamSubject'
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExamSubject'
-          description: ''
-    delete:
-      operationId: exams_subjects_destroy
-      description: 'CRUD for subjects nested under a specific exam: exams/{exam_id}/subjects/.'
-      parameters:
-      - in: path
-        name: exam_id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this exam subject.
-        required: true
-      tags:
-      - exams
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '204':
-          description: No response body
   /api/v1/exams/{id}/:
     get:
       operationId: exams_retrieve
@@ -1674,7 +1495,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: A unique integer value identifying this target exam.
         required: true
       tags:
       - exams
@@ -1684,6 +1506,139 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/masters/countries/:
+    get:
+      operationId: masters_countries_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - masters
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCountryList'
+          description: ''
+  /api/v1/masters/countries/{id}/:
+    get:
+      operationId: masters_countries_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this country.
+        required: true
+      tags:
+      - masters
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Country'
+          description: ''
+    put:
+      operationId: masters_countries_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this country.
+        required: true
+      tags:
+      - masters
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Country'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Country'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Country'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Country'
+          description: ''
+    patch:
+      operationId: masters_countries_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this country.
+        required: true
+      tags:
+      - masters
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCountry'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCountry'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCountry'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Country'
+          description: ''
+  /api/v1/masters/options/countries/:
+    get:
+      operationId: masters_options_countries_list
+      parameters:
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - masters
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CountryOption'
+          description: ''
   /api/v1/mock-tests/:
     get:
       operationId: mock_tests_list
@@ -1742,7 +1697,8 @@ paths:
       - in: path
         name: id
         schema:
-          type: string
+          type: integer
+        description: A unique integer value identifying this mock test.
         required: true
       tags:
       - mock-tests
@@ -1916,6 +1872,10 @@ paths:
       operationId: options_exams_list
       description: Read-only list of active exams for dropdowns/selects.
       parameters:
+      - in: query
+        name: country
+        schema:
+          type: integer
       - name: search
         required: false
         in: query
@@ -2148,13 +2108,13 @@ paths:
       - questions
       requestBody:
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/QuestionAdmin'
           application/x-www-form-urlencoded:
             schema:
               $ref: '#/components/schemas/QuestionAdmin'
-          multipart/form-data:
+          application/json:
             schema:
               $ref: '#/components/schemas/QuestionAdmin'
         required: true
@@ -2203,13 +2163,13 @@ paths:
       - questions
       requestBody:
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/PatchedQuestionAdmin'
           application/x-www-form-urlencoded:
             schema:
               $ref: '#/components/schemas/PatchedQuestionAdmin'
-          multipart/form-data:
+          application/json:
             schema:
               $ref: '#/components/schemas/PatchedQuestionAdmin'
       security:
@@ -2399,7 +2359,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ChoiceAdmin'
-        required: true
       security:
       - tokenAuth: []
       - cookieAuth: []
@@ -2466,7 +2425,6 @@ paths:
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ChoiceAdmin'
-        required: true
       security:
       - tokenAuth: []
       - cookieAuth: []
@@ -2738,7 +2696,8 @@ paths:
   /api/v1/subjects/:
     get:
       operationId: subjects_list
-      description: CRUD for Subjects (requires exam_id filter on list).
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - name: page
         required: false
@@ -2760,7 +2719,8 @@ paths:
           description: ''
     post:
       operationId: subjects_create
-      description: CRUD for Subjects (requires exam_id filter on list).
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       tags:
       - subjects
       requestBody:
@@ -2788,7 +2748,8 @@ paths:
   /api/v1/subjects/{id}/:
     get:
       operationId: subjects_retrieve
-      description: CRUD for Subjects (requires exam_id filter on list).
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: id
@@ -2810,7 +2771,8 @@ paths:
           description: ''
     put:
       operationId: subjects_update
-      description: CRUD for Subjects (requires exam_id filter on list).
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: id
@@ -2844,7 +2806,8 @@ paths:
           description: ''
     patch:
       operationId: subjects_partial_update
-      description: CRUD for Subjects (requires exam_id filter on list).
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: id
@@ -2877,7 +2840,8 @@ paths:
           description: ''
     delete:
       operationId: subjects_destroy
-      description: CRUD for Subjects (requires exam_id filter on list).
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: id
@@ -3402,9 +3366,9 @@ components:
       properties:
         id:
           type: integer
-          readOnly: true
         text:
           type: string
+          default: ''
         image:
           type: string
           format: uri
@@ -3422,9 +3386,56 @@ components:
           nullable: true
         explanation:
           type: string
+    Country:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        iso_code_2:
+          type: string
+          maxLength: 2
+        iso_code_3:
+          type: string
+          maxLength: 3
+        is_active:
+          type: boolean
+        time_zone:
+          type: string
+          maxLength: 32
       required:
       - id
-      - text
+      - iso_code_2
+      - iso_code_3
+      - name
+      - time_zone
+    CountryOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        iso_code_2:
+          type: string
+          maxLength: 2
+        iso_code_3:
+          type: string
+          maxLength: 3
+        time_zone:
+          type: string
+          maxLength: 32
+      required:
+      - id
+      - iso_code_2
+      - iso_code_3
+      - name
+      - time_zone
     Creator:
       type: object
       properties:
@@ -3460,7 +3471,14 @@ components:
           maxLength: 20
         description:
           type: string
+        country:
+          type: integer
+          nullable: true
         total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        total_marks:
           type: integer
           maximum: 2147483647
           minimum: 0
@@ -3471,6 +3489,7 @@ components:
       - id
       - name
       - total_duration_minutes
+      - total_marks
     ExamMinimal:
       type: object
       properties:
@@ -3500,27 +3519,6 @@ components:
       - code
       - id
       - name
-    ExamSubject:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        subject:
-          type: integer
-        question_count:
-          type: integer
-          maximum: 32767
-          minimum: 0
-          description: Number of questions from this subject in the exam. 0 means
-            no fixed quota.
-        order:
-          type: integer
-          maximum: 32767
-          minimum: 0
-      required:
-      - id
-      - subject
     ForgotPassword:
       type: object
       properties:
@@ -3626,6 +3624,9 @@ components:
         id:
           type: integer
           readOnly: true
+        name:
+          type: string
+          readOnly: true
         exam:
           allOf:
           - $ref: '#/components/schemas/ExamMinimal'
@@ -3673,6 +3674,7 @@ components:
       - exam
       - expires_at
       - id
+      - name
       - question_count
       - subject
       - topics
@@ -3682,6 +3684,9 @@ components:
       properties:
         id:
           type: integer
+          readOnly: true
+        name:
+          type: string
           readOnly: true
         exam:
           allOf:
@@ -3724,11 +3729,20 @@ components:
         max_score:
           type: string
           readOnly: true
+        percentage:
+          type: number
+          format: double
+          nullable: true
+        accuracy:
+          type: number
+          format: double
+          nullable: true
       required:
       - chapters
       - exam
       - id
       - max_score
+      - name
       - question_count
       - score
       - subject
@@ -3782,6 +3796,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Chapter'
+    PaginatedCountryList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Country'
     PaginatedExamList:
       type: object
       required:
@@ -3805,29 +3842,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Exam'
-    PaginatedExamSubjectList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExamSubject'
     PaginatedMockTestListList:
       type: object
       required:
@@ -4012,9 +4026,9 @@ components:
       properties:
         id:
           type: integer
-          readOnly: true
         text:
           type: string
+          default: ''
         image:
           type: string
           format: uri
@@ -4032,6 +4046,26 @@ components:
           nullable: true
         explanation:
           type: string
+    PatchedCountry:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        iso_code_2:
+          type: string
+          maxLength: 2
+        iso_code_3:
+          type: string
+          maxLength: 3
+        is_active:
+          type: boolean
+        time_zone:
+          type: string
+          maxLength: 32
     PatchedExam:
       type: object
       properties:
@@ -4046,30 +4080,19 @@ components:
           maxLength: 20
         description:
           type: string
+        country:
+          type: integer
+          nullable: true
         total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        total_marks:
           type: integer
           maximum: 2147483647
           minimum: 0
         is_active:
           type: boolean
-    PatchedExamSubject:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        subject:
-          type: integer
-        question_count:
-          type: integer
-          maximum: 32767
-          minimum: 0
-          description: Number of questions from this subject in the exam. 0 means
-            no fixed quota.
-        order:
-          type: integer
-          maximum: 32767
-          minimum: 0
     PatchedQuestionAdmin:
       type: object
       properties:
@@ -4094,6 +4117,7 @@ components:
           $ref: '#/components/schemas/SourceEnum'
         question_text:
           type: string
+          default: ''
         image:
           type: string
           format: uri
@@ -4165,6 +4189,13 @@ components:
           minimum: 0
         is_active:
           type: boolean
+        exam:
+          type: integer
+          nullable: true
+        questions_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
     PatchedTopic:
       type: object
       properties:
@@ -4235,6 +4266,7 @@ components:
           $ref: '#/components/schemas/SourceEnum'
         question_text:
           type: string
+          default: ''
         image:
           type: string
           format: uri
@@ -4289,7 +4321,6 @@ components:
       - difficulty
       - exam
       - id
-      - question_text
       - question_type
       - rejection_comment
       - status
@@ -4610,10 +4641,18 @@ components:
           minimum: 0
         is_active:
           type: boolean
+        exam:
+          type: integer
+          nullable: true
+        questions_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
       required:
       - code
       - id
       - name
+      - questions_count
     SubjectMinimal:
       type: object
       properties:
@@ -4639,10 +4678,15 @@ components:
         code:
           type: string
           maxLength: 30
+        questions_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
       required:
       - code
       - id
       - name
+      - questions_count
     TargetExam:
       type: object
       properties:

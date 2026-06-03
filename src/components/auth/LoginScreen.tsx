@@ -13,7 +13,6 @@ import { router } from 'expo-router';
 import { loginData } from '../json/login';
 import { loginStyles } from '@/src/styles/auth/loginStyles';
 import { loginService } from '@/src/libs/services/auth';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { storageSetAccessToken } from '@/src/libs/storage';
 
 const LoginScreen = () => {
@@ -37,7 +36,7 @@ const handleLogin = async () => {
     };
 
     const { data } = await loginService(payload) as { data: { token?: string } };
-console.log('d', data);
+    console.log('d', data);
 
     console.log("LOGIN RESPONSE:", data);
     if (data?.token) {
