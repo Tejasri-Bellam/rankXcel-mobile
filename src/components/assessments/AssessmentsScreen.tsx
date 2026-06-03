@@ -54,7 +54,8 @@ export default function AssessmentsScreen() {
   const fetchAssessments = async () => {
     try {
       setLoading(true);
-      const res = await getassessmentsService();
+      // Scope the request to the selected target exam (?exam_id=<id>).
+      const res = await getassessmentsService(activeExamId ?? undefined);
       console.log('resssss', res);
 
       const raw: any = res?.data;
@@ -67,7 +68,8 @@ export default function AssessmentsScreen() {
     }
   };
 
-  useEffect(() => { fetchAssessments(); }, []);
+  // Refetch whenever the selected target exam changes.
+  useEffect(() => { fetchAssessments(); }, [activeExamId]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {

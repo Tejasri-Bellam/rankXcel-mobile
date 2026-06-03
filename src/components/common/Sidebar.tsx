@@ -571,6 +571,7 @@ const styles = StyleSheet.create({
 
   countryContainer: {
   marginBottom: 16,
+  paddingHorizontal: 20,
 },
 
 countryLabel: {
