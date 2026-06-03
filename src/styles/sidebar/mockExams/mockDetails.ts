@@ -25,7 +25,7 @@ export const mockDetailsStyles = StyleSheet.create({
   backArrow: { fontSize: 18, color: PRIMARY },
   backText: { fontSize: 14, color: GRAY, fontWeight: '500' },
 
-  scroll: { flex: 1 },
+  scroll: { flex: 1, marginBottom:60 },
   scrollContent: { padding: 20, paddingBottom: 60 },
 
   statusBadge: {
@@ -173,9 +173,9 @@ export const mockDetailsStyles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
   },
-  primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  primaryBtnText: { color: '#fff', fontWeight: '500', fontSize: 15 },
 
-  /* ─── Completed-view additions ───────────────────────────────── */
+  // Completed-view additions
   pillsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -200,7 +200,7 @@ export const mockDetailsStyles = StyleSheet.create({
   coverageCard: {
     backgroundColor: BG,
     borderRadius: 12,
-    padding: 16,
+    padding: 6,
     marginTop: 16,
   },
   coverageHeader: {

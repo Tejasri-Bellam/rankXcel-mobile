@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Dropdown } from 'react-native-element-dropdown';
 import {
   ActivityIndicator,
   Alert,
@@ -439,99 +440,99 @@ const toOptionsArray = (raw: unknown): OptionItem[] => {
   return [];
 };
 
-interface OptionDropdownProps {
-  value: OptionItem | null;
-  options: OptionItem[];
-  placeholder: string;
-  disabled?: boolean;
-  loading?: boolean;
-  onSelect: (item: OptionItem) => void;
-}
+// interface OptionDropdownProps {
+//   value: OptionItem | null;
+//   options: OptionItem[];
+//   placeholder: string;
+//   disabled?: boolean;
+//   loading?: boolean;
+//   onSelect: (item: OptionItem) => void;
+// }
 
-const OptionDropdown: React.FC<OptionDropdownProps> = ({
-  value,
-  options,
-  placeholder,
-  disabled,
-  loading,
-  onSelect,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+// const OptionDropdown: React.FC<OptionDropdownProps> = ({
+//   value,
+//   options,
+//   placeholder,
+//   disabled,
+//   loading,
+//   onSelect,
+// }) => {
+//   const [open, setOpen] = useState(false);
+//   const [query, setQuery] = useState('');
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => o.name.toLowerCase().includes(q));
-  }, [options, query]);
+//   const filtered = useMemo(() => {
+//     const q = query.trim().toLowerCase();
+//     if (!q) return options;
+//     return options.filter((o) => o.name.toLowerCase().includes(q));
+//   }, [options, query]);
 
-  return (
-    <View>
-      <TouchableOpacity
-        style={[mockLibraryStyles.selectBox, disabled && mockLibraryStyles.selectBoxDisabled]}
-        disabled={disabled}
-        onPress={() => setOpen((v) => !v)}
-      >
-        <Ionicons name="search-outline" size={14} color={COLORS.textLight} />
-        <Text
-          style={[
-            mockLibraryStyles.selectText,
-            !value && mockLibraryStyles.selectPlaceholder,
-          ]}
-          numberOfLines={1}
-        >
-          {value ? value.name : placeholder}
-        </Text>
-        {loading ? (
-          <ActivityIndicator size="small" color={COLORS.textLight} />
-        ) : (
-          <Ionicons
-            name={open ? 'chevron-up' : 'chevron-down'}
-            size={14}
-            color={COLORS.textLight}
-          />
-        )}
-      </TouchableOpacity>
+//   return (
+//     <View>
+//       <TouchableOpacity
+//         style={[mockLibraryStyles.selectBox, disabled && mockLibraryStyles.selectBoxDisabled]}
+//         disabled={disabled}
+//         onPress={() => setOpen((v) => !v)}
+//       >
+//         <Ionicons name="search-outline" size={14} color={COLORS.textLight} />
+//         <Text
+//           style={[
+//             mockLibraryStyles.selectText,
+//             !value && mockLibraryStyles.selectPlaceholder,
+//           ]}
+//           numberOfLines={1}
+//         >
+//           {value ? value.name : placeholder}
+//         </Text>
+//         {loading ? (
+//           <ActivityIndicator size="small" color={COLORS.textLight} />
+//         ) : (
+//           <Ionicons
+//             name={open ? 'chevron-up' : 'chevron-down'}
+//             size={14}
+//             color={COLORS.textLight}
+//           />
+//         )}
+//       </TouchableOpacity>
 
-      {open && !disabled && (
-        <View style={mockLibraryStyles.dropdownPanel}>
-          <TextInput
-            style={[
-              mockLibraryStyles.textInput,
-              { borderWidth: 0, borderBottomWidth: 1, borderRadius: 0 },
-            ]}
-            placeholder="Search..."
-            placeholderTextColor={COLORS.textLight}
-            value={query}
-            onChangeText={setQuery}
-          />
-          <ScrollView keyboardShouldPersistTaps="handled">
-            {filtered.length === 0 ? (
-              <Text style={mockLibraryStyles.dropdownEmpty}>No options</Text>
-            ) : (
-              filtered.map((opt) => (
-                <TouchableOpacity
-                  key={String(opt.id)}
-                  style={[
-                    mockLibraryStyles.dropdownItem,
-                    value?.id === opt.id && mockLibraryStyles.dropdownItemActive,
-                  ]}
-                  onPress={() => {
-                    onSelect(opt);
-                    setOpen(false);
-                    setQuery('');
-                  }}
-                >
-                  <Text style={mockLibraryStyles.dropdownItemText}>{opt.name}</Text>
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
-        </View>
-      )}
-    </View>
-  );
-};
+//       {open && !disabled && (
+//         <View style={mockLibraryStyles.dropdownPanel}>
+//           <TextInput
+//             style={[
+//               mockLibraryStyles.textInput,
+//               { borderWidth: 0, borderBottomWidth: 1, borderRadius: 0 },
+//             ]}
+//             placeholder="Search..."
+//             placeholderTextColor={COLORS.textLight}
+//             value={query}
+//             onChangeText={setQuery}
+//           />
+//           <ScrollView keyboardShouldPersistTaps="handled">
+//             {filtered.length === 0 ? (
+//               <Text style={mockLibraryStyles.dropdownEmpty}>No options</Text>
+//             ) : (
+//               filtered.map((opt) => (
+//                 <TouchableOpacity
+//                   key={String(opt.id)}
+//                   style={[
+//                     mockLibraryStyles.dropdownItem,
+//                     value?.id === opt.id && mockLibraryStyles.dropdownItemActive,
+//                   ]}
+//                   onPress={() => {
+//                     onSelect(opt);
+//                     setOpen(false);
+//                     setQuery('');
+//                   }}
+//                 >
+//                   <Text style={mockLibraryStyles.dropdownItemText}>{opt.name}</Text>
+//                 </TouchableOpacity>
+//               ))
+//             )}
+//           </ScrollView>
+//         </View>
+//       )}
+//     </View>
+//   );
+// };
 
 interface RequestMockModalProps {
   visible: boolean;
@@ -739,44 +740,82 @@ const RequestMockModal: React.FC<RequestMockModalProps> = ({
                 <Text style={mockLibraryStyles.fieldLabel}>
                   Exam <Text style={mockLibraryStyles.fieldRequired}>*</Text>
                 </Text>
-                <OptionDropdown
-                  value={selectedExam}
-                  options={exams}
+                <Dropdown
+                  style={mockLibraryStyles.selectBox}
+                  data={exams}
+                  labelField="name"
+                  valueField="id"
+                  search
+                  searchPlaceholder="Search..."
                   placeholder="Search or select an exam..."
-                  loading={examsLoading}
-                  onSelect={setSelectedExam}
+                  value={selectedExam?.id}
+                  disable={examsLoading}
+                  onChange={(item) => setSelectedExam(item)}
                 />
 
                 <Text style={mockLibraryStyles.fieldLabel}>
                   Subject <Text style={mockLibraryStyles.fieldRequired}>*</Text>
                 </Text>
-                <OptionDropdown
-                  value={selectedSubject}
-                  options={subjects}
-                  placeholder={selectedExam ? 'Select a subject' : 'Select an exam first'}
-                  disabled={!selectedExam}
-                  loading={subjectsLoading}
-                  onSelect={setSelectedSubject}
+                <Dropdown
+                  style={[
+                    mockLibraryStyles.selectBox,
+                    !selectedExam && mockLibraryStyles.selectBoxDisabled,
+                  ]}
+                  data={subjects}
+                  labelField="name"
+                  valueField="id"
+                  search
+                  searchPlaceholder="Search..."
+                  placeholder={
+                    selectedExam
+                      ? 'Select a subject'
+                      : 'Select an exam first'
+                  }
+                  value={selectedSubject?.id}
+                  disable={!selectedExam || subjectsLoading}
+                  onChange={(item) => setSelectedSubject(item)}
                 />
 
                 <Text style={mockLibraryStyles.fieldLabel}>Chapter</Text>
-                <OptionDropdown
-                  value={selectedChapter}
-                  options={chapters}
-                  placeholder={selectedSubject ? 'Select a chapter' : 'Select a subject first'}
-                  disabled={!selectedSubject}
-                  loading={chaptersLoading}
-                  onSelect={setSelectedChapter}
+                <Dropdown
+                  style={[
+                    mockLibraryStyles.selectBox,
+                    !selectedSubject && mockLibraryStyles.selectBoxDisabled,
+                  ]}
+                  data={chapters}
+                  labelField="name"
+                  valueField="id"
+                  search
+                  searchPlaceholder="Search..."
+                  placeholder={
+                    selectedSubject
+                      ? 'Select a chapter'
+                      : 'Select a subject first'
+                  }
+                  value={selectedChapter?.id}
+                  disable={!selectedSubject || chaptersLoading}
+                  onChange={(item) => setSelectedChapter(item)}
                 />
 
                 <Text style={mockLibraryStyles.fieldLabel}>Topic</Text>
-                <OptionDropdown
-                  value={selectedTopic}
-                  options={topics}
-                  placeholder={selectedChapter ? 'Select a topic' : 'Select a chapter first'}
-                  disabled={!selectedChapter}
-                  loading={topicsLoading}
-                  onSelect={setSelectedTopic}
+                <Dropdown
+                  style={[
+                    mockLibraryStyles.selectBox,
+                    !selectedChapter && mockLibraryStyles.selectBoxDisabled,
+                  ]}
+                  data={topics}
+                  labelField="name"
+                  valueField="id"
+                  search
+                  searchPlaceholder="Search..."
+                  placeholder={
+                    selectedChapter
+                      ? 'Select a topic'
+                      : 'Select a chapter first'
+                  }
+                  value={selectedTopic?.id}
+                  disable={!selectedChapter || topicsLoading}
+                  onChange={(item) => setSelectedTopic(item)}
                 />
 
                 <Text style={mockLibraryStyles.fieldLabel}>Difficulty Level</Text>
