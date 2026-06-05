@@ -69,10 +69,17 @@ export default function AssessmentsScreen() {
 
 
   const fetchAssessments = async () => {
+    // No target exam for the selected region → nothing to show (don't fall back
+    // to the unscoped endpoint, which would return every exam's assessments).
+    if (activeExamId == null) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       // Scope the request to the selected target exam (?exam_id=<id>).
-      const res = await getassessmentsService(activeExamId ?? undefined);
+      const res = await getassessmentsService(activeExamId);
       console.log('resssss', res);
 
       const raw: any = res?.data;
@@ -120,7 +127,7 @@ export default function AssessmentsScreen() {
   };
 
   const matchesActiveExam = (item: any): boolean => {
-    if (activeExamId == null) return true;
+    if (activeExamId == null) return false;
     const examId = item?.exam?.id;
     if (examId == null) return true;
     return String(examId) === String(activeExamId);

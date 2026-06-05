@@ -5,9 +5,13 @@ export async function getDashboardUserService() {
   return await genericGet("/v1/auth/me/", true);
 }
 
-// GET /api/v1/exams/my-target-exams/
-export async function getMyTargetExamsService() {
-  return await genericGet("/v1/exams/my-target-exams/", true);
+// GET /api/v1/exams/my-target-exams/?country={id}
+export async function getMyTargetExamsService(countryId?: number | string | null) {
+  const query =
+    countryId != null && countryId !== ""
+      ? `?country=${encodeURIComponent(countryId)}`
+      : "";
+  return await genericGet(`/v1/exams/my-target-exams/${query}`, true);
 }
 
 // GET /api/v1/dashboard/{exam_id}/
