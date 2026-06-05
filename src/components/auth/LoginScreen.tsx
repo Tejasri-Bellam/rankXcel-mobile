@@ -14,6 +14,7 @@ import { loginData } from '../json/login';
 import { loginStyles } from '@/src/styles/auth/loginStyles';
 import { loginService } from '@/src/libs/services/auth';
 import { storageSetAccessToken } from '@/src/libs/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -35,13 +36,41 @@ const handleLogin = async () => {
       password,
     };
 
-    const { data } = await loginService(payload) as { data: { token?: string } };
+    const { data } = await loginService(payload) as { data: any };
     console.log('d', data);
 
     console.log("LOGIN RESPONSE:", data);
     if (data?.token) {
       await storageSetAccessToken(data?.token);
       console.log("Access token stored successfully:", data?.token);
+    }
+
+    // Persist the user's region from the login response so the profile
+    // sidebar can show it (handles a few possible response shapes).
+    const regionSource =
+      data?.region ?? data?.country ?? data?.user?.region ?? data?.user?.country;
+    if (regionSource) {
+      const region =
+        typeof regionSource === "string"
+          ? { name: regionSource }
+          : {
+              name:
+                regionSource.name ??
+                regionSource.country_name ??
+                regionSource.label ??
+                "",
+              currency:
+                regionSource.currency ??
+                regionSource.currency_code ??
+                undefined,
+              flag: regionSource.flag ?? regionSource.emoji ?? undefined,
+            };
+      if (region.name) {
+        await AsyncStorage.setItem("region", JSON.stringify(region));
+      }
+    }
+    if (data?.user) {
+      await AsyncStorage.setItem("user", JSON.stringify(data.user));
     }
 
       router.push('/welcome');

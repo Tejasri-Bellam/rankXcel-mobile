@@ -9,105 +9,113 @@ interface UpcomingProps {
   dashboardData: DashboardData | null;
 }
 
-const difficultyColor = (difficulty: string | undefined) => {
-  const d = (difficulty ?? "").toLowerCase();
-  if (d === "hard") return COLORS.red;
-  if (d === "easy") return COLORS.green;
-  return COLORS.orange;
-};
-
 export default function Upcoming({ dashboardData }: UpcomingProps) {
   const router = useRouter();
-
   const assessments = dashboardData?.upcoming_assessments ?? [];
 
-  if (!assessments.length) return null;
-
   return (
-    <View>
-      <View style={[styles.card, { marginBottom: 32 }]}>
-        <View style={styles.cardHeaderRow}>
-          <View style={styles.upcomingTitleRow}>
-            <Ionicons
-              name="calendar-outline"
-              size={16}
-              color={COLORS.primary}
-            />
-            <Text style={[styles.cardTitle, { marginLeft: 6 }]}>
-              Upcoming Assessments
-            </Text>
-          </View>
-
-          <TouchableOpacity onPress={() => router.push("./assessments")}>
-            <Text style={styles.detailsLink}>All →</Text>
-          </TouchableOpacity>
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleRow}>
+          <Ionicons name="radio" size={15} color={COLORS.primary} />
+          <Text style={styles.sectionTitle}>Upcoming live</Text>
         </View>
-
-        {assessments.map((item, index) => {
-          const color = difficultyColor(item.difficulty);
-          return (
-            <TouchableOpacity key={index} style={styles.mockRow}>
-              <Ionicons name="time-outline" size={18} color={COLORS.textLight} />
-
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.mockName}>{item.name}</Text>
-                <Text style={styles.mockWhen}>{item.time_label}</Text>
-              </View>
-
-              <View
-                style={[styles.diffBadge, { backgroundColor: color + "20" }]}
-              >
-                <Text style={[styles.diffText, { color }]}>
-                  {item.difficulty}
-                </Text>
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={COLORS.textLight}
-                style={{ marginLeft: 6 }}
-              />
-            </TouchableOpacity>
-          );
-        })}
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: "/assessments",
+              params: { tab: "upcoming" },
+            })
+          }
+        >
+          <Text style={styles.link}>All ›</Text>
+        </TouchableOpacity>
       </View>
+
+      {assessments.length === 0 ? (
+        <View style={[styles.card, styles.emptyCard]}>
+          <Ionicons
+            name="calendar-outline"
+            size={22}
+            color={COLORS.textLight}
+          />
+          <Text style={styles.emptyText}>No live tests scheduled yet.</Text>
+        </View>
+      ) : (
+        assessments.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            activeOpacity={0.85}
+            style={styles.card}
+            onPress={() =>
+              router.push({
+                pathname: "/assessments",
+                params: { tab: "upcoming" },
+              })
+            }
+          >
+            <View style={styles.liveIcon}>
+              <Ionicons name="radio" size={18} color={COLORS.red} />
+            </View>
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={styles.cardSub} numberOfLines={1}>
+                {item.time_label}
+                {item.difficulty ? ` · ${item.difficulty}` : ""}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={COLORS.textLight}
+            />
+          </TouchableOpacity>
+        ))
+      )}
     </View>
   );
 }
 
 const styles: any = {
+  section: { marginTop: 22 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: COLORS.textDark },
+  link: { fontSize: 13, fontWeight: "700", color: COLORS.primary },
+
   card: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: 14,
     marginHorizontal: 16,
-    marginTop: 14,
-    padding: 16,
+    marginBottom: 10,
+    padding: 14,
     shadowColor: COLORS.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: COLORS.textDark },
-  cardHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-  upcomingTitleRow: { flexDirection: "row", alignItems: "center" },
-  mockRow: {
-    flexDirection: "row",
+  liveIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.redLight,
     alignItems: "center",
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    justifyContent: "center",
   },
-  mockName: { fontSize: 13, fontWeight: "600", color: COLORS.textDark },
-  mockWhen: { fontSize: 11, color: COLORS.textLight, marginTop: 2 },
-  diffBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  diffText: { fontSize: 11, fontWeight: "700" },
-  detailsLink: { fontSize: 12, color: COLORS.primary, fontWeight: "600" },
+  cardInfo: { flex: 1, marginLeft: 12 },
+  cardTitle: { fontSize: 14, fontWeight: "700", color: COLORS.textDark },
+  cardSub: { fontSize: 12, color: COLORS.textLight, marginTop: 3 },
+  emptyCard: { alignItems: "center", justifyContent: "center", paddingVertical: 22, gap: 8 },
+  emptyText: { fontSize: 13, color: COLORS.textLight },
 };
- 

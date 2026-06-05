@@ -1,128 +1,112 @@
 import React from "react";
 import { Text, View } from "react-native";
 import { COLORS } from "@/src/styles/styles";
-import { DashboardUser } from "@/src/libs/types/dashboard";
-import { TargetExam } from "@/src/libs/hooks/enrollment/useDashboard";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { DashboardData } from "@/src/libs/types/dashboard";
 
 interface GreetingProps {
-  user: DashboardUser | null;
+  user: any | null;
+  dashboardData: DashboardData | null;
 }
 
-export default function Greeting({
-  user,
-}: GreetingProps) {
-  const getFirstName = (fullName: string) => {
-    if (!fullName) return "User";
-    return fullName.trim().split(" ")[0];
-  };
+const getFirstName = (fullName: string) => {
+  if (!fullName) return "there";
+  return fullName.trim().split(" ")[0];
+};
 
+const formatNumber = (n: number) =>
+  n >= 1000 ? n.toLocaleString("en-US") : String(n);
+
+export default function Greeting({ user, dashboardData }: GreetingProps) {
   const firstName = getFirstName(user?.name ?? "");
-  const now = new Date();
-  const hour = now.getHours();
-  let greeting = "Good morning";
-  if (hour >= 12 && hour < 17) greeting = "Good afternoon";
-  else if (hour >= 17) greeting = "Good evening";
 
-  const formattedDate = now.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const streak = dashboardData?.streak;
+  const currentStreak = streak?.current_streak ?? 0;
+
+  // Gamification fields come from auth/me when available, otherwise we fall
+  // back to data we do have so the row never renders empty.
+  const xp =
+    user?.xp ?? user?.total_xp ?? user?.points ?? user?.experience ?? null;
+  const level = user?.level ?? user?.current_level ?? null;
+  const rankTitle =
+    user?.rank_title ?? user?.title ?? user?.badge ?? user?.tier ?? null;
 
   return (
-    <View style={styles.greetingSection}>
-      <View style={styles.greetingSection}>
-        <Text style={styles.greetingText}>
-          {greeting}, {firstName}! 👋
-        </Text>
+    <View style={styles.wrap}>
+      <Text style={styles.hi}>Hi, {firstName} 👋</Text>
 
-        <Text style={styles.greetingDate}>{formattedDate}</Text>
+      <View style={styles.badgeRow}>
+        {/* Streak */}
+        <View style={[styles.badge, { backgroundColor: COLORS.redLight }]}>
+          <Ionicons name="flame" size={13} color={COLORS.red} />
+          <Text style={[styles.badgeText, { color: COLORS.red }]}>
+            {currentStreak}
+          </Text>
+        </View>
 
-        {/* <View style={styles.examBadgesContainer}>
-          {targetExams.map((item) => {
-            const examId = item.id;
-            const isActive = examId === activeExamId;
+        {/* XP — real when auth/me provides it */}
+        {xp != null ? (
+          <View style={[styles.badge, { backgroundColor: COLORS.yellowLight }]}>
+            <Ionicons name="flash" size={13} color={COLORS.orange} />
+            <Text style={[styles.badgeText, { color: COLORS.orange }]}>
+              {formatNumber(Number(xp))} XP
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.badge, { backgroundColor: COLORS.yellowLight }]}>
+            <Ionicons name="trophy" size={13} color={COLORS.orange} />
+            <Text style={[styles.badgeText, { color: COLORS.orange }]}>
+              Best {streak?.best_streak ?? 0}
+            </Text>
+          </View>
+        )}
 
-            return (
-              <TouchableOpacity
-                key={String(examId)}
-                style={[styles.examBadge, isActive && styles.examBadgeActive]}
-                onPress={() => onSelectExam(examId)}
-              >
-                <MaterialCommunityIcons
-                  name="book-open-outline"
-                  size={16}
-                  color={isActive ? COLORS.primary : COLORS.textLight}
-                />
-
-                <Text
-                  style={[
-                    styles.examBadgeText,
-                    isActive && styles.examBadgeTextActive,
-                  ]}
-                >
-                  {item.name}
-                </Text>
-
-                {isActive && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={16}
-                    color={COLORS.primary}
-                  />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View> */}
+        {/* Level / rank title */}
+        {(level != null || rankTitle) && (
+          <View style={[styles.badge, { backgroundColor: COLORS.primaryLight }]}>
+            <MaterialCommunityIcons
+              name="medal-outline"
+              size={13}
+              color={COLORS.primary}
+            />
+            <Text style={[styles.badgeText, { color: COLORS.primary }]}>
+              {level != null ? `Lvl ${level}` : ""}
+              {level != null && rankTitle ? " · " : ""}
+              {rankTitle ?? ""}
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );
 }
 
 const styles: any = {
-  greetingSection: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
+  wrap: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
-  greetingText: {
-    fontSize: 20,
+  hi: {
+    fontSize: 24,
     fontWeight: "800",
     color: COLORS.textDark,
   },
-  greetingDate: {
-    fontSize: 13,
-    color: COLORS.textLight,
-    marginTop: 2,
-    marginBottom: 14,
-  },
-  examBadgesContainer: {
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
+    marginTop: 10,
   },
-  examBadge: {
+  badge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
+    gap: 5,
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
   },
-  examBadgeActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
-  },
-  examBadgeText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.textMedium,
-  },
-  examBadgeTextActive: {
-    color: COLORS.primary,
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
 };
- 
