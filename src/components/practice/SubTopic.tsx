@@ -66,11 +66,12 @@ export default function SubTopicsScreen({ chapter, onBack, onSubTopicPress }: Pr
 
               // Build a chapter-like object for the sub-topic drill
               const subChapter: ChapterItem = {
-                name: topic.name,
-                topics: [],
-                accuracy: topic.accuracy,
-                subjectName: chapter.subjectName,
-              };
+  id: topic.id,
+  name: topic.name,
+  topics: [],
+  accuracy: topic.accuracy,
+  subjectName: chapter.subjectName,
+};
 
               return (
                 <TouchableOpacity
