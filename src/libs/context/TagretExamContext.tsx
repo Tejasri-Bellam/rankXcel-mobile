@@ -30,13 +30,14 @@ interface TargetExamState {
 
 interface TargetExamContextValue extends TargetExamState {
   setActiveExamId: (id: number | string) => void;
-  refreshExams: () => Promise<void>;
+  refreshExams: (countryId?: number | string | null) => Promise<void>;
 }
 
 const TargetExamContext = createContext<TargetExamContextValue | null>(null);
 
 const ACTIVE_EXAM_KEY = "activeExamId";
 const TARGET_EXAMS_KEY = "targetExams";
+const COUNTRY_KEY = "regionCountryId";
 
 interface TargetExamProviderProps {
   children: React.ReactNode;
@@ -55,7 +56,7 @@ export function TargetExamProvider({
   // Guards against concurrent fetches (provider mount + Header mount, etc.)
   const inFlight = useRef(false);
 
-  const refreshExams = useCallback(async () => {
+  const refreshExams = useCallback(async (countryId?: number | string | null) => {
     if (inFlight.current) return;
     inFlight.current = true;
 
@@ -69,7 +70,16 @@ export function TargetExamProvider({
 
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      const res = await getMyTargetExamsService();
+      // A country passed in (region switch) is persisted so later refreshes keep
+      // scoping the catalogue to it; otherwise fall back to the saved selection.
+      let activeCountryId = countryId;
+      if (activeCountryId != null && activeCountryId !== "") {
+        await AsyncStorage.setItem(COUNTRY_KEY, String(activeCountryId));
+      } else {
+        activeCountryId = await AsyncStorage.getItem(COUNTRY_KEY);
+      }
+
+      const res = await getMyTargetExamsService(activeCountryId);
       const data = res?.data as TargetExam[];
       const targetExams: TargetExam[] = Array.isArray(data) ? data : [];
 
