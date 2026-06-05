@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -23,15 +24,21 @@ import { getCountriesService } from "@/src/libs/services/countries";
 import { storageGetAccessToken } from "@/src/libs/storage";
 import { useTargetExam, TargetExam } from "@/src/libs/context/TagretExamContext";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 const PANEL_W = Math.min(360, width * 0.86);
+// Keep the courses list scrollable without letting the sheet cover the screen.
+const SHEET_LIST_MAX_H = height * 0.6;
 
 type Props = {
   visible: boolean;
   onClose: () => void;
 };
 
-type RegionInfo = { name: string; currency?: string; flag?: string };
+type RegionInfo = {
+  name: string;
+  currency?: string;
+  flagUrl?: string;
+};
 
 type Country = {
   id: number | string;
@@ -39,8 +46,25 @@ type Country = {
   code?: string;
   currency?: string;
   currencySymbol?: string;
-  flag?: string;
+  flagUrl?: string;
   flagship?: string;
+};
+
+// The countries API returns each flag as a raw SVG string. expo-image can
+// render SVG from a base64 data URI, so turn the markup into one (no extra
+// package needed). Returns undefined for empty/non-SVG values.
+const svgToDataUri = (svg?: string) => {
+  const s = svg?.trim();
+  if (!s || !s.startsWith("<svg")) return undefined;
+  try {
+    // UTF-8-safe base64 (flags are ASCII, but this keeps any glyphs intact).
+    const bytes = encodeURIComponent(s).replace(/%([0-9A-F]{2})/g, (_, h) =>
+      String.fromCharCode(parseInt(h, 16))
+    );
+    return `data:image/svg+xml;base64,${btoa(bytes)}`;
+  } catch {
+    return undefined;
+  }
 };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -52,29 +76,27 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   CAD: "C$",
 };
 
-// Build a flag emoji from a 2-letter ISO country code (e.g. "IN" -> 🇮🇳).
-const flagFromCode = (code?: string) => {
-  if (!code || code.length !== 2) return "";
-  const cp = [...code.toUpperCase()].map(
-    (c) => 0x1f1e6 + c.charCodeAt(0) - 65
-  );
-  return String.fromCodePoint(...cp);
-};
-
 // Normalize the various field names the masters/countries endpoint may use.
 const normalizeCountry = (raw: any, idx: number): Country => {
-  const code = raw?.code ?? raw?.iso ?? raw?.iso_code ?? raw?.country_code;
+  const code =
+    raw?.iso_code_2 ??
+    raw?.code ??
+    raw?.iso ??
+    raw?.iso_code ??
+    raw?.country_code;
   const currency = raw?.currency ?? raw?.currency_code ?? raw?.currencyCode;
   return {
     id: raw?.id ?? raw?.value ?? code ?? idx,
     name: raw?.name ?? raw?.label ?? raw?.country ?? raw?.display_name ?? "—",
     code,
-    currency,
+    currency: currency || undefined,
     currencySymbol:
       raw?.currency_symbol ??
       raw?.currencySymbol ??
       (currency ? CURRENCY_SYMBOLS[currency] : undefined),
-    flag: raw?.flag ?? raw?.flag_emoji ?? flagFromCode(code),
+    // Only the API's SVG flag is rendered as an image; everything else shows
+    // the globe fallback (no emoji-from-code flags).
+    flagUrl: svgToDataUri(raw?.flag),
     flagship:
       raw?.flagship_course ??
       raw?.flagship_exam ??
@@ -82,6 +104,21 @@ const normalizeCountry = (raw: any, idx: number): Country => {
       raw?.default_exam ??
       raw?.exam,
   };
+};
+
+// Renders the country's SVG flag from the API; falls back to a globe glyph
+// when the API didn't provide one.
+const Flag = ({ url, size = 24 }: { url?: string; size?: number }) => {
+  if (url) {
+    return (
+      <ExpoImage
+        source={{ uri: url }}
+        style={{ width: size, height: size * 0.7, borderRadius: 3 }}
+        contentFit="contain"
+      />
+    );
+  }
+  return <Text style={{ fontSize: size }}>🌐</Text>;
 };
 
 const getInitials = (name: string, email: string) => {
@@ -93,13 +130,13 @@ const getInitials = (name: string, email: string) => {
 
 export default function ProfileSidebar({ visible, onClose }: Props) {
   const router = useRouter();
-  const { targetExams, activeExamId, setActiveExamId } = useTargetExam();
+  const { targetExams, activeExamId, setActiveExamId, refreshExams } =
+    useTargetExam();
 
   const [user, setUser] = useState<any>({ name: "", email: "" });
   const [region, setRegion] = useState<RegionInfo>({
     name: "India",
     currency: "INR",
-    flag: "🇮🇳",
   });
   const [darkMode, setDarkMode] = useState(false);
   const [coursesOpen, setCoursesOpen] = useState(false);
@@ -161,7 +198,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
     const next: RegionInfo = {
       name: country.name,
       currency: country.currency,
-      flag: country.flag,
+      flagUrl: country.flagUrl,
     };
     setRegion(next);
     setRegionOpen(false);
@@ -170,6 +207,9 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
     } catch {
       // non-fatal — selection still applies for this session
     }
+    // Re-fetch the target exam catalogue scoped to the chosen country
+    // (GET /v1/exams/my-target-exams/?country={id}).
+    refreshExams(country.id);
   };
 
   const go = (path: string) => {
@@ -294,9 +334,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
           <Text style={styles.sectionLabel}>CURRENT COURSE</Text>
           <View style={styles.card}>
             <Row
-              icon={
-                <Text style={{ fontSize: 16 }}>{region.flag ?? "🌐"}</Text>
-              }
+              icon={<Flag url={region.flagUrl} size={18} />}
               iconBg={COLORS.primaryLight}
               title="Region"
               right={
@@ -457,67 +495,73 @@ function CoursesSheet({
           </TouchableOpacity>
         </View>
 
-        {/* Region */}
-        <TouchableOpacity style={styles.regionRow} activeOpacity={0.8}>
-          <Text style={{ fontSize: 22 }}>{region.flag ?? "🌐"}</Text>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.regionName}>{region.name}</Text>
-            <Text style={styles.regionSub}>
-              Tap to change region{region.currency ? ` · ${region.currency}` : ""}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-        </TouchableOpacity>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{ maxHeight: SHEET_LIST_MAX_H }}
+        >
+          {/* Region */}
+          <TouchableOpacity style={styles.regionRow} activeOpacity={0.8}>
+            <Flag url={region.flagUrl} size={26} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.regionName}>{region.name}</Text>
+              <Text style={styles.regionSub}>
+                Tap to change region
+                {region.currency ? ` · ${region.currency}` : ""}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+          </TouchableOpacity>
 
-        {/* Exams */}
-        {exams.length === 0 ? (
-          <Text style={styles.sheetEmpty}>No courses added yet.</Text>
-        ) : (
-          exams.map((exam) => {
-            const selected = String(exam.id) === String(activeExamId);
-            const expired = exam.is_active === false;
-            return (
-              <TouchableOpacity
-                key={exam.id}
-                activeOpacity={expired ? 1 : 0.85}
-                disabled={expired}
-                onPress={() => !expired && onSelectExam(exam.id)}
-                style={[
-                  styles.examCard,
-                  selected && styles.examCardSelected,
-                  expired && { opacity: 0.6 },
-                ]}
-              >
-                <View style={styles.examIcon}>
-                  <MaterialCommunityIcons
-                    name="book-open-variant"
-                    size={20}
-                    color={COLORS.primary}
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.examName}>{exam.name}</Text>
-                  {exam.code ? (
-                    <Text style={styles.examSub}>{exam.code}</Text>
-                  ) : null}
-                </View>
-                {expired ? (
-                  <View style={styles.expiredBadge}>
-                    <Text style={styles.expiredText}>Expired</Text>
+          {/* Exams */}
+          {exams.length === 0 ? (
+            <Text style={styles.sheetEmpty}>No courses added yet.</Text>
+          ) : (
+            exams.map((exam) => {
+              const selected = String(exam.id) === String(activeExamId);
+              const expired = exam.is_active === false;
+              return (
+                <TouchableOpacity
+                  key={exam.id}
+                  activeOpacity={expired ? 1 : 0.85}
+                  disabled={expired}
+                  onPress={() => !expired && onSelectExam(exam.id)}
+                  style={[
+                    styles.examCard,
+                    selected && styles.examCardSelected,
+                    expired && { opacity: 0.6 },
+                  ]}
+                >
+                  <View style={styles.examIcon}>
+                    <MaterialCommunityIcons
+                      name="book-open-variant"
+                      size={20}
+                      color={COLORS.primary}
+                    />
                   </View>
-                ) : selected ? (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={22}
-                    color={COLORS.primary}
-                  />
-                ) : null}
-              </TouchableOpacity>
-            );
-          })
-        )}
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.examName}>{exam.name}</Text>
+                    {exam.code ? (
+                      <Text style={styles.examSub}>{exam.code}</Text>
+                    ) : null}
+                  </View>
+                  {expired ? (
+                    <View style={styles.expiredBadge}>
+                      <Text style={styles.expiredText}>Expired</Text>
+                    </View>
+                  ) : selected ? (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={22}
+                      color={COLORS.primary}
+                    />
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })
+          )}
 
-        <View style={{ height: 12 }} />
+          <View style={{ height: 12 }} />
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -619,7 +663,7 @@ function CountrySheet({
                     selected && styles.countryCardSelected,
                   ]}
                 >
-                  <Text style={styles.countryFlag}>{c.flag || "🌐"}</Text>
+                  <Flag url={c.flagUrl} size={26} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.countryName}>{c.name}</Text>
                     {sub ? (

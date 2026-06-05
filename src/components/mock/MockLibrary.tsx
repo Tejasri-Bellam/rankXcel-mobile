@@ -1006,12 +1006,20 @@ export default function MockLibrary() {
   }, [searchText]);
 
   const loadMocks = useCallback(async (isRefresh = false): Promise<void> => {
+    // No target exam for the selected region → nothing to show (don't fall back
+    // to the unscoped endpoint, which would return every exam's mock tests).
+    if (activeExamId == null) {
+      setAllMocks([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
 
       // Scope the request to the selected target exam (&exam_id=<id>).
-      const response = await getMockTestsService(activeExamId ?? undefined);
+      const response = await getMockTestsService(activeExamId);
 
       // Robust parsing — service return shape can vary
       const r = response as unknown as {
@@ -1060,7 +1068,7 @@ export default function MockLibrary() {
   // Only mocks for the header-selected exam. Mocks whose exam id can't be
   // resolved are kept so nothing is hidden on an unexpected shape.
   const examScopedMocks = useMemo<MockTest[]>(() => {
-    if (activeExamId == null) return allMocks;
+    if (activeExamId == null) return [];
     return allMocks.filter((m) => {
       const examId = getExamId(m.exam);
       if (examId == null) return true;

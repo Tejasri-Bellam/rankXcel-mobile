@@ -30,6 +30,8 @@ export interface VerifyEmailPayload {
 
 export interface ResendOtpPayload {
   email: string;
+  // The backend requires the OTP purpose; for signup verification it's "registration".
+  purpose?: string;
 }
 
 export interface UpdateProfilePayload {

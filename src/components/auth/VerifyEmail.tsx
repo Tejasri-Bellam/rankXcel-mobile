@@ -79,26 +79,29 @@ const VerifyEmailScreen = () => {
 
     setLoading(true);
 
-    const payload = {
-      email: email.trim().toLowerCase(),
-      otp: code,
-    };
+    try {
+      const payload = {
+        email: email.trim().toLowerCase(),
+        otp: code,
+      };
 
-    const response = await verifyEmailService(payload);
-    console.log('Verify Email Response:', response);
+      const response = await verifyEmailService(payload);
+      console.log('Verify Email Response:', response);
 
-    if (response.status === 200 || response.status === 201) {
       Alert.alert('Success', 'Email verified successfully!', [
         { text: 'OK', onPress: () => router.replace('/auth/login') },
       ]);
-    } else {
+    } catch (error: any) {
+      console.log('VERIFY ERROR:', JSON.stringify(error, null, 2));
       Alert.alert(
         'Verification Failed',
-        response.data?.error || 'Invalid or expired code. Please try again.'
+        error?.body?.error ||
+          error?.body?.detail ||
+          'Invalid or expired code. Please try again.'
       );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleResend = async () => {
@@ -111,29 +114,29 @@ const VerifyEmailScreen = () => {
 
     setLoading(true);
 
-    const payload = {
-      email: email.trim().toLowerCase(),
-    };
+    try {
+      const payload = {
+        email: email.trim().toLowerCase(),
+        purpose: 'registration',
+      };
 
-    const response = await resendOtpService(payload);
-    console.log("Resend OTP Response:", response);
+      const response = await resendOtpService(payload);
+      console.log('Resend OTP Response:', response);
 
-    if (response.status === 200 || response.status === 201) {
       setOtp(Array(OTP_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
 
       setResendTimer(30);
       setCanResend(false);
-
-      Alert.alert('Success', 'Verification code resent successfully!');
-    } else {
+    } catch (error: any) {
+      console.log('RESEND ERROR:', JSON.stringify(error, null, 2));
       Alert.alert(
         'Error',
-        response.data?.error || 'Failed to resend OTP'
+        error?.body?.error || error?.body?.detail || 'Failed to resend OTP'
       );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const maskedEmail = email
@@ -212,7 +215,7 @@ const VerifyEmailScreen = () => {
 
           <TouchableOpacity
             style={styles.backLink}
-            onPress={() => router.back()}
+            onPress={() => router.replace('/auth/sign-up')}
           >
             <Text style={styles.backLinkText}>← Back to registration</Text>
           </TouchableOpacity>

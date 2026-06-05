@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   getDashboardDataService,
@@ -96,6 +96,20 @@ export function useDashboard(enabled: boolean = true): UseDashboardResult {
     if (!enabled) return;
     fetchUser();
   }, [enabled, fetchUser]);
+
+  // The TargetExamProvider only fetches once, at app launch — when the user is
+  // still logged out, so it bails with an empty list. On the first dashboard
+  // mount after login the list is therefore empty; re-fetch it (now that we
+  // have a token) so the active exam (defaulting to the first one) gets set,
+  // which in turn drives the dashboard fetch below.
+  const didInitExams = useRef(false);
+  useEffect(() => {
+    if (!enabled || didInitExams.current) return;
+    if (!examsLoading && targetExams.length === 0) {
+      didInitExams.current = true;
+      refreshExams();
+    }
+  }, [enabled, examsLoading, targetExams.length, refreshExams]);
 
   useEffect(() => {
     if (activeExamId != null) {
