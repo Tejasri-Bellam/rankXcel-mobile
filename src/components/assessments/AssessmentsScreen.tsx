@@ -8,8 +8,11 @@ import { getassessmentsService } from '@/src/libs/services/assessments';
 import ExamDetails from './ExamDetails';
 import { assessmentsStyles as styles } from '@/src/styles/sidebar/assessmentsStyles';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
+import { useLocalSearchParams } from 'expo-router';
 
 type TabType = 'live' | 'upcoming' | 'completed' | 'missed';
+
+const TAB_VALUES: TabType[] = ['live', 'upcoming', 'completed', 'missed'];
 
 const TAB_CONFIG: Record<
   TabType,
@@ -42,10 +45,24 @@ const TAB_CONFIG: Record<
 };
 
 export default function AssessmentsScreen() {
+  // Optional `tab` param lets other screens deep-link into a specific tab
+  // (e.g. the dashboard "Upcoming live → All" link opens the Upcoming tab).
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const initialTab: TabType = TAB_VALUES.includes(tabParam as TabType)
+    ? (tabParam as TabType)
+    : 'live';
+
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabType>('live');
+  const [tab, setTab] = useState<TabType>(initialTab);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  // Keep the active tab in sync when the deep-link param changes.
+  useEffect(() => {
+    if (TAB_VALUES.includes(tabParam as TabType)) {
+      setTab(tabParam as TabType);
+    }
+  }, [tabParam]);
 
   // Scope assessments to the exam selected in the header.
   const { activeExamId } = useTargetExam();

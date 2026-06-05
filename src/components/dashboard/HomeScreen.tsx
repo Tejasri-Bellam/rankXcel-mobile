@@ -6,22 +6,21 @@ import {
   Text,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
 
 import { COLORS } from "@/src/styles/styles";
-import TodaysFocus from "./TodaysFocus";
-import Continue from "./Continue";
-import Performance from "./Performance";
-import WeakChapter from "./WeakChapter";
-import Upcoming from "./Upcoming";
-import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
 import Greeting from "./Greeting";
+import ExamReadiness from "./ExamReadiness";
+import DailyGoal from "./DailyGoal";
+import Continue from "./Continue";
+import StrengthBySubject from "./StrengthBySubject";
+import Upcoming from "./Upcoming";
+import RecentActivity from "./RecentActivity";
+import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
 
 export default function HomeScreen() {
-  const router = useRouter();
-
   const {
     user,
+    targetExams,
     activeExamId,
     dashboardData,
     isLoading,
@@ -39,6 +38,10 @@ export default function HomeScreen() {
       setRefreshing(false);
     }
   }, [refresh]);
+
+  const activeExam = targetExams.find(
+    (e) => String(e.id) === String(activeExamId)
+  );
 
   return (
     <View style={styles.safeArea}>
@@ -64,14 +67,16 @@ export default function HomeScreen() {
             />
           }
         >
-          <View style={styles.greetingSection}>
-            <Greeting user={user} />
-            <TodaysFocus dashboardData={dashboardData} examId={activeExamId} />
-            <Continue dashboardData={dashboardData} />
-            <Performance dashboardData={dashboardData} />
-            <WeakChapter dashboardData={dashboardData} />
-            <Upcoming dashboardData={dashboardData} />
-          </View>
+          <Greeting user={user} dashboardData={dashboardData} />
+          <ExamReadiness
+            dashboardData={dashboardData}
+            examName={activeExam?.name}
+          />
+          <DailyGoal dashboardData={dashboardData} />
+          <Continue dashboardData={dashboardData} examId={activeExamId} />
+          <StrengthBySubject dashboardData={dashboardData} />
+          <Upcoming dashboardData={dashboardData} />
+          <RecentActivity dashboardData={dashboardData} />
         </ScrollView>
       )}
     </View>
@@ -79,9 +84,14 @@ export default function HomeScreen() {
 }
 
 const styles: any = {
-  safeArea: { flex: 1, backgroundColor: COLORS.white },
+  safeArea: { flex: 1, backgroundColor: COLORS.background },
   scrollView: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: { paddingBottom: 30 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  errorText: { color: COLORS.textLight, fontSize: 14, textAlign: "center", paddingHorizontal: 32 },
+  errorText: {
+    color: COLORS.textLight,
+    fontSize: 14,
+    textAlign: "center",
+    paddingHorizontal: 32,
+  },
 };

@@ -1,267 +1,171 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "@/src/styles/styles";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DashboardData } from "@/src/libs/types/dashboard";
 
 interface ContinueProps {
   dashboardData: DashboardData | null;
+  examId: number | string | null;
 }
 
-export default function Continue({ dashboardData }: ContinueProps) {
+interface PracticeItem {
+  chapter: string;
+  subject: string;
+  status: string;
+  questionCount?: number;
+  durationMinutes?: number;
+  accuracyTrend?: string;
+}
+
+const subjectStyle: Record<string, { bg: string; text: string }> = {
+  Physics: { bg: COLORS.primaryLight, text: COLORS.primary },
+  Chemistry: { bg: COLORS.greenLight, text: COLORS.green },
+  Mathematics: { bg: COLORS.orangeLight, text: COLORS.orange },
+  Mathemetics: { bg: COLORS.orangeLight, text: COLORS.orange },
+};
+
+const fallbackStyle = { bg: COLORS.grayBg, text: COLORS.textMedium };
+
+const MAX_ITEMS = 4;
+
+export default function Continue({ dashboardData, examId }: ContinueProps) {
   const router = useRouter();
 
-  const session = dashboardData?.in_progress_session ?? null;
-  const streak = dashboardData?.streak ?? null;
+  const focus = dashboardData?.todays_focus ?? null;
+  const weak = dashboardData?.weak_chapters ?? [];
 
-  const attemptedCount = session
-    ? Math.round(((session.progress_percentage ?? 0) / 100) * (session.total_questions ?? 0))
-    : 0;
+  // Build the practice list: today's focus first, then weak chapters,
+  // de-duplicated by chapter name.
+  const seen = new Set<string>();
+  const items: PracticeItem[] = [];
+
+  if (focus) {
+    seen.add(focus.chapter_name);
+    items.push({
+      chapter: focus.chapter_name,
+      subject: focus.subject_name,
+      status: "Weak",
+      questionCount: focus.question_count,
+      durationMinutes: focus.estimated_duration_minutes,
+      accuracyTrend: focus.accuracy_trend,
+    });
+  }
+
+  for (const c of weak) {
+    if (seen.has(c.chapter_name)) continue;
+    seen.add(c.chapter_name);
+    items.push({
+      chapter: c.chapter_name,
+      subject: c.subject_name,
+      status: "Weak",
+    });
+    if (items.length >= MAX_ITEMS) break;
+  }
+
+  if (!items.length) return null;
+
+  const startPractice = (item: PracticeItem) => {
+    if (examId == null) return;
+    router.push({
+      pathname: "/practice",
+      params: {
+        chapterName: item.chapter,
+        subjectName: item.subject,
+        questionCount: String(item.questionCount ?? 20),
+        durationMinutes: String(item.durationMinutes ?? 30),
+        accuracyTrend: item.accuracyTrend ?? "",
+        examId: String(examId),
+      },
+    });
+  };
 
   return (
-  <View>
-    {/* Continue Card */}
-    {session ? (
-      <View style={styles.card}>
-        <Text style={styles.continueLabel}>
-          Continue where you left off
-        </Text>
-
-        <View style={styles.continueRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.continueTitle}>
-              {session.test_name}
-            </Text>
-
-            <Text style={styles.continueSub}>
-              Last section: {session.last_section} ·{" "}
-              {session.time_ago}
-            </Text>
-
-            <View style={styles.progressBarBg}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${
-                      session.progress_percentage ?? 0
-                    }%`,
-                  },
-                ]}
-              />
-            </View>
-
-            <Text style={styles.progressText}>
-              {attemptedCount} of {session.total_questions}
-              {" "}questions attempted
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.resumeBtn}
-            onPress={() => router.push("./mock-library")}
-          >
-            <Text style={styles.resumeBtnText}>Resume</Text>
-          </TouchableOpacity>
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleRow}>
+          <Ionicons name="locate" size={16} color={COLORS.primary} />
+          <Text style={styles.sectionTitle}>Continue practising</Text>
         </View>
-      </View>
-    ) : (
-      <View style={[styles.card, styles.emptyCard]}>
-        <View style={styles.emptyIconBg}>
-          <MaterialCommunityIcons
-            name="book-open-page-variant-outline"
-            size={28}
-            color={COLORS.textLight}
-          />
-        </View>
-
-        <Text style={styles.emptyTitle}>
-          No mock in progress
-        </Text>
-
-        <Text style={styles.emptySub}>
-          Start a new mock from the library to begin
-          tracking your progress.
-        </Text>
-
-        <TouchableOpacity
-          style={styles.browseBtn}
-          onPress={() => router.push("./mock-library")}
-        >
-          <Text style={styles.browseBtnText}>
-            Browse Mock Library →
-          </Text>
+        <TouchableOpacity onPress={() => router.push("/practice")}>
+          <Text style={styles.link}>Syllabus ›</Text>
         </TouchableOpacity>
       </View>
-    )}
 
-    {/* Streak Card */}
-    {streak && (
-      <View style={styles.card}>
-        <View style={styles.streakHeader}>
-          <View>
-            <Text style={styles.streakTitle}>
-              🔥 {streak.current_streak ?? 0} Day Streak
-            </Text>
+      {items.map((item, index) => {
+        const palette = subjectStyle[item.subject] ?? fallbackStyle;
+        return (
+          <View key={`${item.chapter}-${index}`} style={styles.card}>
+            <View style={[styles.thumb, { backgroundColor: palette.text }]} />
 
-            <Text style={styles.streakSub}>
-              {(streak.current_streak ?? 0) > 0
-                ? "Keep it going!"
-                : "Start a session today!"}
-            </Text>
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {item.chapter}
+              </Text>
+              <Text style={styles.cardSub} numberOfLines={1}>
+                {item.subject} · {item.status}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.practiceBtn}
+              onPress={() => startPractice(item)}
+              disabled={examId == null}
+            >
+              <Ionicons name="play" size={12} color={COLORS.primary} />
+              <Text style={styles.practiceBtnText}>Practice</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.streakDays}>
-          {(streak.streak_days ?? []).map(
-            (item, index) => (
-              <View
-                key={index}
-                style={styles.streakDayCol}
-              >
-                <View
-                  style={[
-                    styles.streakDayBubble,
-                    item.completed &&
-                      styles.streakDayBubbleActive,
-                  ]}
-                >
-                  {item.completed ? (
-                    <Ionicons
-                      name="checkmark"
-                      size={14}
-                      color={COLORS.white}
-                    />
-                  ) : (
-                    <Text
-                      style={styles.streakDayText}
-                    >
-                      {item.day}
-                    </Text>
-                  )}
-                </View>
-
-                <Text style={styles.streakDayLabel}>
-                  {item.day}
-                </Text>
-              </View>
-            )
-          )}
-        </View>
-
-        <View style={styles.bestStreakRow}>
-          <Text style={styles.bestStreakText}>
-            🏆 Best streak: {streak.best_streak ?? 0}
-            {" "}days
-          </Text>
-        </View>
-      </View>
-    )}
-  </View>
-);
+        );
+      })}
+    </View>
+  );
 }
 
 const styles: any = {
+  section: { marginTop: 22 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: COLORS.textDark },
+  link: { fontSize: 13, fontWeight: "700", color: COLORS.primary },
+
   card: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: 14,
     marginHorizontal: 16,
-    marginTop: 14,
-    padding: 16,
+    marginBottom: 10,
+    padding: 12,
     shadowColor: COLORS.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
-  continueLabel: { fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
-  continueRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  continueTitle: { fontSize: 14, fontWeight: "700", color: COLORS.textDark },
-  continueSub: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: COLORS.border,
-    borderRadius: 4,
-    marginTop: 10,
-  },
-  progressBarFill: {
-    height: 6,
-    backgroundColor: COLORS.primary,
-    borderRadius: 4,
-  },
-  progressText: { fontSize: 11, color: COLORS.textLight, marginTop: 4 },
-  resumeBtn: {
-    backgroundColor: COLORS.primary,
+  thumb: {
+    width: 44,
+    height: 44,
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    alignSelf: "flex-start",
   },
-  resumeBtnText: { color: COLORS.white, fontWeight: "700", fontSize: 13 },
-
-  emptyCard: {
-    alignItems: "center",
-    paddingVertical: 22,
-  },
-  emptyIconBg: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.background,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.textDark,
-  },
-  emptySub: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginTop: 6,
-    textAlign: "center",
-    paddingHorizontal: 12,
-  },
-  browseBtn: {
-    marginTop: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    alignSelf: "stretch",
-    alignItems: "center",
-  },
-  browseBtnText: { color: COLORS.white, fontWeight: "700", fontSize: 13 },
-
-  streakHeader: {
+  cardInfo: { flex: 1, marginLeft: 12 },
+  cardTitle: { fontSize: 14, fontWeight: "700", color: COLORS.textDark },
+  cardSub: { fontSize: 12, color: COLORS.textLight, marginTop: 3 },
+  practiceBtn: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 14,
-  },
-  streakTitle: { fontSize: 15, fontWeight: "700", color: COLORS.textDark },
-  streakSub: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  streakDays: { flexDirection: "row", justifyContent: "space-between" },
-  streakDayCol: { alignItems: "center", gap: 4 },
-  streakDayBubble: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.border,
     alignItems: "center",
-    justifyContent: "center",
+    gap: 4,
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  streakDayBubbleActive: { backgroundColor: COLORS.primary },
-  streakDayText: { fontSize: 12, color: COLORS.textMedium, fontWeight: "600" },
-  streakDayLabel: { fontSize: 11, color: COLORS.textLight },
-  bestStreakRow: {
-    marginTop: 14,
-    backgroundColor: COLORS.streakBg,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  bestStreakText: { fontSize: 13, fontWeight: "600", color: COLORS.orange },
-}; 
+  practiceBtnText: { fontSize: 12, fontWeight: "700", color: COLORS.primary },
+};
