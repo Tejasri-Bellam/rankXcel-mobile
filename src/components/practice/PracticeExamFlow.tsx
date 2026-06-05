@@ -1,25 +1,24 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { COLORS } from "@/src/styles/styles";
-import PracticeSettingsModal from "./PracticeSettingsModal";
-import PracticeQuestions, { PracticeApiQuestion } from "./PracticeQuestions";
-import PracticeResults from "./PracticeResults";
-import { ChapterItem } from "./PracticeScreen";
 import {
   createMockTestService,
-  getChapterOptionsService,
   getMockTestQuestionsService,
   getSubjectOptionsService,
   startMockTestService,
-  submitMockTestService,
+  submitMockTestService
 } from "@/src/libs/services/mock-library";
+import { COLORS } from "@/src/styles/styles";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import PracticeQuestions, { PracticeApiQuestion } from "./PracticeQuestions";
+import PracticeResults from "./PracticeResults";
+import { ChapterItem } from "./PracticeScreen";
+import PracticeSettingsModal from "./PracticeSettingsModal";
 
 type Screen = "settings" | "loading" | "questions" | "results";
 
@@ -40,7 +39,11 @@ const toArray = (raw: unknown): any[] => {
     const r = raw as { results?: any[]; data?: any[] | { results?: any[] } };
     if (Array.isArray(r.results)) return r.results;
     if (Array.isArray(r.data)) return r.data;
-    if (r.data && typeof r.data === "object" && Array.isArray((r.data as any).results)) {
+    if (
+      r.data &&
+      typeof r.data === "object" &&
+      Array.isArray((r.data as any).results)
+    ) {
       return (r.data as { results: any[] }).results;
     }
   }
@@ -62,7 +65,8 @@ const looksLikeQuestion = (o: any): boolean =>
 
 const findQuestionsArray = (node: any, depth = 0): any[] | null => {
   if (!node || depth > 6) return null;
-  if (Array.isArray(node) && node.length > 0 && node.every(looksLikeQuestion)) return node;
+  if (Array.isArray(node) && node.length > 0 && node.every(looksLikeQuestion))
+    return node;
   if (typeof node === "object") {
     for (const key of Object.keys(node)) {
       const found = findQuestionsArray(node[key], depth + 1);
@@ -78,11 +82,18 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
   if (realId == null) return null;
 
   const choicesRaw =
-    q.choices ?? q.options ?? q.answer_options ?? q.question?.choices ?? q.question?.options ?? [];
-  const options = (Array.isArray(choicesRaw) ? choicesRaw : []).map((c: any) => ({
-    id: String(c?.id ?? c?.value ?? ""),
-    text: c?.text ?? c?.label ?? String(c ?? ""),
-  }));
+    q.choices ??
+    q.options ??
+    q.answer_options ??
+    q.question?.choices ??
+    q.question?.options ??
+    [];
+  const options = (Array.isArray(choicesRaw) ? choicesRaw : []).map(
+    (c: any) => ({
+      id: String(c?.id ?? c?.value ?? ""),
+      text: c?.text ?? c?.label ?? String(c ?? ""),
+    }),
+  );
 
   let correctId: string | null = null;
   const correctRaw =
@@ -105,21 +116,36 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
   return {
     id: realId,
     text:
-      q.question_text ?? q.text ?? q.statement ?? q.question?.question_text ?? q.question?.text ?? "",
+      q.question_text ??
+      q.text ??
+      q.statement ??
+      q.question?.question_text ??
+      q.question?.text ??
+      "",
     type: q.question_type ?? q.type ?? q.question?.question_type ?? "MCQ",
     options,
     correctChoiceId: correctId,
     explanation:
-      q.explanation ?? q.solution ?? q.solution_text ?? q.answer_explanation ??
-      q.question?.explanation ?? q.question?.solution ?? "",
+      q.explanation ??
+      q.solution ??
+      q.solution_text ??
+      q.answer_explanation ??
+      q.question?.explanation ??
+      q.question?.solution ??
+      "",
     marksCorrect: Number(q.marks_correct ?? q.question?.marks_correct ?? 4),
-    marksIncorrect: Number(q.marks_incorrect ?? q.question?.marks_incorrect ?? -1),
+    marksIncorrect: Number(
+      q.marks_incorrect ?? q.question?.marks_incorrect ?? -1,
+    ),
     selectedOptions:
-      q.selected_options ?? q.selected_choices ?? q.response?.selected_options ?? null,
+      q.selected_options ??
+      q.selected_choices ??
+      q.response?.selected_options ??
+      null,
   };
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// Component
 
 interface PracticeExamFlowProps {
   visible: boolean;
@@ -159,7 +185,11 @@ export const PracticeExamFlow = ({
     }
   }, [visible]);
 
-  const handleBegin = async (count: number, difficulty: Difficulty, timer: number) => {
+  const handleBegin = async (
+    count: number,
+    difficulty: Difficulty,
+    timer: number,
+  ) => {
     if (creating) return;
     setLoadError(null);
     setTimerMinutes(timer);
@@ -169,35 +199,37 @@ export const PracticeExamFlow = ({
       const subjRes = await getSubjectOptionsService(examId);
       const subjects = toArray(unwrap(subjRes));
       const matchedSubject = subjects.find(
-        (s: any) => String(s?.name ?? "").toLowerCase() === chapter.subjectName.toLowerCase()
+        (s: any) =>
+          String(s?.name ?? "").toLowerCase() ===
+          chapter.subjectName.toLowerCase(),
       );
-      if (!matchedSubject?.id) throw new Error(`Subject "${chapter.subjectName}" not found.`);
+      if (!matchedSubject?.id)
+        throw new Error(`Subject "${chapter.subjectName}" not found.`);
       const subjectId = Number(matchedSubject.id);
 
-      const chRes = await getChapterOptionsService(subjectId);
-      const chList = toArray(unwrap(chRes));
-      const matchedChapter = chList.find(
-        (c: any) => String(c?.name ?? "").toLowerCase() === chapter.name.toLowerCase()
-      );
-      const chapterIds: number[] = matchedChapter?.id ? [Number(matchedChapter.id)] : [];
+      const topicIds = [chapter.id];
 
       const payload = {
         exam: examId,
         subject: subjectId,
-        chapter_ids: chapterIds,
-        topic_ids: chapterIds,
+        topic_ids: topicIds,
         question_count: count,
         total_duration_minutes: timer > 0 ? timer : 0,
-        difficulty,
+        difficulty: difficulty === "mixed" ? null : difficulty,
         test_type: "PRACTICE_TEST" as const,
       };
 
       const createRes = await createMockTestService(payload);
       const body = unwrap(createRes);
       const newId =
-        body?.id ?? body?.mock_test_id ?? body?.mock_id ??
-        body?.data?.id ?? body?.result?.id ?? body?.results?.id;
-      if (!newId) throw new Error("Practice session created but no ID returned.");
+        body?.id ??
+        body?.mock_test_id ??
+        body?.mock_id ??
+        body?.data?.id ??
+        body?.result?.id ??
+        body?.results?.id;
+      if (!newId)
+        throw new Error("Practice session created but no ID returned.");
       setMockId(newId);
 
       try {
@@ -213,12 +245,18 @@ export const PracticeExamFlow = ({
         (Array.isArray(raw?.questions) && raw.questions) ||
         findQuestionsArray(raw) ||
         toArray(raw);
-      const normalized = arr.map(normalizeQuestion).filter(Boolean) as PracticeApiQuestion[];
-      if (normalized.length === 0) throw new Error("No questions returned for this session.");
+      const normalized = arr
+        .map(normalizeQuestion)
+        .filter(Boolean) as PracticeApiQuestion[];
+      if (normalized.length === 0)
+        throw new Error("No questions returned for this session.");
       setQuestions(normalized);
       setScreen("questions");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "No published questions available.";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "No published questions available.";
       setLoadError(msg);
       setScreen("settings");
       Alert.alert("Error", msg);

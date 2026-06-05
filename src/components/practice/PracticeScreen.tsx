@@ -1,6 +1,6 @@
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import { getSubjectOptionsService } from "@/src/libs/services/mock-library";
-import { getChapterPerformanceService } from "@/src/libs/services/practice";
+import { getChapterPerformanceService, getTopicsService } from "@/src/libs/services/practice";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -26,10 +26,13 @@ import TopicsScreen from "./TopicScreen";
 import SubTopicsScreen from "./SubTopic";
 
 export interface TopicItem {
+  id: number;
   name: string;
+  code?: string;
+  order?: number;
   accuracy: number | null;
   questionCount?: number;
-  subTopics?: SubTopicItem[];
+  hasChildren?: boolean;
 }
 
 export interface SubTopicItem {
@@ -40,6 +43,7 @@ export interface SubTopicItem {
 }
 
 export interface ChapterItem {
+  id: number;
   name: string;
   topics: TopicItem[];
   accuracy: number | null;
@@ -47,6 +51,7 @@ export interface ChapterItem {
 }
 
 export interface SubjectGroup {
+  id: number;
   name: string;
   chapters: ChapterItem[];
   accuracy: number | null;
@@ -104,11 +109,12 @@ const normalizePerformance = (raw: any): SubjectGroup[] => {
 
     if (!subjectMap.has(subjectName)) {
       subjectMap.set(subjectName, {
-        name: subjectName,
-        chapters: [],
-        accuracy: null,
-        topicCount: 0,
-      });
+  id: Number(entry.subject_id ?? 0),
+  name: subjectName,
+  chapters: [],
+  accuracy: null,
+  topicCount: 0,
+});
     }
 
     const topicsRaw = Array.isArray(entry.topics) ? entry.topics : [];
@@ -120,6 +126,7 @@ const normalizePerformance = (raw: any): SubjectGroup[] => {
 
     const subjectGroup = subjectMap.get(subjectName)!;
     subjectGroup.chapters.push({
+      id: Number(entry.chapter_id ?? entry.id ?? 0),
       name: chapterName,
       topics,
       accuracy: parseAccuracy(entry.percentage ?? entry.accuracy),
@@ -226,7 +233,13 @@ export default function PracticeScreen() {
       subjectsList.forEach((s: any) => {
         const name = String(s?.name ?? s?.code ?? "Subject");
         if (!groups.find((g) => g.name === name)) {
-          groups.push({ name, chapters: [], accuracy: null, topicCount: 0 });
+          groups.push({
+            id: Number(s.id),
+            name,
+            chapters: [],
+            accuracy: null,
+            topicCount: 0,
+          });
         }
       });
       setSubjectGroups(groups);
@@ -238,8 +251,11 @@ export default function PracticeScreen() {
     }
   }, []);
 
+
   useEffect(() => {
     if (activeExamId != null) loadPerformance(Number(activeExamId));
+    // No target exam for the selected region → clear any stale syllabus.
+    else setSubjectGroups([]);
   }, [activeExamId, loadPerformance]);
 
   useEffect(() => {
@@ -247,7 +263,7 @@ export default function PracticeScreen() {
     if (!params?.chapterName || !params?.subjectName || !params?.examId) return;
     if (activeExamId == null) return;
     autoLaunchHandledRef.current = true;
-    setActiveChapter({ name: String(params.chapterName), subjectName: String(params.subjectName), topics: [], accuracy: null });
+    setActiveChapter({ id: 0, name: String(params.chapterName), subjectName: String(params.subjectName), topics: [], accuracy: null });
     const qc = Number(params.questionCount);
     const dm = Number(params.durationMinutes);
     setAutoQuestionCount(Number.isFinite(qc) && qc > 0 ? qc : undefined);
@@ -256,20 +272,79 @@ export default function PracticeScreen() {
     router.setParams({ chapterName: undefined, subjectName: undefined, questionCount: undefined, durationMinutes: undefined, examId: undefined } as any);
   }, [params, activeExamId, router]);
 
-  const handleSubjectPress = (subject: SubjectGroup) => {
-    setSelectedSubject(subject);
+  const handleSubjectPress = async (subject: SubjectGroup) => {
+  try {
+    setLoading(true);
+
+    const res = await getTopicsService(subject.id);
+
+    const topics = toArray(unwrap(res));
+
+    const chapters: ChapterItem[] = topics.map((topic: any) => ({
+      id: topic.id,
+      name: topic.name,
+      accuracy: null,
+      subjectName: subject.name,
+      topics: [],
+    }));
+
+    setSelectedSubject({
+      ...subject,
+      chapters,
+    });
+
     setNavScreen("topics");
-  };
+  } catch (e) {
+    console.log(e);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const handleTopicPress = (chapter: ChapterItem) => {
-    setSelectedChapter(chapter);
+ const handleTopicPress = async (chapter: ChapterItem) => {
+  try {
+    const subject = selectedSubject;
+
+    if (!subject) return;
+
+    const res = await getTopicsService(
+      subject.id,
+      chapter.id
+    );
+
+    const children = toArray(unwrap(res));
+
+    //
+    // No children => Topic -> Questions
+    //
+    if (children.length === 0) {
+      setActiveChapter(chapter);
+      setPracticeVisible(true);
+      return;
+    }
+
+    //
+    // Topic -> Sub Topics
+    //
+    setSelectedChapter({
+      ...chapter,
+      topics: children.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        accuracy: null,
+      })),
+    });
+
     setNavScreen("subtopics");
-  };
+  } catch (e) {
+    console.log(e);
+  }
+};
 
-  const handleSubTopicPress = (chapter: ChapterItem) => {
-    setActiveChapter(chapter);
-    setPracticeVisible(true);
-  };
+ const handleSubTopicPress = (chapter: ChapterItem) => {
+  setActiveChapter(chapter);
+  setPracticeVisible(true);
+};
 
   const handleBack = () => {
     if (navScreen === "subtopics") setNavScreen("topics");

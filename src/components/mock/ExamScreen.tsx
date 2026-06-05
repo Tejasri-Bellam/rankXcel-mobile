@@ -1,22 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Modal,
-  AppState,
-  AppStateStatus,
   ActivityIndicator,
   Alert,
+  AppState,
+  AppStateStatus,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockExamScreenStyles as styles } from '../../styles/sidebar/mockExams/examScreen';
-import {
-  submitMockTestService,
-  submitMockResponseService,
-} from '../../libs/services/mock-library';
+import { Ionicons } from '@expo/vector-icons';
+import { submitMockTestService, submitMockResponseService } from '../../libs/services/mock-library';
 import { stripHtml } from '../../libs/utils/html';
 
 interface Props {
@@ -24,23 +22,26 @@ interface Props {
   durationMinutes: number;
   exam: any;
   initialAnswers?: Record<string, string[]>;
-  initialStatuses?: Record<string, 'not_visited' | 'not_answered' | 'answered' | 'marked'>;
-  onSubmit: (answers: Record<string, string[]>, timeTakenSeconds: number) => void;
+  initialStatuses?: Record<string, QuestionStatus>;
+  onSubmit: (answers: Record<string, string[]>, timeTaken: number) => void;
   onBackToMocks?: () => void;
 }
 
 type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
 
-const isMultiSelectType = (type: string | undefined) => {
+const isMultiSelect = (type: string | undefined) => {
   if (!type) return false;
   const t = type.toUpperCase();
-  return (
-    t === 'MCQ_MULTIPLE' ||
-    t === 'MULTI_CORRECT' ||
-    t === 'MULTI CORRECT' ||
-    t === 'MULTIPLE' ||
-    t.includes('MULTI')
-  );
+  return t === 'MCQ_MULTIPLE' || t === 'MULTI_CORRECT' || t.includes('MULTI');
+};
+
+const formatTime = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0)
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
 export default function MockExamScreen({
@@ -52,34 +53,22 @@ export default function MockExamScreen({
   onSubmit,
   onBackToMocks,
 }: Props) {
-  const [timeLeft, setTimeLeft]   = useState((exam?.duration_minutes ?? durationMinutes) * 60);
+  const [timeLeft, setTimeLeft] = useState((exam?.duration_minutes ?? durationMinutes) * 60);
   const [timeTaken, setTimeTaken] = useState(0);
-
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
-  const [activeQIdx, setActiveQIdx]             = useState(0);
-
-  const [answers, setAnswers]     = useState<Record<string, string[]>>(initialAnswers ?? {});
+  const [activeQIdx, setActiveQIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string[]>>(initialAnswers ?? {});
   const [qStatuses, setQStatuses] = useState<Record<string, QuestionStatus>>(initialStatuses ?? {});
-
-  const [tabSwitchCount, setTabSwitchCount]   = useState(0);
-  const [showTabWarning, setShowTabWarning]   = useState(false);
-  const appStateRef = useRef(AppState.currentState);
-  const tabWarningTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [submitting, setSubmitting]           = useState(false);
-
+  const [showPalette, setShowPalette] = useState(false);
+  const [showSubmitSheet, setShowSubmitSheet] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
 
-  // Countdown timer
+  // Timer
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleFinalSubmit();
-          return 0;
-        }
+        if (prev <= 1) { clearInterval(interval); handleFinalSubmit(); return 0; }
         return prev - 1;
       });
       setTimeTaken((prev) => prev + 1);
@@ -87,81 +76,49 @@ export default function MockExamScreen({
     return () => clearInterval(interval);
   }, []);
 
-  // AppState tab-switch detection
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
-      if (
-        appStateRef.current === 'active' &&
-        (next === 'background' || next === 'inactive')
-      ) {
-        setTabSwitchCount((prev) => {
-          const n = prev + 1;
-          setShowTabWarning(true);
-          if (tabWarningTimeout.current) clearTimeout(tabWarningTimeout.current);
-          tabWarningTimeout.current = setTimeout(() => setShowTabWarning(false), 4000);
-          return n;
-        });
-      }
-      appStateRef.current = next;
-    });
-    return () => {
-      sub.remove();
-      if (tabWarningTimeout.current) clearTimeout(tabWarningTimeout.current);
-    };
-  }, []);
-
   if (!exam?.sections?.length) {
     return (
       <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
-        <Text style={{ color: '#9898B0' }}>No questions found for this mock test.</Text>
+        <Text style={{ color: '#9CA3AF' }}>No questions found for this mock test.</Text>
         {onBackToMocks && (
           <TouchableOpacity onPress={onBackToMocks} style={{ marginTop: 16 }}>
-            <Text style={{ color: '#6C5CE7', fontWeight: '600' }}>← Go Back</Text>
+            <Text style={{ color: '#3B7DF8', fontWeight: '600' }}>← Go Back</Text>
           </TouchableOpacity>
         )}
       </SafeAreaView>
     );
   }
 
-  const activeSection  = exam.sections[activeSectionIdx];
+  const activeSection = exam.sections[activeSectionIdx];
   const activeQuestion = activeSection?.questions?.[activeQIdx];
-  const currentQId     = activeQuestion?.id;
+  const currentQId = activeQuestion?.id;
+  const selectedOptions = answers[currentQId] || [];
+  const currentStatus = qStatuses[currentQId];
+  const isMarked = currentStatus === 'marked';
+  const isLast =
+    activeSectionIdx === exam.sections.length - 1 &&
+    activeQIdx === activeSection.questions.length - 1;
+  const isTimeLow = timeLeft < 300;
 
-  const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) {
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
+  // Flat list of all questions for the palette
+  const allQuestions = exam.sections.flatMap((s: any, si: number) =>
+    (s?.questions ?? []).map((q: any, qi: number) => ({ q, si, qi }))
+  );
+  const totalQ = allQuestions.length;
+  const answeredCount = Object.keys(answers).filter((id) => answers[id]?.length > 0).length;
+  const markedCount = Object.values(qStatuses).filter((s) => s === 'marked').length;
 
-  const isTimeLow = timeLeft < 300; // < 5 min
-
-  // Handlers
   const saveAnswerToServer = (
     qId: number | string,
-    selectedOptions: string[],
+    selectedOpts: string[],
     markedForReview = false,
   ) => {
-    const numericChoiceIds = selectedOptions
-      .map((v) => Number(v))
-      .filter((n) => Number.isFinite(n));
-
+    const ids = selectedOpts.map((v) => Number(v)).filter((n) => Number.isFinite(n));
     const promise = submitMockResponseService(mockId, qId, {
-      selected_choice_ids: numericChoiceIds,
+      selected_choice_ids: ids,
       is_marked_for_review: markedForReview,
       time_spent_seconds: 0,
-    })
-      .then((r) => {
-        console.log('MOCK SAVE OK for question', qId, 'status:', (r as any)?.status);
-        return r;
-      })
-      .catch((e) => {
-        console.log('MOCK SAVE ANSWER ERROR for question', qId, ':', e);
-      });
-
+    }).catch((e) => console.log('SAVE ERROR:', e));
     pendingSaves.current.add(promise);
     promise.finally(() => pendingSaves.current.delete(promise));
     return promise;
@@ -169,45 +126,41 @@ export default function MockExamScreen({
 
   const handleOptionSelect = (optionId: string) => {
     if (!currentQId) return;
-    const isMulti = isMultiSelectType(activeQuestion?.type);
+    const isMulti = isMultiSelect(activeQuestion?.type);
     const current = answers[currentQId] || [];
-    const newSelection = isMulti
+    const newSel = isMulti
       ? current.includes(optionId)
         ? current.filter((o) => o !== optionId)
         : [...current, optionId]
       : [optionId];
-
-    setAnswers((prev) => ({ ...prev, [currentQId]: newSelection }));
-    const wasMarked = qStatuses[currentQId] === 'marked';
+    setAnswers((prev) => ({ ...prev, [currentQId]: newSel }));
     setQStatuses((prev) => ({
       ...prev,
-      [currentQId]: wasMarked
-        ? 'marked'
-        : newSelection.length > 0
-          ? 'answered'
-          : 'not_answered',
+      [currentQId]:
+        prev[currentQId] === 'marked' ? 'marked' : newSel.length > 0 ? 'answered' : 'not_answered',
     }));
-
-    saveAnswerToServer(currentQId, newSelection, wasMarked);
+    saveAnswerToServer(currentQId, newSel, isMarked);
   };
 
   const handleMarkForReview = () => {
     if (!currentQId) return;
-    setQStatuses((prev) => ({ ...prev, [currentQId]: 'marked' }));
-    saveAnswerToServer(currentQId, answers[currentQId] ?? [], true);
+    const next = isMarked ? (selectedOptions.length > 0 ? 'answered' : 'not_answered') : 'marked';
+    setQStatuses((prev) => ({ ...prev, [currentQId]: next }));
+    saveAnswerToServer(currentQId, selectedOptions, !isMarked);
   };
 
-  const handleSaveAndNext = () => {
+  const handleNext = () => {
     if (currentQId) {
-      const hasAnswer = (answers[currentQId] || []).length > 0;
-      if (!qStatuses[currentQId]) {
-        setQStatuses((prev) => ({
-          ...prev,
-          [currentQId]: hasAnswer ? 'answered' : 'not_answered',
-        }));
-      }
+      setQStatuses((prev) => ({
+        ...prev,
+        [currentQId]:
+          prev[currentQId] && prev[currentQId] !== 'not_visited'
+            ? prev[currentQId]
+            : selectedOptions.length > 0
+            ? 'answered'
+            : 'not_answered',
+      }));
     }
-
     if (activeQIdx < activeSection.questions.length - 1) {
       const nextId = activeSection.questions[activeQIdx + 1].id;
       setActiveQIdx(activeQIdx + 1);
@@ -231,289 +184,596 @@ export default function MockExamScreen({
     }
   };
 
-  const handleNext = () => {
-    if (activeQIdx < activeSection.questions.length - 1) {
-      setActiveQIdx(activeQIdx + 1);
-    } else if (activeSectionIdx < exam.sections.length - 1) {
-      setActiveSectionIdx(activeSectionIdx + 1);
-      setActiveQIdx(0);
-    }
+  const jumpToQuestion = (si: number, qi: number) => {
+    setActiveSectionIdx(si);
+    setActiveQIdx(qi);
+    setShowPalette(false);
   };
-
-  const getSubmitSummary = () => {
-    const allQs = exam.sections.flatMap((s: any) => s?.questions ?? []).filter(Boolean);
-    let answered = 0, notAnswered = 0, markedForReview = 0, notVisited = 0;
-    allQs.forEach((q: any) => {
-      if (q?.id == null) return;
-      const status = qStatuses[q.id];
-      const hasAnswer = (answers[q.id] || []).length > 0;
-      if (!status) notVisited++;
-      else if (status === 'answered' && hasAnswer) answered++;
-      else if (status === 'marked') markedForReview++;
-      else notAnswered++;
-    });
-    return { answered, notAnswered, markedForReview, notVisited };
-  };
-
-  const getSectionSummary = () =>
-    exam.sections.map((section: any) => {
-      const questions = (section?.questions ?? []).filter(Boolean);
-      let ans = 0, notAns = 0;
-      questions.forEach((q: any) => {
-        if (q?.id == null) return;
-        if ((answers[q.id] || []).length > 0) ans++;
-        else notAns++;
-      });
-      return { name: section?.name ?? '', total: questions.length, answered: ans, notAnswered: notAns };
-    });
 
   const handleFinalSubmit = async () => {
     if (submitting) return;
     try {
       setSubmitting(true);
-      setShowSubmitModal(false);
-
+      setShowSubmitSheet(false);
+      setShowPalette(false);
       if (pendingSaves.current.size > 0) {
-        console.log('Waiting for', pendingSaves.current.size, 'mock saves...');
         await Promise.all(Array.from(pendingSaves.current));
       }
-
-      const res = await submitMockTestService(mockId);
-      console.log('MOCK SUBMIT RESPONSE:', JSON.stringify(res, null, 2));
+      await submitMockTestService(mockId);
       onSubmit(answers, timeTaken);
     } catch (err) {
-      console.log('MOCK SUBMIT ERROR:', err);
+      console.log('SUBMIT ERROR:', err);
       Alert.alert('Error', 'Submission failed. Please try again.');
       setSubmitting(false);
     }
   };
 
-  const summary        = getSubmitSummary();
-  const sectionSummary = getSectionSummary();
-  const selectedOptions = answers[currentQId] || [];
-  const sectionAnswered = exam.sections.map((s: any) =>
-    (s?.questions ?? []).filter((q: any) => q?.id != null && (answers[q.id] || []).length > 0).length
-  );
+  // Current flat index
+  let currentFlatIdx = 0;
+  for (let si = 0; si < activeSectionIdx; si++) {
+    currentFlatIdx += exam.sections[si].questions.length;
+  }
+  currentFlatIdx += activeQIdx;
+
+  // Progress bar segments
+  const progressSegs = allQuestions.map(({ q, si, qi }: any) => {
+    const qid = q?.id;
+    const isCurrent = si === activeSectionIdx && qi === activeQIdx;
+    const status = qStatuses[qid];
+    if (isCurrent) return '#3B7DF8';
+    if (status === 'answered') return '#3B7DF8';
+    if (status === 'marked') return '#F59E0B';
+    return '#E5E7EB';
+  });
+
+  // Palette dot color
+  const getPaletteColor = (q: any) => {
+    const qid = q?.id;
+    const status = qStatuses[qid];
+    if (status === 'answered' && (answers[qid] || []).length > 0) return '#DBEAFE'; // answered (blue light)
+    if (status === 'marked') return '#FEF3C7'; // marked (yellow light)
+    return '#F9FAFB'; // not answered
+  };
+
+  const getPaletteBorder = (q: any) => {
+    const qid = q?.id;
+    const status = qStatuses[qid];
+    if (status === 'answered' && (answers[qid] || []).length > 0) return '#3B7DF8';
+    if (status === 'marked') return '#F59E0B';
+    return '#E5E7EB';
+  };
+
+  const getPaletteTextColor = (q: any) => {
+    const qid = q?.id;
+    const status = qStatuses[qid];
+    if (status === 'answered' && (answers[qid] || []).length > 0) return '#3B7DF8';
+    if (status === 'marked') return '#B45309';
+    return '#6B7280';
+  };
 
   return (
-    <View style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
-
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <View style={styles.topLeft}>
-          <Text style={styles.examLabel}>Mock Test</Text>
-          <Text style={styles.examName} numberOfLines={1}>
-            {exam?.name ?? 'Mock Test'}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.closeBtn} onPress={onBackToMocks} activeOpacity={0.7}>
+          <Ionicons name="close" size={18} color="#555" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {exam?.name ?? mockId}
           </Text>
+          <Text style={styles.headerSub}>Mock · Sample</Text>
+          {/* Progress bar */}
+          <View style={styles.progressBar}>
+            {progressSegs.map((color: string, i: number) => (
+              <View
+                key={i}
+                style={[styles.progressSeg, { backgroundColor: color }]}
+              />
+            ))}
+          </View>
         </View>
-        <View style={[styles.timerBox, isTimeLow && styles.timerBoxRed]}>
-          <Text style={styles.timerLabel}>TIME LEFT</Text>
-          <Text style={[styles.timerValue, isTimeLow && { color: '#FCA5A5' }]}>
+        <View style={[styles.timerChip, isTimeLow && styles.timerChipRed]}>
+          <Ionicons name="time-outline" size={12} color={isTimeLow ? '#EF4444' : '#555'} />
+          <Text style={[styles.timerText, isTimeLow && { color: '#EF4444' }]}>
             {formatTime(timeLeft)}
           </Text>
         </View>
         <TouchableOpacity
-          style={styles.submitTopBtn}
-          onPress={() => setShowSubmitModal(true)}
+          style={styles.menuBtn}
+          onPress={() => setShowPalette(true)}
+          activeOpacity={0.7}
         >
-          <Text style={styles.submitTopBtnText}>⚑ Submit</Text>
+          <Ionicons name="menu-outline" size={20} color="#555" />
         </TouchableOpacity>
       </View>
 
-      {/* Tab switch warning */}
-      {showTabWarning && (
-        <View style={styles.tabWarningBanner}>
-          <Text style={styles.tabWarningIcon}>⚠</Text>
-          <Text style={styles.tabWarningText}>
-            Tab switch detected ({tabSwitchCount} time{tabSwitchCount > 1 ? 's' : ''}). This is being recorded.
+      {/* Question body */}
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Q label + Mark */}
+        <View style={styles.qMetaRow}>
+          <Text style={styles.qLabel}>
+            QUESTION {currentFlatIdx + 1} / {totalQ}
           </Text>
-        </View>
-      )}
-
-      {/* Section tabs */}
-      <View style={styles.sectionTabsRow}>
-        {exam.sections.map((section: any, idx: number) => (
           <TouchableOpacity
-            key={section.id ?? idx}
-            style={[styles.sectionTab, activeSectionIdx === idx && styles.sectionTabActive]}
-            onPress={() => { setActiveSectionIdx(idx); setActiveQIdx(0); }}
+            style={[styles.markBtn, isMarked && styles.markBtnActive]}
+            onPress={handleMarkForReview}
+            activeOpacity={0.75}
           >
-            <Text style={[styles.sectionTabText, activeSectionIdx === idx && styles.sectionTabTextActive]}>
-              {section.name}
-            </Text>
-            <Text style={[styles.sectionTabCount, activeSectionIdx === idx && styles.sectionTabCountActive]}>
-              {sectionAnswered[idx]}/{section.questions?.length ?? 0}
+            <Ionicons
+              name={isMarked ? 'bookmark' : 'bookmark-outline'}
+              size={14}
+              color={isMarked ? '#F59E0B' : '#9CA3AF'}
+            />
+            <Text style={[styles.markText, isMarked && styles.markTextActive]}>
+              {isMarked ? 'Marked' : 'Mark'}
             </Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        </View>
 
-      {/* Question content */}
-      {activeQuestion ? (
-        <ScrollView
-          style={styles.questionScroll}
-          contentContainerStyle={styles.questionScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Q meta */}
-          <View style={styles.qMetaRow}>
-            <Text style={styles.qNumber}>
-              Q {activeQIdx + 1} of {activeSection?.questions?.length ?? 0}
-            </Text>
-            <View style={styles.qTypeBadge}>
-              <Text style={styles.qTypeText}>{activeQuestion.type ?? 'MCQ'}</Text>
-            </View>
-            <View style={styles.marksBadges}>
-              <View style={styles.correctMarkBadge}>
-                <Text style={styles.marksBadgeText}>+{activeQuestion.marks_correct ?? 4}</Text>
-              </View>
-              <View style={styles.wrongMarkBadge}>
-                <Text style={styles.marksBadgeText}>{activeQuestion.marks_incorrect ?? -1}</Text>
-              </View>
-            </View>
-          </View>
+        {/* Question text */}
+        <Text style={styles.questionText}>{stripHtml(activeQuestion?.text ?? '')}</Text>
 
-          <Text style={styles.questionText}>{stripHtml(activeQuestion.text)}</Text>
-
-          <Text style={styles.selectLabel}>
-            {activeQuestion.type === 'MCQ_MULTIPLE' || activeQuestion.type === 'Multi Correct'
-              ? 'Select one or more correct options'
-              : 'Select one correct option'}
-          </Text>
-
-          {activeQuestion.options?.map((option: any, index: number) => {
-            const isSelected = selectedOptions.includes(String(option.id));
+        {/* Options */}
+        <View style={styles.optionsList}>
+          {(activeQuestion?.options ?? []).map((opt: any, idx: number) => {
+            const isSelected = selectedOptions.includes(String(opt.id));
             return (
               <TouchableOpacity
-                key={String(option.id)}
-                style={[styles.optionRow, isSelected && styles.optionRowSelected]}
-                onPress={() => handleOptionSelect(String(option.id))}
-                activeOpacity={0.8}
+                key={String(opt.id)}
+                style={[styles.optRow, isSelected && styles.optRowSelected]}
+                onPress={() => handleOptionSelect(String(opt.id))}
+                activeOpacity={0.7}
               >
-                <View style={[styles.optionBubble, isSelected && styles.optionBubbleSelected]}>
-                  <Text style={[styles.optionBubbleText, isSelected && styles.optionBubbleTextSelected]}>
-                    {String.fromCharCode(65 + index)}
+                <View style={[styles.optLetter, isSelected && styles.optLetterSelected]}>
+                  <Text style={[styles.optLetterText, isSelected && styles.optLetterTextSelected]}>
+                    {String.fromCharCode(65 + idx)}
                   </Text>
                 </View>
-                <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                  {stripHtml(option.text)}
+                <Text style={[styles.optText, isSelected && styles.optTextSelected]}>
+                  {stripHtml(opt.text)}
                 </Text>
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
-      ) : (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: '#9898B0' }}>No question available.</Text>
         </View>
-      )}
 
-      {/* Bottom action row */}
-      <View style={styles.bottomActionRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={handleMarkForReview}>
-          <Text style={styles.actionBtnText}>🔖 Mark for Review</Text>
-        </TouchableOpacity>
-        <View style={styles.notVisitedDot} />
-        <Text style={styles.notVisitedLabel}>Not Answered</Text>
+        <Text style={styles.swipeHint}>— Swipe to move between questions —</Text>
+      </ScrollView>
+
+      {/* Bottom bar */}
+      <View style={styles.bottomBar}>
+        {isLast ? (
+          <View style={styles.navRow}>
+            <TouchableOpacity style={styles.prevBtn} onPress={handlePrev} activeOpacity={0.7}>
+              <Ionicons name="arrow-back" size={16} color="#555" />
+              <Text style={styles.prevBtnText}>Prev</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.submitBtn}
+              onPress={() => setShowSubmitSheet(true)}
+              disabled={submitting}
+              activeOpacity={0.85}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.submitBtnText}>Submit</Text>
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.85}>
+            <Text style={styles.nextBtnText}>Next</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Nav row */}
-      <View style={styles.navRow}>
-        <TouchableOpacity style={styles.navBtn} onPress={handlePrev}>
-          <Text style={styles.navBtnText}>‹ Prev</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.saveNextBtn} onPress={handleSaveAndNext}>
-          <Text style={styles.saveNextBtnText}>💾 Save & Next</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navBtn} onPress={handleNext}>
-          <Text style={styles.navBtnText}>Next ›</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Submit Modal */}
-      <Modal
-        visible={showSubmitModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSubmitModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalTitleRow}>
-                <Text style={styles.modalWarningIcon}>⚠</Text>
-                <View>
-                  <Text style={styles.modalTitle}>Submit Mock?</Text>
-                  <Text style={styles.modalSubtitle}>This action cannot be undone.</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => setShowSubmitModal(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+      {/* ── Question Palette Modal ── */}
+      <Modal visible={showPalette} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.paletteOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPalette(false)}
+        >
+          <View style={styles.paletteSheet}>
+            <View style={styles.paletteHandle} />
+            <View style={styles.paletteHeader}>
+              <Text style={styles.paletteTitle}>Questions</Text>
+              <TouchableOpacity onPress={() => setShowPalette(false)}>
+                <Ionicons name="close" size={20} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalStatsRow}>
-              <View style={[styles.modalStatBox, styles.modalStatBoxGreen]}>
-                <Text style={styles.modalStatValue}>{summary.answered}</Text>
-                <Text style={[styles.modalStatLabel, { color: '#22C55E' }]}>Answered</Text>
+            {/* Grid */}
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+              <View style={styles.paletteGrid}>
+                {allQuestions.map(({ q, si, qi }: any, idx: number) => {
+                  const isCurrentQ = si === activeSectionIdx && qi === activeQIdx;
+                  const bg = getPaletteColor(q);
+                  const border = getPaletteBorder(q);
+                  const textColor = getPaletteTextColor(q);
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.paletteCell,
+                        { backgroundColor: bg, borderColor: border },
+                        isCurrentQ && styles.paletteCellCurrent,
+                      ]}
+                      onPress={() => jumpToQuestion(si, qi)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[styles.paletteCellText, { color: isCurrentQ ? '#1A1A2E' : textColor }]}>
+                        {idx + 1}
+                      </Text>
+                      {qStatuses[q?.id] === 'marked' && (
+                        <View style={styles.paletteMark} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <View style={[styles.modalStatBox, styles.modalStatBoxRed]}>
-                <Text style={styles.modalStatValue}>{summary.notAnswered}</Text>
-                <Text style={[styles.modalStatLabel, { color: '#EF4444' }]}>Not Answered</Text>
+            </ScrollView>
+
+            {/* Legend */}
+            <View style={styles.paletteLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#DBEAFE', borderColor: '#3B7DF8' }]} />
+                <Text style={styles.legendText}>Answered</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]} />
+                <Text style={styles.legendText}>Marked</Text>
               </View>
             </View>
 
-            <View style={styles.modalStatsRow}>
-              <View style={[styles.modalStatBox, styles.modalStatBoxPurple]}>
-                <Text style={styles.modalStatValue}>{summary.markedForReview}</Text>
-                <Text style={[styles.modalStatLabel, { color: '#8B5CF6' }]}>Marked</Text>
-              </View>
-              <View style={[styles.modalStatBox, styles.modalStatBoxGray]}>
-                <Text style={styles.modalStatValue}>{summary.notVisited}</Text>
-                <Text style={[styles.modalStatLabel, { color: '#6B7280' }]}>Not Visited</Text>
-              </View>
-            </View>
+            {/* Submit from palette */}
+            <TouchableOpacity
+              style={styles.paletteSubmitBtn}
+              onPress={() => { setShowPalette(false); setTimeout(() => setShowSubmitSheet(true), 300); }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.paletteSubmitText}>
+                Submit ({answeredCount}/{totalQ}) ✓
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
-            <View style={styles.sectionTable}>
-              <View style={styles.sectionTableHeader}>
-                <Text style={[styles.sectionTableCell, styles.sectionTableHeaderText, { flex: 2 }]}>SECTION</Text>
-                <Text style={[styles.sectionTableCell, styles.sectionTableHeaderText]}>TOTAL</Text>
-                <Text style={[styles.sectionTableCell, styles.sectionTableHeaderText]}>ANS.</Text>
-                <Text style={[styles.sectionTableCell, styles.sectionTableHeaderText]}>NOT ANS.</Text>
-              </View>
-              {sectionSummary.map((s: any, idx: number) => (
-                <View key={idx} style={styles.sectionTableRow}>
-                  <Text style={[styles.sectionTableCell, { flex: 2 }]} numberOfLines={1}>{s.name}</Text>
-                  <Text style={styles.sectionTableCell}>{s.total}</Text>
-                  <Text style={[styles.sectionTableCell, { color: '#22C55E' }]}>{s.answered}</Text>
-                  <Text style={[styles.sectionTableCell, { color: '#EF4444' }]}>{s.notAnswered}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.modalBtnRow}>
+      {/* ── Submit Confirmation Sheet ── */}
+      <Modal visible={showSubmitSheet} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.submitOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSubmitSheet(false)}
+        >
+          <View style={styles.submitSheet}>
+            <View style={styles.paletteHandle} />
+            <Text style={styles.submitSheetTitle}>Submit attempt?</Text>
+            <Text style={styles.submitSheetDesc}>
+              You&apos;ve answered{' '}
+              <Text style={{ fontWeight: '700' }}>{answeredCount} of {totalQ}</Text>.
+              {markedCount > 0 ? ` ${markedCount} marked for review.` : ''}
+              {'\n'}You can&apos;t change answers after submitting.
+            </Text>
+            <View style={styles.submitSheetBtns}>
               <TouchableOpacity
-                style={styles.goBackBtn}
-                onPress={() => setShowSubmitModal(false)}
+                style={styles.keepGoingBtn}
+                onPress={() => setShowSubmitSheet(false)}
+                activeOpacity={0.75}
               >
-                <Text style={styles.goBackBtnText}>Go Back</Text>
+                <Text style={styles.keepGoingText}>Keep going</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.submitExamBtn}
+                style={styles.submitNowBtn}
                 onPress={handleFinalSubmit}
                 disabled={submitting}
+                activeOpacity={0.85}
               >
                 {submitting ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.submitExamBtnText}>Submit Mock</Text>
+                  <>
+                    <Text style={styles.submitNowText}>Submit now</Text>
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  </>
                 )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#0F1117' },
+  scroll: { flex: 1, backgroundColor: '#fff' },
+  scrollContent: { padding: 20, paddingBottom: 24 },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F1117',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1E2130',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: { flex: 1, gap: 2 },
+  headerTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  headerSub: { fontSize: 11, color: '#9CA3AF' },
+  progressBar: { flexDirection: 'row', gap: 2, marginTop: 5, height: 2 },
+  progressSeg: { flex: 1, height: 2, borderRadius: 1 },
+  timerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1E2130',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  timerChipRed: { backgroundColor: '#2D0A0A' },
+  timerText: { fontSize: 12, fontWeight: '700', color: '#E5E7EB', fontVariant: ['tabular-nums'] as any },
+  menuBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#1E2130',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Q meta
+  qMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  qLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1 },
+  markBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  markBtnActive: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FEF3C7',
+  },
+  markText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
+  markTextActive: { color: '#B45309' },
+
+  // Question
+  questionText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A2E',
+    lineHeight: 26,
+    marginBottom: 24,
+  },
+
+  // Options
+  optionsList: { gap: 10 },
+  optRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  optRowSelected: {
+    borderColor: '#3B7DF8',
+    backgroundColor: '#F0F6FF',
+  },
+  optLetter: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  optLetterSelected: {
+    backgroundColor: '#3B7DF8',
+    borderColor: '#3B7DF8',
+  },
+  optLetterText: { fontSize: 13, fontWeight: '700', color: '#6B7280' },
+  optLetterTextSelected: { color: '#fff' },
+  optText: { flex: 1, fontSize: 15, color: '#1A1A2E', fontWeight: '500' },
+  optTextSelected: { color: '#3B7DF8', fontWeight: '600' },
+
+  swipeHint: { textAlign: 'center', fontSize: 12, color: '#D1D5DB', marginTop: 20 },
+
+  // Bottom bar
+  bottomBar: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
+  },
+  nextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#3B7DF8',
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  nextBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  navRow: { flexDirection: 'row', gap: 10 },
+  prevBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 15,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  prevBtnText: { fontSize: 14, fontWeight: '700', color: '#555' },
+  submitBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1A1A2E',
+    borderRadius: 16,
+    paddingVertical: 15,
+  },
+  submitBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  // Palette
+  paletteOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  paletteSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  paletteHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  paletteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  paletteTitle: { fontSize: 17, fontWeight: '800', color: '#1A1A2E' },
+  paletteGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  paletteCell: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  paletteCellCurrent: {
+    borderColor: '#1A1A2E',
+    borderWidth: 2,
+  },
+  paletteCellText: { fontSize: 14, fontWeight: '700' },
+  paletteMark: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
+  },
+  paletteLegend: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 14,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 4,
+    borderWidth: 1.5,
+  },
+  legendText: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+  paletteSubmitBtn: {
+    backgroundColor: '#1A1A2E',
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  paletteSubmitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  // Submit sheet
+  submitOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  submitSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+  },
+  submitSheetTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', marginBottom: 10 },
+  submitSheetDesc: { fontSize: 14, color: '#6B7280', lineHeight: 22, marginBottom: 24 },
+  submitSheetBtns: { flexDirection: 'row', gap: 12 },
+  keepGoingBtn: {
+    flex: 1,
+    paddingVertical: 15,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  keepGoingText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  submitNowBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1A1A2E',
+    borderRadius: 14,
+    paddingVertical: 15,
+  },
+  submitNowText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+});

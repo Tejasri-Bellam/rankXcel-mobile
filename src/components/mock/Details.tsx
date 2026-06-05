@@ -1,27 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
   ActivityIndicator,
   Alert,
   BackHandler,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { mockDetailsStyles as styles } from '../../styles/sidebar/mockExams/mockDetails';
-import {
-  startMockTestService,
-  MockTest,
-} from '../../libs/services/mock-library';
+import { startMockTestService, MockTest } from '../../libs/services/mock-library';
 import MockExamNavigator from './Navigator';
 import MockExamResults from './Results';
 import MockSolutionViewer from './SolutionViewer';
-import MockDetailedAnalysis from './DetailedAnalysis';
 
-type MockView = 'detail' | 'exam' | 'results' | 'solutions' | 'analysis';
+type MockView = 'detail' | 'exam' | 'results' | 'solutions';
 
 interface Props {
   mock: MockTest;
@@ -29,24 +25,8 @@ interface Props {
   initialView?: MockView;
 }
 
-const STATUS_CONFIG = {
-  NOT_STARTED: { label: 'Not Started', color: '#9898B0', bg: '#F3F4F6' },
-  IN_PROGRESS: { label: 'In Progress', color: '#6C5CE7', bg: '#EEF2FF' },
-  SUBMITTED:   { label: 'Completed',   color: '#22C55E', bg: '#F0FDF4' },
-} as const;
-
-const INSTRUCTIONS = [
-  'The timer starts when you click "Start Mock".',
-  'Answers are saved automatically when you click "Save & Next" or switch questions.',
-  'You may switch between sections at any time during the exam.',
-  'Once you submit, the exam cannot be resumed or modified.',
-  'Use the Question Palette on the right to track your progress across all questions.',
-];
-
 const getExamName = (exam: MockTest['exam']): string =>
-  typeof exam === 'object' && exam !== null && 'name' in exam
-    ? exam.name
-    : String(exam || '');
+  typeof exam === 'object' && exam !== null && 'name' in exam ? exam.name : String(exam || '');
 
 const getSubjectName = (subject: MockTest['subject']): string =>
   typeof subject === 'object' && subject !== null && 'name' in subject
@@ -57,74 +37,42 @@ const formatDuration = (mins: number | null | undefined): string => {
   if (!mins) return '—';
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h} hr`;
-  return `${m} min`;
+  if (h > 0 && m > 0) return `${h * 60 + m}`;
+  if (h > 0) return `${h * 60}`;
+  return `${m}`;
 };
 
 export default function MockDetails({ mock, onBack, initialView = 'detail' }: Props) {
   const [currentView, setCurrentView] = useState<MockView>(initialView);
   const [startLoading, setStartLoading] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(true);
-  const [accepted, setAccepted] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
   const [timeTaken, setTimeTaken] = useState(0);
   const [mockData] = useState<MockTest>(mock);
 
-  // Reflect the current sub-view in the URL so deep-links / debugging is clear.
   useEffect(() => {
     router.setParams({ mockId: String(mockData.id), view: currentView });
-    return () => {
-      router.setParams({ mockId: undefined as any, view: undefined as any });
-    };
+    return () => { router.setParams({ mockId: undefined as any, view: undefined as any }); };
   }, [currentView, mockData.id]);
 
-  // Hardware back: pop within the mock flow instead of exiting the screen.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (currentView === 'solutions' || currentView === 'analysis') {
-        setCurrentView('results');
-        return true;
-      }
-      if (currentView === 'exam') {
-        setCurrentView('detail');
-        return true;
-      }
-      // From 'results' or 'detail', exit straight back to the Mock Library list.
+      if (currentView === 'solutions') { setCurrentView('results'); return true; }
+      if (currentView === 'exam') { setCurrentView('detail'); return true; }
       onBack();
       return true;
     });
     return () => sub.remove();
   }, [currentView, onBack]);
 
-  const isCompleted  = mockData.status === 'SUBMITTED';
+  const isCompleted = mockData.status === 'SUBMITTED';
   const isInProgress = mockData.status === 'IN_PROGRESS';
   const isNotStarted = mockData.status === 'NOT_STARTED';
 
-  const sc = STATUS_CONFIG[mockData.status] ?? STATUS_CONFIG.NOT_STARTED;
-  const examName    = getExamName(mockData.exam);
+  const examName = getExamName(mockData.exam);
   const subjectName = getSubjectName(mockData.subject);
-
-  const difficultyLabel = mockData.difficulty
-    ? String(mockData.difficulty).charAt(0).toUpperCase() +
-      String(mockData.difficulty).slice(1).toLowerCase()
-    : 'Medium';
-  const difficultyColor =
-    difficultyLabel === 'Easy' ? '#22C55E' :
-    difficultyLabel === 'Hard' ? '#EF4444' :
-    '#F97316';
-  const difficultyBg =
-    difficultyLabel === 'Easy' ? '#F0FDF4' :
-    difficultyLabel === 'Hard' ? '#FEF2F2' :
-    '#FFFBEB';
-
-  const coverageChips: string[] = Array.isArray(mockData.chapters)
-    ? mockData.chapters.map((c: any) =>
-        typeof c === 'object' && c !== null
-          ? c.name ?? c.code ?? String(c.id ?? '')
-          : String(c)
-      ).filter(Boolean)
-    : [];
+  const score = mockData.score ?? 0;
+  const maxScore = mockData.max_score ?? mockData.question_count ?? 0;
+  const lastPct = maxScore > 0 ? Math.round((score / maxScore) * 100) : null;
 
   const handleStart = async () => {
     try {
@@ -142,11 +90,6 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
     setCurrentView('exam');
   };
 
-  const handleResume = () => {
-    setCurrentView('exam');
-  };
-
-  // Sub-screen routing
   if (currentView === 'exam') {
     return (
       <MockExamNavigator
@@ -171,7 +114,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
         timeTakenSeconds={timeTaken}
         onBack={onBack}
         onViewSolutions={() => setCurrentView('solutions')}
-        onViewAnalysis={() => setCurrentView('analysis')}
+        onDone={onBack}
       />
     );
   }
@@ -186,216 +129,189 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
     );
   }
 
-  if (currentView === 'analysis') {
-    return (
-      <MockDetailedAnalysis
-        mockId={mockData.id}
-        mock={mockData}
-        answers={submittedAnswers}
-        onBack={() => setCurrentView('results')}
-      />
-    );
-  }
-
-  // Detail Screen
+  // ── Detail screen ──
   return (
-    <View style={styles.safeArea} >
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backText}>Mock Library</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {mockData.title || `${examName} Mock`}
+        </Text>
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Pills: exam + difficulty (completed) OR status pill */}
-        {isCompleted ? (
-          <View style={styles.pillsRow}>
-            {!!examName && (
-              <View style={styles.pillExam}>
-                <Text style={styles.pillExamText}>{examName}</Text>
-              </View>
-            )}
-            <View
-              style={[
-                styles.pillDifficulty,
-                { borderColor: difficultyColor, backgroundColor: difficultyBg },
-              ]}
-            >
-              <Text style={[styles.pillDifficultyText, { color: difficultyColor }]}>
-                {difficultyLabel}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-            <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
-            <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
-          </View>
-        )}
-
-        {/* Title */}
-        <Text style={styles.title}>
-          {mockData.title || `${examName} Mock Test`}
-        </Text>
-
-        {/* Subject line: "JEE · Mathematics" */}
-        {(!!examName || !!subjectName) && (
-          <Text style={styles.subjectLabel}>
-            {[examName, subjectName].filter(Boolean).join(' · ')}
-          </Text>
-        )}
-
-        {/* Stats grid */}
-        <View style={styles.statsGrid}>
-          {[
-            { icon: '⏱', value: formatDuration(mockData.total_duration_minutes), label: 'Duration' },
-            { icon: '📋', value: `${mockData.question_count ?? 0}`, label: 'Total Questions' },
-            { icon: '🎯', value: `${mockData.max_score ?? mockData.question_count ?? 0}`, label: 'Total Marks' },
-            { icon: '📊', value: difficultyLabel, label: 'Difficulty' },
-          ].map((s, i) => (
-            <View key={i} style={styles.statCard}>
-              <Text style={styles.statIcon}>{s.icon}</Text>
-              <Text style={styles.statValue} numberOfLines={1}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
-          ))}
+        {/* Icon */}
+        <View style={styles.mockIcon}>
+          <Ionicons name="document-text-outline" size={28} color="#3B7DF8" />
         </View>
 
-        {/* In Progress banner */}
-        {isInProgress && (
-          <View style={styles.inProgressBanner}>
-            <Text style={styles.inProgressTitle}>⏳  Mock In Progress</Text>
-            <Text style={styles.inProgressSub}>
-              You have an active session. Resume to continue.
-            </Text>
+        {/* Title */}
+        <Text style={styles.title}>{mockData.title || `${examName} Mock Test`}</Text>
+
+        {/* Description */}
+        <Text style={styles.description}>
+          A full exam-pattern paper. The timer runs the whole way through; feedback and a ranked
+          breakdown come after you submit.
+        </Text>
+
+        {/* Stats row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Ionicons name="document-text-outline" size={20} color="#3B7DF8" />
+            <Text style={styles.statValue}>{mockData.question_count ?? 0}</Text>
+            <Text style={styles.statLabel}>questions</Text>
           </View>
-        )}
-
-        {/* Instructions accordion */}
-        <TouchableOpacity
-          style={styles.instructionsHeader}
-          onPress={() => setShowInstructions(!showInstructions)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.instructionsHeaderIcon}>⚠️</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.instructionsTitle}>Exam Instructions</Text>
-            <Text style={styles.instructionsSub}>(Read before starting)</Text>
+          <View style={styles.statCard}>
+            <Ionicons name="time-outline" size={20} color="#3B7DF8" />
+            <Text style={styles.statValue}>{formatDuration(mockData.total_duration_minutes)}</Text>
+            <Text style={styles.statLabel}>minutes</Text>
           </View>
-          <Text style={styles.instructionsChevron}>
-            {showInstructions ? '⌃' : '⌄'}
-          </Text>
-        </TouchableOpacity>
-
-        {showInstructions && (
-          <View style={styles.instructionsContainer}>
-            {INSTRUCTIONS.map((instruction, index) => (
-              <View key={index} style={styles.instructionRow}>
-                <Text style={styles.instructionNumber}>{index + 1}.</Text>
-                <Text style={styles.instructionText}>{instruction}</Text>
-              </View>
-            ))}
-
-            {/* Checkbox before starting */}
-            {isNotStarted && (
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setAccepted(!accepted)}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    accepted ? styles.checkboxChecked : styles.checkboxUnchecked,
-                  ]}
-                >
-                  {accepted && <Text style={styles.checkboxTick}>✓</Text>}
-                </View>
-                <Text style={styles.checkboxLabel}>
-                  I have read and understood all instructions.
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Coverage */}
-        {!isCompleted && (
-          <View style={styles.coverageCard}>
-            <View style={styles.coverageHeader}>
-              <Text style={{ fontSize: 16 }}>🏷</Text>
-              <Text style={styles.coverageTitle}>Coverage</Text>
+          {isCompleted && lastPct !== null && (
+            <View style={styles.statCard}>
+              <Ionicons name="stats-chart-outline" size={20} color="#3B7DF8" />
+              <Text style={styles.statValue}>{lastPct}%</Text>
+              <Text style={styles.statLabel}>last score</Text>
             </View>
-
-            {coverageChips.length > 0 ? (
-              <View style={styles.coverageRow}>
-                {coverageChips.map((c, i) => (
-                  <View key={i} style={styles.coverageChip}>
-                    <Text style={styles.coverageChipText}>{c}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.coverageEmpty}>All topics</Text>
-            )}
-          </View>
-        )}
+          )}
+        </View>
       </ScrollView>
-      {/* Bottom CTA */}
-      <View
-        style={[ styles.bottomBar,
-              {paddingBottom: 40, marginBottom: 0 },
-              ]}
-      >
+
+      {/* CTA */}
+      <View style={styles.bottomBar}>
         {isNotStarted && (
           <TouchableOpacity
-            style={[styles.primaryBtn, !accepted && { opacity: 0.5 }]}
+            style={styles.startBtn}
             onPress={handleStart}
-            disabled={!accepted || startLoading}
+            disabled={startLoading}
+            activeOpacity={0.85}
           >
             {startLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.primaryBtnText}>▶ Start Mock</Text>
+              <>
+                <Text style={styles.startBtnText}>Start mock</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </>
             )}
           </TouchableOpacity>
         )}
 
         {isInProgress && (
           <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={handleResume}
+            style={styles.startBtn}
+            onPress={() => setCurrentView('exam')}
+            activeOpacity={0.85}
           >
-            <Text style={styles.primaryBtnText}>▶ Resume Mock</Text>
+            <Text style={styles.startBtnText}>Resume mock</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
         )}
 
         {isCompleted && (
-          <View style={styles.bottomBarRow}>
+          <View style={styles.completedRow}>
             <TouchableOpacity
-              style={styles.primaryBtnFlex}
+              style={styles.startBtn}
               onPress={() => setCurrentView('results')}
+              activeOpacity={0.85}
             >
-              <Text style={{ color: '#fff', fontSize: 14 }}>👁</Text>
-              <Text style={styles.primaryBtnText}>View Results</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryBtnFlex}
-              onPress={() => setCurrentView('solutions')}
-            >
-              <Text style={{ fontSize: 14 }}>📄</Text>
-              <Text style={styles.secondaryBtnText}>View Solutions</Text>
+              <Text style={styles.startBtnText}>View Results</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 10,
+  },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  backText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
+  headerTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A2E',
+    textAlign: 'center',
+    marginRight: 60,
+  },
+
+  mockIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: '#EEF4FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#1A1A2E',
+    marginBottom: 12,
+  },
+  description: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  statValue: { fontSize: 22, fontWeight: '800', color: '#1A1A2E' },
+  statLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: '500' },
+
+  bottomBar: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    paddingTop: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  startBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#3B7DF8',
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  startBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  completedRow: { gap: 10 },
+});
