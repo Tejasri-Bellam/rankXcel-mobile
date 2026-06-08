@@ -153,6 +153,12 @@ export async function getTopicOptionsService(chapterId?: number) {
   const qs = chapterId ? `?chapter_id=${chapterId}` : '';
   return await genericGet(`/v1/options/topics/${qs}`, true);
 }
+
+// Topics for a subject. Pass parentId to fetch subtopics of a topic.
+export async function getSubjectTopicsService(subjectId: number, parentId?: number) {
+  const qs = parentId != null ? `?parent=${parentId}` : '';
+  return await genericGet(`/v1/subjects/${subjectId}/topics/${qs}`, true);
+}
 // Start Mock
 export async function startMockTestService(
   id: number | string

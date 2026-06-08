@@ -17,10 +17,9 @@ import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons } from '@expo/vector-icons';
 import {
   createMockTestService,
-  getChapterOptionsService,
   getMyTargetExamsOptionsService,
   getSubjectOptionsService,
-  getTopicOptionsService,
+  getSubjectTopicsService,
   OptionItem,
 } from '../../libs/services/mock-library';
 
@@ -55,12 +54,12 @@ const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
 export default function RequestMockModal({ visible, onClose, onCreated, defaultExamId }: Props) {
   const [exams, setExams] = useState<OptionItem[]>([]);
   const [subjects, setSubjects] = useState<OptionItem[]>([]);
-  const [chapters, setChapters] = useState<OptionItem[]>([]);
   const [topics, setTopics] = useState<OptionItem[]>([]);
+  const [subtopics, setSubtopics] = useState<OptionItem[]>([]);
   const [selectedExam, setSelectedExam] = useState<OptionItem | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<OptionItem | null>(null);
-  const [selectedChapter, setSelectedChapter] = useState<OptionItem | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<OptionItem | null>(null);
+  const [selectedSubtopic, setSelectedSubtopic] = useState<OptionItem | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [duration, setDuration] = useState('');
   const [questionCount, setQuestionCount] = useState('');
@@ -69,8 +68,8 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
 
   const resetForm = useCallback(() => {
     setSelectedExam(null); setSelectedSubject(null);
-    setSelectedChapter(null); setSelectedTopic(null);
-    setSubjects([]); setChapters([]); setTopics([]);
+    setSelectedTopic(null); setSelectedSubtopic(null);
+    setSubjects([]); setTopics([]); setSubtopics([]);
     setDifficulty('medium'); setDuration(''); setQuestionCount('');
   }, []);
 
@@ -92,22 +91,35 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
 
   useEffect(() => {
     if (!selectedExam) return;
-    setSelectedSubject(null); setSelectedChapter(null); setSelectedTopic(null);
-    setSubjects([]); setChapters([]); setTopics([]);
+    setSelectedSubject(null); setSelectedTopic(null); setSelectedSubtopic(null);
+    setSubjects([]); setTopics([]); setSubtopics([]);
     getSubjectOptionsService(selectedExam.id).then((r) => setSubjects(toOptionsArray(r))).catch(() => {});
   }, [selectedExam]);
 
   useEffect(() => {
     if (!selectedSubject) return;
-    setSelectedChapter(null); setSelectedTopic(null); setChapters([]); setTopics([]);
-    getChapterOptionsService(selectedSubject.id).then((r) => setChapters(toOptionsArray(r))).catch(() => {});
+    setSelectedTopic(null); setSelectedSubtopic(null); setTopics([]); setSubtopics([]);
+    // Topics for the subject: /v1/subjects/{id}/topics/
+    getSubjectTopicsService(selectedSubject.id)
+      .then((r) => setTopics(toOptionsArray(r)))
+      .catch(() => {});
   }, [selectedSubject]);
 
   useEffect(() => {
-    if (!selectedChapter) return;
-    setSelectedTopic(null); setTopics([]);
-    getTopicOptionsService(selectedChapter.id).then((r) => setTopics(toOptionsArray(r))).catch(() => {});
-  }, [selectedChapter]);
+    if (!selectedSubject || !selectedTopic) return;
+    setSelectedSubtopic(null); setSubtopics([]);
+    // Subtopics: /v1/subjects/{id}/topics/?parent={topicId}
+    getSubjectTopicsService(selectedSubject.id, selectedTopic.id)
+      .then((r) => {
+        // Keep only children of the selected topic, in case the API ignores ?parent.
+        // `parent` may be a plain id or a nested object ({ id }).
+        const all = toOptionsArray(r);
+        const parentId = (t: any) =>
+          t?.parent && typeof t.parent === 'object' ? t.parent.id : t?.parent;
+        setSubtopics(all.filter((t) => String(parentId(t)) === String(selectedTopic.id)));
+      })
+      .catch(() => {});
+  }, [selectedSubject, selectedTopic]);
 
   const canSubmit = !!selectedExam && !!selectedSubject && Number(duration) > 0 && Number(questionCount) > 0 && !submitting;
 
@@ -119,24 +131,43 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
     submittingRef.current = true;
     setSubmitting(true);
     try {
+      const topicIds = selectedSubtopic
+        ? [selectedSubtopic.id]
+        : selectedTopic
+        ? [selectedTopic.id]
+        : [];
       const payload = {
         exam: selectedExam.id,
         subject: selectedSubject.id,
-        chapter_ids: selectedChapter ? [selectedChapter.id] : [],
-        topic_ids: selectedTopic ? [selectedTopic.id] : [],
+        topic_ids: topicIds,
         question_count: qNum,
         total_duration_minutes: dNum,
         difficulty: difficulty === 'any' ? null : difficulty,
         test_type: 'MOCK_TEST' as const,
       };
+      console.log('Create mock payload:', JSON.stringify(payload));
       const res = await createMockTestService(payload);
+      console.log('Create mock response:', JSON.stringify(res));
       const created = (res as any)?.data;
       const newId = created?.mock_test_id ?? created?.id;
       if (!newId) throw new Error('No ID returned.');
       onCreated(String(newId));
       onClose();
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'Could not create mock test.');
+      // The axios interceptor rejects with a custom ApiError: { status, errors, body }
+      const apiErr = err as { status?: number; errors?: Record<string, string[]>; body?: any };
+      console.log('Create mock error status:', apiErr?.status, 'body:', JSON.stringify(apiErr?.body), 'errors:', JSON.stringify(apiErr?.errors));
+      let message = 'Could not create mock test.';
+      if (apiErr?.errors && typeof apiErr.errors === 'object') {
+        const parts = Object.entries(apiErr.errors).map(([k, v]) => {
+          const text = Array.isArray(v) ? v.join(', ') : String(v);
+          return k === 'nonFieldErrors' ? text : `${k}: ${text}`;
+        });
+        if (parts.length) message = parts.join('\n');
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      Alert.alert('Error', message);
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -162,9 +193,10 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
 
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 <Text style={styles.label}>Exam <Text style={styles.req}>*</Text></Text>
-                <Dropdown style={styles.dropdown} data={exams} labelField="name" valueField="id"
-                  search searchPlaceholder="Search..." placeholder="Select exam..."
-                  value={selectedExam?.id} onChange={(item) => setSelectedExam(item)} />
+                <Dropdown style={[styles.dropdown, styles.dropdownDisabled]} data={exams}
+                  labelField="name" valueField="id" placeholder="Select exam..."
+                  value={selectedExam?.id} disable
+                  onChange={(item) => setSelectedExam(item)} />
 
                 <Text style={styles.label}>Subject <Text style={styles.req}>*</Text></Text>
                 <Dropdown style={[styles.dropdown, !selectedExam && styles.dropdownDisabled]}
@@ -173,19 +205,19 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
                   value={selectedSubject?.id} disable={!selectedExam}
                   onChange={(item) => setSelectedSubject(item)} />
 
-                <Text style={styles.label}>Chapter</Text>
-                <Dropdown style={[styles.dropdown, !selectedSubject && styles.dropdownDisabled]}
-                  data={chapters} labelField="name" valueField="id" search searchPlaceholder="Search..."
-                  placeholder={selectedSubject ? 'Select chapter' : 'Select subject first'}
-                  value={selectedChapter?.id} disable={!selectedSubject}
-                  onChange={(item) => setSelectedChapter(item)} />
-
                 <Text style={styles.label}>Topic</Text>
-                <Dropdown style={[styles.dropdown, !selectedChapter && styles.dropdownDisabled]}
+                <Dropdown style={[styles.dropdown, !selectedSubject && styles.dropdownDisabled]}
                   data={topics} labelField="name" valueField="id" search searchPlaceholder="Search..."
-                  placeholder={selectedChapter ? 'Select topic' : 'Select chapter first'}
-                  value={selectedTopic?.id} disable={!selectedChapter}
+                  placeholder={selectedSubject ? 'Select topic' : 'Select subject first'}
+                  value={selectedTopic?.id} disable={!selectedSubject}
                   onChange={(item) => setSelectedTopic(item)} />
+
+                <Text style={styles.label}>Subtopic</Text>
+                <Dropdown style={[styles.dropdown, !selectedTopic && styles.dropdownDisabled]}
+                  data={subtopics} labelField="name" valueField="id" search searchPlaceholder="Search..."
+                  placeholder={selectedTopic ? 'Select subtopic' : 'Select topic first'}
+                  value={selectedSubtopic?.id} disable={!selectedTopic}
+                  onChange={(item) => setSelectedSubtopic(item)} />
 
                 <Text style={styles.label}>Difficulty</Text>
                 <View style={styles.diffRow}>
