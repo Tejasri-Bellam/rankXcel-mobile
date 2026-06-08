@@ -7,6 +7,9 @@ type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 export interface ServiceOptions {
   isMultipart?: boolean;
   useAccessToken?: boolean;
+  // Per-request timeout (ms). Defaults to the axios instance timeout (15s).
+  // Use a larger value for slow endpoints like AI tutor generation.
+  timeout?: number;
 }
 
 export async function genericService<T = unknown>(
@@ -15,7 +18,7 @@ export async function genericService<T = unknown>(
   data?: object | FormData | null,
   options: ServiceOptions = {}
 ): Promise<ApiResponse<T>> {
-  const { isMultipart = false, useAccessToken = true } = options;
+  const { isMultipart = false, useAccessToken = true, timeout } = options;
   const authToken = useAccessToken ? await storageGetAccessToken() : null;
   const headers = getHeaders(authToken, isMultipart);
   console.log(`Making ${method.toUpperCase()} request to ${apiPath} with data:`, data, "and headers:", headers, "Options:", options, authToken);
@@ -23,6 +26,7 @@ export async function genericService<T = unknown>(
     method,
     url: apiPath,
     headers,
+    ...(timeout != null ? { timeout } : {}),
     ...(method !== "get" && method !== "delete" && data ? { data } : {}),
   });
   return { data: response.data, status: response.status };

@@ -1,8 +1,10 @@
-import { getassessmentReviewService, getassessmentSolutionsService } from '@/src/libs/services/assessments-attempts';
+import { askAssessmentTutorService, getassessmentReviewService, getassessmentSolutionsService } from '@/src/libs/services/assessments-attempts';
 import { solutionViewerStyles } from '../../styles/sidebar/assessments/solutionViewer';
 import { stripHtml } from '@/src/libs/utils/html';
+import TutorModal from '@/src/components/common/TutorModal';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useMemo, useEffect } from 'react';
-import {View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from 'react-native';
+import {View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Props {
@@ -43,6 +45,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [tutorVisible, setTutorVisible] = useState(false);
 
   useEffect(() => {
     loadReview();
@@ -356,7 +359,25 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
             )}
           </View>
         )}
+
+        {/* Ask the AI tutor */}
+        <TouchableOpacity
+          style={tutorBtnStyle.btn}
+          activeOpacity={0.8}
+          onPress={() => setTutorVisible(true)}
+        >
+          <Ionicons name="sparkles" size={14} color="#6C5CE7" />
+          <Text style={tutorBtnStyle.text}>Ask the AI tutor</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      <TutorModal
+        visible={tutorVisible}
+        onClose={() => setTutorVisible(false)}
+        questionId={currentQId}
+        questionText={stripHtml(questionText)}
+        ask={(payload) => askAssessmentTutorService(attemptId, payload)}
+      />
 
       {/* Navigation */}
       <View style={solutionViewerStyles.navRow}>
@@ -385,4 +406,19 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     </SafeAreaView>
   );
 }
+
+const tutorBtnStyle = StyleSheet.create({
+  btn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#EDEBFB',
+  },
+  text: { fontSize: 13, fontWeight: '700', color: '#6C5CE7' },
+});
  

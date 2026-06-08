@@ -1,6 +1,6 @@
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import { getSubjectOptionsService } from "@/src/libs/services/mock-library";
-import { getChapterPerformanceService, getTopicsService } from "@/src/libs/services/practice";
+import { getTopicPerformanceService, getTopicsService } from "@/src/libs/services/practice";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -225,23 +225,32 @@ export default function PracticeScreen() {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
       const [perfRes, subjRes] = await Promise.all([
-        getChapterPerformanceService(examId),
+        getTopicPerformanceService(examId),
         getSubjectOptionsService(examId),
       ]);
-      const groups = normalizePerformance(perfRes);
+      const perfGroups = normalizePerformance(perfRes);
       const subjectsList = toArray(unwrap(subjRes));
-      subjectsList.forEach((s: any) => {
+
+      // Subject options carry the authoritative id (+ questions_count) needed to
+      // drill into topics, so build the list from them and layer the accuracy /
+      // topic data from the performance endpoint on top (matched by name).
+      const groups: SubjectGroup[] = subjectsList.map((s: any): SubjectGroup => {
         const name = String(s?.name ?? s?.code ?? "Subject");
-        if (!groups.find((g) => g.name === name)) {
-          groups.push({
-            id: Number(s.id),
-            name,
-            chapters: [],
-            accuracy: null,
-            topicCount: 0,
-          });
-        }
+        const perf = perfGroups.find((g) => g.name === name);
+        return {
+          id: Number(s?.id ?? perf?.id ?? 0),
+          name,
+          chapters: perf?.chapters ?? [],
+          accuracy: perf?.accuracy ?? null,
+          topicCount: perf?.topicCount ?? 0,
+        };
       });
+
+      // Keep any performance subjects that weren't in the options list.
+      perfGroups.forEach((perf) => {
+        if (!groups.find((g) => g.name === perf.name)) groups.push(perf);
+      });
+
       setSubjectGroups(groups);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load subjects.");

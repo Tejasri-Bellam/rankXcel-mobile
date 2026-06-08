@@ -17,6 +17,7 @@ import {
   ExamObject,
   SubjectObject,
   OptionItem,
+  TestType,
 } from '../../libs/services/mock-library';
 import { MockTest } from '@/src/libs/types/mock-library';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
@@ -122,7 +123,19 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function MockLibrary() {
+interface MockLibraryProps {
+  testType?: TestType;
+  title?: string;
+  subtitle?: string;
+  showBuild?: boolean;
+}
+
+export default function MockLibrary({
+  testType = 'MOCK_TEST',
+  title = 'Mock Tests',
+  subtitle = 'Full-length, exam-pattern papers. Sit them under timed conditions.',
+  showBuild = true,
+}: MockLibraryProps = {}) {
   const { activeExamId } = useTargetExam();
 
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
@@ -138,7 +151,7 @@ export default function MockLibrary() {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
-      const response = await getMockTestsService(activeExamId ?? undefined);
+      const response = await getMockTestsService(activeExamId ?? undefined, testType);
       const r = response as any;
       let data: MockTest[] = [];
       if (Array.isArray(r?.data)) data = r.data;
@@ -151,7 +164,7 @@ export default function MockLibrary() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeExamId]);
+  }, [activeExamId, testType]);
 
   useEffect(() => { loadMocks(); }, [loadMocks]);
 
@@ -165,12 +178,15 @@ export default function MockLibrary() {
     return () => sub.remove();
   }, [requestVisible, resumeMock, selectedMock]);
 
-  const mocks = activeExamId == null
-    ? allMocks
-    : allMocks.filter((m) => {
-        const eid = getExamId(m.exam);
-        return eid == null || String(eid) === String(activeExamId);
-      });
+  const mocks = allMocks
+    // Only show the requested test type — the API sometimes ignores the
+    // test_type query param and returns both PRACTICE_TEST and MOCK_TEST.
+    .filter((m) => !m.test_type || m.test_type === testType)
+    .filter((m) => {
+      if (activeExamId == null) return true;
+      const eid = getExamId(m.exam);
+      return eid == null || String(eid) === String(activeExamId);
+    });
 
   if (resumeMock) {
     return (
@@ -208,10 +224,8 @@ export default function MockLibrary() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Mock Tests</Text>
-          <Text style={styles.pageSubtitle}>
-            Full-length, exam-pattern papers. Sit them under timed conditions.
-          </Text>
+          <Text style={styles.pageTitle}>{title}</Text>
+          <Text style={styles.pageSubtitle}>{subtitle}</Text>
         </View>
 
         {/* Content */}
@@ -250,14 +264,16 @@ export default function MockLibrary() {
         )}
 
         {/* Build a custom mock */}
-        <TouchableOpacity
-          style={styles.buildBtn}
-          onPress={() => setRequestVisible(true)}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="add" size={16} color="#3B7DF8" />
-          <Text style={styles.buildBtnText}>Build a custom mock</Text>
-        </TouchableOpacity>
+        {showBuild && (
+          <TouchableOpacity
+            style={styles.buildBtn}
+            onPress={() => setRequestVisible(true)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="add" size={16} color="#3B7DF8" />
+            <Text style={styles.buildBtnText}>Build a custom mock</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <RequestMockModal

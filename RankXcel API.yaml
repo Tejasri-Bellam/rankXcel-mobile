@@ -3,9 +3,9 @@ info:
   title: RankXcel API
   version: 1.0.0
 paths:
-  /api/v1/admin/quality/low-accuracy-chapters/:
+  /api/v1/admin/quality/low-accuracy-topics/:
     get:
-      operationId: admin_quality_low_accuracy_chapters_retrieve
+      operationId: admin_quality_low_accuracy_topics_retrieve
       tags:
       - admin
       security:
@@ -28,8 +28,6 @@ paths:
   /api/v1/ai-generate-questions/previous-year/:
     post:
       operationId: ai_generate_questions_previous_year_create
-      description: POST — upload a previous year paper; subject/chapter auto-detected
-        via LLM.
       tags:
       - ai-generate-questions
       security:
@@ -71,8 +69,6 @@ paths:
   /api/v1/assessment-attempts/{attempt_id}/detailed-analysis/:
     get:
       operationId: assessment_attempts_detailed_analysis_retrieve
-      description: GET /api/v1/assessment-attempts/<attempt_id>/detailed-analysis/
-        — detailed analysis with chapter, subject, and question breakdown.
       parameters:
       - in: path
         name: attempt_id
@@ -180,6 +176,23 @@ paths:
   /api/v1/assessment-attempts/{attempt_id}/submit/:
     post:
       operationId: assessment_attempts_submit_create
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessment-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessment-attempts/{attempt_id}/tutor/:
+    post:
+      operationId: assessment_attempts_tutor_create
       parameters:
       - in: path
         name: attempt_id
@@ -321,6 +334,23 @@ paths:
   /api/v1/assessments/{id}/deactivate/:
     post:
       operationId: assessments_deactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/assessments/{id}/participants/:
+    get:
+      operationId: assessments_participants_retrieve
       parameters:
       - in: path
         name: id
@@ -1021,212 +1051,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/VerifyEmail'
           description: ''
-  /api/v1/chapters/{chapter_id}/ai-generate-questions/content/:
-    post:
-      operationId: chapters_ai_generate_questions_content_create
-      parameters:
-      - in: path
-        name: chapter_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - chapters
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/chapters/{chapter_id}/topics/:
-    get:
-      operationId: chapters_topics_list
-      description: CRUD for Topics (requires chapter_id filter on list).
-      parameters:
-      - in: path
-        name: chapter_id
-        schema:
-          type: integer
-        required: true
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      tags:
-      - chapters
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedTopicList'
-          description: ''
-    post:
-      operationId: chapters_topics_create
-      description: CRUD for Topics (requires chapter_id filter on list).
-      parameters:
-      - in: path
-        name: chapter_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - chapters
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Topic'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Topic'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Topic'
-        required: true
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Topic'
-          description: ''
-  /api/v1/chapters/{chapter_id}/topics/{id}/:
-    get:
-      operationId: chapters_topics_retrieve
-      description: CRUD for Topics (requires chapter_id filter on list).
-      parameters:
-      - in: path
-        name: chapter_id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this topic.
-        required: true
-      tags:
-      - chapters
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Topic'
-          description: ''
-    put:
-      operationId: chapters_topics_update
-      description: CRUD for Topics (requires chapter_id filter on list).
-      parameters:
-      - in: path
-        name: chapter_id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this topic.
-        required: true
-      tags:
-      - chapters
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Topic'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Topic'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Topic'
-        required: true
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Topic'
-          description: ''
-    patch:
-      operationId: chapters_topics_partial_update
-      description: CRUD for Topics (requires chapter_id filter on list).
-      parameters:
-      - in: path
-        name: chapter_id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this topic.
-        required: true
-      tags:
-      - chapters
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedTopic'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedTopic'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedTopic'
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Topic'
-          description: ''
-    delete:
-      operationId: chapters_topics_destroy
-      description: CRUD for Topics (requires chapter_id filter on list).
-      parameters:
-      - in: path
-        name: chapter_id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this topic.
-        required: true
-      tags:
-      - chapters
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '204':
-          description: No response body
   /api/v1/dashboard/{exam_id}/:
     get:
       operationId: dashboard_retrieve
@@ -1412,6 +1236,23 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/exams/{id}/syllabus/:
+    get:
+      operationId: exams_syllabus_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/exams/{id}/tree/:
     get:
       operationId: exams_tree_retrieve
@@ -1505,6 +1346,18 @@ paths:
       - cookieAuth: []
       responses:
         '204':
+          description: No response body
+  /api/v1/get_country/:
+    get:
+      operationId: get_country_retrieve
+      tags:
+      - get_country
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
           description: No response body
   /api/v1/masters/countries/:
     get:
@@ -1630,6 +1483,7 @@ paths:
       security:
       - tokenAuth: []
       - cookieAuth: []
+      - {}
       responses:
         '200':
           content:
@@ -1715,8 +1569,6 @@ paths:
   /api/v1/mock-tests/{id}/detailed-analysis/:
     get:
       operationId: mock_tests_detailed_analysis_retrieve
-      description: GET /api/v1/mock-tests/<pk>/detailed-analysis/ — detailed analysis
-        with chapter, subject, and question breakdown.
       parameters:
       - in: path
         name: id
@@ -1838,10 +1690,26 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/v1/options/chapters/:
+  /api/v1/mock-tests/{id}/tutor/:
+    post:
+      operationId: mock_tests_tutor_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/options/countries/:
     get:
-      operationId: options_chapters_list
-      description: Read-only list of active chapters for dropdowns/selects.
+      operationId: options_countries_list
       parameters:
       - name: search
         required: false
@@ -1849,15 +1717,12 @@ paths:
         description: A search term.
         schema:
           type: string
-      - in: query
-        name: subject_id
-        schema:
-          type: number
       tags:
       - options
       security:
       - tokenAuth: []
       - cookieAuth: []
+      - {}
       responses:
         '200':
           content:
@@ -1865,7 +1730,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ChapterOption'
+                  $ref: '#/components/schemas/CountryOption'
           description: ''
   /api/v1/options/exams/:
     get:
@@ -1900,10 +1765,6 @@ paths:
     get:
       operationId: options_questions_list
       parameters:
-      - in: query
-        name: chapter
-        schema:
-          type: number
       - in: query
         name: exam
         schema:
@@ -1980,10 +1841,9 @@ paths:
   /api/v1/options/topics/:
     get:
       operationId: options_topics_list
-      description: Read-only list of active topics for dropdowns/selects.
       parameters:
       - in: query
-        name: chapter_id
+        name: parent_id
         schema:
           type: number
       - name: search
@@ -1992,6 +1852,10 @@ paths:
         description: A search term.
         schema:
           type: string
+      - in: query
+        name: subject_id
+        schema:
+          type: number
       tags:
       - options
       security:
@@ -2010,10 +1874,6 @@ paths:
     get:
       operationId: questions_list
       parameters:
-      - in: query
-        name: chapter
-        schema:
-          type: integer
       - in: query
         name: difficulty
         schema:
@@ -2525,17 +2385,6 @@ paths:
         Editable fields:
           question_text, assertion_text, reason_text, difficulty, question_type
           choices: list of {text, is_correct, explanation}
-
-        Example body:
-          {
-            "question_text": "Corrected question stem?",
-            "choices": [
-              {"text": "Option A", "is_correct": false, "explanation": ""},
-              {"text": "Option B", "is_correct": true, "explanation": "Correct because ..."},
-              {"text": "Option C", "is_correct": false, "explanation": ""},
-              {"text": "Option D", "is_correct": false, "explanation": ""}
-            ]
-          }
       parameters:
       - in: path
         name: batch_id
@@ -2596,8 +2445,6 @@ paths:
   /api/v1/questions/coverage/:
     get:
       operationId: questions_coverage_retrieve
-      description: GET /api/v1/questions/coverage/ — question count per chapter, grouped
-        by exam/subject.
       tags:
       - questions
       security:
@@ -2674,11 +2521,9 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/v1/student/chapters/performance/{exam_id}/:
+  /api/v1/student/topics/performance/{exam_id}/:
     get:
-      operationId: student_chapters_performance_retrieve
-      description: GET /api/v1/student/chapters/performance/{exam_id}/ — chapter-wise
-        percentage from assessments & mock tests for selected exam.
+      operationId: student_topics_performance_retrieve
       parameters:
       - in: path
         name: exam_id
@@ -2699,6 +2544,14 @@ paths:
       description: Base ModelViewSet that auto-populates audit fields (created_by
         / updated_by).
       parameters:
+      - in: query
+        name: exam_id
+        schema:
+          type: number
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
       - name: page
         required: false
         in: query
@@ -2874,10 +2727,11 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/v1/subjects/{subject_id}/chapters/:
+  /api/v1/subjects/{subject_id}/topics/:
     get:
-      operationId: subjects_chapters_list
-      description: CRUD for Chapters (requires subject_id filter on list).
+      operationId: subjects_topics_list
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - name: page
         required: false
@@ -2885,6 +2739,16 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
+      - in: query
+        name: parent
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
       - in: path
         name: subject_id
         schema:
@@ -2900,11 +2764,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedChapterList'
+                $ref: '#/components/schemas/PaginatedTopicList'
           description: ''
     post:
-      operationId: subjects_chapters_create
-      description: CRUD for Chapters (requires subject_id filter on list).
+      operationId: subjects_topics_create
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: subject_id
@@ -2917,13 +2782,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Chapter'
+              $ref: '#/components/schemas/Topic'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Chapter'
+              $ref: '#/components/schemas/Topic'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Chapter'
+              $ref: '#/components/schemas/Topic'
         required: true
       security:
       - tokenAuth: []
@@ -2933,18 +2798,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Chapter'
+                $ref: '#/components/schemas/Topic'
           description: ''
-  /api/v1/subjects/{subject_id}/chapters/{id}/:
+  /api/v1/subjects/{subject_id}/topics/{id}/:
     get:
-      operationId: subjects_chapters_retrieve
-      description: CRUD for Chapters (requires subject_id filter on list).
+      operationId: subjects_topics_retrieve
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this chapter.
+        description: A unique integer value identifying this topic.
         required: true
       - in: path
         name: subject_id
@@ -2961,17 +2827,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Chapter'
+                $ref: '#/components/schemas/Topic'
           description: ''
     put:
-      operationId: subjects_chapters_update
-      description: CRUD for Chapters (requires subject_id filter on list).
+      operationId: subjects_topics_update
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this chapter.
+        description: A unique integer value identifying this topic.
         required: true
       - in: path
         name: subject_id
@@ -2984,13 +2851,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Chapter'
+              $ref: '#/components/schemas/Topic'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Chapter'
+              $ref: '#/components/schemas/Topic'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Chapter'
+              $ref: '#/components/schemas/Topic'
         required: true
       security:
       - tokenAuth: []
@@ -3000,17 +2867,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Chapter'
+                $ref: '#/components/schemas/Topic'
           description: ''
     patch:
-      operationId: subjects_chapters_partial_update
-      description: CRUD for Chapters (requires subject_id filter on list).
+      operationId: subjects_topics_partial_update
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this chapter.
+        description: A unique integer value identifying this topic.
         required: true
       - in: path
         name: subject_id
@@ -3023,13 +2891,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedChapter'
+              $ref: '#/components/schemas/PatchedTopic'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedChapter'
+              $ref: '#/components/schemas/PatchedTopic'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedChapter'
+              $ref: '#/components/schemas/PatchedTopic'
       security:
       - tokenAuth: []
       - cookieAuth: []
@@ -3038,17 +2906,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Chapter'
+                $ref: '#/components/schemas/Topic'
           description: ''
     delete:
-      operationId: subjects_chapters_destroy
-      description: CRUD for Chapters (requires subject_id filter on list).
+      operationId: subjects_topics_destroy
+      description: Base ModelViewSet that auto-populates audit fields (created_by
+        / updated_by).
       parameters:
       - in: path
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this chapter.
+        description: A unique integer value identifying this topic.
         required: true
       - in: path
         name: subject_id
@@ -3321,44 +3190,6 @@ components:
     BlankEnum:
       enum:
       - ''
-    Chapter:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        name:
-          type: string
-          maxLength: 200
-        code:
-          type: string
-          maxLength: 50
-        order:
-          type: integer
-          maximum: 32767
-          minimum: 0
-        is_active:
-          type: boolean
-      required:
-      - code
-      - id
-      - name
-    ChapterOption:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        name:
-          type: string
-          maxLength: 200
-        code:
-          type: string
-          maxLength: 50
-      required:
-      - code
-      - id
-      - name
     ChoiceAdmin:
       type: object
       description: Full choice — includes is_correct, tolerance, and explanation (admin/CR
@@ -3430,6 +3261,11 @@ components:
         time_zone:
           type: string
           maxLength: 32
+        flag:
+          type: string
+        currency:
+          type: string
+          maxLength: 8
       required:
       - id
       - iso_code_2
@@ -3568,12 +3404,6 @@ components:
           type: integer
         subject:
           type: integer
-        chapter_ids:
-          type: array
-          items:
-            type: integer
-          default: []
-          maxItems: 50
         topic_ids:
           type: array
           items:
@@ -3635,14 +3465,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/SubjectMinimal'
           readOnly: true
-        chapters:
-          type: string
-          readOnly: true
         topics:
           type: string
           readOnly: true
         test_type:
-          $ref: '#/components/schemas/TestType15fEnum'
+          $ref: '#/components/schemas/TestType25cEnum'
         question_count:
           type: integer
           maximum: 2147483647
@@ -3670,7 +3497,6 @@ components:
           format: date-time
           nullable: true
       required:
-      - chapters
       - exam
       - expires_at
       - id
@@ -3696,11 +3522,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/SubjectMinimal'
           readOnly: true
-        chapters:
+        topics:
           type: string
           readOnly: true
         test_type:
-          $ref: '#/components/schemas/TestType15fEnum'
+          $ref: '#/components/schemas/TestType25cEnum'
         question_count:
           type: integer
           maximum: 2147483647
@@ -3738,7 +3564,6 @@ components:
           format: double
           nullable: true
       required:
-      - chapters
       - exam
       - id
       - max_score
@@ -3746,6 +3571,7 @@ components:
       - question_count
       - score
       - subject
+      - topics
       - total_duration_minutes
     NullEnum:
       enum:
@@ -3773,29 +3599,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AssessmentList'
-    PaginatedChapterList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Chapter'
     PaginatedCountryList:
       type: object
       required:
@@ -4001,24 +3804,6 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
-    PatchedChapter:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        name:
-          type: string
-          maxLength: 200
-        code:
-          type: string
-          maxLength: 50
-        order:
-          type: integer
-          maximum: 32767
-          minimum: 0
-        is_active:
-          type: boolean
     PatchedChoiceAdmin:
       type: object
       description: Full choice — includes is_correct, tolerance, and explanation (admin/CR
@@ -4103,9 +3888,6 @@ components:
           type: integer
         subject:
           type: integer
-        chapter:
-          type: integer
-          nullable: true
         topic:
           type: integer
           nullable: true
@@ -4196,6 +3978,11 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        display_subject:
+          type: boolean
+        topics:
+          type: string
+          readOnly: true
     PatchedTopic:
       type: object
       properties:
@@ -4214,6 +4001,9 @@ components:
           minimum: 0
         is_active:
           type: boolean
+        parent:
+          type: integer
+          nullable: true
     PatchedUserMe:
       type: object
       properties:
@@ -4252,9 +4042,6 @@ components:
           type: integer
         subject:
           type: integer
-        chapter:
-          type: integer
-          nullable: true
         topic:
           type: integer
           nullable: true
@@ -4354,13 +4141,8 @@ components:
           allOf:
           - $ref: '#/components/schemas/TaxonomyMinimal'
           readOnly: true
-        chapter:
-          allOf:
-          - $ref: '#/components/schemas/TaxonomyMinimal'
-          readOnly: true
         topic:
-          allOf:
-          - $ref: '#/components/schemas/TaxonomyMinimal'
+          type: string
           readOnly: true
         marks_correct:
           type: string
@@ -4390,7 +4172,6 @@ components:
           type: integer
           nullable: true
       required:
-      - chapter
       - choices
       - created_at
       - created_by
@@ -4648,11 +4429,17 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        display_subject:
+          type: boolean
+        topics:
+          type: string
+          readOnly: true
       required:
       - code
       - id
       - name
       - questions_count
+      - topics
     SubjectMinimal:
       type: object
       properties:
@@ -4719,14 +4506,16 @@ components:
       required:
       - id
       - name
-    TestType15fEnum:
+    TestType25cEnum:
       enum:
       - MOCK_TEST
       - PRACTICE_TEST
+      - TEST
       type: string
       description: |-
         * `MOCK_TEST` - Mock Test
         * `PRACTICE_TEST` - Practice Test
+        * `TEST` - Test
     Topic:
       type: object
       properties:
@@ -4745,6 +4534,9 @@ components:
           minimum: 0
         is_active:
           type: boolean
+        parent:
+          type: integer
+          nullable: true
       required:
       - code
       - id
