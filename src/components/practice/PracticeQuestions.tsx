@@ -12,8 +12,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AnswerState } from "./PracticeExamFlow";
-import { submitMockResponseService } from "@/src/libs/services/mock-library";
+import {
+  askMockTestTutorService,
+  submitMockResponseService,
+} from "@/src/libs/services/mock-library";
 import { stripHtml } from "@/src/libs/utils/html";
+import TutorModal from "@/src/components/common/TutorModal";
 
 export interface ExplanationStep {
   number: number;
@@ -180,6 +184,7 @@ export default function PracticeQuestions({
   const current = answers[currentIdx];
   const question = questionList[currentIdx];
   const isLast = currentIdx === questionList.length - 1;
+  const [tutorVisible, setTutorVisible] = useState(false);
 
   const saveResponse = (qId: number | string, selected: string | null, markedForReview = false) => {
     const ids = selected ? [Number(selected)].filter((n) => Number.isFinite(n)) : [];
@@ -324,7 +329,11 @@ export default function PracticeQuestions({
           <Text style={styles.headerMode}>Practice</Text>
           <ProgressBar current={currentIdx} total={questionList.length} answers={answers} />
         </View>
-        <TouchableOpacity style={styles.tutorBtn} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.tutorBtn}
+          activeOpacity={0.8}
+          onPress={() => setTutorVisible(true)}
+        >
           <Ionicons name="sparkles" size={13} color="#fff" />
           <Text style={styles.tutorText}>Tutor</Text>
         </TouchableOpacity>
@@ -417,7 +426,11 @@ export default function PracticeQuestions({
                   ) : (
                     <Text style={styles.explText}>{stripHtml(question.explanation)}</Text>
                   )}
-                  <TouchableOpacity style={styles.askTutorBtn} activeOpacity={0.8}>
+                  <TouchableOpacity
+                    style={styles.askTutorBtn}
+                    activeOpacity={0.8}
+                    onPress={() => setTutorVisible(true)}
+                  >
                     <Ionicons name="sparkles" size={13} color="#3B7DF8" />
                     <Text style={styles.askTutorText}>Ask the AI tutor</Text>
                   </TouchableOpacity>
@@ -468,6 +481,14 @@ export default function PracticeQuestions({
           </View>
         )}
       </View>
+
+      <TutorModal
+        visible={tutorVisible}
+        onClose={() => setTutorVisible(false)}
+        questionId={question?.id}
+        questionText={question?.text}
+        ask={(payload) => askMockTestTutorService(mockId, payload)}
+      />
     </SafeAreaView>
   );
 }

@@ -25,7 +25,7 @@ export interface SubjectHealth {
 }
 
 export interface WeakChapter {
-  chapter_name: string;
+  topic_name: string;
   subject_name: string;
   percentage: number;
   attempts: number;
@@ -46,7 +46,7 @@ export interface UpcomingAssessment {
 }
 
 export interface TodaysFocusData {
-  chapter_name: string;
+  topic_name: string;
   subject_name: string;
   accuracy_trend: string;
   question_count: number;

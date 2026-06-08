@@ -32,6 +32,7 @@ const MAX_ITEMS = 4;
 
 export default function Continue({ dashboardData, examId }: ContinueProps) {
   const router = useRouter();
+console.log('ddd', dashboardData);
 
   const focus = dashboardData?.todays_focus ?? null;
   const weak = dashboardData?.weak_chapters ?? [];
@@ -42,9 +43,9 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
   const items: PracticeItem[] = [];
 
   if (focus) {
-    seen.add(focus.chapter_name);
+    seen.add(focus.topic_name);
     items.push({
-      chapter: focus.chapter_name,
+      chapter: focus.topic_name,
       subject: focus.subject_name,
       status: "Weak",
       questionCount: focus.question_count,
@@ -54,10 +55,10 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
   }
 
   for (const c of weak) {
-    if (seen.has(c.chapter_name)) continue;
-    seen.add(c.chapter_name);
+    if (seen.has(c.topic_name)) continue;
+    seen.add(c.topic_name);
     items.push({
-      chapter: c.chapter_name,
+      chapter: c.topic_name,
       subject: c.subject_name,
       status: "Weak",
     });
@@ -65,6 +66,7 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
   }
 
   if (!items.length) return null;
+console.log('ssss', items);
 
   const startPractice = (item: PracticeItem) => {
     if (examId == null) return;

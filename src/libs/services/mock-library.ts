@@ -65,9 +65,12 @@ export interface MockResponse<T = any> {
 }
 
 // Mock Tests
-export async function getMockTestsService(examId?: number | string) {
+export async function getMockTestsService(
+  examId?: number | string,
+  testType: TestType = 'MOCK_TEST',
+) {
   const examQs = examId != null ? `&exam_id=${examId}` : '';
-  return await genericGet(`/v1/mock-tests/?test_type=MOCK_TEST${examQs}`, true);
+  return await genericGet(`/v1/mock-tests/?test_type=${testType}${examQs}`, true);
 }
 
 // Mock Test By ID
@@ -75,6 +78,23 @@ export async function getMockTestByIdService(
   id: number | string
 ) {
   return await genericGet(`/v1/mock-tests/${id}/`,true);
+}
+
+// AI Tutor — ask about a question within a mock/practice test.
+export interface TutorPayload {
+  question_id?: number | string;
+  message: string;
+}
+
+export async function askMockTestTutorService(
+  id: number | string,
+  payload: TutorPayload,
+) {
+  return await genericPost(`/v1/mock-tests/${id}/tutor/`, payload, {
+    isMultipart: false,
+    useAccessToken: true,
+    timeout: 60000, // AI generation is slow; the default 15s times out.
+  });
 }
 
 // Questions

@@ -52,3 +52,20 @@ export async function getAssessmentDetailedAnalysisService(
 ) {
   return await genericGet(`/v1/assessment-attempts/${id}/detailed-analysis/`, true);
 }
+
+// AI Tutor — ask about a question within an assessment attempt.
+export interface TutorPayload {
+  question_id?: number | string;
+  message: string;
+}
+
+export async function askAssessmentTutorService(
+  attemptId: number | string,
+  payload: TutorPayload,
+) {
+  return await genericPost(`/v1/assessment-attempts/${attemptId}/tutor/`, payload, {
+    isMultipart: false,
+    useAccessToken: true,
+    timeout: 60000, // AI generation is slow; the default 15s times out.
+  });
+}

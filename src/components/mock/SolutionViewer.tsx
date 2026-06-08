@@ -10,10 +10,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  askMockTestTutorService,
   getMockTestReviewService,
   getQuestionSolutionService,
 } from '../../libs/services/mock-library';
 import { stripHtml } from '../../libs/utils/html';
+import TutorModal from '@/src/components/common/TutorModal';
 
 interface Props {
   mockId: number | string;
@@ -50,6 +52,7 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
 
   useEffect(() => { loadReview(); }, []);
 
@@ -237,10 +240,28 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
                   </Text>
                 </View>
               )}
+
+              {/* Ask the AI tutor */}
+              <TouchableOpacity
+                style={styles.askTutorBtn}
+                activeOpacity={0.8}
+                onPress={() => setTutorQ({ id: qid, text: stripHtml(questionText) })}
+              >
+                <Ionicons name="sparkles" size={13} color="#3B7DF8" />
+                <Text style={styles.askTutorText}>Ask the AI tutor</Text>
+              </TouchableOpacity>
             </View>
           );
         })}
       </ScrollView>
+
+      <TutorModal
+        visible={tutorQ !== null}
+        onClose={() => setTutorQ(null)}
+        questionId={tutorQ?.id}
+        questionText={tutorQ?.text}
+        ask={(payload) => askMockTestTutorService(mockId, payload)}
+      />
     </SafeAreaView>
   );
 }
@@ -347,4 +368,16 @@ const styles = StyleSheet.create({
   },
   whyLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   whyText: { fontSize: 13, color: '#6B7280', lineHeight: 20 },
+  askTutorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#EEF4FF',
+  },
+  askTutorText: { fontSize: 12, fontWeight: '700', color: '#3B7DF8' },
 });
