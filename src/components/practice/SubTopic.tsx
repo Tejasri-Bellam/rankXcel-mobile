@@ -28,7 +28,7 @@ const getDotColor = (accuracy: number | null): string => {
 
 export default function SubTopicsScreen({ chapter, onBack, onSubTopicPress }: Props) {
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
@@ -46,7 +46,7 @@ export default function SubTopicsScreen({ chapter, onBack, onSubTopicPress }: Pr
       >
         {/* Progress Banner */}
         <View style={styles.banner}>
-          <AccuracyRing pct={chapter.accuracy} size={68} stroke={5} fontSize={14} />
+          <AccuracyRing pct={chapter.accuracy} size={68} stroke={6} fontSize={14} showPercent />
           <View>
             <Text style={styles.bannerStatus}>{getStrengthLabel(chapter.accuracy)}</Text>
             <Text style={styles.bannerMeta}>{chapter.subjectName}</Text>

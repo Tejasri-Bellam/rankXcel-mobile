@@ -31,7 +31,7 @@ export default function TopicsScreen({ subject, onBack, onTopicPress }: Props) {
   const overallPct = subject.accuracy ?? 0;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
@@ -50,7 +50,7 @@ export default function TopicsScreen({ subject, onBack, onTopicPress }: Props) {
         {/* Progress Banner */}
         <View style={styles.banner}>
           <View style={styles.bannerRingWrap}>
-            <AccuracyRing pct={subject.accuracy} size={68} stroke={5} fontSize={14} />
+            <AccuracyRing pct={subject.accuracy} size={68} stroke={6} fontSize={14} showPercent />
           </View>
           <View>
             <Text style={styles.bannerStatus}>{getStrengthLabel(subject.accuracy)}</Text>

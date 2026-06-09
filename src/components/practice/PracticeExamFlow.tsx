@@ -324,6 +324,7 @@ export const PracticeExamFlow = ({
       {screen === "results" && (
         <PracticeResults
           chapterName={chapter.name}
+          questions={questions}
           answers={finalAnswers}
           totalSeconds={finalSeconds}
           submitting={submittingMock}

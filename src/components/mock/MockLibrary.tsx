@@ -208,7 +208,7 @@ export default function MockLibrary({
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}

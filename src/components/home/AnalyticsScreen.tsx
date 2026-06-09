@@ -1,346 +1,488 @@
-import { analyticsStyles, chartStyles, donutStyles } from '@/src/styles/sidebar/analyticsStyles';
-import { COLORS } from '@/src/styles/styles';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from "react";
 import {
-    Dimensions,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { analyticsdata } from '../json/analytics';
+  ActivityIndicator,
+  Dimensions,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-const { width } = Dimensions.get('window');
+import { COLORS } from "@/src/styles/styles";
+import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
+import { getConsistencyService } from "@/src/libs/services/dashboard";
+import CircleProgress from "@/src/components/dashboard/CircleProgress";
 
-type PeriodType = '7d' | '30d' | '90d' | 'All';
-
-// Mini Bar Chart
-
-const BarChart = ({
-  data,
-  color,
-}: {
-  data: { label: string; value: number }[];
-  color: string;
-}) => {
-  const max = Math.max(...data.map((d) => d.value));
-  const chartH = 70;
-  return (
-    <View style={chartStyles.container}>
-      {data.map((d, i) => (
-        <View key={i} style={chartStyles.col}>
-          <Text style={chartStyles.value}>{d.value}</Text>
-          <View
-            style={[
-              chartStyles.bar,
-              {
-                height: Math.max((d.value / max) * chartH, 4),
-                backgroundColor: color,
-              },
-            ]}
-          />
-          <Text style={chartStyles.label}>{d.label}</Text>
-        </View>
-      ))}
-    </View>
-  );
+// DUMMY: still NOT provided by any API (see backend list).
+const DUMMY = {
+  bestPercentile: "Top 8%",
+  examYear: 2027,
+  daysToExam: 312,
 };
 
-// Donut Chart
-
-const SubjectDonut = ({
-  data,
-}: {
-  data: { label: string; pct: number; color: string }[];
-}) => (
-  <View style={donutStyles.row}>
-    {/* Simple stacked pill bars as proxy for donut */}
-    <View style={donutStyles.barStack}>
-      {data.map((d, i) => (
-        <View
-          key={i}
-          style={[
-            donutStyles.segment,
-            { flex: d.pct, backgroundColor: d.color },
-            i === 0 && donutStyles.segFirst,
-            i === data.length - 1 && donutStyles.segLast,
-          ]}
-        />
-      ))}
-    </View>
-    <View style={donutStyles.legend}>
-      {data.map((d, i) => (
-        <View key={i} style={donutStyles.legendItem}>
-          <View style={[donutStyles.legendDot, { backgroundColor: d.color }]} />
-          <Text style={donutStyles.legendLabel}>{d.label}</Text>
-          <Text style={donutStyles.legendPct}>{d.pct}%</Text>
-        </View>
-      ))}
-    </View>
-  </View>
+// Consistency heatmap palette: empty → low → high.
+const LEVEL_COLORS = ["#E6E8F0", "#F7A86E", "#FBD15E", "#86E0A3", "#22C55E"];
+const HEATMAP_DAYS = 35; // 5 weeks × 7 days
+const HEAT_COLS = 7;
+const HEAT_GAP = 6;
+// Cell size derived from screen width: 16px screen padding + 18px card padding,
+// both sides, leaving room for 7 cells and 6 gaps per row.
+const HEAT_CELL = Math.floor(
+  (Dimensions.get("window").width - 32 - 36 - HEAT_GAP * (HEAT_COLS - 1)) /
+    HEAT_COLS
 );
 
-// Stat Pill
+const readinessLabel = (pct: number) => {
+  if (pct >= 80) return "Exam ready";
+  if (pct >= 60) return "On track";
+  if (pct >= 40) return "Building";
+  if (pct >= 20) return "Getting there";
+  return "Getting started";
+};
 
-const StatPill = ({
+const nodeColor = (pct: number) =>
+  pct < 35 ? COLORS.orange : pct < 45 ? COLORS.yellow : COLORS.green;
+
+// Map a raw daily value to a 0-4 intensity bucket.
+const bucket = (n: number) => {
+  if (!n || n <= 0) return 0;
+  if (n <= 2) return 1;
+  if (n <= 5) return 2;
+  if (n <= 9) return 3;
+  return 4;
+};
+
+interface ConsistencyDay {
+  date?: string;
+  count: number;
+  level: number;
+}
+
+interface ConsistencyData {
+  days: ConsistencyDay[];
+  weeks: number;
+  currentStreak: number;
+  longestStreak: number;
+  activeDays: number;
+  totalDays: number;
+  consistencyPct: number;
+  totalCount: number;
+}
+
+const EMPTY_CONSISTENCY: ConsistencyData = {
+  days: [],
+  weeks: 5,
+  currentStreak: 0,
+  longestStreak: 0,
+  activeDays: 0,
+  totalDays: 0,
+  consistencyPct: 0,
+  totalCount: 0,
+};
+
+// Shape of GET /student/consistency/. Falls back gracefully for other shapes.
+const normalizeConsistency = (raw: any): ConsistencyData => {
+  const data = raw?.data ?? raw ?? {};
+  const list: any[] = Array.isArray(data)
+    ? data
+    : data?.days ?? data?.results ?? data?.consistency ?? data?.history ?? [];
+
+  const days: ConsistencyDay[] = list.map((d: any) => {
+    if (typeof d === "number") return { count: d, level: bucket(d) };
+    const count = Number(d?.count ?? d?.value ?? d?.attempts ?? d?.questions ?? 0);
+    const level = d?.level != null ? Math.max(0, Math.min(4, Number(d.level))) : bucket(count);
+    return { date: d?.date ?? d?.day, count, level };
+  });
+
+  return {
+    days,
+    weeks: Number(data?.weeks ?? (Math.ceil(days.length / 7) || 5)),
+    currentStreak: Number(data?.current_streak ?? 0),
+    longestStreak: Number(data?.longest_streak ?? 0),
+    activeDays: Number(data?.active_days ?? days.filter((d) => d.count > 0).length),
+    totalDays: Number(data?.total_days ?? 0),
+    consistencyPct: Number(data?.consistency_pct ?? 0),
+    totalCount: days.reduce((sum, d) => sum + (d.count || 0), 0),
+  };
+};
+
+const StatCard = ({
   icon,
-  label,
-  value,
-  delta,
-  deltaUp,
-  bg,
+  iconLib = "ion",
   iconColor,
+  value,
+  label,
 }: {
   icon: string;
-  label: string;
-  value: string;
-  delta: string;
-  deltaUp: boolean;
-  bg: string;
+  iconLib?: "ion" | "mci";
   iconColor: string;
+  value: string;
+  label: string;
 }) => (
-  <View style={analyticsStyles.statPill}>
-    <View style={[analyticsStyles.statIconBg, { backgroundColor: bg }]}>
-      <MaterialCommunityIcons name={icon as any} size={18} color={iconColor} />
-    </View>
-    <Text style={analyticsStyles.statValue}>{value}</Text>
-    <Text style={analyticsStyles.statLabel}>{label}</Text>
-    <Text style={[analyticsStyles.statDelta, { color: deltaUp ? COLORS.green : COLORS.red }]}>
-      {deltaUp ? '↑' : '↓'} {delta}
-    </Text>
+  <View style={styles.statCard}>
+    {iconLib === "mci" ? (
+      <MaterialCommunityIcons name={icon as any} size={20} color={iconColor} />
+    ) : (
+      <Ionicons name={icon as any} size={20} color={iconColor} />
+    )}
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
   </View>
 );
 
-// Chapter Row
-
-const ChapterRow = ({
-  rank,
-  name,
-  subject,
-  pct,
-  color,
-  subjectBg,
-  subjectText,
+const Metric = ({
+  icon,
+  iconColor,
+  value,
+  label,
 }: {
-  rank: number;
-  name: string;
-  subject: string;
-  pct: number;
-  color: string;
-  subjectBg: string;
-  subjectText: string;
+  icon: string;
+  iconColor: string;
+  value: string;
+  label: string;
 }) => (
-  <View style={analyticsStyles.chapterRow}>
-    <View style={[analyticsStyles.chapterRank, { backgroundColor: color }]}>
-      <Text style={analyticsStyles.chapterRankText}>{rank}</Text>
-    </View>
-    <View style={{ flex: 1, marginLeft: 10 }}>
-      <View style={analyticsStyles.chapterNameRow}>
-        <Text style={analyticsStyles.chapterName}>{name}</Text>
-        <View style={[analyticsStyles.subjectTag, { backgroundColor: subjectBg }]}>
-          <Text style={[analyticsStyles.subjectTagText, { color: subjectText }]}>{subject}</Text>
-        </View>
-      </View>
-      <View style={analyticsStyles.chapterBarBg}>
-        <View style={[analyticsStyles.chapterBarFill, { width: `${pct}%`, backgroundColor: color }]} />
-      </View>
-    </View>
-    <Text style={[analyticsStyles.chapterPct, { color }]}>{pct}%</Text>
+  <View style={styles.metric}>
+    <Ionicons name={icon as any} size={18} color={iconColor} />
+    <Text style={styles.metricValue}>{value}</Text>
+    <Text style={styles.metricLabel}>{label}</Text>
   </View>
 );
-
-// Main Screen
 
 export default function AnalyticsScreen() {
-  const [period, setPeriod] = useState<PeriodType>('30d');
-  const analytics = analyticsdata();
-  const { scoreData, timeData, subjectSplit, weakChapters, mockHistory, rankProgression } = analytics;
-  const periods: PeriodType[] = ['7d', '30d', '90d', 'All'];
+  const { targetExams, activeExamId, dashboardData, isLoading, refresh } =
+    useDashboard();
+
+  const [consistency, setConsistency] = useState<ConsistencyData>(EMPTY_CONSISTENCY);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadConsistency = useCallback(async () => {
+    try {
+      const res = await getConsistencyService();
+      setConsistency(normalizeConsistency(res));
+    } catch {
+      setConsistency(EMPTY_CONSISTENCY);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConsistency();
+  }, [loadConsistency]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refresh(), loadConsistency()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh, loadConsistency]);
+
+  // ── Derived (real) values ──────────────────────────────────────────────────
+  const subjects = dashboardData?.strength_by_subject ?? [];
+  const avgAccuracy = subjects.length
+    ? Math.round(
+        subjects.reduce((sum, s) => sum + (s.accuracy ?? 0), 0) / subjects.length
+      )
+    : 0;
+  const streakDays = dashboardData?.streak?.current_streak ?? 0;
+
+  const activeExam = targetExams.find(
+    (e) => String(e.id) === String(activeExamId)
+  );
+  const examName = activeExam?.name ?? "Your exam";
+
+  const weakest = (
+    dashboardData?.todays_focus?.length
+      ? dashboardData.todays_focus.map((t) => ({
+          name: t.topic_name,
+          pct: Math.max(0, Math.round(t.accuracy ?? 0)),
+        }))
+      : subjects.map((s) => ({
+          name: s.subject_name,
+          pct: Math.max(0, Math.round(s.accuracy ?? 0)),
+        }))
+  )
+    .sort((a, b) => a.pct - b.pct)
+    .slice(0, 6);
+
+  // Pad/trim the heatmap to a fixed 5×7 grid (oldest → today).
+  const recentDays = consistency.days.slice(-HEATMAP_DAYS);
+  const heatmap: ConsistencyDay[] = [
+    ...Array(Math.max(0, HEATMAP_DAYS - recentDays.length)).fill({ count: 0, level: 0 }),
+    ...recentDays,
+  ];
+
+  if (isLoading && !dashboardData) {
+    return (
+      <View style={[styles.safeArea, styles.centered]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
-    <View style={analyticsStyles.safeArea}>
+    <View style={styles.safeArea}>
       <ScrollView
-        style={analyticsStyles.scroll}
+        style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={analyticsStyles.scrollContent}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
       >
-        {/* ── Page title + period selector ── */}
-        <View style={analyticsStyles.pageTitleRow}>
-          <View>
-            <Text style={analyticsStyles.pageTitle}>Analytics</Text>
-            <Text style={analyticsStyles.pageSub}>Track your performance over time</Text>
-          </View>
-          <View style={analyticsStyles.periodRow}>
-            {periods.map((p) => (
-              <TouchableOpacity
-                key={p}
-                style={[analyticsStyles.periodBtn, period === p && analyticsStyles.periodBtnActive]}
-                onPress={() => setPeriod(p)}
-              >
-                <Text style={[analyticsStyles.periodText, period === p && analyticsStyles.periodTextActive]}>
-                  {p}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <Text style={styles.pageTitle}>Stats</Text>
+
+        {/* ── Readiness gauge ── */}
+        <View style={styles.gaugeCard}>
+          <CircleProgress
+            size={120}
+            strokeWidth={12}
+            progress={avgAccuracy}
+            color={COLORS.yellow}
+            trackColor="#EAECF4"
+            bgColor={COLORS.white}
+          >
+            <Text style={styles.gaugePct}>{avgAccuracy}%</Text>
+          </CircleProgress>
+          <Text style={styles.gaugeLabel}>EXAM READINESS</Text>
+          <Text style={styles.gaugeSub}>
+            {readinessLabel(avgAccuracy)} · {examName} {DUMMY.examYear} in{" "}
+            {DUMMY.daysToExam} days
+          </Text>
         </View>
 
-        {/* ── Summary stats ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={analyticsStyles.statRow}
-        >
-          <StatPill icon="file-document-outline" label="Mocks Taken" value="12" delta="3 this week" deltaUp bg={COLORS.primaryLight} iconColor={COLORS.primary} />
-          <StatPill icon="target" label="Best Percentile" value="94.3%ile" delta="2.1 from last" deltaUp bg={COLORS.greenLight} iconColor={COLORS.green} />
-          <StatPill icon="chart-bar" label="Avg Score" value="209" delta="8 from last" deltaUp bg="#FFF0E6" iconColor={COLORS.orange} />
-          <StatPill icon="trending-up" label="Avg Accuracy" value="68.2%" delta="1.3% last" deltaUp bg="#F3F0FF" iconColor={COLORS.primary} />
-        </ScrollView>
-
-        {/* ── Score trend ── */}
-        <View style={analyticsStyles.card}>
-          <View style={analyticsStyles.cardHeaderRow}>
-            <View>
-              <Text style={analyticsStyles.cardTitle}>Score Trend</Text>
-              <Text style={analyticsStyles.cardSub}>Last 6 mock tests</Text>
-            </View>
-            <View style={analyticsStyles.improvingBadge}>
-              <Ionicons name="trending-up" size={12} color={COLORS.green} />
-              <Text style={analyticsStyles.improvingText}>Improving</Text>
-            </View>
-          </View>
-          <BarChart data={scoreData} color={COLORS.primary} />
+        {/* ── Stat grid 2×2 ── */}
+        <View style={styles.statGrid}>
+          <StatCard
+            icon="radio-button-on"
+            iconColor={COLORS.primary}
+            value={`${avgAccuracy}%`}
+            label="Avg accuracy"
+          />
+          <StatCard
+            icon="document-text-outline"
+            iconColor={COLORS.green}
+            value={String(consistency.totalCount)}
+            label="Attempts"
+          />
+          <StatCard
+            icon="flame"
+            iconColor={COLORS.orange}
+            value={`${streakDays} days`}
+            label="Streak"
+          />
+          <StatCard
+            icon="trophy"
+            iconLib="mci"
+            iconColor="#F5A623"
+            value={DUMMY.bestPercentile}
+            label="Best percentile"
+          />
         </View>
 
-        {/* ── Subject accuracy ── */}
-        <View style={analyticsStyles.card}>
-          <Text style={analyticsStyles.cardTitle}>Subject Accuracy</Text>
-          <Text style={analyticsStyles.cardSub}>Average across all mocks</Text>
-
-          <View style={{ marginTop: 16, gap: 14 }}>
-            {[
-              { name: 'Physics', icon: '⚡', pct: 71, color: COLORS.primary },
-              { name: 'Chemistry', icon: '🧪', pct: 58, color: COLORS.green },
-              { name: 'Mathematics', icon: '📐', pct: 63, color: COLORS.yellow },
-            ].map((s) => (
-              <View key={s.name}>
-                <View style={analyticsStyles.subjectAccuracyRow}>
-                  <Text style={analyticsStyles.subjectIcon}>{s.icon}</Text>
-                  <Text style={analyticsStyles.subjectName}>{s.name}</Text>
-                  <Text style={[analyticsStyles.subjectPct, { color: s.color }]}>{s.pct}%</Text>
+        {/* ── Weakest nodes ── */}
+        <View style={styles.sectionHeaderRow}>
+          <Ionicons name="radio-button-on" size={16} color={COLORS.primary} />
+          <Text style={styles.sectionTitle}>Weakest nodes</Text>
+        </View>
+        <View style={styles.card}>
+          {weakest.length === 0 ? (
+            <Text style={styles.emptyText}>No data yet.</Text>
+          ) : (
+            weakest.map((node, i) => {
+              const color = nodeColor(node.pct);
+              return (
+                <View
+                  key={`${node.name}-${i}`}
+                  style={[styles.nodeRow, i === weakest.length - 1 && { marginBottom: 0 }]}
+                >
+                  <View style={styles.nodeTopRow}>
+                    <Text style={styles.nodeName} numberOfLines={1}>
+                      {node.name}
+                    </Text>
+                    <Text style={[styles.nodePct, { color }]}>{node.pct}%</Text>
+                  </View>
+                  <View style={styles.nodeBarBg}>
+                    <View
+                      style={[
+                        styles.nodeBarFill,
+                        { width: `${Math.min(100, Math.max(3, node.pct))}%`, backgroundColor: color },
+                      ]}
+                    />
+                  </View>
                 </View>
-                <View style={analyticsStyles.accuracyBarBg}>
-                  <View
-                    style={[
-                      analyticsStyles.accuracyBarFill,
-                      { width: `${s.pct}%`, backgroundColor: s.color },
-                    ]}
-                  />
-                </View>
-              </View>
+              );
+            })
+          )}
+        </View>
+
+        {/* ── Consistency ── */}
+        <View style={styles.sectionHeaderRow}>
+          <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.sectionTitle}>Consistency</Text>
+        </View>
+        <View style={styles.card}>
+          <View style={styles.metricRow}>
+            <Metric
+              icon="pulse"
+              iconColor={COLORS.primary}
+              value={`${Math.round(consistency.consistencyPct)}%`}
+              label="Consistency"
+            />
+            <View style={styles.metricDivider} />
+            <Metric
+              icon="checkmark-circle"
+              iconColor={COLORS.green}
+              value={String(consistency.activeDays)}
+              label="Active days"
+            />
+            <View style={styles.metricDivider} />
+            <Metric
+              icon="flame"
+              iconColor={COLORS.orange}
+              value={String(consistency.currentStreak)}
+              label="Day streak"
+            />
+            <View style={styles.metricDivider} />
+            <Metric
+              icon="trophy"
+              iconColor="#F5A623"
+              value={String(consistency.longestStreak)}
+              label="Best"
+            />
+          </View>
+          <View style={styles.metricHr} />
+          <View style={styles.heatGrid}>
+            {heatmap.map((d, i) => (
+              <View
+                key={i}
+                style={[styles.heatCell, { backgroundColor: LEVEL_COLORS[d.level] ?? LEVEL_COLORS[0] }]}
+              />
             ))}
           </View>
-        </View>
-
-        {/* ── Time studied ── */}
-        <View style={analyticsStyles.card}>
-          <View style={analyticsStyles.cardHeaderRow}>
-            <View>
-              <Text style={analyticsStyles.cardTitle}>Study Time</Text>
-              <Text style={analyticsStyles.cardSub}>Minutes per day this week</Text>
-            </View>
-            <View style={[analyticsStyles.improvingBadge, { backgroundColor: '#FFF0E6' }]}>
-              <Ionicons name="time-outline" size={12} color={COLORS.orange} />
-              <Text style={[analyticsStyles.improvingText, { color: COLORS.orange }]}>This week</Text>
-            </View>
-          </View>
-          <BarChart data={timeData} color={COLORS.orange} />
-        </View>
-
-        {/* ── Subject split ── */}
-        <View style={analyticsStyles.card}>
-          <Text style={analyticsStyles.cardTitle}>Subject Split</Text>
-          <Text style={analyticsStyles.cardSub}>Questions attempted per subject</Text>
-          <SubjectDonut data={subjectSplit} />
-        </View>
-
-        {/* ── Rank progression ── */}
-        <View style={analyticsStyles.card}>
-          <View style={analyticsStyles.cardHeaderRow}>
-            <View>
-              <Text style={analyticsStyles.cardTitle}>Rank Progression</Text>
-              <Text style={analyticsStyles.cardSub}>Estimated AIR across mocks</Text>
-            </View>
-          </View>
-          <View style={{ marginTop: 12, gap: 10 }}>
-            {[
-              { date: 'Feb 12', rank: '~11,200', delta: '↑ 2,200', up: true },
-              { date: 'Feb 5', rank: '~13,400', delta: '↑ 4,800', up: true },
-              { date: 'Jan 29', rank: '~18,200', delta: '↓ 3,400', up: false },
-              { date: 'Jan 22', rank: '~14,800', delta: '↑ 1,200', up: true },
-            ].map((r, i) => (
-              <View key={i} style={analyticsStyles.rankRow}>
-                <View style={analyticsStyles.rankDot} />
-                <Text style={analyticsStyles.rankDate}>{r.date}</Text>
-                <Text style={analyticsStyles.rankValue}>{r.rank}</Text>
-                <Text style={[analyticsStyles.rankDelta, { color: r.up ? COLORS.green : COLORS.red }]}>
-                  {r.delta}
-                </Text>
-              </View>
-            ))}
+          <View style={styles.heatLabels}>
+            <Text style={styles.heatLabelText}>{consistency.weeks} weeks ago</Text>
+            <Text style={styles.heatLabelText}>Today</Text>
           </View>
         </View>
 
-        {/* ── Weak chapters ── */}
-        <View style={analyticsStyles.card}>
-          <View style={analyticsStyles.cardHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="warning" size={15} color={COLORS.yellow} />
-              <Text style={analyticsStyles.cardTitle}>Weak Areas</Text>
-            </View>
-            <Text style={analyticsStyles.aiLabel}>AI-Identified</Text>
-          </View>
-          {weakChapters.map((c) => (
-            <ChapterRow key={c.name} {...c} />
-          ))}
-        </View>
-
-        {/* ── Mock history ── */}
-        <View style={[analyticsStyles.card, { marginBottom: 32 }]}>
-          <View style={analyticsStyles.cardHeaderRow}>
-            <View>
-              <Text style={analyticsStyles.cardTitle}>Mock History</Text>
-              <Text style={analyticsStyles.cardSub}>All attempted tests</Text>
-            </View>
-          </View>
-
-          {/* Table header */}
-          <View style={analyticsStyles.tableHeader}>
-            <Text style={[analyticsStyles.tableHeaderCell, { flex: 2 }]}>Test</Text>
-            <Text style={analyticsStyles.tableHeaderCell}>Score</Text>
-            <Text style={analyticsStyles.tableHeaderCell}>Rank</Text>
-            <Text style={analyticsStyles.tableHeaderCell}>%ile</Text>
-          </View>
-
-          {mockHistory.map((m, i) => (
-            <View key={i} style={[analyticsStyles.tableRow, i % 2 === 0 && analyticsStyles.tableRowAlt]}>
-              <View style={{ flex: 2 }}>
-                <Text style={analyticsStyles.tableCell} numberOfLines={1}>{m.name}</Text>
-                <Text style={analyticsStyles.tableSub}>{m.date}</Text>
-              </View>
-              <Text style={[analyticsStyles.tableCell, { color: COLORS.primary, fontWeight: '700' }]}>
-                {m.score}
-              </Text>
-              <Text style={analyticsStyles.tableCell}>{m.rank.toLocaleString()}</Text>
-              <Text style={[analyticsStyles.tableCell, { color: m.up ? COLORS.green : COLORS.red, fontWeight: '700' }]}>
-                {m.pct}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <View style={{ height: 28 }} />
       </ScrollView>
-
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: COLORS.background },
+  centered: { alignItems: "center", justifyContent: "center" },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
+
+  pageTitle: { fontSize: 28, fontWeight: "800", color: COLORS.textDark, marginBottom: 16 },
+
+  gaugeCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  gaugePct: { fontSize: 30, fontWeight: "800", color: COLORS.textDark },
+  gaugeLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: COLORS.textLight,
+    marginTop: 14,
+  },
+  gaugeSub: { fontSize: 14, color: COLORS.textMedium, marginTop: 6, textAlign: "center" },
+
+  statGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    width: "48.5%",
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  statValue: { fontSize: 22, fontWeight: "800", color: COLORS.textDark, marginTop: 10 },
+  statLabel: { fontSize: 13, color: COLORS.textLight, marginTop: 2 },
+
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 18, fontWeight: "800", color: COLORS.textDark },
+
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  emptyText: { fontSize: 13, color: COLORS.textLight, textAlign: "center", paddingVertical: 8 },
+
+  nodeRow: { marginBottom: 16 },
+  nodeTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  nodeName: { fontSize: 15, fontWeight: "700", color: COLORS.textDark, flex: 1, marginRight: 12 },
+  nodePct: { fontSize: 14, fontWeight: "800" },
+  nodeBarBg: { height: 7, backgroundColor: "#EEF0F5", borderRadius: 5, overflow: "hidden" },
+  nodeBarFill: { height: 7, borderRadius: 5 },
+
+  metricRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  metric: { flex: 1, alignItems: "center", gap: 4 },
+  metricValue: { fontSize: 18, fontWeight: "800", color: COLORS.textDark },
+  metricLabel: { fontSize: 11, color: COLORS.textLight, fontWeight: "600" },
+  metricDivider: { width: 1, height: 34, backgroundColor: COLORS.border },
+  metricHr: { height: 1, backgroundColor: COLORS.border, marginVertical: 16 },
+  heatGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: HEAT_GAP,
+  },
+  heatCell: { width: HEAT_CELL, height: HEAT_CELL, borderRadius: 9 },
+  heatLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  heatLabelText: { fontSize: 12, color: COLORS.textLight },
+});

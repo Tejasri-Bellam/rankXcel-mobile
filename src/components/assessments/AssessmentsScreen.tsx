@@ -1,130 +1,145 @@
-import { COLORS } from '@/src/styles/styles';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator, TouchableOpacity, View, Text, BackHandler,
-} from 'react-native';
-import { FlatList, ScrollView } from 'react-native-gesture-handler';
-import { getassessmentsService } from '@/src/libs/services/assessments';
-import ExamDetails from './ExamDetails';
-import { assessmentsStyles as styles } from '@/src/styles/sidebar/assessmentsStyles';
-import { useTargetExam } from '@/src/libs/context/TagretExamContext';
-import { useLocalSearchParams } from 'expo-router';
+  ActivityIndicator,
+  BackHandler,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { getassessmentsService } from "@/src/libs/services/assessments";
+import { useTargetExam } from "@/src/libs/context/TagretExamContext";
+import LiveTestDetail, { LiveStatus } from "./LiveTestDetail";
+import { liveTestsStyles as styles } from "@/src/styles/sidebar/assessments/liveTests";
 
-type TabType = 'live' | 'upcoming' | 'completed' | 'missed';
-
-const TAB_VALUES: TabType[] = ['live', 'upcoming', 'completed', 'missed'];
-
-const TAB_CONFIG: Record<
-  TabType,
-  { label: string; dot: string; accentColor: string; accentBg: string }
+const STATUS_META: Record<
+  LiveStatus,
+  { label: string; color: string; bg: string; live?: boolean }
 > = {
-  live: {
-    label: 'Live Now',
-    dot: COLORS.green,
-    accentColor: COLORS.green,
-    accentBg: COLORS.greenBg,
-  },
-  upcoming: {
-    label: 'Upcoming',
-    dot: COLORS.orange,
-    accentColor: COLORS.orange,
-    accentBg: COLORS.orangeBg,
-  },
-  completed: {
-    label: 'Completed',
-    dot: COLORS.gray,
-    accentColor: COLORS.gray,
-    accentBg: COLORS.grayBg,
-  },
-  missed: {
-    label: 'Missed',
-    dot: COLORS.red,
-    accentColor: COLORS.red,
-    accentBg: COLORS.redBg,
-  },
+  upcoming: { label: "Upcoming", color: "#3B82F6", bg: "#EAF1FF" },
+  live: { label: "Live now", color: "#EF4444", bg: "#FFECEC", live: true },
+  results: { label: "Results out", color: "#6B7280", bg: "#F1F2F5" },
+};
+
+type FilterValue = "all" | "live" | "upcoming" | "completed";
+
+const FILTERS: { label: string; value: FilterValue }[] = [
+  { label: "All", value: "all" },
+  { label: "Live", value: "live" },
+  { label: "Upcoming", value: "upcoming" },
+  { label: "Completed", value: "completed" },
+];
+
+// "Completed" maps to the results-out status.
+const FILTER_STATUS: Record<Exclude<FilterValue, "all">, LiveStatus> = {
+  live: "live",
+  upcoming: "upcoming",
+  completed: "results",
+};
+
+const deriveStatus = (item: any): LiveStatus => {
+  const scheduled = new Date(item?.scheduled_at).getTime();
+  const end = scheduled + (item?.total_duration_minutes ?? 0) * 60 * 1000;
+  const now = Date.now();
+  if (isNaN(scheduled)) return "upcoming";
+  if (now < scheduled) return "upcoming";
+  if (now <= end) return "live";
+  return "results";
+};
+
+// upcoming → "Sun 14 Jun, 7:00 PM" · live → "Live now" · results → "Sat 6 Jun (closed)"
+const whenLabel = (item: any, status: LiveStatus): string => {
+  if (status === "live") return "Live now";
+  const d = new Date(item?.scheduled_at);
+  if (isNaN(d.getTime())) return status === "results" ? "Closed" : "—";
+  if (status === "results") {
+    return `${d.toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    })} (closed)`;
+  }
+  return d.toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
+// Real field if provided; otherwise a stable placeholder so the card matches
+// the design. (No participant-count API yet — see backend list.)
+const participantCount = (item: any): number => {
+  const real =
+    item?.participant_count ??
+    item?.registered_count ??
+    item?.participants_count;
+  if (real != null) return Number(real);
+  return 1000 + ((Number(item?.id) || 1) * 1373) % 19000; // DUMMY
 };
 
 export default function AssessmentsScreen() {
-  // Optional `tab` param lets other screens deep-link into a specific tab
-  // (e.g. the dashboard "Upcoming live → All" link opens the Upcoming tab).
-  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
-  const initialTab: TabType = TAB_VALUES.includes(tabParam as TabType)
-    ? (tabParam as TabType)
-    : 'live';
+  const { activeExamId } = useTargetExam();
 
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabType>(initialTab);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selected, setSelected] = useState<{ item: any; status: LiveStatus } | null>(
+    null
+  );
+  const [filter, setFilter] = useState<FilterValue>("all");
 
-  // Keep the active tab in sync when the deep-link param changes.
-  useEffect(() => {
-    if (TAB_VALUES.includes(tabParam as TabType)) {
-      setTab(tabParam as TabType);
-    }
-  }, [tabParam]);
-
-  // Scope assessments to the exam selected in the header.
-  const { activeExamId } = useTargetExam();
-
-
-  const fetchAssessments = async () => {
-    // No target exam for the selected region → nothing to show (don't fall back
-    // to the unscoped endpoint, which would return every exam's assessments).
+  const fetchAssessments = async (isRefresh = false) => {
     if (activeExamId == null) {
       setData([]);
       setLoading(false);
       return;
     }
     try {
-      setLoading(true);
-      // Scope the request to the selected target exam (?exam_id=<id>).
+      isRefresh ? setRefreshing(true) : setLoading(true);
       const res = await getassessmentsService(activeExamId);
-      console.log('resssss', res);
-
       const raw: any = res?.data;
       const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
       setData(list);
     } catch (error: any) {
-      console.log('ASSESSMENTS ERROR:', JSON.stringify(error, null, 2));
+      console.log("ASSESSMENTS ERROR:", JSON.stringify(error, null, 2));
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  // Refetch whenever the selected target exam changes.
-  useEffect(() => { fetchAssessments(); }, [activeExamId]);
+  useEffect(() => {
+    fetchAssessments();
+  }, [activeExamId]);
 
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (selectedItem) { setSelectedItem(null); return true; }
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (selected) {
+        setSelected(null);
+        return true;
+      }
       return false;
     });
     return () => sub.remove();
-  }, [selectedItem]);
+  }, [selected]);
 
-  // Detail view
-  if (selectedItem) {
+  if (selected) {
     return (
-      <ExamDetails
-        item={selectedItem}
-        onBack={() => setSelectedItem(null)}
+      <LiveTestDetail
+        item={selected.item}
+        status={selected.status}
+        onBack={() => {
+          setSelected(null);
+          fetchAssessments(true);
+        }}
       />
     );
   }
-
-  // Derived data
-  const deriveStatus = (item: any): TabType => {
-    if (item.latest_attempt_status === 'SUBMITTED') return 'completed';
-
-    const scheduled = new Date(item.scheduled_at).getTime();
-    const endTime = scheduled + (item.total_duration_minutes ?? 0) * 60 * 1000;
-    const now = Date.now();
-
-    if (now < scheduled) return 'upcoming';
-    if (now <= endTime) return 'live';
-    return 'missed';
-  };
 
   const matchesActiveExam = (item: any): boolean => {
     if (activeExamId == null) return false;
@@ -133,183 +148,131 @@ export default function AssessmentsScreen() {
     return String(examId) === String(activeExamId);
   };
 
-  const dataWithStatus = data.filter(matchesActiveExam).map((item: any) => ({
-    ...item,
-    derived_status: deriveStatus(item),
-  }));
+  // Order: live first, then upcoming, then results.
+  const order: Record<LiveStatus, number> = { live: 0, upcoming: 1, results: 2 };
+  const allTests = data
+    .filter(matchesActiveExam)
+    .map((item) => ({ item, status: deriveStatus(item) }))
+    .sort((a, b) => order[a.status] - order[b.status]);
 
-  const filteredData = dataWithStatus.filter((item: any) => item.derived_status === tab);
-
-  const counts: Record<TabType, number> = {
-    live: dataWithStatus.filter((d: any) => d.derived_status === 'live').length,
-    upcoming: dataWithStatus.filter((d: any) => d.derived_status === 'upcoming').length,
-    completed: dataWithStatus.filter((d: any) => d.derived_status === 'completed').length,
-    missed: dataWithStatus.filter((d: any) => d.derived_status === 'missed').length,
+  const counts: Record<FilterValue, number> = {
+    all: allTests.length,
+    live: allTests.filter((t) => t.status === "live").length,
+    upcoming: allTests.filter((t) => t.status === "upcoming").length,
+    completed: allTests.filter((t) => t.status === "results").length,
   };
 
-  const summary = `${counts.live} live · ${counts.upcoming} upcoming · ${counts.completed} completed`;
+  const tests =
+    filter === "all"
+      ? allTests
+      : allTests.filter((t) => t.status === FILTER_STATUS[filter]);
 
-  const getButtonLabel = (t: TabType) => {
-    switch (t) {
-      case 'live': return 'Start';
-      case 'completed': return 'Re-attempt';
-      case 'missed': return 'Retry';
-      default: return 'Start';
-    }
-  };
-
-  const getButtonColor = (t: TabType) => {
-    switch (t) {
-      case 'live': return COLORS.green;
-      case 'missed': return COLORS.red;
-      default: return COLORS.primary;
-    }
-  };
-
-  // Tab button component
-  const TabButton = ({ value }: { value: TabType }) => {
-    const active = tab === value;
-    const cfg = TAB_CONFIG[value];
-    return (
-      <TouchableOpacity
-        style={[styles.tabBtn, active && styles.tabBtnActive]}
-        onPress={() => setTab(value)}
+  return (
+    <SafeAreaView style={styles.safeArea} edges={[]}>
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchAssessments(true)}
+            colors={["#2F86FF"]}
+            tintColor="#2F86FF"
+          />
+        }
       >
-        <View style={[styles.tabDot, { backgroundColor: cfg.dot, opacity: active ? 1 : 0.5 }]} />
-        <Text style={[styles.tabText, active && styles.tabTextActive]}>
-          {cfg.label}
-        </Text>
-        {counts[value] > 0 && (
-          <View style={[styles.tabBadge, active && styles.tabBadgeActive]}>
-            <Text style={[styles.tabBadgeText, active && styles.tabBadgeTextActive]}>
-              {counts[value]}
+        <View style={styles.header}>
+          <Text style={styles.pageTitle}>Live Tests</Text>
+          <Text style={styles.pageSubtitle}>
+            Compete against everyone, in real time. Climb the national leaderboard.
+          </Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          {FILTERS.map((f) => {
+            const active = f.value === filter;
+            return (
+              <TouchableOpacity
+                key={f.value}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => setFilter(f.value)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  {f.label}
+                </Text>
+                {counts[f.value] > 0 && (
+                  <View style={[styles.chipBadge, active && styles.chipBadgeActive]}>
+                    <Text
+                      style={[
+                        styles.chipBadgeText,
+                        active && styles.chipBadgeTextActive,
+                      ]}
+                    >
+                      {counts[f.value]}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color="#2F86FF" />
+          </View>
+        ) : tests.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>
+              {filter === "all" ? "No live tests yet" : `No ${filter} tests`}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              Ranked live tests will appear here when scheduled.
             </Text>
           </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  // Card renderer
-  const renderCard = ({ item }: { item: any }) => {
-    const cfg = TAB_CONFIG[tab];
-    const isCompleted = tab === 'completed';
-
-  return (
-    <TouchableOpacity activeOpacity={0.85} onPress={() => setSelectedItem(item)}>
-      <View style={styles.card}>
-      {/* Left accent bar */}
-      <View style={[styles.cardAccentBar, { backgroundColor: cfg.accentColor }]} />
-
-      <View style={styles.cardContent}>
-      {/* Status badge pill */}
-      <View style={[styles.badgeChip, { backgroundColor: cfg.accentBg }]}>
-        <View style={[styles.badgeDot, { backgroundColor: cfg.accentColor }]} />
-          <Text style={[styles.badgeText, { color: cfg.accentColor }]}>
-            {cfg.label.toUpperCase()}
-          </Text>
-        </View>
-
-      {/* Title */}
-      <Text style={styles.cardTitle}>{item.name}</Text>
-
-      {/* Subtitle */}
-      <Text style={styles.cardDesc}>
-        {item.exam?.name || item.description || ''}
-      </Text>
-
-      {/* Meta row + action button */}
-        <View style={[styles.metaRow, { justifyContent: 'space-between' }]}>
-        {/* Left: meta info */}
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaIcon}>⏱</Text>
-              <Text style={styles.metaText}>{item.total_duration_minutes} min</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaIcon}>📋</Text>
-              <Text style={styles.metaText}>{item.question_count} Q</Text>
-            </View>
-      {isCompleted && (
-        <View style={styles.metaItem}>
-          <Text style={styles.metaIcon}>📊</Text>
-          <Text style={styles.metaText}>
-            {item.score != null ? `${item.score} Marks` : '0 Marks'}
-          </Text>
-        </View>
-      )}
-          </View>
-
-      {/* Right: action button */}
-        <TouchableOpacity
-          style={
-            isCompleted
-            ? styles.completedBtn
-            : [styles.primaryBtn, { backgroundColor: getButtonColor(tab) }]
-          }
-            onPress={() => setSelectedItem(item)}>
-          <Text style={isCompleted ? styles.completedBtnText : styles.primaryBtnText}>
-            {getButtonLabel(tab)}
-          </Text>
-        </TouchableOpacity>
-        </View>
-      </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-  // Empty state
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyTitle}>No {tab} assessments</Text>
-      <Text style={styles.emptySubtitle}>
-        You have no {tab} assessments right now.
-      </Text>
-    </View>
-  );
-
-  // Main render
-  return (
-    <View style={styles.safeArea}>
-      {/* Page title */}
-      <View style={styles.pageTitleRow}>
-        <Text style={styles.pageTitle}>Assessments</Text>
-        <Text style={styles.pageSummary}>{summary}</Text>
-      </View>
-
-      {/* Tab bar */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabsContainer}
-        style={{ maxHeight: 60 }}
-      >
-        <TabButton value="live" />
-        <TabButton value="upcoming" />
-        <TabButton value="completed" />
-        <TabButton value="missed" />
-      </ScrollView>
-
-      {/* List */}
-      <View style={{ flex: 1 }}>
-        {loading ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          </View>
-        ) : filteredData.length === 0 ? (
-          renderEmpty()
         ) : (
-          <FlatList
-            data={filteredData}
-            renderItem={renderCard}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </View>
+          <View style={styles.cardList}>
+            {tests.map(({ item, status }) => {
+              const meta = STATUS_META[status];
+              return (
+                <TouchableOpacity
+                  key={String(item.id)}
+                  style={[styles.card, meta.live && styles.cardLive]}
+                  activeOpacity={0.85}
+                  onPress={() => setSelected({ item, status })}
+                >
+                  <View style={styles.cardTopRow}>
+                    <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+                      {meta.live ? <View style={styles.liveDot} /> : null}
+                      <Text style={[styles.statusPillText, { color: meta.color }]}>
+                        {meta.label}
+                      </Text>
+                    </View>
+                    <Text style={styles.participants}>
+                      {participantCount(item).toLocaleString("en-US")} in
+                    </Text>
+                  </View>
 
-    </View>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+
+                  <Text style={styles.cardMeta}>
+                    {whenLabel(item, status)} · {item.question_count ?? 0} Qs ·{" "}
+                    {item.total_duration_minutes ?? 0} min
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
