@@ -1,18 +1,21 @@
-import React, { useEffect, useRef } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import { AnswerState } from "./PracticeExamFlow";
+import { PracticeApiQuestion } from "./PracticeQuestions";
 
 interface Props {
   chapterName: string;
+  questions: PracticeApiQuestion[];
   answers: AnswerState[];
   totalSeconds: number;
   submitting?: boolean;
@@ -20,286 +23,368 @@ interface Props {
   onBackToHub: () => void;
 }
 
+const SCREEN_BG = "#EEEFF5";
+const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"];
+
+const accColor = (pct: number) =>
+  pct >= 65 ? "#22C55E" : pct >= 40 ? "#F5A623" : "#EF4444";
+
+const heading = (pct: number) => {
+  if (pct >= 80) return "Great job 🎉";
+  if (pct >= 50) return "Nice work 👏";
+  return "Keep going 🌱";
+};
+
+const formatTime = (s: number) => {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+};
+
 export default function PracticeResults({
   chapterName,
+  questions,
   answers,
   totalSeconds,
   submitting = false,
   onTryAgain,
   onBackToHub,
 }: Props) {
+  const [view, setView] = useState<"results" | "review">("results");
+
   const correct = answers.filter((a) => a.correct === true).length;
   const wrong = answers.filter((a) => a.correct === false).length;
-  const skipped = answers.filter((a) => a.correct === null).length;
   const total = answers.length;
-  const score = correct * 4 - wrong * 1;
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const color = accColor(accuracy);
 
-  const mm = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-  const ss = String(totalSeconds % 60).padStart(2, "0");
+  // DUMMY: no XP API yet — playful value derived from correct answers.
+  const xp = correct * 10;
 
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }),
-      Animated.timing(opacityAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  const accuracyColor =
-    accuracy >= 65 ? "#22C55E" : accuracy >= 40 ? "#F59E0B" : "#EF4444";
-
-  const bannerBg = score >= 0 ? "#3B7DF8" : "#EF4444";
-
-  return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <Animated.View style={[styles.container, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
-
-        {/* Banner */}
-        <View style={[styles.banner, { backgroundColor: bannerBg }]}>
-          <TouchableOpacity style={styles.closeBtn} onPress={onBackToHub} activeOpacity={0.7}>
-            <Ionicons name="close" size={18} color="#fff" />
+  if (view === "review") {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => setView("results")}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={20} color="#3B82F6" />
+            <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
-          <Text style={styles.bannerLabel}>Practice Complete</Text>
-          <Text style={styles.bannerChapter}>{chapterName}</Text>
-          <Text style={styles.scoreText}>{score > 0 ? `+${score}` : score}</Text>
-          <Text style={styles.timeTaken}>marks · {mm}:{ss} taken</Text>
+        </View>
+        <Text style={styles.pageTitle}>Review</Text>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.reviewContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {questions.map((q, i) => {
+            const ans = answers[i];
+            const userSel = ans?.selected ?? null;
+            const status =
+              ans?.correct === true
+                ? { label: "Correct", color: "#16A34A", bg: "#DCFCE7", icon: "checkmark" as const }
+                : ans?.correct === false
+                ? { label: "Wrong", color: "#DC2626", bg: "#FEE2E2", icon: "close" as const }
+                : { label: "Skipped", color: "#DC2626", bg: "#FEE2E2", icon: "close" as const };
+
+            return (
+              <View key={q.id} style={styles.reviewCard}>
+                <View style={styles.reviewHeadRow}>
+                  <Text style={styles.qTag}>Q{i + 1}</Text>
+                  <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
+                    <Ionicons name={status.icon} size={12} color={status.color} />
+                    <Text style={[styles.statusPillText, { color: status.color }]}>
+                      {status.label}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.reviewQText}>{q.text}</Text>
+
+                {q.options.map((opt, oi) => {
+                  const isCorrect = String(opt.id) === String(q.correctChoiceId);
+                  const isUserWrong =
+                    String(opt.id) === String(userSel) && !isCorrect;
+                  const rowStyle = isCorrect
+                    ? styles.optCorrect
+                    : isUserWrong
+                    ? styles.optWrong
+                    : styles.optNeutral;
+                  const textStyle = isCorrect
+                    ? { color: "#15803D" }
+                    : isUserWrong
+                    ? { color: "#B91C1C" }
+                    : { color: "#1A1A2E" };
+                  return (
+                    <View key={opt.id} style={[styles.optRow, rowStyle]}>
+                      <Text style={[styles.optLetter, textStyle]}>
+                        {OPTION_LETTERS[oi] ?? oi + 1}
+                      </Text>
+                      <Text style={[styles.optText, textStyle]} numberOfLines={3}>
+                        {opt.text}
+                      </Text>
+                      {isCorrect ? (
+                        <Ionicons name="checkmark" size={16} color="#16A34A" />
+                      ) : isUserWrong ? (
+                        <Ionicons name="close" size={16} color="#DC2626" />
+                      ) : null}
+                    </View>
+                  );
+                })}
+
+                {q.explanation ? (
+                  <View style={styles.whyBox}>
+                    <Text style={styles.whyText}>
+                      <Text style={styles.whyLabel}>Why: </Text>
+                      {q.explanation}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+          <View style={{ height: 20 }} />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Results view ───────────────────────────────────────────────────────────
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBackToHub} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={20} color="#3B82F6" />
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.resultsContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.resultsTitle}>Results</Text>
+
+        <View style={styles.ringWrap}>
+          <CircleProgress
+            size={150}
+            strokeWidth={13}
+            progress={accuracy}
+            color={color}
+            trackColor="#E3E5EE"
+            bgColor={SCREEN_BG}
+          >
+            <Text style={styles.ringPct}>{accuracy}%</Text>
+            <Text style={styles.ringSub}>
+              {correct}/{total} correct
+            </Text>
+          </CircleProgress>
         </View>
 
-        {/* Stats row */}
+        <Text style={styles.heading}>{heading(accuracy)}</Text>
+        <Text style={styles.subheading}>{chapterName} · practice</Text>
+
         <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <View style={[styles.statIconWrap, { backgroundColor: "#DCFCE7" }]}>
-              <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
-            </View>
+          <View style={styles.statCard}>
+            <Ionicons name="checkmark" size={18} color="#22C55E" />
             <Text style={styles.statValue}>{correct}</Text>
             <Text style={styles.statLabel}>Correct</Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.statItem}>
-            <View style={[styles.statIconWrap, { backgroundColor: "#FEE2E2" }]}>
-              <Ionicons name="close-circle" size={24} color="#EF4444" />
-            </View>
+          <View style={styles.statCard}>
+            <Ionicons name="close" size={18} color="#EF4444" />
             <Text style={styles.statValue}>{wrong}</Text>
             <Text style={styles.statLabel}>Wrong</Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.statItem}>
-            <View style={[styles.statIconWrap, { backgroundColor: "#FEF3C7" }]}>
-              <MaterialCommunityIcons name="skip-next-circle-outline" size={24} color="#F59E0B" />
-            </View>
-            <Text style={styles.statValue}>{skipped}</Text>
-            <Text style={styles.statLabel}>Skipped</Text>
+          <View style={styles.statCard}>
+            <Ionicons name="time-outline" size={18} color="#3B82F6" />
+            <Text style={styles.statValue}>{formatTime(totalSeconds)}</Text>
+            <Text style={styles.statLabel}>Time</Text>
           </View>
         </View>
 
-        {/* Accuracy bar */}
-        <View style={styles.accuracySection}>
-          <View style={styles.accRow}>
-            <Text style={styles.accLabel}>Accuracy</Text>
-            <Text style={[styles.accValue, { color: accuracyColor }]}>{accuracy}%</Text>
-          </View>
-          <View style={styles.accTrack}>
-            <View
-              style={[styles.accFill, { width: `${accuracy}%` as any, backgroundColor: accuracyColor }]}
-            />
+        <View style={styles.xpBanner}>
+          <Ionicons name="flash" size={18} color="#F5A623" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.xpTitle}>+{xp} XP earned</Text>
+            <Text style={styles.xpSub}>Streak extended · keep it up!</Text>
           </View>
         </View>
 
-        {submitting && (
+        {submitting ? (
           <View style={styles.submittingRow}>
-            <ActivityIndicator size="small" color="#3B7DF8" />
-            <Text style={styles.submittingText}>Submitting your session...</Text>
+            <ActivityIndicator size="small" color="#3B82F6" />
+            <Text style={styles.submittingText}>Saving your session…</Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.hubBtn}
-            onPress={onBackToHub}
-            disabled={submitting}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.hubText}>Back to Hub</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.tryBtn}
-            onPress={onTryAgain}
-            disabled={submitting}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="refresh" size={16} color="#fff" />
-            <Text style={styles.tryText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+        <TouchableOpacity
+          style={styles.reviewBtn}
+          onPress={() => setView("review")}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="eye-outline" size={17} color="#fff" />
+          <Text style={styles.reviewBtnText}>Review answers</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.doneBtn}
+          onPress={onBackToHub}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.doneBtnText}>Done</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={onTryAgain} style={styles.tryAgain} activeOpacity={0.7}>
+          <Text style={styles.tryAgainText}>Try again</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  safeArea: { flex: 1, backgroundColor: SCREEN_BG },
+  topBar: { paddingHorizontal: 16, paddingTop: 12 },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 2, alignSelf: "flex-start" },
+  backText: { fontSize: 16, fontWeight: "600", color: "#3B82F6" },
+
+  scroll: { flex: 1 },
+
+  // Results view
+  resultsContent: { paddingHorizontal: 20, paddingBottom: 32, alignItems: "center" },
+  resultsTitle: { fontSize: 16, fontWeight: "700", color: "#1A1A2E", marginBottom: 18 },
+  ringWrap: { marginBottom: 16 },
+  ringPct: { fontSize: 32, fontWeight: "800", color: "#1A1A2E" },
+  ringSub: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
+  heading: { fontSize: 24, fontWeight: "800", color: "#1A1A2E", marginBottom: 4 },
+  subheading: { fontSize: 14, color: "#9CA3AF", marginBottom: 22 },
+
+  statsRow: { flexDirection: "row", gap: 12, alignSelf: "stretch", marginBottom: 14 },
+  statCard: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  container: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  banner: {
-    padding: 28,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: "center",
     gap: 4,
-    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  closeBtn: {
-    position: "absolute",
-    top: 14,
-    right: 14,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bannerLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.8)",
-  },
-  bannerChapter: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  scoreText: {
-    fontSize: 56,
-    fontWeight: "900",
-    color: "#fff",
-    lineHeight: 64,
-  },
-  timeTaken: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.75)",
-  },
-  statsRow: {
+  statValue: { fontSize: 20, fontWeight: "800", color: "#1A1A2E", marginTop: 4 },
+  statLabel: { fontSize: 12, color: "#9CA3AF" },
+
+  xpBanner: {
     flexDirection: "row",
-    paddingVertical: 22,
-    paddingHorizontal: 16,
-  },
-  statItem: {
-    flex: 1,
     alignItems: "center",
-    gap: 6,
+    gap: 10,
+    alignSelf: "stretch",
+    backgroundColor: "#EAF1FF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
   },
-  statIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  xpTitle: { fontSize: 14, fontWeight: "700", color: "#1A1A2E" },
+  xpSub: { fontSize: 12, color: "#6B7280", marginTop: 1 },
+
+  submittingRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+  submittingText: { fontSize: 12, color: "#9CA3AF" },
+
+  reviewBtn: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    alignSelf: "stretch",
+    backgroundColor: "#2F86FF",
+    borderRadius: 14,
+    paddingVertical: 16,
+    marginBottom: 12,
+    shadowColor: "#2F86FF",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  statValue: {
-    fontSize: 24,
+  reviewBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  doneBtn: {
+    alignSelf: "stretch",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  doneBtnText: { fontSize: 15, fontWeight: "700", color: "#1A1A2E" },
+  tryAgain: { marginTop: 14, padding: 6 },
+  tryAgainText: { fontSize: 13, fontWeight: "600", color: "#9CA3AF" },
+
+  // Review view
+  pageTitle: {
+    fontSize: 28,
     fontWeight: "800",
     color: "#1A1A2E",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontWeight: "600",
-  },
-  divider: {
-    width: 1,
-    backgroundColor: "#F3F4F6",
-    marginVertical: 8,
-  },
-  accuracySection: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 8,
+    paddingTop: 6,
+    paddingBottom: 14,
   },
-  accRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  reviewContent: { paddingHorizontal: 16, paddingBottom: 24, gap: 14 },
+  reviewCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  accLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  accValue: {
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  accTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#F3F4F6",
-  },
-  accFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  submittingRow: {
+  reviewHeadRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+  qTag: { fontSize: 13, fontWeight: "800", color: "#9CA3AF" },
+  statusPill: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingBottom: 12,
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
-  submittingText: {
-    fontSize: 12,
-    color: "#9CA3AF",
-  },
-  actions: {
+  statusPillText: { fontSize: 11, fontWeight: "700" },
+  reviewQText: { fontSize: 15, fontWeight: "700", color: "#1A1A2E", marginBottom: 12 },
+
+  optRow: {
     flexDirection: "row",
-    gap: 12,
-    padding: 20,
-    paddingTop: 0,
-  },
-  hubBtn: {
-    flex: 1,
-    paddingVertical: 15,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
     alignItems: "center",
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    marginBottom: 8,
   },
-  hubText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#6B7280",
+  optNeutral: { borderColor: "#EDEFF4", backgroundColor: "#F8F9FC" },
+  optCorrect: { borderColor: "#86E0A3", backgroundColor: "#E9F9EF" },
+  optWrong: { borderColor: "#F4B0B0", backgroundColor: "#FDECEC" },
+  optLetter: { fontSize: 13, fontWeight: "800", width: 16 },
+  optText: { flex: 1, fontSize: 14, fontWeight: "500" },
+
+  whyBox: {
+    backgroundColor: "#F4F6FB",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
   },
-  tryBtn: {
-    flex: 1,
-    flexDirection: "row",
-    gap: 8,
-    paddingVertical: 15,
-    borderRadius: 14,
-    backgroundColor: "#3B7DF8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tryText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#fff",
-  },
+  whyLabel: { fontWeight: "800", color: "#3B82F6" },
+  whyText: { fontSize: 13, color: "#6B7280", lineHeight: 19 },
 });

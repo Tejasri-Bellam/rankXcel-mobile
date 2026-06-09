@@ -19,6 +19,12 @@ export async function getDashboardDataService(examId: number | string) {
   return await genericGet(`/v1/dashboard/${examId}/`, true);
 }
 
+// GET /api/v1/student/consistency/
+// Daily activity feed for the Stats consistency heatmap.
+export async function getConsistencyService() {
+  return await genericGet(`/v1/student/consistency/`, true);
+}
+
 // GET /api/v1/dashboard/{exam_id}/history/?page={page}&type={type}
 // Paginated recent-activity history feed. `type` filters by activity kind
 // ("mock" | "practice" | "test" | "assessment"); omit/null for all types.

@@ -1068,6 +1068,23 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/v1/dashboard/{exam_id}/history/:
+    get:
+      operationId: dashboard_history_retrieve
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - dashboard
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/exams/:
     get:
       operationId: exams_list
@@ -1282,6 +1299,55 @@ paths:
       - cookieAuth: []
       responses:
         '200':
+          description: No response body
+  /api/v1/exams/subjects/{subject_id}/supporting-documents/:
+    get:
+      operationId: exams_subjects_supporting_documents_retrieve
+      parameters:
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: exams_subjects_supporting_documents_create
+      parameters:
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: exams_subjects_supporting_documents_destroy
+      parameters:
+      - in: path
+        name: subject_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
           description: No response body
   /api/v1/exams/target-exams/:
     get:
@@ -2521,6 +2587,17 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/v1/student/consistency/:
+    get:
+      operationId: student_consistency_retrieve
+      tags:
+      - student
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/student/topics/performance/{exam_id}/:
     get:
       operationId: student_topics_performance_retrieve
@@ -3435,11 +3512,13 @@ components:
       - easy
       - medium
       - hard
+      - mixed
       type: string
       description: |-
         * `easy` - easy
         * `medium` - medium
         * `hard` - hard
+        * `mixed` - mixed
     MockTestCreateTestTypeEnum:
       enum:
       - MOCK_TEST

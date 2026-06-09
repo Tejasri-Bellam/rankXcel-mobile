@@ -23,6 +23,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import PracticeExamFlow from "./PracticeExamFlow";
 import TopicsScreen from "./TopicScreen";
 import SubTopicsScreen from "./SubTopic";
+import CircleProgress from "@/src/components/dashboard/CircleProgress";
 
 export interface TopicItem {
   id: number;
@@ -148,52 +149,37 @@ const subjectEmoji = (name: string): string => {
   return "📘";
 };
 
-// Circular progress ring component
+// Circular progress ring — a proportional arc whose sweep matches the accuracy.
 export const AccuracyRing = ({
   pct,
   size = 56,
   stroke = 4,
   fontSize = 13,
+  showPercent = false,
+  bgColor = "#FFFFFF",
 }: {
   pct: number | null;
   size?: number;
   stroke?: number;
   fontSize?: number;
+  showPercent?: boolean;
+  bgColor?: string;
 }) => {
   const color = pct !== null ? getAccuracyColor(pct) : "#D1D5DB";
-  const radius = (size - stroke * 2) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = pct !== null ? (pct / 100) * circumference : 0;
 
   return (
-    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <View
-        style={{
-          position: "absolute",
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: stroke,
-          borderColor: "#E5E7EB",
-        }}
-      />
-      <View
-        style={{
-          position: "absolute",
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: stroke,
-          borderColor: pct !== null ? color : "transparent",
-          borderRightColor: "transparent",
-          borderBottomColor: pct !== null && pct > 50 ? color : "transparent",
-          transform: [{ rotate: "-90deg" }],
-        }}
-      />
+    <CircleProgress
+      size={size}
+      strokeWidth={stroke}
+      progress={pct ?? 0}
+      color={color}
+      trackColor="#E9EBF2"
+      bgColor={bgColor}
+    >
       <Text style={{ fontSize, fontWeight: "800", color: pct !== null ? color : "#9CA3AF" }}>
-        {pct !== null ? pct : "—"}
+        {pct !== null ? `${pct}${showPercent ? "%" : ""}` : "—"}
       </Text>
-    </View>
+    </CircleProgress>
   );
 };
 
@@ -343,7 +329,7 @@ export default function PracticeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
