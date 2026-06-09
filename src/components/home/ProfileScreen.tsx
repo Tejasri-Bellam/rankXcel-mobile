@@ -2,18 +2,20 @@ import { logoutService } from '@/src/libs/services/auth';
 import {
   addTargetExamService,
   deleteAccountService,
+  deleteTargetExamService,
   getExamsListService,
   getMeService,
+  getMyTargetExamsService,
   getNotificationsService,
-  getPreferencesService,
+  getTargetExamsService,
   updateMeService,
   updateNotificationsService,
 } from '@/src/libs/services/profile';
 import { profileStyles } from '@/src/styles/sidebar/profileStyles';
 import { COLORS } from '@/src/styles/styles';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -26,11 +28,20 @@ import {
   Switch,
 } from 'react-native';
 import { storageSetAccessToken } from '@/src/libs/storage';
+import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 
 const { width } = Dimensions.get('window');
 
 // Types
-type ExamEntry = { id: number; name: string; year: string; percentage?: string };
+// `id` is the exam id (used to dedupe the dropdown); `recordId` is the
+// target-exam preference id needed to DELETE it.
+type ExamEntry = {
+  id: number;
+  name: string;
+  year: string;
+  percentage?: string;
+  recordId?: number | string;
+};
 type NotifKey = 'mockResults' | 'weeklyTips' | 'mockNotif' | 'practiceReminders' | 'productUpdates';
 
 const NOTIFICATION_ITEMS: { key: NotifKey; label: string; channel: string }[] = [
@@ -78,6 +89,7 @@ const LabeledInput = ({
 // Main Screen
 export default function ProfileScreen() {
   const router = useRouter();
+  const { refreshExams } = useTargetExam();
 
   const [loading, setLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -134,24 +146,50 @@ export default function ProfileScreen() {
     }
   };
 
-  // Fetch preferences
+  // Fetch the user's assigned exams (GET /v1/exams/my-target-exams/).
+  // We also pull /v1/exams/target-exams/ to map each exam -> its preference
+  // record id, which is what the DELETE endpoint expects.
   const fetchPreferences = async () => {
   try {
-    const res = await getPreferencesService();
+    const [myRes, prefRes] = await Promise.all([
+      getMyTargetExamsService(),
+      getTargetExamsService().catch(() => null),
+    ]);
 
-    if (res.status === 200) {
-      const raw: any = res.data;
+    // exam id -> target-exam record id
+    const recordMap = new Map<number | string, number | string>();
+    const prefRaw: any = prefRes?.data;
+    const prefList: any[] = Array.isArray(prefRaw)
+      ? prefRaw
+      : prefRaw?.results || [];
+    prefList.forEach((item: any) => {
+      const examId = item.exam?.id ?? item.exam_id;
+      const recordId = item.id ?? item.target_exam_id;
+      if (examId != null && recordId != null) recordMap.set(examId, recordId);
+    });
+
+    if (myRes.status === 200) {
+      const raw: any = myRes.data;
       const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
-      const mappedExams = list.map((item: any) => ({
-        id: item.exam?.id ?? item.exam_id,
-        name: item.exam?.name ?? item.exam_name,
-        year: String(item.target_year ?? ''),
-      }));
+      // my-target-exams returns exam objects directly ({ id, name, code, ... });
+      // still tolerate the older { exam: {...}, target_year } shape.
+      const mappedExams = list.map((item: any) => {
+        const examId = item.exam?.id ?? item.id ?? item.exam_id;
+        return {
+          id: examId,
+          name: item.exam?.name ?? item.name ?? item.exam_name,
+          year: String(item.target_year ?? item.year ?? ''),
+          // Prefer an explicit record id; fall back to the mapped one, then
+          // the exam id so delete still has something to send.
+          recordId:
+            item.target_exam_id ?? recordMap.get(examId) ?? examId,
+        };
+      });
 
       setExams(mappedExams);
     }
   } catch (error) {
-    console.log("Preferences Error:", error);
+    console.log("My target exams error:", error);
   }
 };
 
@@ -192,10 +230,17 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     fetchProfile();
-    fetchPreferences();
     fetchExamsList();
     fetchNotifications();
   }, []);
+
+  // Re-pull the assigned-exam list every time the screen regains focus so a
+  // newly assigned exam (e.g. via the Set Goal flow) shows up without a reload.
+  useFocusEffect(
+    useCallback(() => {
+      fetchPreferences();
+    }, [])
+  );
 
   // Save personal info
   const handleSavePersonal = async () => {
@@ -281,6 +326,8 @@ export default function ProfileScreen() {
         setTargetPercentage('');
 
         fetchPreferences();
+        // Keep the sidebar "Your courses" / dashboard list in sync.
+        refreshExams();
       }
     } catch (error: any) {
       console.log(
@@ -303,6 +350,40 @@ export default function ProfileScreen() {
         "Failed to add target exam";
       Alert.alert("Error", String(firstMessage));
     }
+  };
+
+  // Remove an assigned target exam (DELETE /v1/exams/target-exams/{id}/)
+  const handleDeleteExam = (exam: ExamEntry) => {
+    const deleteId = exam.recordId ?? exam.id;
+    Alert.alert(
+      "Remove exam",
+      `Remove ${exam.name} from your target exams?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            // Optimistically drop it; restore on failure.
+            const prev = exams;
+            setExams((list) => list.filter((e) => e.id !== exam.id));
+            try {
+              await deleteTargetExamService(deleteId);
+              // Keep the sidebar "Your courses" / dashboard list in sync.
+              refreshExams();
+            } catch (error: any) {
+              setExams(prev);
+              const body = error?.body || {};
+              const message =
+                Object.values(error?.errors || {}).flat()[0] ||
+                (typeof body.detail === "string" ? body.detail : null) ||
+                "Failed to remove target exam";
+              Alert.alert("Error", String(message));
+            }
+          },
+        },
+      ]
+    );
   };
 
   //  Notifications
@@ -339,7 +420,6 @@ export default function ProfileScreen() {
               await deleteAccountService();
 
               await storageSetAccessToken('');
-              await storage.setRefreshToken();
 
               Alert.alert('Success', 'Account Deleted Successfully');
               router.replace('/auth/login');
@@ -432,9 +512,17 @@ export default function ProfileScreen() {
             <View key={ex.id} style={profileStyles.examRow}>
               <View style={profileStyles.examRowInfo}>
                 <Text style={profileStyles.examRowName}>{ex.name}</Text>
-                <Text style={profileStyles.examRowYear}>Year: {ex.year}</Text>
+                {ex.year ? (
+                  <Text style={profileStyles.examRowYear}>Year: {ex.year}</Text>
+                ) : null}
               </View>
-              <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+              <TouchableOpacity
+                style={profileStyles.examRowDelete}
+                onPress={() => handleDeleteExam(ex)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="trash-outline" size={18} color={COLORS.red} />
+              </TouchableOpacity>
             </View>
           ))}
 
@@ -454,19 +542,33 @@ export default function ProfileScreen() {
                     <Text style={[profileStyles.dropdownOptionText, { color: COLORS.textLight }]}>No exams available</Text>
                   </View>
                 ) : (
-                  examOptions.map((opt) => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      style={profileStyles.dropdownOption}
-                      onPress={() => {
-                        setSelectedExamId(opt.id);
-                        setSelectedExamName(opt.name);
-                        setExamDropdownOpen(false);
-                      }}
-                    >
-                      <Text style={profileStyles.dropdownOptionText}>{opt.name}</Text>
-                    </TouchableOpacity>
-                  ))
+                  examOptions.map((opt) => {
+                    const assigned = exams.some((ex) => ex.id === opt.id);
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        style={[
+                          profileStyles.dropdownOption,
+                          assigned && { opacity: 0.45 },
+                        ]}
+                        disabled={assigned}
+                        onPress={() => {
+                          setSelectedExamId(opt.id);
+                          setSelectedExamName(opt.name);
+                          setExamDropdownOpen(false);
+                        }}
+                      >
+                        <Text style={profileStyles.dropdownOptionText}>
+                          {opt.name}
+                        </Text>
+                        {assigned ? (
+                          <Text style={profileStyles.dropdownOptionAssigned}>
+                            Assigned
+                          </Text>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })
                 )}
               </View>
             )}

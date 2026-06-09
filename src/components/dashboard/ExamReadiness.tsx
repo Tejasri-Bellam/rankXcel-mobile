@@ -26,15 +26,22 @@ export default function ExamReadiness({
   examName,
 }: ExamReadinessProps) {
   const router = useRouter();
-  const overview = dashboardData?.overview;
+  const subjects = dashboardData?.strength_by_subject ?? [];
 
-  if (!overview) return null;
+  if (!dashboardData) return null;
 
-  const pct = Math.round(overview.avg_accuracy ?? 0);
+  // Readiness = average accuracy across tracked subjects.
+  const pct = subjects.length
+    ? Math.round(
+        subjects.reduce((sum, s) => sum + (s.accuracy ?? 0), 0) /
+          subjects.length
+      )
+    : 0;
   const label = readinessLabel(pct);
+  const subjectCount = subjects.length;
   const subtitle = [
     examName || "Your exam",
-    `${overview.mocks_taken ?? 0} mocks · ${overview.assessments_taken ?? 0} assessments`,
+    `${subjectCount} subject${subjectCount === 1 ? "" : "s"} tracked`,
   ]
     .filter(Boolean)
     .join(" · ");

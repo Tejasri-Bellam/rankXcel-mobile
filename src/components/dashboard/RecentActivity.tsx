@@ -17,17 +17,39 @@ const scoreColor = (pct: number) => {
   return COLORS.red;
 };
 
+// Icon per activity type ("Practice" | "Mock" | "Assessment").
+const typeIcon = (type: string): keyof typeof Ionicons.glyphMap => {
+  switch ((type || "").toLowerCase()) {
+    case "mock":
+      return "newspaper-outline";
+    case "assessment":
+      return "school-outline";
+    case "practice":
+    default:
+      return "create-outline";
+  }
+};
+
+// "2026-05-27T05:59:15Z" → "27 May 2026"
+const formatDate = (iso: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 export default function RecentActivity({ dashboardData }: RecentActivityProps) {
   const router = useRouter();
 
-  const scores = dashboardData?.recent_performance?.scores ?? [];
-  const trend = dashboardData?.recent_performance?.trend ?? "";
+  const activity = dashboardData?.recent_activity ?? [];
 
-  if (!scores.length) return null;
+  if (!activity.length) return null;
 
-  // Newest first.
-  const rows = [...scores].reverse().slice(0, MAX_ROWS);
-  const isImproving = trend === "improving";
+  const rows = activity.slice(0, MAX_ROWS);
 
   return (
     <View style={styles.section}>
@@ -36,48 +58,32 @@ export default function RecentActivity({ dashboardData }: RecentActivityProps) {
           <Ionicons name="time-outline" size={15} color={COLORS.primary} />
           <Text style={styles.sectionTitle}>Recent activity</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push("/analytics")}>
+        <TouchableOpacity onPress={() => router.push("/history")}>
           <Text style={styles.link}>History ›</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
-        {trend ? (
-          <View style={styles.trendRow}>
-            <Ionicons
-              name={isImproving ? "trending-up" : "trending-down"}
-              size={14}
-              color={isImproving ? COLORS.green : COLORS.red}
-            />
-            <Text
-              style={[
-                styles.trendText,
-                { color: isImproving ? COLORS.green : COLORS.red },
-              ]}
-            >
-              {isImproving ? "Improving" : "Needs work"}
-            </Text>
-          </View>
-        ) : null}
-
         {rows.map((item, index) => {
           const pct = Math.round(item.percentage ?? 0);
           const color = scoreColor(pct);
           return (
             <View
               key={index}
-              style={[styles.row, index === 0 && !trend && styles.rowFirst]}
+              style={[styles.row, index === 0 && styles.rowFirst]}
             >
               <View style={styles.rowIcon}>
                 <Ionicons
-                  name="document-text-outline"
+                  name={typeIcon(item.type)}
                   size={16}
                   color={COLORS.primary}
                 />
               </View>
               <View style={styles.rowInfo}>
-                <Text style={styles.rowTitle}>Attempt · {item.date}</Text>
-                <Text style={styles.rowSub}>Score {item.score}</Text>
+                <Text style={styles.rowTitle} numberOfLines={1}>
+                  {item.type} · {item.label}
+                </Text>
+                <Text style={styles.rowSub}>{formatDate(item.submitted_at)}</Text>
               </View>
               <Text style={[styles.rowPct, { color }]}>{pct}%</Text>
             </View>
@@ -113,15 +119,6 @@ const styles: any = {
     shadowRadius: 10,
     elevation: 2,
   },
-  trendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  trendText: { fontSize: 12, fontWeight: "700" },
   row: {
     flexDirection: "row",
     alignItems: "center",

@@ -19,6 +19,7 @@ export const OnboardingJson = () => {
       placeholders: { exam: 'Search or select an exam...' },
       years: [2026, 2027],
       nextBtn: 'Next: Assessment',
+      submitBtn: 'Continue',
     },
 
     assessment: {

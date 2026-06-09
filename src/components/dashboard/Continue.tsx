@@ -14,9 +14,6 @@ interface PracticeItem {
   chapter: string;
   subject: string;
   status: string;
-  questionCount?: number;
-  durationMinutes?: number;
-  accuracyTrend?: string;
 }
 
 const subjectStyle: Record<string, { bg: string; text: string }> = {
@@ -32,41 +29,25 @@ const MAX_ITEMS = 4;
 
 export default function Continue({ dashboardData, examId }: ContinueProps) {
   const router = useRouter();
-console.log('ddd', dashboardData);
 
-  const focus = dashboardData?.todays_focus ?? null;
-  const weak = dashboardData?.weak_chapters ?? [];
+  const focus = dashboardData?.todays_focus ?? [];
 
-  // Build the practice list: today's focus first, then weak chapters,
-  // de-duplicated by chapter name.
+  // Build the practice list from today's focus topics, de-duplicated by name.
   const seen = new Set<string>();
   const items: PracticeItem[] = [];
 
-  if (focus) {
-    seen.add(focus.topic_name);
+  for (const f of focus) {
+    if (seen.has(f.topic_name)) continue;
+    seen.add(f.topic_name);
     items.push({
-      chapter: focus.topic_name,
-      subject: focus.subject_name,
-      status: "Weak",
-      questionCount: focus.question_count,
-      durationMinutes: focus.estimated_duration_minutes,
-      accuracyTrend: focus.accuracy_trend,
-    });
-  }
-
-  for (const c of weak) {
-    if (seen.has(c.topic_name)) continue;
-    seen.add(c.topic_name);
-    items.push({
-      chapter: c.topic_name,
-      subject: c.subject_name,
+      chapter: f.topic_name,
+      subject: f.subject_name,
       status: "Weak",
     });
     if (items.length >= MAX_ITEMS) break;
   }
 
   if (!items.length) return null;
-console.log('ssss', items);
 
   const startPractice = (item: PracticeItem) => {
     if (examId == null) return;
@@ -75,9 +56,8 @@ console.log('ssss', items);
       params: {
         chapterName: item.chapter,
         subjectName: item.subject,
-        questionCount: String(item.questionCount ?? 20),
-        durationMinutes: String(item.durationMinutes ?? 30),
-        accuracyTrend: item.accuracyTrend ?? "",
+        questionCount: "20",
+        durationMinutes: "30",
         examId: String(examId),
       },
     });

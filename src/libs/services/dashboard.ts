@@ -18,3 +18,18 @@ export async function getMyTargetExamsService(countryId?: number | string | null
 export async function getDashboardDataService(examId: number | string) {
   return await genericGet(`/v1/dashboard/${examId}/`, true);
 }
+
+// GET /api/v1/dashboard/{exam_id}/history/?page={page}&type={type}
+// Paginated recent-activity history feed. `type` filters by activity kind
+// ("mock" | "practice" | "test" | "assessment"); omit/null for all types.
+export async function getDashboardHistoryService(
+  examId: number | string,
+  page: number = 1,
+  type?: string | null
+) {
+  const params = new URLSearchParams();
+  if (page > 1) params.set("page", String(page));
+  if (type) params.set("type", type);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return await genericGet(`/v1/dashboard/${examId}/history/${query}`, true);
+}

@@ -1,3 +1,3 @@
-import OnboardingFlow from '@/src/components/onboarding/OnboardingFlow';
- 
-export default OnboardingFlow;
+import IntroCarousel from '@/src/components/onboarding/IntroCarousel';
+
+export default IntroCarousel;

@@ -132,9 +132,18 @@ addExamInlineField: {
     borderColor: COLORS.border,
     marginBottom: 8,
   },
-  examRowInfo: {},
+  examRowInfo: { flex: 1 },
   examRowName: { fontSize: 14, fontWeight: '600', color: COLORS.textDark },
   examRowYear: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  examRowDelete: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.redLight,
+    marginLeft: 10,
+  },
 
   // ── Add exam form ──
   addExamForm: { marginTop: 8 },
@@ -164,12 +173,25 @@ addExamInlineField: {
     shadowRadius: 8,
   },
   dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   dropdownOptionText: { fontSize: 14, color: COLORS.textDark },
+  dropdownOptionAssigned: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
 
   addExamBtn: {
     flexDirection: 'row',
