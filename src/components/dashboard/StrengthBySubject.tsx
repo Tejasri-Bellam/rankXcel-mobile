@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { DashboardData, SubjectHealth } from "@/src/libs/types/dashboard";
+import { DashboardData } from "@/src/libs/types/dashboard";
 
 interface StrengthBySubjectProps {
   dashboardData: DashboardData | null;
@@ -27,18 +27,7 @@ export default function StrengthBySubject({
 }: StrengthBySubjectProps) {
   const router = useRouter();
 
-  const fromMocks = dashboardData?.subject_health?.from_mocks ?? [];
-  const fromAssessments = dashboardData?.subject_health?.from_assessments ?? [];
-
-  // Merge both sources keyed by subject, keeping the highest accuracy seen.
-  const merged = new Map<string, SubjectHealth>();
-  for (const s of [...fromMocks, ...fromAssessments]) {
-    const existing = merged.get(s.subject_name);
-    if (!existing || (s.accuracy ?? 0) > (existing.accuracy ?? 0)) {
-      merged.set(s.subject_name, s);
-    }
-  }
-  const subjects = Array.from(merged.values());
+  const subjects = dashboardData?.strength_by_subject ?? [];
 
   if (!subjects.length) return null;
 

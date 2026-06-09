@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { resendOtpService, verifyEmailService } from '@/src/libs/services/auth';
+import { storageSetAccessToken } from '@/src/libs/storage';
 
 const OTP_LENGTH = 6;
 
@@ -88,8 +89,21 @@ const VerifyEmailScreen = () => {
       const response = await verifyEmailService(payload);
       console.log('Verify Email Response:', response);
 
+      // Auto-login the freshly verified account so the user never has to
+      // log in manually — store whatever token shape the API returns.
+      const resData: any = (response as any)?.data ?? {};
+      const token =
+        resData.token ??
+        resData.access ??
+        resData.access_token ??
+        resData.key ??
+        resData.user?.token;
+      if (token) {
+        await storageSetAccessToken(token);
+      }
+
       Alert.alert('Success', 'Email verified successfully!', [
-        { text: 'OK', onPress: () => router.replace('/auth/login') },
+        { text: 'OK', onPress: () => router.replace('/set-goal') },
       ]);
     } catch (error: any) {
       console.log('VERIFY ERROR:', JSON.stringify(error, null, 2));

@@ -9,11 +9,10 @@ interface DailyGoalProps {
 }
 
 export default function DailyGoal({ dashboardData }: DailyGoalProps) {
-  const focus = dashboardData?.todays_focus;
   const session = dashboardData?.in_progress_session;
 
-  // Today's target = today's focus question count (fallback 30).
-  const goal = focus?.question_count ?? 30;
+  // Today's target = a flat daily question goal.
+  const goal = 30;
 
   // Questions already attempted in the in-progress session, if any.
   const done = session

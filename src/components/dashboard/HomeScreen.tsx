@@ -11,6 +11,7 @@ import { COLORS } from "@/src/styles/styles";
 import Greeting from "./Greeting";
 import ExamReadiness from "./ExamReadiness";
 import DailyGoal from "./DailyGoal";
+import Streak from "./Streak";
 import Continue from "./Continue";
 import StrengthBySubject from "./StrengthBySubject";
 import Upcoming from "./Upcoming";
@@ -73,6 +74,7 @@ export default function HomeScreen() {
             examName={activeExam?.name}
           />
           <DailyGoal dashboardData={dashboardData} />
+          <Streak dashboardData={dashboardData} />
           <Continue dashboardData={dashboardData} examId={activeExamId} />
           <StrengthBySubject dashboardData={dashboardData} />
           <Upcoming dashboardData={dashboardData} />

@@ -1,6 +1,5 @@
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
-import { getSubjectOptionsService } from "@/src/libs/services/mock-library";
-import { getTopicPerformanceService, getTopicsService } from "@/src/libs/services/practice";
+import { getExamSyllabusService } from "@/src/libs/services/practice";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -96,52 +95,57 @@ export const getStrengthLabel = (accuracy: number | null): string => {
   return "Weak";
 };
 
-const normalizePerformance = (raw: any): SubjectGroup[] => {
-  const data = unwrap(raw);
-  const list = toArray(data);
-  const subjectMap = new Map<string, SubjectGroup>();
+// Build the syllabus tree from GET /v1/exams/{id}/syllabus/.
+// Shape: [{ id, name, accuracy, topics: [{ id, name, accuracy,
+//           subtopics: [{ id, name, accuracy }] }] }]
+// Mapped onto the screen's model: subject → SubjectGroup, its `topics` →
+// `chapters` (ChapterItem), and each topic's `subtopics` → `chapter.topics`.
+const normalizeSyllabus = (raw: any): SubjectGroup[] => {
+  const subjects = toArray(unwrap(raw));
 
-  list.forEach((entry: any) => {
-    if (!entry || typeof entry !== "object") return;
-    const subjectName = String(entry.subject_name ?? entry.subject ?? "Subject");
-    const chapterName = String(entry.chapter_name ?? entry.chapter ?? entry.name ?? "");
-    if (!chapterName) return;
+  return subjects.map((subj: any): SubjectGroup => {
+    const subjectName = String(subj?.name ?? subj?.code ?? "Subject");
+    const topicsRaw = Array.isArray(subj?.topics) ? subj.topics : [];
 
-    if (!subjectMap.has(subjectName)) {
-      subjectMap.set(subjectName, {
-  id: Number(entry.subject_id ?? 0),
-  name: subjectName,
-  chapters: [],
-  accuracy: null,
-  topicCount: 0,
-});
-    }
-
-    const topicsRaw = Array.isArray(entry.topics) ? entry.topics : [];
-    const topics: TopicItem[] = topicsRaw.map((t: any) => ({
-      name: String(t?.topic_name ?? t?.name ?? ""),
-      accuracy: parseAccuracy(t?.percentage ?? t?.accuracy),
-      questionCount: t?.question_count ?? t?.total_questions ?? null,
-    }));
-
-    const subjectGroup = subjectMap.get(subjectName)!;
-    subjectGroup.chapters.push({
-      id: Number(entry.chapter_id ?? entry.id ?? 0),
-      name: chapterName,
-      topics,
-      accuracy: parseAccuracy(entry.percentage ?? entry.accuracy),
-      subjectName,
+    const chapters: ChapterItem[] = topicsRaw.map((topic: any): ChapterItem => {
+      const subtopicsRaw = Array.isArray(topic?.subtopics)
+        ? topic.subtopics
+        : [];
+      const subtopics: TopicItem[] = subtopicsRaw.map(
+        (st: any): TopicItem => ({
+          id: Number(st?.id ?? 0),
+          name: String(st?.name ?? ""),
+          accuracy: parseAccuracy(st?.accuracy),
+        })
+      );
+      return {
+        id: Number(topic?.id ?? 0),
+        name: String(topic?.name ?? ""),
+        topics: subtopics,
+        accuracy: parseAccuracy(topic?.accuracy),
+        subjectName,
+      };
     });
-  });
 
-  const groups = Array.from(subjectMap.values());
-  groups.forEach((g) => {
-    g.topicCount = g.chapters.reduce((sum, c) => sum + c.topics.length, 0);
-    const accs = g.chapters.map((c) => c.accuracy).filter((a): a is number => a !== null);
-    g.accuracy = accs.length > 0 ? Math.round(accs.reduce((a, b) => a + b, 0) / accs.length) : null;
+    return {
+      id: Number(subj?.id ?? 0),
+      name: subjectName,
+      chapters,
+      accuracy: parseAccuracy(subj?.accuracy),
+      topicCount: chapters.length,
+    };
   });
+};
 
-  return groups;
+// Pick a subject glyph by name, with a neutral fallback for non-science
+// subjects (e.g. "Highway Code", "Life in the UK").
+const subjectEmoji = (name: string): string => {
+  const n = name.toLowerCase();
+  if (n.includes("phys")) return "⚛️";
+  if (n.includes("chem")) return "🧪";
+  if (n.includes("math")) return "📐";
+  if (n.includes("bio")) return "🧬";
+  return "📘";
 };
 
 // Circular progress ring component
@@ -224,36 +228,12 @@ export default function PracticeScreen() {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
-      const [perfRes, subjRes] = await Promise.all([
-        getTopicPerformanceService(examId),
-        getSubjectOptionsService(examId),
-      ]);
-      const perfGroups = normalizePerformance(perfRes);
-      const subjectsList = toArray(unwrap(subjRes));
-
-      // Subject options carry the authoritative id (+ questions_count) needed to
-      // drill into topics, so build the list from them and layer the accuracy /
-      // topic data from the performance endpoint on top (matched by name).
-      const groups: SubjectGroup[] = subjectsList.map((s: any): SubjectGroup => {
-        const name = String(s?.name ?? s?.code ?? "Subject");
-        const perf = perfGroups.find((g) => g.name === name);
-        return {
-          id: Number(s?.id ?? perf?.id ?? 0),
-          name,
-          chapters: perf?.chapters ?? [],
-          accuracy: perf?.accuracy ?? null,
-          topicCount: perf?.topicCount ?? 0,
-        };
-      });
-
-      // Keep any performance subjects that weren't in the options list.
-      perfGroups.forEach((perf) => {
-        if (!groups.find((g) => g.name === perf.name)) groups.push(perf);
-      });
-
-      setSubjectGroups(groups);
+      // A single call returns the full nested tree (subjects → topics →
+      // subtopics), so drilling in needs no further requests.
+      const res = await getExamSyllabusService(examId);
+      setSubjectGroups(normalizeSyllabus(res));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load subjects.");
+      setError(err instanceof Error ? err.message : "Failed to load syllabus.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -281,74 +261,23 @@ export default function PracticeScreen() {
     router.setParams({ chapterName: undefined, subjectName: undefined, questionCount: undefined, durationMinutes: undefined, examId: undefined } as any);
   }, [params, activeExamId, router]);
 
-  const handleSubjectPress = async (subject: SubjectGroup) => {
-  try {
-    setLoading(true);
-
-    const res = await getTopicsService(subject.id);
-
-    const topics = toArray(unwrap(res));
-
-    const chapters: ChapterItem[] = topics.map((topic: any) => ({
-      id: topic.id,
-      name: topic.name,
-      accuracy: null,
-      subjectName: subject.name,
-      topics: [],
-    }));
-
-    setSelectedSubject({
-      ...subject,
-      chapters,
-    });
-
+  const handleSubjectPress = (subject: SubjectGroup) => {
+    // The full tree is already loaded — just drill into its topics.
+    setSelectedSubject(subject);
     setNavScreen("topics");
-  } catch (e) {
-    console.log(e);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
- const handleTopicPress = async (chapter: ChapterItem) => {
-  try {
-    const subject = selectedSubject;
-
-    if (!subject) return;
-
-    const res = await getTopicsService(
-      subject.id,
-      chapter.id
-    );
-
-    const children = toArray(unwrap(res));
-
-    //
-    // No children => Topic -> Questions
-    //
-    if (children.length === 0) {
+  const handleTopicPress = (chapter: ChapterItem) => {
+    // `chapter.topics` holds the sub-topics from the syllabus tree.
+    // No sub-topics → go straight to practising the topic.
+    if (chapter.topics.length === 0) {
       setActiveChapter(chapter);
       setPracticeVisible(true);
       return;
     }
-
-    //
-    // Topic -> Sub Topics
-    //
-    setSelectedChapter({
-      ...chapter,
-      topics: children.map((t: any) => ({
-        id: t.id,
-        name: t.name,
-        accuracy: null,
-      })),
-    });
-
+    setSelectedChapter(chapter);
     setNavScreen("subtopics");
-  } catch (e) {
-    console.log(e);
-  }
-};
+  };
 
  const handleSubTopicPress = (chapter: ChapterItem) => {
   setActiveChapter(chapter);
@@ -464,9 +393,7 @@ export default function PracticeScreen() {
               >
                 <AccuracyRing pct={subject.accuracy} size={56} stroke={4} fontSize={13} />
                 <View style={styles.subjectIcon}>
-                  <Text style={{ fontSize: 22 }}>
-                    {idx === 0 ? "📐" : idx === 1 ? "⚛️" : "🧪"}
-                  </Text>
+                  <Text style={{ fontSize: 22 }}>{subjectEmoji(subject.name)}</Text>
                 </View>
                 <View style={styles.subjectInfo}>
                   <Text style={styles.subjectName}>{subject.name}</Text>

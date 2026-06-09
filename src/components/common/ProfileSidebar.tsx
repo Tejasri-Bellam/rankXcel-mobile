@@ -19,13 +19,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { COLORS } from "@/src/styles/styles";
 import { logoutService } from "@/src/libs/services/auth";
-import { getMeService } from "@/src/libs/services/profile";
+import {
+  getMeService,
+  getTargetExamsService,
+  deleteTargetExamService,
+} from "@/src/libs/services/profile";
 import { getCountriesService } from "@/src/libs/services/countries";
 import { storageGetAccessToken } from "@/src/libs/storage";
 import { useTargetExam, TargetExam } from "@/src/libs/context/TagretExamContext";
 
 const { width, height } = Dimensions.get("window");
-const PANEL_W = Math.min(360, width * 0.86);
+// Full-width panel.
+const PANEL_W = width;
 // Keep the courses list scrollable without letting the sheet cover the screen.
 const SHEET_LIST_MAX_H = height * 0.6;
 
@@ -182,11 +187,43 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
   };
 
   const loadRegion = async () => {
+    let current: RegionInfo = region;
     try {
       const saved = await AsyncStorage.getItem("region");
-      if (saved) setRegion({ ...region, ...JSON.parse(saved) });
+      if (saved) {
+        current = { ...region, ...JSON.parse(saved) };
+        setRegion(current);
+      }
     } catch {
       // keep default
+    }
+
+    // The saved region may predate flag support (or be the default India with
+    // no flag). Resolve the flag from the countries catalogue by name match.
+    if (!current.flagUrl) {
+      try {
+        const res: any = await getCountriesService();
+        const payload = res?.data;
+        const list: any[] = Array.isArray(payload)
+          ? payload
+          : payload?.results ?? payload?.data ?? payload?.countries ?? [];
+        const match = list
+          .map(normalizeCountry)
+          .find(
+            (c) => c.name.toLowerCase() === current.name.toLowerCase()
+          );
+        if (match?.flagUrl) {
+          const next: RegionInfo = {
+            ...current,
+            flagUrl: match.flagUrl,
+            currency: current.currency || match.currency,
+          };
+          setRegion(next);
+          AsyncStorage.setItem("region", JSON.stringify(next)).catch(() => {});
+        }
+      } catch {
+        // Non-fatal — fall back to the globe glyph.
+      }
     }
   };
 
@@ -215,6 +252,45 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
   const go = (path: string) => {
     handleClose();
     setTimeout(() => router.push(path as any), 210);
+  };
+
+  // Remove a course (target exam). The list comes from my-target-exams (exam
+  // ids), but DELETE keys on the target-exam record id, so resolve that first.
+  const handleDeleteExam = (exam: TargetExam) => {
+    Alert.alert(
+      "Remove course",
+      `Remove ${exam.name} from your courses?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              let deleteId: number | string = exam.id;
+              try {
+                const res: any = await getTargetExamsService();
+                const raw = res?.data;
+                const list: any[] = Array.isArray(raw)
+                  ? raw
+                  : raw?.results ?? [];
+                const match = list.find(
+                  (it: any) =>
+                    String(it.exam?.id ?? it.exam_id) === String(exam.id)
+                );
+                if (match?.id != null) deleteId = match.id;
+              } catch {
+                // Fall back to the exam id if the lookup fails.
+              }
+              await deleteTargetExamService(deleteId);
+              await refreshExams();
+            } catch {
+              Alert.alert("Error", "Failed to remove course.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const confirmLogout = () => {
@@ -458,6 +534,12 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
           // Close the sidebar and land on the dashboard for the chosen exam.
           go("/dashboard");
         }}
+        onAssignExam={() => {
+          setCoursesOpen(false);
+          // Open the "assign target exam" flow.
+          go("/set-goal");
+        }}
+        onDeleteExam={handleDeleteExam}
       />
     </Modal>
   );
@@ -470,6 +552,8 @@ function CoursesSheet({
   exams,
   activeExamId,
   onSelectExam,
+  onAssignExam,
+  onDeleteExam,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -477,6 +561,8 @@ function CoursesSheet({
   exams: TargetExam[];
   activeExamId: number | string | null;
   onSelectExam: (id: number) => void;
+  onAssignExam: () => void;
+  onDeleteExam: (exam: TargetExam) => void;
 }) {
   return (
     <Modal
@@ -555,10 +641,33 @@ function CoursesSheet({
                       color={COLORS.primary}
                     />
                   ) : null}
+                  <TouchableOpacity
+                    style={styles.examDelete}
+                    onPress={() => onDeleteExam(exam)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={COLORS.red} />
+                  </TouchableOpacity>
                 </TouchableOpacity>
               );
             })
           )}
+
+          {/* Assign a new target exam */}
+          <TouchableOpacity
+            style={styles.assignRow}
+            activeOpacity={0.85}
+            onPress={onAssignExam}
+          >
+            <View style={styles.assignIcon}>
+              <Ionicons name="add" size={20} color={COLORS.primary} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.assignTitle}>Assign target exam</Text>
+              <Text style={styles.assignSub}>Add another exam to your courses</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+          </TouchableOpacity>
 
           <View style={{ height: 12 }} />
         </ScrollView>
@@ -912,6 +1021,15 @@ const styles: any = {
   },
   examName: { fontSize: 15, fontWeight: "700", color: COLORS.textDark },
   examSub: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  examDelete: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.redLight,
+    marginLeft: 10,
+  },
   expiredBadge: {
     backgroundColor: COLORS.redLight,
     borderRadius: 8,
@@ -919,6 +1037,29 @@ const styles: any = {
     paddingVertical: 4,
   },
   expiredText: { fontSize: 11, fontWeight: "700", color: COLORS.red },
+
+  // "Assign target exam" action in the courses sheet
+  assignRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: COLORS.primary,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    backgroundColor: COLORS.primaryLight,
+  },
+  assignIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: COLORS.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  assignTitle: { fontSize: 15, fontWeight: "700", color: COLORS.primary },
+  assignSub: { fontSize: 12, color: COLORS.textMedium, marginTop: 2 },
 };
 
 function StyleSheetAbsolute() {

@@ -64,6 +64,16 @@ export async function addTargetExamService(
   );
 }
 
+// Delete a Target Exam (DELETE /v1/exams/target-exams/{id}/)
+export async function deleteTargetExamService(
+  id: number | string
+) {
+  return await genericDelete(
+    `/v1/exams/target-exams/${id}/`,
+    true
+  );
+}
+
 // Get My Target Exams
 export async function getMyTargetExamsService() {
   return await genericGet(

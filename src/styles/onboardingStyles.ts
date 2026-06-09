@@ -165,6 +165,9 @@ export const onboardingStyles = StyleSheet.create({
     overflow: 'hidden',
   },
   optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -173,6 +176,16 @@ export const onboardingStyles = StyleSheet.create({
   optionText: {
     fontSize: 14,
     color: COLORS.textDark,
+  },
+  assignedTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   optionEmpty: {
     paddingHorizontal: 14,

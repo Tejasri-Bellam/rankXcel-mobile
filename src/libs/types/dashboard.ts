@@ -1,34 +1,21 @@
-export interface DashboardOverview {
-  mocks_taken: number;
-  mocks_this_week: number;
-  avg_accuracy: number;
-  assessments_taken: number;
-  assessments_this_week: number;
-  assessments_avg_accuracy: number;
-}
+// Shape of GET /api/v1/dashboard/{exam_id}/
 
-export interface PerformanceScore {
-  date: string;
-  score: number;
-  percentage: number;
-}
-
-export interface RecentPerformance {
-  trend: "improving" | "declining" | string;
-  scores: PerformanceScore[];
-}
-
-export interface SubjectHealth {
+export interface SubjectStrength {
   subject_name: string;
   accuracy: number;
-  status: string;
 }
 
-export interface WeakChapter {
+export interface RecentActivityItem {
+  type: string; // "Practice" | "Mock" | "Assessment"
+  label: string;
+  submitted_at: string; // ISO timestamp
+  percentage: number;
+}
+
+export interface TodaysFocusItem {
   topic_name: string;
   subject_name: string;
-  percentage: number;
-  attempts: number;
+  accuracy: number;
 }
 
 export interface InProgressSession {
@@ -45,14 +32,6 @@ export interface UpcomingAssessment {
   difficulty: string;
 }
 
-export interface TodaysFocusData {
-  topic_name: string;
-  subject_name: string;
-  accuracy_trend: string;
-  question_count: number;
-  estimated_duration_minutes: number;
-}
-
 export interface StreakDay {
   day: string;
   completed: boolean;
@@ -66,17 +45,20 @@ export interface DashboardStreak {
 
 export interface DashboardData {
   selected_exam_id: number;
-  overview: DashboardOverview;
-  recent_performance: RecentPerformance;
-  subject_health: {
-    from_mocks: SubjectHealth[];
-    from_assessments: SubjectHealth[];
-  };
-  weak_chapters: WeakChapter[];
+  strength_by_subject: SubjectStrength[];
+  streak: DashboardStreak;
+  recent_activity: RecentActivityItem[];
   in_progress_session: InProgressSession | null;
   upcoming_assessments: UpcomingAssessment[];
-  todays_focus: TodaysFocusData | null;
-  streak: DashboardStreak;
+  todays_focus: TodaysFocusItem[];
+}
+
+// GET /api/v1/dashboard/{exam_id}/history/ (paginated)
+export interface DashboardHistoryPage {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: RecentActivityItem[];
 }
 
 export interface DashboardUser {

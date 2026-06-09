@@ -190,7 +190,7 @@ const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
       }
 
-      router.push('/welcome');
+      router.replace('/dashboard');
     } catch (error: any) {
       console.log('LOGIN ERROR:', JSON.stringify(error, null, 2));
       setFieldErrors(getApiFieldErrors(error));
