@@ -238,6 +238,51 @@ export const examScreenStyles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // Assertion-Reason cards
+  arCard: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: ACCENT,
+  },
+  arLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: ACCENT,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  arText: {
+    fontSize: 13,
+    color: PRIMARY,
+    lineHeight: 20,
+  },
+
+  // Numerical answer input
+  numericInput: {
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontWeight: '600',
+    color: PRIMARY,
+    backgroundColor: '#fff',
+  },
+  numericInputFilled: {
+    borderColor: ACCENT,
+    backgroundColor: '#FCFBFF',
+  },
+  numericHint: {
+    fontSize: 11,
+    color: GRAY,
+    marginTop: 6,
+  },
+
   // Bottom actions
   bottomActionRow: {
     flexDirection: 'row',

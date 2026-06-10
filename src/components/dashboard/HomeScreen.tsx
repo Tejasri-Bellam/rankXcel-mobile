@@ -7,7 +7,10 @@ import {
   View,
 } from "react-native";
 
+import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
+
 import { COLORS } from "@/src/styles/styles";
+import { useHeaderScroll } from "@/src/libs/context/HeaderScrollContext";
 import Greeting from "./Greeting";
 import ExamReadiness from "./ExamReadiness";
 import DailyGoal from "./DailyGoal";
@@ -25,11 +28,27 @@ export default function HomeScreen() {
     activeExamId,
     dashboardData,
     isLoading,
+    dashboardLoading,
     error,
     refresh,
   } = useDashboard();
 
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // Drive the shared header's background: transparent at the top, solid once
+  // the user scrolls. Reset to transparent when leaving the screen.
+  const { setScrolled } = useHeaderScroll();
+
+  React.useEffect(() => {
+    return () => setScrolled(false);
+  }, [setScrolled]);
+
+  const onScroll = React.useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      setScrolled(e.nativeEvent.contentOffset.y > 8);
+    },
+    [setScrolled]
+  );
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -46,7 +65,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.safeArea}>
-      {isLoading && !dashboardData ? (
+      {(isLoading || dashboardLoading) && !dashboardData ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
@@ -59,6 +78,8 @@ export default function HomeScreen() {
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

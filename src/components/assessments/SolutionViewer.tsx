@@ -153,19 +153,48 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const correctAnswers = getCorrectChoiceIds(currentQ);
   const apiSelected = getApiSelectedIds(currentQ);
 
+  const questionType = currentQ?.question_type ?? currentQ?.type ?? 'MCQ';
+  const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
+  const isAssertionQ = String(questionType).toUpperCase().includes('ASSERTION');
+
   // Prefer just-submitted answers from props; fall back to API's your_answer.
   const userAnswer = (currentQId != null && answers[String(currentQId)]?.length)
     ? answers[String(currentQId)]
     : apiSelected;
 
-  const isCorrect = currentQ?.outcome === 'correct' ||
+  // NUMERICAL: the student's typed value and the correct value live outside the
+  // choice list.
+  const numericUser = isNumericQ
+    ? String(
+        (currentQId != null && answers[String(currentQId)]?.[0]) ??
+          currentQ?.your_answer?.numeric_answer ??
+          currentQ?.numeric_answer ??
+          '',
+      ).trim()
+    : '';
+  const numericCorrect = isNumericQ
+    ? String(
+        currentQ?.correct_answer ??
+          currentQ?.correct_numeric_answer ??
+          sortedChoices[0]?.text ??
+          '',
+      ).trim()
+    : '';
+
+  const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
+
+  const isCorrect =
+    currentQ?.outcome === 'correct' ||
     (currentQ?.outcome == null &&
-      userAnswer.length > 0 &&
-      correctAnswers.length === userAnswer.length &&
-      correctAnswers.every((a: string) => userAnswer.includes(a)));
-  const isSkipped = currentQ?.outcome === 'unattempted' ||
+      (isNumericQ
+        ? attempted && numericCorrect !== '' && numericUser === numericCorrect
+        : userAnswer.length > 0 &&
+          correctAnswers.length === userAnswer.length &&
+          correctAnswers.every((a: string) => userAnswer.includes(a))));
+  const isSkipped =
+    currentQ?.outcome === 'unattempted' ||
     currentQ?.outcome === 'skipped' ||
-    (currentQ?.outcome == null && userAnswer.length === 0);
+    (currentQ?.outcome == null && !attempted);
 
   const currentSolution = currentQId != null ? solutionsMap[String(currentQId)] : null;
   const explanation =
@@ -175,7 +204,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     getChoiceExplanation(currentQ);
 
   const questionText = currentQ?.question_text ?? currentQ?.text ?? currentQ?.statement ?? '';
-  const questionType = currentQ?.question_type ?? currentQ?.type ?? 'MCQ';
   const marksCorrect = currentQ?.max_score ?? currentQ?.marks_correct ?? 4;
   const marksIncorrect = currentQ?.marks_incorrect ?? -1;
 
@@ -270,7 +298,48 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
       >
         <Text style={solutionViewerStyles.questionText}>{stripHtml(questionText)}</Text>
 
-        {sortedChoices.map((opt: any, idx: number) => {
+        {/* Assertion-Reason statements */}
+        {isAssertionQ && !!currentQ?.assertion_text && (
+          <View style={srStyles.arCard}>
+            <Text style={srStyles.arLabel}>ASSERTION (A)</Text>
+            <Text style={srStyles.arText}>{stripHtml(currentQ.assertion_text)}</Text>
+          </View>
+        )}
+        {isAssertionQ && !!currentQ?.reason_text && (
+          <View style={srStyles.arCard}>
+            <Text style={srStyles.arLabel}>REASON (R)</Text>
+            <Text style={srStyles.arText}>{stripHtml(currentQ.reason_text)}</Text>
+          </View>
+        )}
+
+        {/* NUMERICAL: show typed value vs correct value instead of options */}
+        {isNumericQ && (
+          <View style={srStyles.numCard}>
+            <View
+              style={[
+                srStyles.numRow,
+                isSkipped
+                  ? srStyles.numRowNeutral
+                  : isCorrect
+                    ? srStyles.numRowCorrect
+                    : srStyles.numRowWrong,
+              ]}
+            >
+              <Text style={srStyles.numLabel}>Your answer</Text>
+              <Text style={srStyles.numValue}>
+                {numericUser !== '' ? numericUser : '—'}
+              </Text>
+            </View>
+            {numericCorrect !== '' && (
+              <View style={[srStyles.numRow, srStyles.numRowCorrect]}>
+                <Text style={srStyles.numLabel}>Correct answer</Text>
+                <Text style={srStyles.numValue}>{numericCorrect}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {!isNumericQ && sortedChoices.map((opt: any, idx: number) => {
           const optId = String(opt?.id);
           const state = getOptionState(optId);
           const letter = String.fromCharCode(65 + idx);
@@ -406,6 +475,43 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
     </SafeAreaView>
   );
 }
+
+const srStyles = StyleSheet.create({
+  arCard: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#6C5CE7',
+  },
+  arLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#6C5CE7',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  arText: { fontSize: 13, color: '#1A1A2E', lineHeight: 20 },
+
+  numCard: { gap: 10, marginBottom: 4 },
+  numRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E8E8F0',
+    backgroundColor: '#fff',
+  },
+  numRowNeutral: { borderColor: '#E8E8F0', backgroundColor: '#F9FAFB' },
+  numRowCorrect: { borderColor: '#22C55E', backgroundColor: '#F0FDF4' },
+  numRowWrong: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
+  numLabel: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
+  numValue: { fontSize: 16, color: '#1A1A2E', fontWeight: '800' },
+});
 
 const tutorBtnStyle = StyleSheet.create({
   btn: {

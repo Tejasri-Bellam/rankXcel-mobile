@@ -14,7 +14,6 @@ import ExamNavigator from './ExamNavigator';
 import ExamResults from './ExamResults';
 import SolutionViewer from './SolutionViewer';
 import { assessmentStartService } from '@/src/libs/services/assessments-attempts';
-import { reattemptAssessmentService } from '@/src/libs/services/assessments';
 import { examDetailsStyles as styles } from '@/src/styles/sidebar/assessments/examDetails';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -46,7 +45,7 @@ const INSTRUCTIONS = [
 
 export default function ExamDetails({ item, onBack }: Props) {
   const assessmentId: number = item?.id;
-  const [attemptId, setAttemptId] = useState<number>(item?.latest_attempt_id);
+  const [attemptId] = useState<number>(item?.latest_attempt_id);
   const [currentView, setCurrentView] = useState<ExamView>('detail');
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
   const [timeTaken, setTimeTaken] = useState(0);
@@ -55,10 +54,6 @@ export default function ExamDetails({ item, onBack }: Props) {
   const status = item?.derived_status ?? item?.student_status;
 
   const [showInstructions, setShowInstructions] = useState(true);
-  const [accepted, setAccepted] = useState(false);
-  const [requireConfirmation, setRequireConfirmation] = useState(
-    status === 'completed' || status === 'missed'
-  );
 
   const isCompleted  = item?.latest_attempt_status === 'SUBMITTED' || status === 'completed';
   const isInProgress = item?.latest_attempt_status === 'IN_PROGRESS';
@@ -145,53 +140,6 @@ export default function ExamDetails({ item, onBack }: Props) {
     setCurrentView('exam');
   };
 
-  const handleReattempt = async () => {
-    console.log('Initiating reattempt for assessment id:', assessmentId);
-    try {
-      setStartLoading(true);
-      const res: any = await reattemptAssessmentService(assessmentId);
-      console.log('Reattempt response:', res);
-      const body = res?.data ?? {};
-      const newAttemptId =
-        body?.id ??
-        body?.attempt_id ??
-        body?.latest_attempt_id ??
-        body?.data?.id ??
-        body?.data?.attempt_id ??
-        body?.data?.latest_attempt_id ??
-        body?.attempt?.id;
-
-      if (!newAttemptId) {
-        throw new Error('No attempt id returned');
-      }
-
-      setAttemptId(newAttemptId);
-
-      try {
-        await assessmentStartService(newAttemptId);
-      } catch (startErr: any) {
-        const code = startErr?.body?.code ?? startErr?.errors?.code?.[0];
-        if (code !== 'INVALID_STATE') throw startErr;
-      }
-
-      setCurrentView('exam');
-    } catch (error: any) {
-      console.log('Reattempt failed:', error);
-      const body = error?.body ?? {};
-      const message =
-        body?.error ??
-        body?.detail ??
-        body?.message ??
-        (Array.isArray(body?.non_field_errors) ? body.non_field_errors[0] : undefined) ??
-        error?.errors?.nonFieldErrors?.find((m: string) => m && m !== 'Unknown error' && m !== 'Please try again later') ??
-        'Failed to create a new attempt. Please try again.';
-      Alert.alert('Error', message);
-    } finally {
-      setStartLoading(false);
-    }
-  };
-
-  
 
   if (currentView === 'exam') {
     return (
@@ -379,31 +327,6 @@ export default function ExamDetails({ item, onBack }: Props) {
                 </Text>
               </View>
             ))}
-
-            {/* Checkbox only for reattempt/retry */}
-            {requireConfirmation && (
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setAccepted(!accepted)}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    accepted
-                      ? styles.checkboxChecked
-                      : styles.checkboxUnchecked,
-                  ]}
-                >
-                  {accepted && (
-                    <Text style={styles.checkboxTick}>✓</Text>
-                  )}
-                </View>
-
-                <Text style={styles.checkboxLabel}>
-                  I have read and understood all instructions.
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
         )}
 
@@ -428,80 +351,62 @@ export default function ExamDetails({ item, onBack }: Props) {
           </View>
         )}
 
-        {/* Bottom CTA — Completed / Missed */}
-        {(isCompleted || isMissed) && (
+        {/* Bottom CTA — Completed: results + solutions (assessments aren't re-attemptable) */}
+        {isCompleted && (
           <View style={styles.bottomBar}>
-
-            {/* ADD THIS */}
-            {isCompleted && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  gap: 12,
-                  marginBottom: 12,
-                }}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={[styles.resumeBtn, { flex: 1 }]}
+                onPress={() => setCurrentView('results')}
               >
-                <TouchableOpacity
-                  style={[
-                    styles.resumeBtn,
-                    { flex: 1 },
-                  ]}
-                  onPress={() => setCurrentView('results')}
-                >
-                  <Text style={styles.resumeBtnText}>
-                    👁 View Results
-                  </Text>
-                </TouchableOpacity>
+                <Text style={styles.resumeBtnText}>
+                  👁 View Results
+                </Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
+              <TouchableOpacity
+                style={[
+                  styles.completedBottomBtn,
+                  {
+                    flex: 1,
+                    backgroundColor: '#fff',
+                    borderWidth: 1,
+                    borderColor: '#6C5CE7',
+                  },
+                ]}
+                onPress={() => setCurrentView('solutions')}
+              >
+                <Text
                   style={[
-                    styles.completedBottomBtn,
-                    {
-                      flex: 1,
-                      backgroundColor: '#fff',
-                      borderWidth: 1,
-                      borderColor: '#6C5CE7',
-                    },
+                    styles.completedBottomBtnText,
+                    { color: '#6C5CE7' },
                   ]}
-                  onPress={() => setCurrentView('solutions')}
                 >
-                  <Text
-                    style={[
-                      styles.completedBottomBtnText,
-                      { color: '#6C5CE7' },
-                    ]}
-                  >
-                    📖 View Solutions
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
+                  📖 View Solutions
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
-            {/* KEEP YOUR EXISTING BUTTON EXACTLY SAME */}
-            <TouchableOpacity
+        {/* Bottom CTA — Missed: nothing to do (no re-attempt for assessments) */}
+        {isMissed && (
+          <View style={styles.bottomBar}>
+            <View
               style={[
                 styles.completedBottomBtn,
-                {
-                  opacity:
-                    requireConfirmation && !accepted
-                      ? 0.5
-                      : 1,
-                },
+                { backgroundColor: '#F3F4F6' },
               ]}
-              onPress={handleReattempt}
-              disabled={(requireConfirmation && !accepted) || startLoading}
             >
-              {startLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.completedBottomBtnText}>
-                  🔄{isCompleted
-                    ? 'Re-attempt Assessment'
-                    : 'Retry Assessment'}
-                </Text>
-              )}
-            </TouchableOpacity>
-
+              <Text
+                style={[
+                  styles.completedBottomBtnText,
+                  { color: '#9CA3AF' },
+                ]}
+              >
+                Assessment missed
+              </Text>
+            </View>
           </View>
         )}
     </ScrollView>

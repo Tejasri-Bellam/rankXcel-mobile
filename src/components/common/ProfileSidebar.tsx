@@ -25,7 +25,7 @@ import {
   deleteTargetExamService,
 } from "@/src/libs/services/profile";
 import { getCountriesService } from "@/src/libs/services/countries";
-import { storageGetAccessToken } from "@/src/libs/storage";
+import { storageGetAccessToken, clearUserSession } from "@/src/libs/storage";
 import { useTargetExam, TargetExam } from "@/src/libs/context/TagretExamContext";
 
 const { width, height } = Dimensions.get("window");
@@ -135,7 +135,7 @@ const getInitials = (name: string, email: string) => {
 
 export default function ProfileSidebar({ visible, onClose }: Props) {
   const router = useRouter();
-  const { targetExams, activeExamId, setActiveExamId, refreshExams } =
+  const { targetExams, activeExamId, setActiveExamId, refreshExams, reset } =
     useTargetExam();
 
   const [user, setUser] = useState<any>({ name: "", email: "" });
@@ -305,7 +305,13 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
           } catch {
             // ignore network errors on logout
           } finally {
-            await AsyncStorage.multiRemove(["accessToken", "user"]);
+            // Wipe all persisted user-scoped data (token, user, region, target
+            // exam selection/catalogue, and per-exam/quiz caches)...
+            await clearUserSession();
+            // ...and the in-memory exam state, which the provider keeps alive
+            // across logout navigation. Without both, the next student inherits
+            // the previous student's activeExamId and sees their data.
+            reset();
             onClose();
             router.replace("/");
           }

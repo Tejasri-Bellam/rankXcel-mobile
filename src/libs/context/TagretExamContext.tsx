@@ -31,6 +31,7 @@ interface TargetExamState {
 interface TargetExamContextValue extends TargetExamState {
   setActiveExamId: (id: number | string) => void;
   refreshExams: (countryId?: number | string | null) => Promise<void>;
+  reset: () => void;
 }
 
 const TargetExamContext = createContext<TargetExamContextValue | null>(null);
@@ -135,13 +136,28 @@ export function TargetExamProvider({
     AsyncStorage.setItem(ACTIVE_EXAM_KEY, String(id));
   }, []);
 
+  // Clears the in-memory exam selection/catalogue. The provider is mounted
+  // above the router, so it survives logout navigation — without this, the
+  // previous student's activeExamId stays in memory and drives every data
+  // fetch after a different student logs in. (Persisted keys are wiped
+  // separately via clearUserSession.)
+  const reset = useCallback(() => {
+    inFlight.current = false;
+    setState({
+      targetExams: [],
+      activeExamId: null,
+      isLoading: false,
+      error: null,
+    });
+  }, []);
+
   useEffect(() => {
     refreshExams();
   }, [refreshExams]);
 
   const value = useMemo<TargetExamContextValue>(
-    () => ({ ...state, setActiveExamId, refreshExams }),
-    [state, setActiveExamId, refreshExams]
+    () => ({ ...state, setActiveExamId, refreshExams, reset }),
+    [state, setActiveExamId, refreshExams, reset]
   );
 
   return (

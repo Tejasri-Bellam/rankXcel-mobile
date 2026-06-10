@@ -26,6 +26,7 @@ interface UseDashboardResult {
   activeExamId: number | string | null;
   dashboardData: DashboardData | null;
   isLoading: boolean;
+  dashboardLoading: boolean;
   error: string | null;
   setActiveExamId: (id: number | string) => void;
   refresh: () => Promise<void>;
@@ -47,6 +48,10 @@ export function useDashboard(enabled: boolean = true): UseDashboardResult {
   const [user, setUser] = useState<DashboardUser | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [userLoading, setUserLoading] = useState<boolean>(enabled);
+  // Tracks the dashboard API call itself (separate from the exam/user loads),
+  // so the UI can show a spinner while data for the active exam is fetched —
+  // e.g. on first load or when the user switches their target exam.
+  const [dashboardLoading, setDashboardLoading] = useState<boolean>(enabled);
 
   // ── 1. Fetch the current user ──────────────────────────────────────────────
   const fetchUser = useCallback(async () => {
@@ -68,6 +73,7 @@ export function useDashboard(enabled: boolean = true): UseDashboardResult {
 
   // ── 2. Fetch dashboard data when the active exam changes ───────────────────
   const fetchDashboard = useCallback(async (examId: number | string) => {
+    setDashboardLoading(true);
     try {
       const res = await getDashboardDataService(examId);
       const data = (res?.data ?? null) as DashboardData | null;
@@ -83,6 +89,8 @@ export function useDashboard(enabled: boolean = true): UseDashboardResult {
       // Offline fallback for this exam.
       const cached = await AsyncStorage.getItem(`dashboardData_${examId}`);
       if (cached) setDashboardData(JSON.parse(cached));
+    } finally {
+      setDashboardLoading(false);
     }
   }, []);
 
@@ -114,8 +122,12 @@ export function useDashboard(enabled: boolean = true): UseDashboardResult {
   useEffect(() => {
     if (activeExamId != null) {
       fetchDashboard(activeExamId);
+    } else if (!examsLoading) {
+      // Exams finished loading but there's no active exam to fetch for — stop
+      // the dashboard spinner so we don't hang on an empty state.
+      setDashboardLoading(false);
     }
-  }, [activeExamId, fetchDashboard]);
+  }, [activeExamId, examsLoading, fetchDashboard]);
 
   return {
     user,
@@ -123,6 +135,7 @@ export function useDashboard(enabled: boolean = true): UseDashboardResult {
     activeExamId,
     dashboardData,
     isLoading: enabled && (examsLoading || userLoading),
+    dashboardLoading: enabled && dashboardLoading,
     error: examsError,
     setActiveExamId,
     refresh,
