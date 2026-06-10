@@ -39,7 +39,33 @@ const FILTER_STATUS: Record<Exclude<FilterValue, "all">, LiveStatus> = {
   completed: "results",
 };
 
+// Map the backend's student_status to one of the three card states.
+const mapStudentStatus = (s?: string): LiveStatus | null => {
+  switch ((s ?? "").toLowerCase()) {
+    case "live":
+    case "active":
+    case "ongoing":
+    case "in_progress":
+      return "live";
+    case "upcoming":
+    case "scheduled":
+      return "upcoming";
+    case "completed":
+    case "submitted":
+    case "missed":
+    case "expired":
+    case "closed":
+      return "results";
+    default:
+      return null;
+  }
+};
+
 const deriveStatus = (item: any): LiveStatus => {
+  // Prefer the authoritative server status; fall back to schedule-based timing.
+  const mapped = mapStudentStatus(item?.student_status);
+  if (mapped) return mapped;
+
   const scheduled = new Date(item?.scheduled_at).getTime();
   const end = scheduled + (item?.total_duration_minutes ?? 0) * 60 * 1000;
   const now = Date.now();

@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
 
   badgesRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
     flexWrap: "wrap",
     marginBottom: 28,
   },

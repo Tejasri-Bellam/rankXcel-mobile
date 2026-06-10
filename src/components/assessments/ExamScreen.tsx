@@ -11,9 +11,11 @@ import {
   AppStateStatus,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StatusBar,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -34,7 +36,11 @@ interface Props {
 
 type QuestionStatus = "not_visited" | "not_answered" | "answered" | "marked";
 
-// Helper: detect multi-select from a few possible type strings the API might send
+// The backend question_type enum (QuestionTypeEnum) is one of:
+//   MCQ_SINGLE | MCQ_MULTIPLE | NUMERICAL | ASSERTION_REASON
+// The helpers below normalise loosely so legacy/alternate strings still resolve.
+
+// Multi-select MCQ — render checkboxes, allow more than one option.
 const isMultiSelectType = (type: string | undefined) => {
   if (!type) return false;
   const t = type.toUpperCase();
@@ -45,6 +51,19 @@ const isMultiSelectType = (type: string | undefined) => {
     t === "MULTIPLE" ||
     t.includes("MULTI")
   );
+};
+
+// Numerical — render a free-text numeric input instead of options.
+const isNumericalType = (type: string | undefined) => {
+  if (!type) return false;
+  return type.toUpperCase().includes("NUMERIC");
+};
+
+// Assertion-Reason — render the Assertion (A) and Reason (R) statements
+// above a standard single-select option list.
+const isAssertionReasonType = (type: string | undefined) => {
+  if (!type) return false;
+  return type.toUpperCase().includes("ASSERTION");
 };
 
 export default function ExamScreen({
@@ -113,13 +132,23 @@ export default function ExamScreen({
             text: q.question_text,
             image: q.image,
             type: q.question_type,
-            options: q.choices?.map((choice: any) => ({
-              id: choice.id.toString(),
-              text: choice.text,
-              image: choice.image,
-            })),
-            marks_correct: 4,
-            marks_incorrect: -1,
+            // Assertion-Reason statements (only present for ASSERTION_REASON).
+            assertion_text: q.assertion_text,
+            reason_text: q.reason_text,
+            options: q.choices
+              ?.slice()
+              .sort(
+                (a: any, b: any) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0),
+              )
+              .map((choice: any) => ({
+                id: choice.id.toString(),
+                text: choice.text,
+                image: choice.image,
+              })),
+            // Marks come from the API as decimal strings; marks_wrong is the
+            // negative deduction. Fall back to the common +4 / -1 scheme.
+            marks_correct: Number(q.marks_correct ?? 4),
+            marks_incorrect: Number(q.marks_wrong ?? q.marks_incorrect ?? -1),
             selected_options:
               q.selected_options ??
               q.selected_choices ??
@@ -164,12 +193,19 @@ export default function ExamScreen({
       const savedStatuses: Record<string, QuestionStatus> = {};
       Object.entries(existing).forEach(([qId, val]: [string, any]) => {
         const ids: any[] = val?.selected_choice_ids ?? [];
+        // NUMERICAL responses are persisted as a numeric value rather than
+        // choice ids; we hold it locally as a single-element string array.
+        const numeric = val?.numeric_answer ?? val?.numeric_value ?? null;
+        const hasNumeric =
+          numeric !== null && numeric !== undefined && String(numeric) !== "";
         if (Array.isArray(ids) && ids.length > 0) {
           savedAnswers[qId] = ids.map((v: any) => String(v));
+        } else if (hasNumeric) {
+          savedAnswers[qId] = [String(numeric)];
         }
         if (val?.is_marked_for_review) {
           savedStatuses[qId] = "marked";
-        } else if (ids?.length > 0) {
+        } else if (ids?.length > 0 || hasNumeric) {
           savedStatuses[qId] = "answered";
         }
       });
@@ -325,6 +361,63 @@ export default function ExamScreen({
     return savePromise;
   };
 
+  // ── Save a NUMERICAL answer to the server ──
+  // The student questions/responses endpoints aren't fully described in the
+  // OpenAPI spec, so the field name `numeric_answer` is our best-fit guess that
+  // mirrors the existing `selected_choice_ids` / `is_marked_for_review` payload.
+  const saveNumericToServer = (
+    qId: any,
+    value: string,
+    markedForReview = false,
+  ) => {
+    const trimmed = (value ?? "").trim();
+
+    const savePromise = updateAssessmentResponsesService(attemptId, qId, {
+      numeric_answer: trimmed === "" ? null : trimmed,
+      selected_choice_ids: [],
+      is_marked_for_review: markedForReview,
+      time_spent_seconds: 0,
+    })
+      .then((r) => {
+        console.log("NUMERIC SAVE OK for question", qId);
+        return r;
+      })
+      .catch((e) => {
+        console.log("NUMERIC SAVE ERROR for question", qId, ":", e);
+      });
+
+    pendingSaves.current.add(savePromise);
+    savePromise.finally(() => {
+      pendingSaves.current.delete(savePromise);
+    });
+
+    return savePromise;
+  };
+
+  const handleNumericChange = (text: string) => {
+    const qId = getCurrentQuestionId();
+    if (!qId) return;
+
+    const hasValue = text.trim() !== "";
+
+    // Store as a single-element array to stay compatible with the rest of the
+    // answer/status bookkeeping (which keys off array length).
+    setAnswers((prev) => ({ ...prev, [qId]: hasValue ? [text] : [] }));
+    const wasMarked = qStatuses[qId] === "marked";
+    setQStatuses((prev) => ({
+      ...prev,
+      [qId]: wasMarked ? "marked" : hasValue ? "answered" : "not_answered",
+    }));
+  };
+
+  // Persist the numeric value when the field loses focus (avoids a network
+  // request on every keystroke).
+  const handleNumericBlur = () => {
+    const qId = getCurrentQuestionId();
+    if (!qId) return;
+    saveNumericToServer(qId, answers[qId]?.[0] ?? "", qStatuses[qId] === "marked");
+  };
+
   const handleOptionSelect = (optionId: string) => {
     const qId = getCurrentQuestionId();
     if (!qId) return;
@@ -361,12 +454,22 @@ export default function ExamScreen({
     const qId = getCurrentQuestionId();
     if (!qId) return;
     setQStatuses((prev) => ({ ...prev, [qId]: "marked" }));
-    saveAnswerToServer(qId, answers[qId] ?? [], true);
+    if (isNumericalType(activeQuestion?.type)) {
+      saveNumericToServer(qId, answers[qId]?.[0] ?? "", true);
+    } else {
+      saveAnswerToServer(qId, answers[qId] ?? [], true);
+    }
   };
 
   const handleSaveAndNext = () => {
     const qId = getCurrentQuestionId();
     const hasAnswer = (answers[qId] || []).length > 0;
+
+    // Numeric answers are saved on blur, but a tap straight on "Save & Next"
+    // may skip the blur — flush the current value before navigating away.
+    if (qId && isNumericalType(activeQuestion?.type)) {
+      saveNumericToServer(qId, answers[qId]?.[0] ?? "", qStatuses[qId] === "marked");
+    }
     if (qId && !qStatuses[qId]) {
       setQStatuses((prev) => ({
         ...prev,
@@ -621,66 +724,121 @@ export default function ExamScreen({
             />
           )}
 
-          <Text style={styles.selectLabel}>
-            {isMultiSelectType(activeQuestion.type)
-              ? "Select one or more correct options"
-              : "Select one correct option"}
-          </Text>
+          {/* Assertion-Reason: show the A and R statements before the options */}
+          {isAssertionReasonType(activeQuestion.type) && (
+            <>
+              {!!activeQuestion.assertion_text && (
+                <View style={styles.arCard}>
+                  <Text style={styles.arLabel}>Assertion (A)</Text>
+                  <Text style={styles.arText}>
+                    {stripHtml(activeQuestion.assertion_text)}
+                  </Text>
+                </View>
+              )}
+              {!!activeQuestion.reason_text && (
+                <View style={styles.arCard}>
+                  <Text style={styles.arLabel}>Reason (R)</Text>
+                  <Text style={styles.arText}>
+                    {stripHtml(activeQuestion.reason_text)}
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
 
-          {activeQuestion.options?.map((option: any, index: number) => {
-            const isSelected = selectedOptions.includes(option.id);
-
-            return (
-              <TouchableOpacity
-                key={String.fromCharCode(65 + index)}
+          {isNumericalType(activeQuestion.type) ? (
+            /* Numerical: free-text numeric input */
+            <View>
+              <Text style={styles.selectLabel}>Enter your answer</Text>
+              <TextInput
                 style={[
-                  styles.optionRow,
-                  isSelected && styles.optionRowSelected,
+                  styles.numericInput,
+                  selectedOptions.length > 0 && styles.numericInputFilled,
                 ]}
-                onPress={() => handleOptionSelect(option.id)}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.optionBubble,
-                    isSelected && styles.optionBubbleSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.optionBubbleText,
-                      isSelected && styles.optionBubbleTextSelected,
-                    ]}
-                  >
-                    {String.fromCharCode(65 + index)}
-                  </Text>
-                </View>
+                value={selectedOptions[0] ?? ""}
+                onChangeText={handleNumericChange}
+                onEndEditing={handleNumericBlur}
+                onBlur={handleNumericBlur}
+                keyboardType={
+                  Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
+                }
+                placeholder="Type a numeric value"
+                placeholderTextColor="#B6B6C8"
+                returnKeyType="done"
+              />
+              <Text style={styles.numericHint}>
+                Decimals and negative values are allowed.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.selectLabel}>
+                {isMultiSelectType(activeQuestion.type)
+                  ? "Select one or more correct options"
+                  : "Select one correct option"}
+              </Text>
 
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.optionText,
-                      isSelected && styles.optionTextSelected,
-                    ]}
-                  >
-                    {stripHtml(option.text)}
-                  </Text>
+              {activeQuestion.options?.map((option: any, index: number) => {
+                const isSelected = selectedOptions.includes(option.id);
+                const multi = isMultiSelectType(activeQuestion.type);
 
-                  {option.image && (
-                    <Image
-                      source={{ uri: option.image }}
-                      style={{
-                        width: "100%",
-                        height: 120,
-                        resizeMode: "contain",
-                        marginTop: 8,
-                      }}
-                    />
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                return (
+                  <TouchableOpacity
+                    key={option.id ?? String.fromCharCode(65 + index)}
+                    style={[
+                      styles.optionRow,
+                      isSelected && styles.optionRowSelected,
+                    ]}
+                    onPress={() => handleOptionSelect(option.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        styles.optionBubble,
+                        // Square the bubble for multi-select so it reads as a checkbox.
+                        multi && { borderRadius: 8 },
+                        isSelected && styles.optionBubbleSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.optionBubbleText,
+                          isSelected && styles.optionBubbleTextSelected,
+                        ]}
+                      >
+                        {multi && isSelected
+                          ? "✓"
+                          : String.fromCharCode(65 + index)}
+                      </Text>
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.optionText,
+                          isSelected && styles.optionTextSelected,
+                        ]}
+                      >
+                        {stripHtml(option.text)}
+                      </Text>
+
+                      {option.image && (
+                        <Image
+                          source={{ uri: option.image }}
+                          style={{
+                            width: "100%",
+                            height: 120,
+                            resizeMode: "contain",
+                            marginTop: 8,
+                          }}
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
         </ScrollView>
       ) : (
         <View
@@ -765,6 +923,48 @@ export default function ExamScreen({
                   Not Answered
                 </Text>
               </View>
+            </View>
+
+            {(summary.markedForReview > 0 || summary.notVisited > 0) && (
+              <View style={styles.modalStatsRow}>
+                <View style={[styles.modalStatBox, styles.modalStatBoxPurple]}>
+                  <Text style={styles.modalStatValue}>
+                    {summary.markedForReview}
+                  </Text>
+                  <Text style={[styles.modalStatLabel, { color: "#6C5CE7" }]}>
+                    Marked
+                  </Text>
+                </View>
+
+                <View style={[styles.modalStatBox, styles.modalStatBoxGray]}>
+                  <Text style={styles.modalStatValue}>{summary.notVisited}</Text>
+                  <Text style={[styles.modalStatLabel, { color: "#9898B0" }]}>
+                    Not Visited
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.goBackBtn}
+                onPress={() => setShowSubmitModal(false)}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.goBackBtnText}>Go Back</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.submitExamBtn}
+                onPress={handleFinalSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitExamBtnText}>⚑ Submit Exam</Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         </View>

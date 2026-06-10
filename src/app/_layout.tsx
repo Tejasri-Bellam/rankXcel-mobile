@@ -4,10 +4,12 @@ import { BackHandler, StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
+import { COLORS } from "@/src/styles/styles";
 import Header from "@/src/components/common/Header";
 import ProfileSidebar from "@/src/components/common/ProfileSidebar";
 import BottomNav from "@/src/components/common/BottomNav";
 import { TargetExamProvider } from "../libs/context/TagretExamContext";
+import { HeaderScrollProvider } from "../libs/context/HeaderScrollContext";
 
 const HEADER_ROUTES = [
   "/dashboard",
@@ -77,9 +79,13 @@ export default function Layout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <TargetExamProvider>
-          <SafeAreaView style={{ flex: 1 }}>
-            <AppShell />
-          </SafeAreaView>
+          <HeaderScrollProvider>
+            <SafeAreaView
+              style={{ flex: 1, backgroundColor: COLORS.background }}
+            >
+              <AppShell />
+            </SafeAreaView>
+          </HeaderScrollProvider>
         </TargetExamProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

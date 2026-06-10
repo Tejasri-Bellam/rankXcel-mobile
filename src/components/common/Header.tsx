@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from "@/src/styles/styles";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMeService } from '@/src/libs/services/profile';
+import { useHeaderScroll } from '@/src/libs/context/HeaderScrollContext';
 
 type HeaderProps = {
   onProfilePress: () => void;
@@ -11,6 +12,9 @@ type HeaderProps = {
 
 export default function Header({ onProfilePress }: HeaderProps) {
   const [avatarText, setAvatarText] = useState("AB");
+  // Transparent over the page at the top; turns into a solid bar once the
+  // screen is scrolled (set by the active screen's onScroll).
+  const { scrolled } = useHeaderScroll();
 
   useEffect(() => {
     fetchUser();
@@ -39,19 +43,16 @@ export default function Header({ onProfilePress }: HeaderProps) {
   };
 
   return (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>RankXcel</Text>
-
+    <View style={[styles.header, scrolled ? styles.headerScrolled : styles.headerTransparent]}>
       <View style={styles.headerRight}>
-        <TouchableOpacity style={styles.notifBtn}>
+        <TouchableOpacity style={styles.notifBtn} activeOpacity={0.8}>
           <Ionicons
             name="notifications-outline"
-            size={22}
+            size={20}
             color={COLORS.textDark}
           />
-          <View style={styles.notifBadge}>
-            <Text style={styles.notifBadgeText}>0</Text>
-          </View>
+          {/* Small red dot indicating unread notifications. */}
+          <View style={styles.notifDot} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -70,55 +71,69 @@ const styles: any = {
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.white,
+    // No left wordmark in the new design — actions sit on the right.
+    justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
+  },
+  // At the top of the page the header blends into the background.
+  headerTransparent: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
+  },
+  // Once scrolled it becomes a solid bar that separates from the content.
+  headerScrolled: {
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     elevation: 2,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.textDark,
+    shadowColor: COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
+  // Bell sits in its own white circle (visible even over the transparent header).
   notifBtn: {
     position: 'relative',
-    padding: 4,
-  },
-  notifBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: COLORS.red,
-    borderRadius: 8,
-    width: 16,
-    height: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.white,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  notifBadgeText: {
-    color: COLORS.white,
-    fontSize: 9,
-    fontWeight: '700',
+  notifDot: {
+    position: 'absolute',
+    top: 9,
+    right: 10,
+    backgroundColor: COLORS.red,
+    borderRadius: 4,
+    width: 8,
+    height: 8,
+    borderWidth: 1.5,
+    borderColor: COLORS.white,
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     color: COLORS.white,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
 };

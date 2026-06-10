@@ -86,6 +86,11 @@ export const liveTestDetailStyles = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
+  missedBtn: {
+    backgroundColor: "#F3F4F6",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
 
   secondaryBtn: {
     flexDirection: "row",

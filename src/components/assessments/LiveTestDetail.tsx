@@ -81,8 +81,8 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
 
   const durationMinutes = item?.total_duration_minutes ?? 60;
   const questionCount = item?.question_count ?? 0;
-  const isCompleted =
-    item?.latest_attempt_status === "SUBMITTED" || status === "results";
+  // A results-out test the student actually submitted (vs. missed).
+  const isSubmitted = item?.latest_attempt_status === "SUBMITTED";
 
   React.useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -100,12 +100,12 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     return () => sub.remove();
   }, [view, onBack]);
 
-  const enterLiveTest = async () => {
+  const enterLiveTest = async (forceNew = false) => {
     let id = attemptId;
     try {
       setLoading(true);
-      // No attempt yet → create one via reattempt, then start.
-      if (!id) {
+      // No attempt yet (or a fresh re-attempt) → create one, then start.
+      if (!id || forceNew) {
         const res: any = await reattemptAssessmentService(assessmentId);
         const body = res?.data ?? {};
         id =
@@ -199,7 +199,7 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       return (
         <TouchableOpacity
           style={s.primaryBtn}
-          onPress={enterLiveTest}
+          onPress={() => enterLiveTest()}
           disabled={loading}
           activeOpacity={0.85}
         >
@@ -215,16 +215,25 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       );
     }
     if (status === "results") {
-      if (!isCompleted) return null;
+      // Submitted → view results. Assessments aren't re-attemptable, so a missed
+      // (never submitted) test just shows an inert "ended" state.
+      if (isSubmitted) {
+        return (
+          <TouchableOpacity
+            style={s.primaryBtn}
+            onPress={() => setView("results")}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="bar-chart" size={17} color="#fff" />
+            <Text style={s.primaryBtnText}>View results</Text>
+          </TouchableOpacity>
+        );
+      }
       return (
-        <TouchableOpacity
-          style={s.primaryBtn}
-          onPress={() => setView("results")}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="bar-chart" size={17} color="#fff" />
-          <Text style={s.primaryBtnText}>View results</Text>
-        </TouchableOpacity>
+        <View style={[s.primaryBtn, s.missedBtn]}>
+          <Ionicons name="time-outline" size={17} color="#9CA3AF" />
+          <Text style={[s.primaryBtnText, { color: "#9CA3AF" }]}>Test ended</Text>
+        </View>
       );
     }
     // upcoming

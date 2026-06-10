@@ -108,18 +108,13 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
   useEffect(() => {
     if (!selectedSubject || !selectedTopic) return;
     setSelectedSubtopic(null); setSubtopics([]);
-    // Subtopics: /v1/subjects/{id}/topics/?parent={topicId}
+    // Subtopics: /v1/subjects/{id}/topics/?parent={topicId} — the API already
+    // returns only the children of the selected topic, so use the response as-is.
     getSubjectTopicsService(selectedSubject.id, selectedTopic.id)
-      .then((r) => {
-        // Keep only children of the selected topic, in case the API ignores ?parent.
-        // `parent` may be a plain id or a nested object ({ id }).
-        const all = toOptionsArray(r);
-        const parentId = (t: any) =>
-          t?.parent && typeof t.parent === 'object' ? t.parent.id : t?.parent;
-        setSubtopics(all.filter((t) => String(parentId(t)) === String(selectedTopic.id)));
-      })
+      .then((r) => setSubtopics(toOptionsArray(r)))
       .catch(() => {});
   }, [selectedSubject, selectedTopic]);
+console.log('ffff', selectedSubject, selectedTopic, subtopics);
 
   const canSubmit = !!selectedExam && !!selectedSubject && Number(duration) > 0 && Number(questionCount) > 0 && !submitting;
 

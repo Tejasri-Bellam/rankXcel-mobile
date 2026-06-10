@@ -97,7 +97,7 @@ export default function MockExamResults({
   const XP = Math.max(10, Math.round(totalCorrect * 10));
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Back */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>

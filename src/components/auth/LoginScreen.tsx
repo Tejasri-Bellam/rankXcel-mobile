@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { loginStyles as styles } from '@/src/styles/auth/loginStyles';
 import { loginService, signupService } from '@/src/libs/services/auth';
-import { storageSetAccessToken } from '@/src/libs/storage';
+import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
+import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type AuthMode = 'login' | 'signup';
@@ -87,6 +88,8 @@ const getApiErrorMessage = (err: any): string => {
 
 const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  // Used to drop any leftover in-memory exam state from a previous session.
+  const { reset: resetTargetExam } = useTargetExam();
 
   // Login state
   const [email, setEmail] = useState('');
@@ -157,6 +160,13 @@ const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
 
       const { data } = (await loginService(payload)) as { data: any };
       console.log('LOGIN RESPONSE:', JSON.stringify(data, null, 2));
+
+      // Safety net: clear any data left behind by a previous session before
+      // storing the new one. A clean logout already does this, but the app may
+      // have been killed mid-session — without this, the new student could
+      // inherit the previous student's cached exam selection and dashboard.
+      await clearUserSession();
+      resetTargetExam();
 
       if (data?.token) {
         await storageSetAccessToken(data?.token);

@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { submitMockTestService, submitMockResponseService } from '../../libs/services/mock-library';
 import { stripHtml } from '../../libs/utils/html';
@@ -53,6 +53,7 @@ export default function MockExamScreen({
   onSubmit,
   onBackToMocks,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const [timeLeft, setTimeLeft] = useState((exam?.duration_minutes ?? durationMinutes) * 60);
   const [timeTaken, setTimeTaken] = useState(0);
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
@@ -252,7 +253,7 @@ export default function MockExamScreen({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.closeBtn} onPress={onBackToMocks} activeOpacity={0.7}>
@@ -384,7 +385,7 @@ export default function MockExamScreen({
           activeOpacity={1}
           onPress={() => setShowPalette(false)}
         >
-          <View style={styles.paletteSheet}>
+          <View style={[styles.paletteSheet, { paddingBottom: 20 + insets.bottom }]}>
             <View style={styles.paletteHandle} />
             <View style={styles.paletteHeader}>
               <Text style={styles.paletteTitle}>Questions</Text>
@@ -457,7 +458,7 @@ export default function MockExamScreen({
           activeOpacity={1}
           onPress={() => setShowSubmitSheet(false)}
         >
-          <View style={styles.submitSheet}>
+          <View style={[styles.submitSheet, { paddingBottom: 24 + insets.bottom }]}>
             <View style={styles.paletteHandle} />
             <Text style={styles.submitSheetTitle}>Submit attempt?</Text>
             <Text style={styles.submitSheetDesc}>
@@ -750,7 +751,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
   },
   submitSheetTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', marginBottom: 10 },
   submitSheetDesc: { fontSize: 14, color: '#6B7280', lineHeight: 22, marginBottom: 24 },
