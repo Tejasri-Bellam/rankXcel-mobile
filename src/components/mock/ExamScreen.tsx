@@ -16,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { submitMockTestService, submitMockResponseService } from '../../libs/services/mock-library';
 import { stripHtml } from '../../libs/utils/html';
+import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
 
 interface Props {
   mockId: number | string;
@@ -99,6 +100,7 @@ export default function MockExamScreen({
   const isLast =
     activeSectionIdx === exam.sections.length - 1 &&
     activeQIdx === activeSection.questions.length - 1;
+  const isFirst = activeSectionIdx === 0 && activeQIdx === 0;
   const isTimeLow = timeLeft < 300;
 
   // Flat list of all questions for the palette
@@ -227,29 +229,23 @@ export default function MockExamScreen({
     return '#E5E7EB';
   });
 
-  // Palette dot color
-  const getPaletteColor = (q: any) => {
+  // Build the flat list the shared question palette renders.
+  const paletteItems = allQuestions.map(({ q, si, qi }: any) => {
     const qid = q?.id;
     const status = qStatuses[qid];
-    if (status === 'answered' && (answers[qid] || []).length > 0) return '#DBEAFE'; // answered (blue light)
-    if (status === 'marked') return '#FEF3C7'; // marked (yellow light)
-    return '#F9FAFB'; // not answered
-  };
+    const hasAnswer = (answers[qid] || []).length > 0;
+    const pStatus: PaletteStatus =
+      status === 'marked' ? 'marked' : hasAnswer ? 'answered' : 'not_answered';
+    return {
+      key: String(qid ?? `${si}-${qi}`),
+      status: pStatus,
+      isCurrent: si === activeSectionIdx && qi === activeQIdx,
+    };
+  });
 
-  const getPaletteBorder = (q: any) => {
-    const qid = q?.id;
-    const status = qStatuses[qid];
-    if (status === 'answered' && (answers[qid] || []).length > 0) return '#3B7DF8';
-    if (status === 'marked') return '#F59E0B';
-    return '#E5E7EB';
-  };
-
-  const getPaletteTextColor = (q: any) => {
-    const qid = q?.id;
-    const status = qStatuses[qid];
-    if (status === 'answered' && (answers[qid] || []).length > 0) return '#3B7DF8';
-    if (status === 'marked') return '#B45309';
-    return '#6B7280';
+  const handlePaletteJump = (idx: number) => {
+    const target = allQuestions[idx];
+    if (target) jumpToQuestion(target.si, target.qi);
   };
 
   return (
@@ -348,12 +344,17 @@ export default function MockExamScreen({
 
       {/* Bottom bar */}
       <View style={styles.bottomBar}>
-        {isLast ? (
-          <View style={styles.navRow}>
-            <TouchableOpacity style={styles.prevBtn} onPress={handlePrev} activeOpacity={0.7}>
-              <Ionicons name="arrow-back" size={16} color="#555" />
-              <Text style={styles.prevBtnText}>Prev</Text>
-            </TouchableOpacity>
+        <View style={styles.navRow}>
+          <TouchableOpacity
+            style={[styles.prevBtn, isFirst && styles.prevBtnDisabled]}
+            onPress={handlePrev}
+            disabled={isFirst}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={16} color={isFirst ? '#C7CBD3' : '#555'} />
+            <Text style={[styles.prevBtnText, isFirst && { color: '#C7CBD3' }]}>Prev</Text>
+          </TouchableOpacity>
+          {isLast ? (
             <TouchableOpacity
               style={styles.submitBtn}
               onPress={() => setShowSubmitSheet(true)}
@@ -369,87 +370,29 @@ export default function MockExamScreen({
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.85}>
-            <Text style={styles.nextBtnText}>Next</Text>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
-          </TouchableOpacity>
-        )}
+          ) : (
+            <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.85}>
+              <Text style={styles.nextBtnText}>Next</Text>
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {/* ── Question Palette Modal ── */}
-      <Modal visible={showPalette} transparent animationType="slide">
-        <TouchableOpacity
-          style={styles.paletteOverlay}
-          activeOpacity={1}
-          onPress={() => setShowPalette(false)}
-        >
-          <View style={[styles.paletteSheet, { paddingBottom: 20 + insets.bottom }]}>
-            <View style={styles.paletteHandle} />
-            <View style={styles.paletteHeader}>
-              <Text style={styles.paletteTitle}>Questions</Text>
-              <TouchableOpacity onPress={() => setShowPalette(false)}>
-                <Ionicons name="close" size={20} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Grid */}
-            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-              <View style={styles.paletteGrid}>
-                {allQuestions.map(({ q, si, qi }: any, idx: number) => {
-                  const isCurrentQ = si === activeSectionIdx && qi === activeQIdx;
-                  const bg = getPaletteColor(q);
-                  const border = getPaletteBorder(q);
-                  const textColor = getPaletteTextColor(q);
-                  return (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[
-                        styles.paletteCell,
-                        { backgroundColor: bg, borderColor: border },
-                        isCurrentQ && styles.paletteCellCurrent,
-                      ]}
-                      onPress={() => jumpToQuestion(si, qi)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[styles.paletteCellText, { color: isCurrentQ ? '#1A1A2E' : textColor }]}>
-                        {idx + 1}
-                      </Text>
-                      {qStatuses[q?.id] === 'marked' && (
-                        <View style={styles.paletteMark} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </ScrollView>
-
-            {/* Legend */}
-            <View style={styles.paletteLegend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#DBEAFE', borderColor: '#3B7DF8' }]} />
-                <Text style={styles.legendText}>Answered</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]} />
-                <Text style={styles.legendText}>Marked</Text>
-              </View>
-            </View>
-
-            {/* Submit from palette */}
-            <TouchableOpacity
-              style={styles.paletteSubmitBtn}
-              onPress={() => { setShowPalette(false); setTimeout(() => setShowSubmitSheet(true), 300); }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.paletteSubmitText}>
-                Submit ({answeredCount}/{totalQ}) ✓
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {/* ── Question Palette ── */}
+      <QuestionPalette
+        visible={showPalette}
+        onClose={() => setShowPalette(false)}
+        items={paletteItems}
+        answeredCount={answeredCount}
+        totalCount={totalQ}
+        onJump={handlePaletteJump}
+        onSubmit={() => {
+          setShowPalette(false);
+          setTimeout(() => setShowSubmitSheet(true), 300);
+        }}
+        insetsBottom={insets.bottom}
+      />
 
       {/* ── Submit Confirmation Sheet ── */}
       <Modal visible={showSubmitSheet} transparent animationType="slide">
@@ -628,6 +571,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 8 : 16,
   },
   nextBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -650,6 +594,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   prevBtnText: { fontSize: 14, fontWeight: '700', color: '#555' },
+  prevBtnDisabled: { borderColor: '#F0F1F4', backgroundColor: '#fff' },
   submitBtn: {
     flex: 1,
     flexDirection: 'row',

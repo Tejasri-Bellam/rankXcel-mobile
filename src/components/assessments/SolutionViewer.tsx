@@ -1,10 +1,20 @@
-import { askAssessmentTutorService, getassessmentReviewService, getassessmentSolutionsService } from '@/src/libs/services/assessments-attempts';
-import { solutionViewerStyles } from '../../styles/sidebar/assessments/solutionViewer';
+import {
+  askAssessmentTutorService,
+  getassessmentReviewService,
+  getassessmentSolutionsService,
+} from '@/src/libs/services/assessments-attempts';
 import { stripHtml } from '@/src/libs/utils/html';
 import TutorModal from '@/src/components/common/TutorModal';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState, useMemo, useEffect } from 'react';
-import {View, Text, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Props {
@@ -13,19 +23,35 @@ interface Props {
   onBack: () => void;
 }
 
-const GREEN = '#22C55E';
-const RED = '#EF4444';
-const GRAY = '#9898B0';
-
 const getQuestionId = (q: any): string | number | undefined =>
   q?.question_id ?? q?.id;
 
-const getCorrectChoiceIds = (q: any): string[] => {
-  const choices: any[] = Array.isArray(q?.choices) ? q.choices : Array.isArray(q?.options) ? q.options : [];
-  return choices.filter((c: any) => c?.is_correct === true).map((c: any) => String(c.id));
+const getChoices = (q: any): any[] =>
+  Array.isArray(q?.choices) ? q.choices : Array.isArray(q?.options) ? q.options : [];
+
+const correctIdsFor = (q: any): string[] => {
+  const topLevel = q?.correct_answers ?? q?.correct_options ?? q?.correct_choice_ids ?? null;
+  if (Array.isArray(topLevel) && topLevel.length > 0)
+    return topLevel.map((v: any) => String(v?.id ?? v));
+  return getChoices(q)
+    .filter((o: any) => o?.is_correct === true || o?.correct === true)
+    .map((o: any) => String(o.id));
 };
 
-const getApiSelectedIds = (q: any): string[] => {
+// Correct option ids, falling back to the per-question solution payload —
+// the review response often omits the correct flags for skipped questions.
+const correctIdsWithSolution = (q: any, sol: any): string[] => {
+  const fromQ = correctIdsFor(q);
+  if (fromQ.length > 0) return fromQ;
+  if (!sol) return [];
+  const top =
+    sol?.correct_answers ?? sol?.correct_options ?? sol?.correct_choice_ids ?? null;
+  if (Array.isArray(top) && top.length > 0)
+    return top.map((v: any) => String(v?.id ?? v));
+  return correctIdsFor(sol);
+};
+
+const selectedIdsFor = (q: any): string[] => {
   const raw =
     q?.your_answer?.selected_choice_ids ??
     q?.selected_choice_ids ??
@@ -34,51 +60,29 @@ const getApiSelectedIds = (q: any): string[] => {
   return (Array.isArray(raw) ? raw : []).map((v: any) => String(v?.id ?? v));
 };
 
-const getChoiceExplanation = (q: any): string | null => {
-  const choices: any[] = Array.isArray(q?.choices) ? q.choices : Array.isArray(q?.options) ? q.options : [];
-  const correct = choices.find((c: any) => c?.is_correct === true);
+const choiceExplanationFor = (q: any): string | null => {
+  const correct = getChoices(q).find((c: any) => c?.is_correct === true);
   return correct?.explanation ? String(correct.explanation) : null;
 };
 
 export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [tutorVisible, setTutorVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
 
-  useEffect(() => {
-    loadReview();
-  }, []);
+  useEffect(() => { loadReview(); }, []);
 
-  const questions: any[] = reviewData?.questions ?? [];
-
-  const allQuestions = useMemo(
-    () =>
-      questions.map((q: any) => ({
-        ...q,
-        sectionName: q?.section_name ?? '',
-      })),
-    [questions]
-  );
-
-  const totalQ = allQuestions.length;
+  const questions: any[] = useMemo(() => reviewData?.questions ?? [], [reviewData]);
 
   const loadReview = async () => {
     try {
       setLoading(true);
-
       const res = await getassessmentReviewService(attemptId);
-
-      console.log('REVIEW API:', JSON.stringify(res, null, 2));
-
       const data: any = res?.data ?? null;
-
       setReviewData(data);
-
       if (data) {
         const qs = data?.questions ?? [];
-
         const results = await Promise.allSettled(
           qs.map((q: any) => {
             const qid = getQuestionId(q);
@@ -87,21 +91,17 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               : Promise.reject(new Error('no question id'));
           })
         );
-
         const map: Record<string, any> = {};
-
         qs.forEach((q: any, i: number) => {
           const r = results[i];
           const qid = getQuestionId(q);
-          if (qid != null && r.status === 'fulfilled' && r.value?.data) {
-            map[String(qid)] = r.value.data;
-          }
+          if (qid != null && r.status === 'fulfilled' && (r.value as any)?.data)
+            map[String(qid)] = (r.value as any).data;
         });
-
         setSolutionsMap(map);
       }
-    } catch (error) {
-      console.log('REVIEW ERROR:', error);
+    } catch (err) {
+      console.log('REVIEW ERROR:', err);
     } finally {
       setLoading(false);
     }
@@ -109,422 +109,364 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#6C5CE7" />
-        <Text style={{ marginTop: 12, color: '#9898B0' }}>Loading solutions...</Text>
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF5' }}>
+        <ActivityIndicator size="large" color="#3B7DF8" />
+        <Text style={{ marginTop: 12, color: '#9CA3AF' }}>Loading solutions…</Text>
       </SafeAreaView>
     );
   }
 
-  if (!reviewData) {
+  if (!reviewData || questions.length === 0) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: '#9898B0' }}>Solutions are not available yet.</Text>
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF5' }}>
+        <Text style={{ color: '#9CA3AF', textAlign: 'center', paddingHorizontal: 24 }}>
+          Solutions are not available for this assessment.
+        </Text>
         <TouchableOpacity onPress={onBack} style={{ marginTop: 16 }}>
-          <Text style={{ color: '#6C5CE7', fontWeight: '600' }}>← Go Back</Text>
+          <Text style={{ color: '#3B7DF8', fontWeight: '600' }}>← Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
-
-  if (totalQ === 0) {
-    return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: '#9898B0' }}>No questions found in solutions.</Text>
-        <TouchableOpacity onPress={onBack} style={{ marginTop: 16 }}>
-          <Text style={{ color: '#6C5CE7', fontWeight: '600' }}>← Go Back</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
-  const currentQ = allQuestions[currentIndex];
-  const currentQId = getQuestionId(currentQ);
-  const choices: any[] = Array.isArray(currentQ?.choices)
-    ? currentQ.choices
-    : Array.isArray(currentQ?.options)
-      ? currentQ.options
-      : [];
-
-  const sortedChoices = [...choices].sort(
-    (a, b) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0)
-  );
-
-  const correctAnswers = getCorrectChoiceIds(currentQ);
-  const apiSelected = getApiSelectedIds(currentQ);
-
-  const questionType = currentQ?.question_type ?? currentQ?.type ?? 'MCQ';
-  const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
-  const isAssertionQ = String(questionType).toUpperCase().includes('ASSERTION');
-
-  // Prefer just-submitted answers from props; fall back to API's your_answer.
-  const userAnswer = (currentQId != null && answers[String(currentQId)]?.length)
-    ? answers[String(currentQId)]
-    : apiSelected;
-
-  // NUMERICAL: the student's typed value and the correct value live outside the
-  // choice list.
-  const numericUser = isNumericQ
-    ? String(
-        (currentQId != null && answers[String(currentQId)]?.[0]) ??
-          currentQ?.your_answer?.numeric_answer ??
-          currentQ?.numeric_answer ??
-          '',
-      ).trim()
-    : '';
-  const numericCorrect = isNumericQ
-    ? String(
-        currentQ?.correct_answer ??
-          currentQ?.correct_numeric_answer ??
-          sortedChoices[0]?.text ??
-          '',
-      ).trim()
-    : '';
-
-  const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
-
-  const isCorrect =
-    currentQ?.outcome === 'correct' ||
-    (currentQ?.outcome == null &&
-      (isNumericQ
-        ? attempted && numericCorrect !== '' && numericUser === numericCorrect
-        : userAnswer.length > 0 &&
-          correctAnswers.length === userAnswer.length &&
-          correctAnswers.every((a: string) => userAnswer.includes(a))));
-  const isSkipped =
-    currentQ?.outcome === 'unattempted' ||
-    currentQ?.outcome === 'skipped' ||
-    (currentQ?.outcome == null && !attempted);
-
-  const currentSolution = currentQId != null ? solutionsMap[String(currentQId)] : null;
-  const explanation =
-    currentSolution?.explanation ??
-    currentSolution?.solution ??
-    currentQ?.explanation ??
-    getChoiceExplanation(currentQ);
-
-  const questionText = currentQ?.question_text ?? currentQ?.text ?? currentQ?.statement ?? '';
-  const marksCorrect = currentQ?.max_score ?? currentQ?.marks_correct ?? 4;
-  const marksIncorrect = currentQ?.marks_incorrect ?? -1;
-
-  const getOptionState = (optId: string) => {
-    const isCorrectOpt = correctAnswers.includes(optId);
-    const isSelected = userAnswer.includes(optId);
-    if (isCorrectOpt) return 'correct';
-    if (isSelected && !isCorrectOpt) return 'wrong';
-    return 'neutral';
-  };
-
-  const getQuestionDotColor = (idx: number) => {
-    const q = allQuestions[idx];
-    if (q?.outcome === 'correct') return GREEN;
-    if (q?.outcome === 'wrong')   return RED;
-    if (q?.outcome === 'unattempted' || q?.outcome === 'skipped') return GRAY;
-
-    const qid = getQuestionId(q);
-    const ua = (qid != null && answers[String(qid)]?.length)
-      ? answers[String(qid)]
-      : getApiSelectedIds(q);
-    if (ua.length === 0) return GRAY;
-    const ca = getCorrectChoiceIds(q);
-    const ok = ca.length === ua.length && ca.every((a: string) => ua.includes(a));
-    return ok ? GREEN : RED;
-  };
 
   return (
-    <SafeAreaView style={solutionViewerStyles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Header */}
-      <View style={solutionViewerStyles.header}>
-        <TouchableOpacity onPress={onBack} style={solutionViewerStyles.backBtn}>
-          <Text style={solutionViewerStyles.backArrow}>←</Text>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <View style={solutionViewerStyles.headerCenter}>
-          <Text style={solutionViewerStyles.headerTitle}>Solution Viewer</Text>
-          <Text style={solutionViewerStyles.headerSub}>Review answers & explanations</Text>
-        </View>
-        <Text style={solutionViewerStyles.headerCounter}>Q {currentIndex + 1}/{totalQ}</Text>
+        <Text style={styles.headerTitle}>Review</Text>
       </View>
 
-      {/* Question number strip */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={solutionViewerStyles.pillsRow}
-        style={solutionViewerStyles.pillsScroll}
-      >
-        {allQuestions.map((_: any, idx: number) => {
-          const active = idx === currentIndex;
-          const dotColor = getQuestionDotColor(idx);
-          return (
-            <TouchableOpacity
-              key={idx}
-              style={[
-                solutionViewerStyles.pill,
-                active && { backgroundColor: dotColor, borderColor: dotColor },
-                !active && { borderColor: dotColor },
-              ]}
-              onPress={() => setCurrentIndex(idx)}
-            >
-              <Text style={[solutionViewerStyles.pillText, active && { color: '#fff' }]}>
-                {idx + 1}
-              </Text>
-            </TouchableOpacity>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {questions.map((q: any, qIdx: number) => {
+          const qid = getQuestionId(q);
+          const currentSolution = qid != null ? solutionsMap[String(qid)] : null;
+          const correctAnswers = correctIdsWithSolution(q, currentSolution);
+          const apiSelected = selectedIdsFor(q);
+          const userAnswer =
+            qid != null && answers[String(qid)]?.length ? answers[String(qid)] : apiSelected;
+
+          const questionType = q?.question_type ?? q?.type ?? 'MCQ';
+          const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
+
+          const numericUser = isNumericQ
+            ? String(
+                (qid != null && answers[String(qid)]?.[0]) ??
+                  q?.your_answer?.numeric_answer ??
+                  q?.numeric_answer ??
+                  '',
+              ).trim()
+            : '';
+          const numericCorrect = isNumericQ
+            ? String(q?.correct_answer ?? q?.correct_numeric_answer ?? '').trim()
+            : '';
+
+          const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
+
+          const isCorrect =
+            q?.outcome === 'correct' ||
+            (q?.outcome == null &&
+              (isNumericQ
+                ? attempted && numericCorrect !== '' && numericUser === numericCorrect
+                : userAnswer.length > 0 &&
+                  correctAnswers.length === userAnswer.length &&
+                  correctAnswers.every((a: string) => userAnswer.includes(a))));
+
+          const isSkipped =
+            q?.outcome === 'skipped' ||
+            q?.outcome === 'unattempted' ||
+            (q?.outcome == null && !attempted);
+
+          const explanation =
+            currentSolution?.explanation ??
+            currentSolution?.solution ??
+            q?.explanation ??
+            choiceExplanationFor(q);
+
+          const questionText = q?.question_text ?? q?.text ?? q?.statement ?? '';
+          const sortedChoices = [...getChoices(q)].sort(
+            (a, b) => (a?.sort_order ?? 0) - (b?.sort_order ?? 0)
           );
-        })}
-      </ScrollView>
 
-      {/* Question meta bar */}
-      <View style={solutionViewerStyles.qMetaBar}>
-        <Text style={solutionViewerStyles.qMetaLeft}>{currentIndex + 1} of {totalQ}</Text>
-        <View style={solutionViewerStyles.qTypeBadge}>
-          <Text style={solutionViewerStyles.qTypeText}>{questionType}</Text>
-        </View>
-        <View style={solutionViewerStyles.marksBadges}>
-          <View style={solutionViewerStyles.markBadgeGreen}>
-            <Text style={solutionViewerStyles.markText}>+{marksCorrect}</Text>
-          </View>
-          <View style={solutionViewerStyles.markBadgeRed}>
-            <Text style={solutionViewerStyles.markText}>{marksIncorrect}</Text>
-          </View>
-        </View>
-      </View>
+          const getOptState = (optId: string) => {
+            if (correctAnswers.includes(optId)) return 'correct';
+            if (userAnswer.includes(optId)) return 'wrong';
+            return 'neutral';
+          };
 
-      <ScrollView
-        style={solutionViewerStyles.scroll}
-        contentContainerStyle={solutionViewerStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={solutionViewerStyles.questionText}>{stripHtml(questionText)}</Text>
-
-        {/* Assertion-Reason statements */}
-        {isAssertionQ && !!currentQ?.assertion_text && (
-          <View style={srStyles.arCard}>
-            <Text style={srStyles.arLabel}>ASSERTION (A)</Text>
-            <Text style={srStyles.arText}>{stripHtml(currentQ.assertion_text)}</Text>
-          </View>
-        )}
-        {isAssertionQ && !!currentQ?.reason_text && (
-          <View style={srStyles.arCard}>
-            <Text style={srStyles.arLabel}>REASON (R)</Text>
-            <Text style={srStyles.arText}>{stripHtml(currentQ.reason_text)}</Text>
-          </View>
-        )}
-
-        {/* NUMERICAL: show typed value vs correct value instead of options */}
-        {isNumericQ && (
-          <View style={srStyles.numCard}>
-            <View
-              style={[
-                srStyles.numRow,
-                isSkipped
-                  ? srStyles.numRowNeutral
-                  : isCorrect
-                    ? srStyles.numRowCorrect
-                    : srStyles.numRowWrong,
-              ]}
-            >
-              <Text style={srStyles.numLabel}>Your answer</Text>
-              <Text style={srStyles.numValue}>
-                {numericUser !== '' ? numericUser : '—'}
-              </Text>
-            </View>
-            {numericCorrect !== '' && (
-              <View style={[srStyles.numRow, srStyles.numRowCorrect]}>
-                <Text style={srStyles.numLabel}>Correct answer</Text>
-                <Text style={srStyles.numValue}>{numericCorrect}</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {!isNumericQ && sortedChoices.map((opt: any, idx: number) => {
-          const optId = String(opt?.id);
-          const state = getOptionState(optId);
-          const letter = String.fromCharCode(65 + idx);
           return (
-            <View
-              key={optId}
-              style={[
-                solutionViewerStyles.optionRow,
-                state === 'correct' && solutionViewerStyles.optionCorrect,
-                state === 'wrong' && solutionViewerStyles.optionWrong,
-              ]}
-            >
-              <View
-                style={[
-                  solutionViewerStyles.optionBubble,
-                  state === 'correct' && solutionViewerStyles.bubbleCorrect,
-                  state === 'wrong' && solutionViewerStyles.bubbleWrong,
-                ]}
-              >
-                <Text
-                  style={[
-                    solutionViewerStyles.optionBubbleText,
-                    (state === 'correct' || state === 'wrong') && { color: '#fff' },
-                  ]}
-                >
-                  {letter}
-                </Text>
+            <View key={qIdx} style={styles.questionCard}>
+              {/* Q label + outcome */}
+              <View style={styles.qCardHeader}>
+                <Text style={styles.qCardNum}>Q{qIdx + 1}</Text>
+                {isSkipped ? (
+                  <View style={styles.outcomeBadge}>
+                    <Text style={styles.outcomeBadgeText}>— Skipped</Text>
+                  </View>
+                ) : isCorrect ? (
+                  <View style={[styles.outcomeBadge, styles.outcomeBadgeCorrect]}>
+                    <Ionicons name="checkmark" size={12} color="#22C55E" />
+                    <Text style={[styles.outcomeBadgeText, { color: '#22C55E' }]}>Correct</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.outcomeBadge, styles.outcomeBadgeWrong]}>
+                    <Ionicons name="close" size={12} color="#EF4444" />
+                    <Text style={[styles.outcomeBadgeText, { color: '#EF4444' }]}>Wrong</Text>
+                  </View>
+                )}
               </View>
-              <Text
-                style={[
-                  solutionViewerStyles.optionText,
-                  state === 'correct' && { color: '#166534', fontWeight: '600' },
-                  state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
-                ]}
-              >
-                {stripHtml(opt?.text)}
-              </Text>
-              {state === 'correct' && <Text style={{ fontSize: 16, color: GREEN }}>✓</Text>}
-              {state === 'wrong'   && <Text style={{ fontSize: 16, color: RED }}>✗</Text>}
-            </View>
-          );
-        })}
 
-        <View
-          style={[
-            solutionViewerStyles.statusBadge,
-            isSkipped && solutionViewerStyles.statusSkipped,
-            !isSkipped && isCorrect && solutionViewerStyles.statusCorrect,
-            !isSkipped && !isCorrect && solutionViewerStyles.statusWrong,
-          ]}
-        >
-          <Text style={solutionViewerStyles.statusBadgeText}>
-            {isSkipped ? '— Skipped' : isCorrect ? '✓ Correct' : '✗ Incorrect'}
-          </Text>
-        </View>
+              {/* Assertion-Reason statements */}
+              {!!q?.assertion_text && (
+                <View style={styles.arCard}>
+                  <Text style={styles.arLabel}>Assertion (A)</Text>
+                  <Text style={styles.arText}>{stripHtml(q.assertion_text)}</Text>
+                </View>
+              )}
+              {!!q?.reason_text && (
+                <View style={styles.arCard}>
+                  <Text style={styles.arLabel}>Reason (R)</Text>
+                  <Text style={styles.arText}>{stripHtml(q.reason_text)}</Text>
+                </View>
+              )}
 
+              {/* Question text */}
+              <Text style={styles.qCardText}>{stripHtml(questionText)}</Text>
 
-        {explanation && (
-          <View style={solutionViewerStyles.explanationCard}>
-            <View style={solutionViewerStyles.explanationHeader}>
-              <Text style={solutionViewerStyles.explanationLabel}>💡 EXPLANATION</Text>
-              {typeof explanation === 'object' && explanation?.steps && (
-                <View style={solutionViewerStyles.stepsChip}>
-                  <Text style={solutionViewerStyles.stepsChipText}>
-                    {explanation.steps.length} steps
+              {/* Numeric answer comparison */}
+              {isNumericQ ? (
+                <View style={styles.numericRow}>
+                  <View style={[styles.numericBox, styles.numericBoxUser]}>
+                    <Text style={styles.numericBoxLabel}>Your answer</Text>
+                    <Text style={styles.numericBoxValue}>{numericUser || '—'}</Text>
+                  </View>
+                  <View style={[styles.numericBox, styles.numericBoxCorrect]}>
+                    <Text style={styles.numericBoxLabel}>Correct answer</Text>
+                    <Text style={[styles.numericBoxValue, { color: '#166534' }]}>
+                      {numericCorrect || '—'}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                sortedChoices.map((opt: any, idx: number) => {
+                  const optId = String(opt?.id ?? opt?.value ?? idx);
+                  const state = getOptState(optId);
+                  const letter = String.fromCharCode(65 + idx);
+                  return (
+                    <View
+                      key={optId}
+                      style={[
+                        styles.optRow,
+                        state === 'correct' && styles.optRowCorrect,
+                        state === 'wrong' && styles.optRowWrong,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.optLetter,
+                          state === 'correct' && styles.optLetterCorrect,
+                          state === 'wrong' && styles.optLetterWrong,
+                        ]}
+                      >
+                        {letter}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.optText,
+                          state === 'correct' && { color: '#166534', fontWeight: '600' },
+                          state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
+                        ]}
+                      >
+                        {stripHtml(opt?.text ?? opt?.label ?? '')}
+                      </Text>
+                      {state === 'correct' && (
+                        <Ionicons name="checkmark" size={16} color="#22C55E" style={{ marginLeft: 'auto' }} />
+                      )}
+                      {state === 'wrong' && (
+                        <Ionicons name="close" size={16} color="#EF4444" style={{ marginLeft: 'auto' }} />
+                      )}
+                    </View>
+                  );
+                })
+              )}
+
+              {/* Why / explanation */}
+              {explanation && (
+                <View style={styles.whyBox}>
+                  <Text style={styles.whyText}>
+                    <Text style={styles.whyLabel}>Why: </Text>
+                    {typeof explanation === 'string'
+                      ? stripHtml(explanation)
+                      : explanation?.summary
+                      ? stripHtml(explanation.summary)
+                      : 'See explanation above.'}
                   </Text>
                 </View>
               )}
+
+              {/* Ask the AI tutor */}
+              <TouchableOpacity
+                style={styles.askTutorBtn}
+                activeOpacity={0.8}
+                onPress={() => setTutorQ({ id: qid, text: stripHtml(questionText) })}
+              >
+                <Ionicons name="sparkles" size={13} color="#3B7DF8" />
+                <Text style={styles.askTutorText}>Ask the AI tutor</Text>
+              </TouchableOpacity>
             </View>
-
-            {typeof explanation === 'object' && explanation?.steps?.map((step: any, i: number) => (
-              <View key={i} style={solutionViewerStyles.explanationStep}>
-                <Text style={solutionViewerStyles.stepLabel}>Step {i + 1}. {stripHtml(step.title)}</Text>
-                <Text style={solutionViewerStyles.stepBody}>{stripHtml(step.body)}</Text>
-              </View>
-            ))}
-
-            {typeof explanation === 'object' && explanation?.summary && (
-              <Text style={solutionViewerStyles.explanationSummary}>
-                {stripHtml(explanation.summary)}
-              </Text>
-            )}
-
-            {typeof explanation === 'string' && (
-              <Text style={solutionViewerStyles.stepBody}>{stripHtml(explanation)}</Text>
-            )}
-          </View>
-        )}
-
-        {/* Ask the AI tutor */}
-        <TouchableOpacity
-          style={tutorBtnStyle.btn}
-          activeOpacity={0.8}
-          onPress={() => setTutorVisible(true)}
-        >
-          <Ionicons name="sparkles" size={14} color="#6C5CE7" />
-          <Text style={tutorBtnStyle.text}>Ask the AI tutor</Text>
-        </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <TutorModal
-        visible={tutorVisible}
-        onClose={() => setTutorVisible(false)}
-        questionId={currentQId}
-        questionText={stripHtml(questionText)}
+        visible={tutorQ !== null}
+        onClose={() => setTutorQ(null)}
+        questionId={tutorQ?.id}
+        questionText={tutorQ?.text}
         ask={(payload) => askAssessmentTutorService(attemptId, payload)}
       />
-
-      {/* Navigation */}
-      <View style={solutionViewerStyles.navRow}>
-        <TouchableOpacity
-          style={[solutionViewerStyles.navBtn, currentIndex === 0 && solutionViewerStyles.navBtnDisabled]}
-          onPress={() => setCurrentIndex((p) => Math.max(0, p - 1))}
-          disabled={currentIndex === 0}
-        >
-          <Text style={[solutionViewerStyles.navBtnText, currentIndex === 0 && { color: GRAY }]}>
-            ‹ Prev
-          </Text>
-        </TouchableOpacity>
-
-        <Text style={solutionViewerStyles.navCounter}>{currentIndex + 1} / {totalQ}</Text>
-
-        <TouchableOpacity
-          style={[solutionViewerStyles.navBtn, currentIndex === totalQ - 1 && solutionViewerStyles.navBtnDisabled]}
-          onPress={() => setCurrentIndex((p) => Math.min(totalQ - 1, p + 1))}
-          disabled={currentIndex === totalQ - 1}
-        >
-          <Text style={[solutionViewerStyles.navBtnText, currentIndex === totalQ - 1 && { color: GRAY }]}>
-            Next ›
-          </Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
 
-const srStyles = StyleSheet.create({
-  arCard: {
-    backgroundColor: '#F5F3FF',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#6C5CE7',
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#EEEFF5' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#EEEFF5',
+    gap: 10,
   },
-  arLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#6C5CE7',
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  arText: { fontSize: 13, color: '#1A1A2E', lineHeight: 20 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  backText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: '#1A1A2E' },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 40, gap: 16 },
 
-  numCard: { gap: 10, marginBottom: 4 },
-  numRow: {
+  questionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  qCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  qCardNum: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
+  outcomeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  outcomeBadgeCorrect: { backgroundColor: '#DCFCE7' },
+  outcomeBadgeWrong: { backgroundColor: '#FEE2E2' },
+  outcomeBadgeText: { fontSize: 12, fontWeight: '700', color: '#6B7280' },
+  qCardText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A2E',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+
+  arCard: {
+    backgroundColor: '#F9FAFB',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EEF0F4',
+    padding: 12,
+    marginBottom: 12,
+  },
+  arLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6C5CE7',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  arText: { fontSize: 14, color: '#1A1A2E', lineHeight: 20 },
+
+  optRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+    marginBottom: 8,
+  },
+  optRowCorrect: { borderColor: '#22C55E', backgroundColor: '#F0FDF4' },
+  optRowWrong: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
+  optLetter: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#E8E8F0',
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    lineHeight: 28,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+  optLetterCorrect: { backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#fff' },
+  optLetterWrong: { backgroundColor: '#EF4444', borderColor: '#EF4444', color: '#fff' },
+  optText: { flex: 1, fontSize: 14, color: '#1A1A2E', fontWeight: '500' },
+
+  numericRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
+  numericBox: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
     backgroundColor: '#fff',
   },
-  numRowNeutral: { borderColor: '#E8E8F0', backgroundColor: '#F9FAFB' },
-  numRowCorrect: { borderColor: '#22C55E', backgroundColor: '#F0FDF4' },
-  numRowWrong: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
-  numLabel: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
-  numValue: { fontSize: 16, color: '#1A1A2E', fontWeight: '800' },
-});
+  numericBoxUser: { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
+  numericBoxCorrect: { borderColor: '#22C55E', backgroundColor: '#F0FDF4' },
+  numericBoxLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', marginBottom: 4 },
+  numericBoxValue: { fontSize: 16, fontWeight: '800', color: '#1A1A2E' },
 
-const tutorBtnStyle = StyleSheet.create({
-  btn: {
+  whyBox: {
+    marginTop: 10,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    padding: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B7DF8',
+  },
+  whyLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  whyText: { fontSize: 13, color: '#6B7280', lineHeight: 20 },
+  askTutorBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 6,
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: '#EDEBFB',
+    gap: 5,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#EEF4FF',
   },
-  text: { fontSize: 13, fontWeight: '700', color: '#6C5CE7' },
+  askTutorText: { fontSize: 12, fontWeight: '700', color: '#3B7DF8' },
 });
- 

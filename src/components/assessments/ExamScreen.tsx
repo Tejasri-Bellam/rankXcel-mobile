@@ -14,14 +14,16 @@ import {
   Platform,
   ScrollView,
   StatusBar,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { getassessmentsQuestionsService } from "../../libs/services/assessments";
-import { examScreenStyles as styles } from "../../styles/sidebar/assessments/examScreen";
+import QuestionPalette, { PaletteStatus } from "../common/QuestionPalette";
 
 interface Props {
   assessmentId: number;
@@ -94,7 +96,9 @@ export default function ExamScreen({
   const tabWarningTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Track in-flight save requests so we can await them before submit
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
@@ -453,11 +457,14 @@ export default function ExamScreen({
   const handleMarkForReview = () => {
     const qId = getCurrentQuestionId();
     if (!qId) return;
-    setQStatuses((prev) => ({ ...prev, [qId]: "marked" }));
+    const isMarked = qStatuses[qId] === "marked";
+    const hasAnswer = (answers[qId] || []).length > 0;
+    const next = isMarked ? (hasAnswer ? "answered" : "not_answered") : "marked";
+    setQStatuses((prev) => ({ ...prev, [qId]: next }));
     if (isNumericalType(activeQuestion?.type)) {
-      saveNumericToServer(qId, answers[qId]?.[0] ?? "", true);
+      saveNumericToServer(qId, answers[qId]?.[0] ?? "", !isMarked);
     } else {
-      saveAnswerToServer(qId, answers[qId] ?? [], true);
+      saveAnswerToServer(qId, answers[qId] ?? [], !isMarked);
     }
   };
 
@@ -506,15 +513,6 @@ export default function ExamScreen({
     }
   };
 
-  const handleNext = () => {
-    if (activeQIdx < activeSection.questions.length - 1) {
-      setActiveQIdx(activeQIdx + 1);
-    } else if (activeSectionIdx < exam.sections.length - 1) {
-      setActiveSectionIdx(activeSectionIdx + 1);
-      setActiveQIdx(0);
-    }
-  };
-
   const getAllQuestions = () => exam.sections.flatMap((s: any) => s.questions);
 
   const getSubmitSummary = () => {
@@ -533,22 +531,6 @@ export default function ExamScreen({
     });
     return { answered, notAnswered, markedForReview, notVisited };
   };
-
-  const getSectionSummary = () =>
-    exam.sections.map((section: any) => {
-      let ans = 0,
-        notAns = 0;
-      section.questions.forEach((q: any) => {
-        if ((answers[q.id] || []).length > 0) ans++;
-        else notAns++;
-      });
-      return {
-        name: section.name,
-        total: section.questions.length,
-        answered: ans,
-        notAnswered: notAns,
-      };
-    });
 
   const handleFinalSubmit = async () => {
     if (isSubmitting) {
@@ -595,45 +577,101 @@ export default function ExamScreen({
     }
   };
 
-  const qNumberInSection = activeQIdx + 1;
-  const totalInSection = activeSection?.questions?.length ?? 0;
   const selectedOptions = answers[getCurrentQuestionId()] || [];
   const summary = getSubmitSummary();
-  const sectionSummary = getSectionSummary();
-  const sectionAnswered = exam.sections.map(
-    (s: any) =>
-      s.questions.filter((q: any) => (answers[q.id] || []).length > 0).length,
+
+  // Flat question list (with section/index mapping) drives the palette, the
+  // header progress bar, the Q n/total label and the submit copy.
+  const flatQuestions = exam.sections.flatMap((s: any, si: number) =>
+    (s.questions ?? []).map((q: any, qi: number) => ({ q, si, qi })),
   );
+  const totalQ = flatQuestions.length;
+  const currentFlatIdx = flatQuestions.findIndex(
+    ({ si, qi }: any) => si === activeSectionIdx && qi === activeQIdx,
+  );
+  const currentQId = getCurrentQuestionId();
+  const isMarked = qStatuses[currentQId] === "marked";
+  const isLast =
+    activeSectionIdx === exam.sections.length - 1 &&
+    activeQIdx === activeSection.questions.length - 1;
+  const isFirst = activeSectionIdx === 0 && activeQIdx === 0;
+  const isTimeLow = timeLeft < 300;
+
+  const paletteItems = flatQuestions.map(({ q, si, qi }: any) => {
+    const status = qStatuses[q.id];
+    const hasAnswer = (answers[q.id] || []).length > 0;
+    const pStatus: PaletteStatus =
+      status === "marked" ? "marked" : hasAnswer ? "answered" : "not_answered";
+    return {
+      key: String(q.id ?? `${si}-${qi}`),
+      status: pStatus,
+      isCurrent: si === activeSectionIdx && qi === activeQIdx,
+    };
+  });
+
+  // Thin segment colours for the header progress bar (mirrors the mock screen).
+  const progressSegs = flatQuestions.map(({ q, si, qi }: any) => {
+    const isCurrent = si === activeSectionIdx && qi === activeQIdx;
+    const status = qStatuses[q.id];
+    const hasAnswer = (answers[q.id] || []).length > 0;
+    if (isCurrent) return "#3B7DF8";
+    if (status === "answered" && hasAnswer) return "#3B7DF8";
+    if (status === "marked") return "#F59E0B";
+    return "#E5E7EB";
+  });
+
+  const handlePaletteJump = (idx: number) => {
+    const target = flatQuestions[idx];
+    if (!target) return;
+    setActiveSectionIdx(target.si);
+    setActiveQIdx(target.qi);
+    setShowPalette(false);
+  };
 
   return (
-    <View style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+    <SafeAreaView style={styles.safeArea} edges={[]}>
+      <StatusBar barStyle="light-content" backgroundColor="#0F1117" />
 
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <View style={styles.topLeft}>
-          <Text style={styles.examLabel}>Mock Test</Text>
-          <Text style={styles.examName}>{exam?.name ?? "Assessment"}</Text>
-        </View>
-
-        <View style={styles.timerBox}>
-          <Text style={styles.timerLabel}>TIME LEFT</Text>
-          <Text style={styles.timerValue}>{formatTime(timeLeft)}</Text>
-        </View>
-
+      {/* Header */}
+      <View style={styles.header}>
         <TouchableOpacity
-          style={styles.submitTopBtn}
-          onPress={() => setShowSubmitModal(true)}
-          disabled={isSubmitting}
+          style={styles.closeBtn}
+          onPress={onBackToAssessments}
+          activeOpacity={0.7}
         >
-          <Text style={styles.submitTopBtnText}>⚑ Submit</Text>
+          <Ionicons name="close" size={18} color="#555" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {exam?.name ?? "Assessment"}
+          </Text>
+          <Text style={styles.headerSub}>Live · Sample</Text>
+          {/* Progress bar */}
+          <View style={styles.progressBar}>
+            {progressSegs.map((color: string, i: number) => (
+              <View key={i} style={[styles.progressSeg, { backgroundColor: color }]} />
+            ))}
+          </View>
+        </View>
+        <View style={[styles.timerChip, isTimeLow && styles.timerChipRed]}>
+          <Ionicons name="time-outline" size={12} color={isTimeLow ? "#EF4444" : "#555"} />
+          <Text style={[styles.timerText, isTimeLow && { color: "#EF4444" }]}>
+            {formatTime(timeLeft)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.menuBtn}
+          onPress={() => setShowPalette(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="menu-outline" size={20} color="#555" />
         </TouchableOpacity>
       </View>
 
       {/* Tab switch warning */}
       {showTabWarning && (
         <View style={styles.tabWarningBanner}>
-          <Text style={styles.tabWarningIcon}>⚠</Text>
+          <Ionicons name="warning-outline" size={14} color="#B45309" />
           <Text style={styles.tabWarningText}>
             Tab switch detected ({tabSwitchCount} time
             {tabSwitchCount > 1 ? "s" : ""}). This is being recorded.
@@ -641,87 +679,37 @@ export default function ExamScreen({
         </View>
       )}
 
-      {/* Section tabs */}
-      <View style={styles.sectionTabsRow}>
-        {exam.sections.map((section: any, idx: number) => (
-          <TouchableOpacity
-            key={section.id}
-            style={[
-              styles.sectionTab,
-              activeSectionIdx === idx && styles.sectionTabActive,
-            ]}
-            onPress={() => {
-              setActiveSectionIdx(idx);
-              setActiveQIdx(0);
-            }}
-          >
-            <Text
-              style={[
-                styles.sectionTabText,
-                activeSectionIdx === idx && styles.sectionTabTextActive,
-              ]}
-            >
-              {section.name}
-            </Text>
-
-            <Text
-              style={[
-                styles.sectionTabCount,
-                activeSectionIdx === idx && styles.sectionTabCountActive,
-              ]}
-            >
-              {sectionAnswered[idx]}/
-              {section.total_questions ?? section.questions?.length ?? 0}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       {/* Question content */}
       {activeQuestion ? (
         <ScrollView
-          style={styles.questionScroll}
-          contentContainerStyle={styles.questionScrollContent}
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Q label + Mark */}
           <View style={styles.qMetaRow}>
-            <Text style={styles.qNumber}>
-              Q {qNumberInSection} of {totalInSection}
+            <Text style={styles.qLabel}>
+              QUESTION {currentFlatIdx + 1} / {totalQ}
             </Text>
-
-            <View style={styles.qTypeBadge}>
-              <Text style={styles.qTypeText}>{activeQuestion.type}</Text>
-            </View>
-
-            <View style={styles.marksBadges}>
-              <View style={styles.correctMarkBadge}>
-                <Text style={styles.marksBadgeText}>
-                  +{activeQuestion.marks_correct} marks
-                </Text>
-              </View>
-
-              <View style={styles.wrongMarkBadge}>
-                <Text style={styles.marksBadgeText}>
-                  {activeQuestion.marks_incorrect} marks
-                </Text>
-              </View>
-            </View>
+            <TouchableOpacity
+              style={[styles.markBtn, isMarked && styles.markBtnActive]}
+              onPress={handleMarkForReview}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name={isMarked ? "bookmark" : "bookmark-outline"}
+                size={14}
+                color={isMarked ? "#F59E0B" : "#9CA3AF"}
+              />
+              <Text style={[styles.markText, isMarked && styles.markTextActive]}>
+                {isMarked ? "Marked" : "Mark"}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          <Text style={styles.questionText}>
-            {stripHtml(activeQuestion.text)}
-          </Text>
+          <Text style={styles.questionText}>{stripHtml(activeQuestion.text ?? "")}</Text>
           {activeQuestion.image && (
-            <Image
-              source={{ uri: activeQuestion.image }}
-              style={{
-                width: "50%",
-                height: 100,
-                resizeMode: "contain",
-                borderRadius: 8,
-                alignSelf: "center",
-              }}
-            />
+            <Image source={{ uri: activeQuestion.image }} style={styles.questionImage} />
           )}
 
           {/* Assertion-Reason: show the A and R statements before the options */}
@@ -771,13 +759,7 @@ export default function ExamScreen({
               </Text>
             </View>
           ) : (
-            <>
-              <Text style={styles.selectLabel}>
-                {isMultiSelectType(activeQuestion.type)
-                  ? "Select one or more correct options"
-                  : "Select one correct option"}
-              </Text>
-
+            <View style={styles.optionsList}>
               {activeQuestion.options?.map((option: any, index: number) => {
                 const isSelected = selectedOptions.includes(option.id);
                 const multi = isMultiSelectType(activeQuestion.type);
@@ -785,60 +767,43 @@ export default function ExamScreen({
                 return (
                   <TouchableOpacity
                     key={option.id ?? String.fromCharCode(65 + index)}
-                    style={[
-                      styles.optionRow,
-                      isSelected && styles.optionRowSelected,
-                    ]}
+                    style={[styles.optRow, isSelected && styles.optRowSelected]}
                     onPress={() => handleOptionSelect(option.id)}
-                    activeOpacity={0.8}
+                    activeOpacity={0.7}
                   >
                     <View
                       style={[
-                        styles.optionBubble,
-                        // Square the bubble for multi-select so it reads as a checkbox.
+                        styles.optLetter,
                         multi && { borderRadius: 8 },
-                        isSelected && styles.optionBubbleSelected,
+                        isSelected && styles.optLetterSelected,
                       ]}
                     >
                       <Text
                         style={[
-                          styles.optionBubbleText,
-                          isSelected && styles.optionBubbleTextSelected,
+                          styles.optLetterText,
+                          isSelected && styles.optLetterTextSelected,
                         ]}
                       >
-                        {multi && isSelected
-                          ? "✓"
-                          : String.fromCharCode(65 + index)}
+                        {multi && isSelected ? "✓" : String.fromCharCode(65 + index)}
                       </Text>
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.optionText,
-                          isSelected && styles.optionTextSelected,
-                        ]}
-                      >
+                      <Text style={[styles.optText, isSelected && styles.optTextSelected]}>
                         {stripHtml(option.text)}
                       </Text>
 
                       {option.image && (
-                        <Image
-                          source={{ uri: option.image }}
-                          style={{
-                            width: "100%",
-                            height: 120,
-                            resizeMode: "contain",
-                            marginTop: 8,
-                          }}
-                        />
+                        <Image source={{ uri: option.image }} style={styles.optImage} />
                       )}
                     </View>
                   </TouchableOpacity>
                 );
               })}
-            </>
+            </View>
           )}
+
+          <Text style={styles.swipeHint}>— Swipe to move between questions —</Text>
         </ScrollView>
       ) : (
         <View
@@ -852,123 +817,377 @@ export default function ExamScreen({
         </View>
       )}
 
-      {/* Bottom action row */}
-      <View style={styles.bottomActionRow}>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={handleMarkForReview}
-        >
-          <Text style={styles.actionBtnText}>🔖 Mark for Review</Text>
-        </TouchableOpacity>
-
-        <View style={styles.notVisitedDot} />
-        <Text style={styles.notVisitedLabel}>Not Answered</Text>
+      {/* Bottom bar */}
+      <View style={styles.bottomBar}>
+        <View style={styles.navRow}>
+          <TouchableOpacity
+            style={[styles.prevBtn, isFirst && styles.prevBtnDisabled]}
+            onPress={handlePrev}
+            disabled={isFirst}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={16} color={isFirst ? "#C7CBD3" : "#555"} />
+            <Text style={[styles.prevBtnText, isFirst && { color: "#C7CBD3" }]}>Prev</Text>
+          </TouchableOpacity>
+          {isLast ? (
+            <TouchableOpacity
+              style={styles.submitBtn}
+              onPress={() => setShowSubmitModal(true)}
+              disabled={isSubmitting}
+              activeOpacity={0.85}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.submitBtnText}>Submit</Text>
+                  <Ionicons name="checkmark" size={16} color="#fff" />
+                </>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.nextBtn}
+              onPress={handleSaveAndNext}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.nextBtnText}>Next</Text>
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {/* Nav row */}
-      <View style={styles.navRow}>
-        <TouchableOpacity style={styles.navBtn} onPress={handlePrev}>
-          <Text style={styles.navBtnText}>‹ Prev</Text>
-        </TouchableOpacity>
+      {/* Question palette */}
+      <QuestionPalette
+        visible={showPalette}
+        onClose={() => setShowPalette(false)}
+        items={paletteItems}
+        answeredCount={summary.answered}
+        totalCount={flatQuestions.length}
+        onJump={handlePaletteJump}
+        onSubmit={() => {
+          setShowPalette(false);
+          setTimeout(() => setShowSubmitModal(true), 300);
+        }}
+        insetsBottom={insets.bottom}
+      />
 
-        <TouchableOpacity
-          style={styles.saveNextBtn}
-          onPress={handleSaveAndNext}
-        >
-          <Text style={styles.saveNextBtnText}>💾 Save & Next</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navBtn} onPress={handleNext}>
-          <Text style={styles.navBtnText}>Next ›</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Submit Modal */}
+      {/* Submit confirmation sheet */}
       <Modal
         visible={showSubmitModal}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setShowSubmitModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalTitleRow}>
-                <Text style={styles.modalWarningIcon}>⚠</Text>
-
-                <View>
-                  <Text style={styles.modalTitle}>Submit Exam?</Text>
-                  <Text style={styles.modalSubtitle}>
-                    This action cannot be undone.
-                  </Text>
-                </View>
-              </View>
-
-              <TouchableOpacity onPress={() => setShowSubmitModal(false)}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalStatsRow}>
-              <View style={[styles.modalStatBox, styles.modalStatBoxGreen]}>
-                <Text style={styles.modalStatValue}>{summary.answered}</Text>
-                <Text style={[styles.modalStatLabel, { color: "#22C55E" }]}>
-                  Answered
-                </Text>
-              </View>
-
-              <View style={[styles.modalStatBox, styles.modalStatBoxRed]}>
-                <Text style={styles.modalStatValue}>{summary.notAnswered}</Text>
-                <Text style={[styles.modalStatLabel, { color: "#EF4444" }]}>
-                  Not Answered
-                </Text>
-              </View>
-            </View>
-
-            {(summary.markedForReview > 0 || summary.notVisited > 0) && (
-              <View style={styles.modalStatsRow}>
-                <View style={[styles.modalStatBox, styles.modalStatBoxPurple]}>
-                  <Text style={styles.modalStatValue}>
-                    {summary.markedForReview}
-                  </Text>
-                  <Text style={[styles.modalStatLabel, { color: "#6C5CE7" }]}>
-                    Marked
-                  </Text>
-                </View>
-
-                <View style={[styles.modalStatBox, styles.modalStatBoxGray]}>
-                  <Text style={styles.modalStatValue}>{summary.notVisited}</Text>
-                  <Text style={[styles.modalStatLabel, { color: "#9898B0" }]}>
-                    Not Visited
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            <View style={styles.modalBtnRow}>
+        <TouchableOpacity
+          style={styles.submitOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSubmitModal(false)}
+        >
+          <View style={[styles.submitSheet, { paddingBottom: 24 + insets.bottom }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.submitSheetTitle}>Submit attempt?</Text>
+            <Text style={styles.submitSheetDesc}>
+              You&apos;ve answered{" "}
+              <Text style={{ fontWeight: "700" }}>
+                {summary.answered} of {totalQ}
+              </Text>
+              .
+              {summary.markedForReview > 0
+                ? ` ${summary.markedForReview} marked for review.`
+                : ""}
+              {"\n"}You can&apos;t change answers after submitting.
+            </Text>
+            <View style={styles.submitSheetBtns}>
               <TouchableOpacity
-                style={styles.goBackBtn}
+                style={styles.keepGoingBtn}
                 onPress={() => setShowSubmitModal(false)}
-                disabled={isSubmitting}
+                activeOpacity={0.75}
               >
-                <Text style={styles.goBackBtnText}>Go Back</Text>
+                <Text style={styles.keepGoingText}>Keep going</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={styles.submitExamBtn}
+                style={styles.submitNowBtn}
                 onPress={handleFinalSubmit}
                 disabled={isSubmitting}
+                activeOpacity={0.85}
               >
                 {isSubmitting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.submitExamBtnText}>⚑ Submit Exam</Text>
+                  <>
+                    <Text style={styles.submitNowText}>Submit now</Text>
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  </>
                 )}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: "#0F1117" },
+  scroll: { flex: 1, backgroundColor: "#fff" },
+  scrollContent: { padding: 20, paddingBottom: 24 },
+
+  // Header
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0F1117",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#1E2130",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerCenter: { flex: 1, gap: 2 },
+  headerTitle: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  headerSub: { fontSize: 11, color: "#9CA3AF" },
+  progressBar: { flexDirection: "row", gap: 2, marginTop: 5, height: 2 },
+  progressSeg: { flex: 1, height: 2, borderRadius: 1 },
+  timerChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#1E2130",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  timerChipRed: { backgroundColor: "#2D0A0A" },
+  timerText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#E5E7EB",
+    fontVariant: ["tabular-nums"] as any,
+  },
+  menuBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#1E2130",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Tab switch warning
+  tabWarningBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  tabWarningText: { flex: 1, fontSize: 12, color: "#B45309", fontWeight: "500" },
+
+  // Q meta
+  qMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  qLabel: { fontSize: 11, fontWeight: "700", color: "#9CA3AF", letterSpacing: 1 },
+  markBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
+  markBtnActive: { borderColor: "#F59E0B", backgroundColor: "#FEF3C7" },
+  markText: { fontSize: 13, fontWeight: "600", color: "#9CA3AF" },
+  markTextActive: { color: "#B45309" },
+
+  // Question
+  questionText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A1A2E",
+    lineHeight: 26,
+    marginBottom: 24,
+  },
+  questionImage: {
+    width: "50%",
+    height: 100,
+    resizeMode: "contain",
+    borderRadius: 8,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+
+  // Assertion-Reason
+  arCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#EEF0F4",
+    padding: 14,
+    marginBottom: 12,
+  },
+  arLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#6C5CE7",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  arText: { fontSize: 15, color: "#1A1A2E", lineHeight: 22 },
+
+  // Numeric
+  selectLabel: { fontSize: 13, fontWeight: "600", color: "#6B7280", marginBottom: 12 },
+  numericInput: {
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#1A1A2E",
+    backgroundColor: "#fff",
+  },
+  numericInputFilled: { borderColor: "#3B7DF8", backgroundColor: "#F0F6FF" },
+  numericHint: { fontSize: 12, color: "#9CA3AF", marginTop: 8 },
+
+  // Options
+  optionsList: { gap: 10 },
+  optRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
+  optRowSelected: { borderColor: "#3B7DF8", backgroundColor: "#F0F6FF" },
+  optLetter: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  optLetterSelected: { backgroundColor: "#3B7DF8", borderColor: "#3B7DF8" },
+  optLetterText: { fontSize: 13, fontWeight: "700", color: "#6B7280" },
+  optLetterTextSelected: { color: "#fff" },
+  optText: { fontSize: 15, color: "#1A1A2E", fontWeight: "500" },
+  optTextSelected: { color: "#3B7DF8", fontWeight: "600" },
+  optImage: { width: "100%", height: 120, resizeMode: "contain", marginTop: 8 },
+
+  swipeHint: { textAlign: "center", fontSize: 12, color: "#D1D5DB", marginTop: 20 },
+
+  // Bottom bar
+  bottomBar: {
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 8 : 16,
+  },
+  nextBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#3B7DF8",
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  nextBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  navRow: { flexDirection: "row", gap: 10 },
+  prevBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 15,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
+  prevBtnText: { fontSize: 14, fontWeight: "700", color: "#555" },
+  prevBtnDisabled: { borderColor: "#F0F1F4", backgroundColor: "#fff" },
+  submitBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#1A1A2E",
+    borderRadius: 16,
+    paddingVertical: 15,
+  },
+  submitBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+
+  // Submit sheet
+  submitOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  submitSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E5E7EB",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  submitSheetTitle: { fontSize: 20, fontWeight: "800", color: "#1A1A2E", marginBottom: 10 },
+  submitSheetDesc: { fontSize: 14, color: "#6B7280", lineHeight: 22, marginBottom: 24 },
+  submitSheetBtns: { flexDirection: "row", gap: 12 },
+  keepGoingBtn: {
+    flex: 1,
+    paddingVertical: 15,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  keepGoingText: { fontSize: 15, fontWeight: "700", color: "#1A1A2E" },
+  submitNowBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#1A1A2E",
+    borderRadius: 14,
+    paddingVertical: 15,
+  },
+  submitNowText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+});
