@@ -9,7 +9,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getMockTestResultService, MockTest } from '../../libs/services/mock-library';
+import {
+  getMockTestResultService,
+  getMockTestDetailedAnalysisService,
+  MockTest,
+} from '../../libs/services/mock-library';
 
 interface Props {
   mockId: number | string;
@@ -46,6 +50,7 @@ export default function MockExamResults({
   onDone,
 }: Props) {
   const [result, setResult] = useState<any>(null);
+  const [analysis, setAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,8 +60,22 @@ export default function MockExamResults({
     try {
       setLoading(true);
       setError(null);
-      const res = await getMockTestResultService(mockId);
-      setResult(res?.data ?? null);
+      // The /result/ endpoint doesn't always carry the correct/wrong
+      // breakdown; the detailed-analysis endpoint does. Fetch both and let
+      // the parser below pull totals from whichever has the data.
+      const [resultRes, analysisRes] = await Promise.allSettled([
+        getMockTestResultService(mockId),
+        getMockTestDetailedAnalysisService(mockId),
+      ]);
+      const resultData =
+        resultRes.status === 'fulfilled' ? (resultRes.value as any)?.data ?? null : null;
+      const analysisData =
+        analysisRes.status === 'fulfilled' ? (analysisRes.value as any)?.data ?? null : null;
+      console.log('MOCK RESULT API:', JSON.stringify(resultData, null, 2));
+      console.log('MOCK RESULT ANALYSIS API:', JSON.stringify(analysisData, null, 2));
+      setResult(resultData);
+      setAnalysis(analysisData);
+      if (!resultData && !analysisData) setError('Failed to load results.');
     } catch (err) {
       setError('Failed to load results.');
     } finally {
@@ -74,21 +93,72 @@ export default function MockExamResults({
   }
 
   // ── Parse result ──
-  const chapterBreakdown: Record<string, any> = result?.chapter_breakdown ?? {};
-  const chapterEntries = Object.values(chapterBreakdown);
+  // Totals can live in several shapes depending on the endpoint:
+  //  • top-level aggregates on /result/ (correct/wrong/skipped)
+  //  • a chapter_breakdown map (on /result/ or detailed-analysis)
+  //  • a subject_summary array (detailed-analysis)
+  // Prefer top-level totals, then sum the breakdown from either source.
+  const num = (...vals: any[]): number => {
+    for (const v of vals) {
+      if (v != null && !Number.isNaN(Number(v))) return Number(v);
+    }
+    return 0;
+  };
 
-  let totalCorrect = 0, totalWrong = 0, totalSkipped = 0;
-  chapterEntries.forEach((ch: any) => {
-    totalCorrect += Number(ch?.correct ?? 0);
-    totalWrong += Number(ch?.wrong ?? 0);
-    totalSkipped += Number(ch?.unattempted ?? 0);
-  });
+  // Aggregate correct/wrong/skipped from a chapter_breakdown map/array or a
+  // subject_summary array (both share the same per-row field names).
+  const sumRows = (source: any): { c: number; w: number; s: number } => {
+    const cb = source?.chapter_breakdown ?? source?.subject_summary;
+    const rows = Array.isArray(cb)
+      ? cb
+      : cb && typeof cb === 'object'
+      ? Object.values(cb)
+      : [];
+    return rows.reduce(
+      (acc: any, r: any) => ({
+        c: acc.c + num(r?.correct),
+        w: acc.w + num(r?.wrong),
+        s: acc.s + num(r?.unattempted, r?.skipped),
+      }),
+      { c: 0, w: 0, s: 0 },
+    );
+  };
 
-  const totalQ = totalCorrect + totalWrong + totalSkipped || mock.question_count || 0;
-  const score = Number(result?.total_score ?? 0);
-  const maxScore = Number(result?.max_score ?? mock.max_score ?? totalQ);
-  const pct = maxScore > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0;
-  const timeTaken = Number(result?.time_taken_seconds ?? timeTakenSeconds ?? 0);
+  // Prefer detailed-analysis (richest breakdown), fall back to result.
+  const bd = sumRows(analysis);
+  const bdAlt = sumRows(result);
+  const bdCorrect = bd.c || bdAlt.c;
+  const bdWrong = bd.w || bdAlt.w;
+  const bdSkipped = bd.s || bdAlt.s;
+
+  const totalCorrect = num(
+    result?.correct, result?.total_correct, result?.correct_count,
+    analysis?.correct, analysis?.total_correct,
+    bdCorrect,
+  );
+  const totalWrong = num(
+    result?.wrong, result?.total_wrong, result?.incorrect_count,
+    analysis?.wrong, analysis?.total_wrong,
+    bdWrong,
+  );
+  const totalSkipped = num(
+    result?.skipped, result?.unattempted, result?.total_skipped,
+    analysis?.skipped, analysis?.unattempted,
+    bdSkipped,
+  );
+
+  const totalQ =
+    num(result?.total_questions, result?.total, analysis?.total_questions) ||
+    totalCorrect + totalWrong + totalSkipped ||
+    mock.question_count ||
+    0;
+  // Accuracy shown in the circle — keep it aligned with the "X/Y correct"
+  // label below it (a whole 0–100 number, never the negative/decimal
+  // score-based percentage that negative marking can produce).
+  const pct = totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0;
+  const timeTaken = Number(
+    result?.time_taken_seconds ?? analysis?.time_taken_seconds ?? timeTakenSeconds ?? 0,
+  );
   const mockTitle = getMockTitle(mock);
 
   const motivationText =
@@ -114,7 +184,9 @@ export default function MockExamResults({
         {/* Big circle score */}
         <View style={styles.scoreCircleWrap}>
           <View style={styles.scoreCircle}>
-            <Text style={styles.scorePct}>{pct}%</Text>
+            <Text style={styles.scorePct} numberOfLines={1} adjustsFontSizeToFit>
+              {pct}%
+            </Text>
             <Text style={styles.scoreSubLabel}>{totalCorrect}/{totalQ} correct</Text>
           </View>
         </View>
@@ -126,17 +198,22 @@ export default function MockExamResults({
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Ionicons name="checkmark" size={18} color="#22C55E" />
+            <Ionicons name="checkmark" size={16} color="#22C55E" />
             <Text style={styles.statValue}>{totalCorrect}</Text>
             <Text style={styles.statLabel}>Correct</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="close" size={18} color="#EF4444" />
+            <Ionicons name="close" size={16} color="#EF4444" />
             <Text style={styles.statValue}>{totalWrong}</Text>
             <Text style={styles.statLabel}>Wrong</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="time-outline" size={18} color="#3B7DF8" />
+            <Ionicons name="remove-outline" size={16} color="#9CA3AF" />
+            <Text style={styles.statValue}>{totalSkipped}</Text>
+            <Text style={styles.statLabel}>Skipped</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="time-outline" size={16} color="#3B7DF8" />
             <Text style={styles.statValue}>{formatTime(timeTaken)}</Text>
             <Text style={styles.statLabel}>Time</Text>
           </View>
@@ -177,26 +254,26 @@ const styles = StyleSheet.create({
   },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   backText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40, alignItems: 'center' },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 20, alignItems: 'center' },
 
   resultsLabel: {
     fontSize: 15,
     fontWeight: '700',
     color: '#1A1A2E',
-    marginTop: 8,
-    marginBottom: 20,
+    marginTop: 4,
+    marginBottom: 14,
     textDecorationLine: 'underline',
     textDecorationColor: '#EF4444',
   },
 
   scoreCircleWrap: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -204,32 +281,33 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   scoreCircle: { alignItems: 'center', justifyContent: 'center' },
-  scorePct: { fontSize: 48, fontWeight: '900', color: '#1A1A2E' },
-  scoreSubLabel: { fontSize: 13, color: '#9CA3AF', marginTop: 4 },
+  scorePct: { fontSize: 40, fontWeight: '900', color: '#1A1A2E' },
+  scoreSubLabel: { fontSize: 13, color: '#9CA3AF', marginTop: 2 },
 
-  motivationText: { fontSize: 24, fontWeight: '800', color: '#1A1A2E', marginBottom: 4 },
-  mockTitleLabel: { fontSize: 13, color: '#9CA3AF', marginBottom: 28 },
+  motivationText: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', marginBottom: 2 },
+  mockTitleLabel: { fontSize: 13, color: '#9CA3AF', marginBottom: 16 },
 
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 14,
   },
   statCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
-  statValue: { fontSize: 18, fontWeight: '800', color: '#1A1A2E' },
+  statValue: { fontSize: 17, fontWeight: '800', color: '#1A1A2E' },
   statLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
 
   xpBanner: {
@@ -238,9 +316,9 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: '#FFFBEB',
     borderRadius: 14,
-    padding: 14,
+    padding: 12,
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
@@ -254,15 +332,15 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#3B7DF8',
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 15,
     width: '100%',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   reviewBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 
   doneBtn: {
     width: '100%',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#E5E7EB',

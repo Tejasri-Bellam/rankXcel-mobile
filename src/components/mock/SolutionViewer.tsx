@@ -38,6 +38,19 @@ const correctIdsFor = (q: any): string[] => {
     .map((o: any) => String(o.id));
 };
 
+// Correct option ids, falling back to the per-question solution payload —
+// the review response often omits the correct flags for skipped questions.
+const correctIdsWithSolution = (q: any, sol: any): string[] => {
+  const fromQ = correctIdsFor(q);
+  if (fromQ.length > 0) return fromQ;
+  if (!sol) return [];
+  const top =
+    sol?.correct_answers ?? sol?.correct_options ?? sol?.correct_choice_ids ?? null;
+  if (Array.isArray(top) && top.length > 0)
+    return top.map((v: any) => String(v?.id ?? v));
+  return correctIdsFor(sol);
+};
+
 const selectedIdsFor = (q: any): string[] => {
   const raw =
     q?.your_answer?.selected_choice_ids ??
@@ -124,7 +137,8 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {questions.map((q: any, qIdx: number) => {
           const qid = getQuestionId(q);
-          const correctAnswers = correctIdsFor(q);
+          const currentSolution = qid != null ? solutionsMap[String(qid)] : null;
+          const correctAnswers = correctIdsWithSolution(q, currentSolution);
           const apiSelected = selectedIdsFor(q);
           const userAnswer =
             qid != null && answers[String(qid)]?.length ? answers[String(qid)] : apiSelected;
@@ -141,7 +155,6 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
             q?.outcome === 'unattempted' ||
             (q?.outcome == null && userAnswer.length === 0);
 
-          const currentSolution = qid != null ? solutionsMap[String(qid)] : null;
           const explanation =
             currentSolution?.explanation ??
             currentSolution?.solution ??

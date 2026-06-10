@@ -131,7 +131,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
 
   // ── Detail screen ──
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>

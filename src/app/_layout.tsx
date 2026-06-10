@@ -1,4 +1,4 @@
-import { Stack, usePathname } from "expo-router";
+import { Stack, usePathname, useGlobalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { BackHandler, StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -30,12 +30,23 @@ const TAB_ROUTES = [
 
 function AppShell() {
   const pathname = usePathname();
+  const { view } = useGlobalSearchParams<{ view?: string }>();
   const [profileOpen, setProfileOpen] = useState(false);
 
   const matches = (routes: string[]) =>
     routes.some((r) => pathname === r || pathname.startsWith(r + "/"));
 
-  const showHeader = matches(HEADER_ROUTES);
+  // Hide the global app header while inside a mock (detail/exam/results/
+  // solutions all render their own header inside the /mock-library route and
+  // publish the active screen via the `view` param).
+  const inExamFlow =
+    view === "detail" ||
+    view === "exam" ||
+    view === "results" ||
+    view === "solutions" ||
+    view === "leaderboard";
+
+  const showHeader = matches(HEADER_ROUTES) && !inExamFlow;
   const showTabs = matches(TAB_ROUTES);
 
   useEffect(() => {

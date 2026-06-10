@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { assessmentStartService } from "@/src/libs/services/assessments-attempts";
 import { reattemptAssessmentService } from "@/src/libs/services/assessments";
 import ExamNavigator from "./ExamNavigator";
@@ -83,6 +84,15 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
   const questionCount = item?.question_count ?? 0;
   // A results-out test the student actually submitted (vs. missed).
   const isSubmitted = item?.latest_attempt_status === "SUBMITTED";
+
+  // Publish the active view so the app shell can hide the global header while
+  // inside the live-test flow (see HEADER hiding in app/_layout.tsx).
+  React.useEffect(() => {
+    router.setParams({ assessmentId: String(assessmentId), view });
+    return () => {
+      router.setParams({ assessmentId: undefined as any, view: undefined as any });
+    };
+  }, [view, assessmentId]);
 
   React.useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
