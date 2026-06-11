@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +19,7 @@ import {
 
 interface Props {
   subject: SubjectGroup;
+  loading?: boolean;
   onBack: () => void;
   onTopicPress: (chapter: ChapterItem) => void;
   onAllTopicsPress: () => void;
@@ -28,11 +30,12 @@ const getDotColor = (accuracy: number | null): string => {
   return getAccuracyColor(accuracy);
 };
 
-export default function TopicsScreen({ subject, onBack, onTopicPress, onAllTopicsPress }: Props) {
+export default function TopicsScreen({ subject, loading, onBack, onTopicPress, onAllTopicsPress }: Props) {
   const hasTopics = subject.chapters.length > 0;
-  // "All topics at once" only applies to flat subjects — every topic is a leaf
-  // (no sub-topics). Subjects with sub-topics are drilled into per topic.
-  const isFlat = hasTopics && subject.chapters.every((c) => c.topics.length === 0);
+  // "All topics at once" only applies to flat subjects — every topic is a known
+  // leaf (no sub-topics). Subjects with sub-topics are drilled into per topic.
+  const isFlat =
+    hasTopics && subject.chapters.every((c) => c.hasChildren === false);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
@@ -64,7 +67,12 @@ export default function TopicsScreen({ subject, onBack, onTopicPress, onAllTopic
           </View>
         </View>
 
-        {!hasTopics ? (
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color="#3B7DF8" />
+            <Text style={styles.loadingText}>Loading topics...</Text>
+          </View>
+        ) : !hasTopics ? (
           /* Subject with no topic tree — practise across the whole subject. */
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>
@@ -119,9 +127,11 @@ export default function TopicsScreen({ subject, onBack, onTopicPress, onAllTopic
                     <View style={styles.topicInfo}>
                       <Text style={styles.topicName}>{chapter.name}</Text>
                       <Text style={styles.topicMeta}>
-                        {chapter.topics.length > 0
-                          ? `${chapter.topics.length} sub-topics`
-                          : "questions"}{" "}
+                        {chapter.hasChildren === false
+                          ? chapter.questionCount
+                            ? `${chapter.questionCount} questions`
+                            : "Practice"
+                          : "Sub-topics"}{" "}
                         · {chapter.accuracy !== null ? `${chapter.accuracy}%` : "—"}
                       </Text>
                     </View>
@@ -273,6 +283,12 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 9,
   },
+  loadingWrap: {
+    alignItems: "center",
+    paddingVertical: 60,
+    gap: 12,
+  },
+  loadingText: { fontSize: 14, color: "#9CA3AF" },
   emptyState: {
     alignItems: "center",
     paddingVertical: 40,

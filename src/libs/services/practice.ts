@@ -12,9 +12,18 @@ export async function getExamSyllabusService(examId: number | string) {
   return await genericGet(`/v1/exams/${examId}/syllabus/`, true);
 }
 
-// Topics for a subject. Pass parent to fetch the sub-topics of a topic.
-// GET /api/v1/subjects/{subject_id}/topics/?parent={parent}
-export const getTopicsService = (subjectId: number | string, parent?: number | string) => {
-  const qs = parent != null ? `?parent=${parent}` : "";
+// Subjects for an exam (target exam → subjects).
+// GET /api/v1/exams/{exam_id}/subjects/
+export const getExamSubjectsService = (examId: number | string) =>
+  genericGet(`/v1/exams/${examId}/subjects/`, true);
+
+// Topics for a subject. Pass parentId to fetch the sub-topics of a topic.
+// GET /api/v1/subjects/{subject_id}/topics/
+// GET /api/v1/subjects/{subject_id}/topics/?parent_id={parentId}
+export const getTopicsService = (
+  subjectId: number | string,
+  parentId?: number | string
+) => {
+  const qs = parentId != null ? `?parent_id=${parentId}` : "";
   return genericGet(`/v1/subjects/${subjectId}/topics/${qs}`, true);
 };

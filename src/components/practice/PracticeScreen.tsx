@@ -48,6 +48,10 @@ export interface ChapterItem {
   topics: TopicItem[];
   accuracy: number | null;
   subjectName: string;
+  // Whether this topic has sub-topics. undefined = unknown (the topics list
+  // gave no hint), in which case we probe by fetching the children on tap.
+  hasChildren?: boolean;
+  questionCount?: number;
   // When set, these IDs are used as `topic_ids` for the practice session
   // instead of the chapter's own id. An empty array means "all topics in the
   // subject" — the backend expands it (mirrors the web "all topics at once").
@@ -119,9 +123,9 @@ export const getStrengthLabel = (accuracy: number | null): string => {
   return "Weak";
 };
 
-// Build the syllabus tree from GET /v1/exams/{id}/syllabus/.
-// Shape: [{ id, name, accuracy, topics: [{ id, name, accuracy,
-//           subtopics: [{ id, name, accuracy }] }] }]
+// GET /api/v1/exams/{examId}/syllabus/ returns the full nested tree:
+//   [{ id, name, accuracy, topics: [{ id, name, accuracy,
+//        subtopics: [{ id, name, accuracy }] }] }]
 // Mapped onto the screen's model: subject → SubjectGroup, its `topics` →
 // `chapters` (ChapterItem), and each topic's `subtopics` → `chapter.topics`.
 const normalizeSyllabus = (raw: any): SubjectGroup[] => {
@@ -138,16 +142,17 @@ const normalizeSyllabus = (raw: any): SubjectGroup[] => {
       const subtopics: TopicItem[] = subtopicsRaw.map(
         (st: any): TopicItem => ({
           id: Number(st?.id ?? 0),
-          name: String(st?.name ?? ""),
+          name: String(st?.name ?? st?.code ?? ""),
           accuracy: parseAccuracy(st?.accuracy),
         })
       );
       return {
         id: Number(topic?.id ?? 0),
-        name: String(topic?.name ?? ""),
+        name: String(topic?.name ?? topic?.code ?? ""),
         topics: subtopics,
         accuracy: parseAccuracy(topic?.accuracy),
         subjectName,
+        hasChildren: subtopics.length > 0,
       };
     });
 
@@ -233,12 +238,12 @@ export default function PracticeScreen() {
   const [autoTimerMinutes, setAutoTimerMinutes] = useState<number | undefined>(undefined);
   const autoLaunchHandledRef = useRef(false);
 
-  const loadPerformance = useCallback(async (examId: number, isRefresh = false) => {
+  // Full syllabus tree for the active target exam
+  // (GET /v1/exams/{examId}/syllabus/) — subjects → topics → subtopics.
+  const loadSubjects = useCallback(async (examId: number, isRefresh = false) => {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
-      // A single call returns the full nested tree (subjects → topics →
-      // subtopics), so drilling in needs no further requests.
       const res = await getExamSyllabusService(examId);
       setSubjectGroups(normalizeSyllabus(res));
     } catch (err) {
@@ -252,10 +257,10 @@ export default function PracticeScreen() {
 
 
   useEffect(() => {
-    if (activeExamId != null) loadPerformance(Number(activeExamId));
+    if (activeExamId != null) loadSubjects(Number(activeExamId));
     // No target exam for the selected region → clear any stale syllabus.
     else setSubjectGroups([]);
-  }, [activeExamId, loadPerformance]);
+  }, [activeExamId, loadSubjects]);
 
   useEffect(() => {
     if (autoLaunchHandledRef.current) return;
@@ -333,7 +338,7 @@ export default function PracticeScreen() {
             onClose={() => {
               setPracticeVisible(false);
               setActiveChapter(null);
-              if (activeExamId != null) loadPerformance(Number(activeExamId), true);
+              if (activeExamId != null) loadSubjects(Number(activeExamId), true);
             }}
           />
         )}
@@ -359,7 +364,7 @@ export default function PracticeScreen() {
             onClose={() => {
               setPracticeVisible(false);
               setActiveChapter(null);
-              if (activeExamId != null) loadPerformance(Number(activeExamId), true);
+              if (activeExamId != null) loadSubjects(Number(activeExamId), true);
             }}
           />
         )}
@@ -376,7 +381,7 @@ export default function PracticeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => activeExamId != null && loadPerformance(Number(activeExamId), true)}
+            onRefresh={() => activeExamId != null && loadSubjects(Number(activeExamId), true)}
             colors={[COLORS.primary]}
             tintColor={COLORS.primary}
           />
@@ -402,7 +407,7 @@ export default function PracticeScreen() {
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity
               style={styles.retryBtn}
-              onPress={() => activeExamId != null && loadPerformance(Number(activeExamId))}
+              onPress={() => activeExamId != null && loadSubjects(Number(activeExamId))}
             >
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
@@ -423,7 +428,7 @@ export default function PracticeScreen() {
                 <View style={styles.subjectInfo}>
                   <Text style={styles.subjectName}>{subject.name}</Text>
                   <Text style={styles.subjectMeta}>
-                    {subject.chapters.length} topics ·{" "}
+                    {subject.topicCount > 0 ? `${subject.topicCount} topics · ` : ""}
                     {getStrengthLabel(subject.accuracy)}
                   </Text>
                 </View>
@@ -449,7 +454,7 @@ export default function PracticeScreen() {
           onClose={() => {
             setPracticeVisible(false);
             setActiveChapter(null);
-            if (activeExamId != null) loadPerformance(Number(activeExamId), true);
+            if (activeExamId != null) loadSubjects(Number(activeExamId), true);
           }}
         />
       )}
