@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +18,7 @@ import {
 
 interface Props {
   chapter: ChapterItem;
+  loading?: boolean;
   onBack: () => void;
   onSubTopicPress: (chapter: ChapterItem) => void;
 }
@@ -26,7 +28,7 @@ const getDotColor = (accuracy: number | null): string => {
   return getAccuracyColor(accuracy);
 };
 
-export default function SubTopicsScreen({ chapter, onBack, onSubTopicPress }: Props) {
+export default function SubTopicsScreen({ chapter, loading, onBack, onSubTopicPress }: Props) {
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Top bar */}
@@ -56,7 +58,13 @@ export default function SubTopicsScreen({ chapter, onBack, onSubTopicPress }: Pr
         {/* Sub-Topics list label */}
         <Text style={styles.sectionLabel}>SUB-TOPICS</Text>
 
-        {/* Sub-topic rows — each sub-topic taps into the practice detail */}
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color="#3B7DF8" />
+            <Text style={styles.loadingText}>Loading sub-topics...</Text>
+          </View>
+        ) : (
+        /* Sub-topic rows — each sub-topic taps into the practice detail */
         <View style={styles.topicWrap}>
           {chapter.topics.length > 0 ? (
             chapter.topics.map((topic, idx) => {
@@ -107,6 +115,7 @@ export default function SubTopicsScreen({ chapter, onBack, onSubTopicPress }: Pr
             </TouchableOpacity>
           )}
         </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -214,4 +223,10 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 9,
   },
+  loadingWrap: {
+    alignItems: "center",
+    paddingVertical: 60,
+    gap: 12,
+  },
+  loadingText: { fontSize: 14, color: "#9CA3AF" },
 });
