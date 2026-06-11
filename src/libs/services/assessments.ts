@@ -1,9 +1,16 @@
 import { genericGet, genericPost } from "./genericService";
  
-// Get All Assessments (optionally scoped to a target exam: ?exam_id=<id>)
-export async function getassessmentsService(examId?: number | string) {
-  const qs = examId != null ? `?exam_id=${examId}` : "";
-  return await genericGet(`/v1/student/assessments/${qs}`, true);
+// Get All Assessments — exam-scoped list: GET /v1/exams/{examId}/assessments/
+// Falls back to the global student endpoint when no target exam is selected.
+export async function getassessmentsService(
+  examId?: number | string,
+  page?: number,
+) {
+  const pageQs = page && page > 1 ? `?page=${page}` : "";
+  if (examId != null) {
+    return await genericGet(`/v1/exams/${examId}/assessments/${pageQs}`, true);
+  }
+  return await genericGet(`/v1/student/assessments/${pageQs}`, true);
 }
 
 
@@ -16,6 +23,22 @@ export async function getassessmentsIdService(id: number) {
 export async function getassessmentsQuestionsService(id: number) {
   console.log("Getting questions for assessment id:", id);
   return await genericGet(`/v1/student/assessments/${id}/questions/`,true);
+}
+
+// Register for an assessment — empty POST.
+export async function registerAssessmentService(assessmentId: number | string) {
+  return await genericPost(
+    `/v1/assessments/${assessmentId}/register/`,
+    {},
+    { isMultipart: false, useAccessToken: true }
+  );
+}
+
+// Leaderboard for an assessment.
+export async function getAssessmentLeaderboardService(
+  assessmentId: number | string
+) {
+  return await genericGet(`/v1/assessments/${assessmentId}/leaderboard/`, true);
 }
 
 // Reattempt

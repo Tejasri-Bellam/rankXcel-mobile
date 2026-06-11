@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -23,6 +24,7 @@ interface Props {
 }
 
 const QUESTION_OPTIONS = [5, 10, 20];
+const MAX_QUESTIONS = 100; // matches the MockTestCreate `question_count` cap
 
 const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
   { value: "easy", label: "Easy" },
@@ -42,13 +44,26 @@ export default function PracticeSettingsModal({
   onCancel,
 }: Props) {
   const [questionCount, setQuestionCount] = useState<number>(
-    initialQuestionCount && QUESTION_OPTIONS.includes(initialQuestionCount)
-      ? initialQuestionCount
+    initialQuestionCount && initialQuestionCount > 0
+      ? Math.min(initialQuestionCount, MAX_QUESTIONS)
       : 5
   );
   const [difficulty, setDifficulty] = useState<Difficulty>("mixed" as Difficulty);
 
+  // Free-typed count, capped at MAX_QUESTIONS. 0 means "empty" (Start disabled).
+  const handleCountInput = (txt: string) => {
+    const digits = txt.replace(/[^0-9]/g, "");
+    if (digits === "") {
+      setQuestionCount(0);
+      return;
+    }
+    setQuestionCount(Math.min(parseInt(digits, 10), MAX_QUESTIONS));
+  };
+
+  const canStart = questionCount >= 1 && !loading;
+
   const handleBegin = () => {
+    if (!canStart) return;
     onBegin(questionCount, difficulty, 0);
   };
 
@@ -66,6 +81,7 @@ export default function PracticeSettingsModal({
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Page Title */}
         <Text style={styles.pageTitle}>{chapterName}</Text>
@@ -115,6 +131,21 @@ export default function PracticeSettingsModal({
           ))}
         </View>
 
+        {/* Custom count — type any number (like Mocks / Assessments) */}
+        <View style={styles.customRow}>
+          <Text style={styles.customLabel}>Or enter a number</Text>
+          <TextInput
+            style={styles.customInput}
+            value={questionCount > 0 ? String(questionCount) : ""}
+            onChangeText={handleCountInput}
+            keyboardType="number-pad"
+            placeholder="e.g. 15"
+            placeholderTextColor="#9CA3AF"
+            maxLength={3}
+          />
+        </View>
+        <Text style={styles.customHint}>Up to {MAX_QUESTIONS} questions</Text>
+
         {/* Difficulty section */}
         <Text style={[styles.sectionLabel, { marginTop: 20 }]}>DIFFICULTY</Text>
         <View style={styles.diffRow}>
@@ -135,12 +166,22 @@ export default function PracticeSettingsModal({
         {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
       </ScrollView>
 
-      {/* Start button pinned to bottom */}
+      {/* Actions pinned to bottom */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[styles.startBtn, loading && styles.startBtnDisabled]}
-          onPress={handleBegin}
+          style={styles.prevBtn}
+          onPress={onCancel}
           disabled={loading}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
+          <Text style={styles.prevBtnText}>Previous</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
+          onPress={handleBegin}
+          disabled={!canStart}
           activeOpacity={0.85}
         >
           {loading ? (
@@ -264,6 +305,36 @@ const styles = StyleSheet.create({
     color: "#3B7DF8",
   },
 
+  customRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 12,
+  },
+  customLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: "#555",
+  },
+  customInput: {
+    width: 96,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1A1A2E",
+    textAlign: "center",
+    backgroundColor: "#fff",
+  },
+  customHint: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 6,
+  },
+
   diffRow: {
     flexDirection: "row",
     gap: 8,
@@ -298,6 +369,9 @@ const styles = StyleSheet.create({
   },
 
   bottomBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     paddingHorizontal: 20,
     paddingBottom: 24,
     paddingTop: 12,
@@ -305,7 +379,25 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#F3F4F6",
   },
+  prevBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
+  prevBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#3B7DF8",
+  },
   startBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

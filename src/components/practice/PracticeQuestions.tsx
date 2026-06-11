@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -37,12 +38,30 @@ export interface PracticeApiQuestion {
   type: string;
   options: { id: string; text: string }[];
   correctChoiceId: string | null;
+  // For NUMERICAL questions: the expected typed answer, shown in feedback.
+  correctAnswer?: string | null;
   explanation: string;
   explanationStructured?: StructuredExplanation | null;
   marksCorrect: number;
   marksIncorrect: number;
   selectedOptions?: any[] | null;
 }
+
+// NUMERICAL questions (QuestionTypeEnum) carry no choices — the student types
+// a value instead of picking an option.
+const isNumericalType = (type: string | undefined): boolean =>
+  !!type && type.toUpperCase().includes("NUMERIC");
+
+const extractCorrectAnswer = (body: any): string | null => {
+  if (!body || typeof body !== "object") return null;
+  const v =
+    body.correct_answer ??
+    body.correct_numeric_answer ??
+    body.numeric_answer ??
+    body.answer ??
+    null;
+  return v == null ? null : String(v);
+};
 
 const parseExplanation = (raw: any): StructuredExplanation | null => {
   if (!raw) return null;
@@ -72,7 +91,13 @@ interface Props {
   questions: PracticeApiQuestion[];
   chapterName: string;
   timerMinutes: number;
-  onEnd: (answers: AnswerState[], totalSeconds: number) => void;
+  // `finalQuestions` carries the per-question correct answers / explanations
+  // fetched during the session so the results & review screens can use them.
+  onEnd: (
+    answers: AnswerState[],
+    totalSeconds: number,
+    finalQuestions: PracticeApiQuestion[],
+  ) => void;
 }
 
 const unwrap = (res: any): any =>
@@ -186,18 +211,37 @@ export default function PracticeQuestions({
   const isLast = currentIdx === questionList.length - 1;
   const [tutorVisible, setTutorVisible] = useState(false);
 
-  const saveResponse = (qId: number | string, selected: string | null, markedForReview = false) => {
-    const ids = selected ? [Number(selected)].filter((n) => Number.isFinite(n)) : [];
+  const saveResponse = (
+    qId: number | string,
+    selected: string | null,
+    markedForReview = false,
+    numeric = false,
+  ) => {
     const elapsed = Math.max(0, Math.round((Date.now() - questionStartRef.current) / 1000));
-    const promise = submitMockResponseService(mockId, qId, {
-      selected_choice_ids: ids,
-      is_marked_for_review: markedForReview,
-      time_spent_seconds: elapsed,
-    }).catch((e) => { console.log("PRACTICE SAVE ERROR:", e); return null; });
+    const payload = numeric
+      ? {
+          numeric_answer: selected && selected.trim() !== "" ? selected.trim() : null,
+          selected_choice_ids: [],
+          is_marked_for_review: markedForReview,
+          time_spent_seconds: elapsed,
+        }
+      : {
+          selected_choice_ids: selected
+            ? [Number(selected)].filter((n) => Number.isFinite(n))
+            : [],
+          is_marked_for_review: markedForReview,
+          time_spent_seconds: elapsed,
+        };
+    const promise = submitMockResponseService(mockId, qId, payload).catch((e) => {
+      console.log("PRACTICE SAVE ERROR:", e);
+      return null;
+    });
     pendingSaves.current.add(promise);
     promise.finally(() => pendingSaves.current.delete(promise));
     return promise;
   };
+
+  const isNumeric = isNumericalType(question.type);
 
   const handleSelectOption = (optId: string) => {
     if (current.answered) return;
@@ -208,25 +252,40 @@ export default function PracticeQuestions({
     });
   };
 
+  // NUMERICAL: keep only the typed value, stored in `selected` like a choice.
+  const handleNumericChange = (txt: string) => {
+    if (current.answered) return;
+    setAnswers((prev) => {
+      const next = [...prev];
+      next[currentIdx] = { ...next[currentIdx], selected: txt };
+      return next;
+    });
+  };
+
   const handleCheckAnswer = async () => {
-    if (!current.selected || current.answered) return;
+    const hasAnswer = isNumeric
+      ? !!current.selected && current.selected.trim() !== ""
+      : !!current.selected;
+    if (!hasAnswer || current.answered) return;
     const idx = currentIdx;
-    const selected = current.selected;
+    const selected = current.selected as string;
     setSavingIdx(idx);
     try {
-      const res = await saveResponse(question.id, selected, current.markedForReview);
+      const res = await saveResponse(question.id, selected, current.markedForReview, isNumeric);
       if (res == null) return;
       const body = unwrap(res);
       const apiCorrectId = extractCorrectChoiceId(body);
+      const apiCorrectAnswer = extractCorrectAnswer(body);
       const explanationRaw = extractExplanation(body);
       const structured = parseExplanation(explanationRaw);
 
-      if (apiCorrectId || explanationRaw) {
+      if (apiCorrectId || apiCorrectAnswer || explanationRaw) {
         setQuestionList((prev) => {
           const next = [...prev];
           next[idx] = {
             ...next[idx],
             correctChoiceId: apiCorrectId ?? next[idx].correctChoiceId,
+            correctAnswer: apiCorrectAnswer ?? next[idx].correctAnswer ?? null,
             explanation: structured ? "" : (explanationRaw ?? next[idx].explanation),
             explanationStructured: structured ?? next[idx].explanationStructured ?? null,
           };
@@ -234,13 +293,17 @@ export default function PracticeQuestions({
         });
       }
 
-      const effectiveCorrectId = apiCorrectId ?? question.correctChoiceId;
-      const finalCorrect: boolean | null =
-        typeof body?.is_correct === "boolean"
-          ? body.is_correct
-          : effectiveCorrectId != null
-          ? selected === effectiveCorrectId
-          : null;
+      let finalCorrect: boolean | null;
+      if (typeof body?.is_correct === "boolean") {
+        finalCorrect = body.is_correct;
+      } else if (isNumeric) {
+        const correct = apiCorrectAnswer ?? question.correctAnswer ?? null;
+        finalCorrect =
+          correct != null ? selected.trim() === String(correct).trim() : null;
+      } else {
+        const effectiveCorrectId = apiCorrectId ?? question.correctChoiceId;
+        finalCorrect = effectiveCorrectId != null ? selected === effectiveCorrectId : null;
+      }
 
       setAnswers((prev) => {
         const next = [...prev];
@@ -271,7 +334,7 @@ export default function PracticeQuestions({
     if (pendingSaves.current.size > 0) {
       try { await Promise.all(Array.from(pendingSaves.current)); } catch {}
     }
-    onEnd(answers, totalSeconds);
+    onEnd(answers, totalSeconds, questionList);
   };
 
   const handleEndPractice = () => finishPractice();
@@ -344,6 +407,7 @@ export default function PracticeQuestions({
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Question label */}
         <Text style={styles.qLabel}>
@@ -354,7 +418,32 @@ export default function PracticeQuestions({
           {/* Question text */}
           <Text style={styles.qText}>{stripHtml(question.text)}</Text>
 
-          {/* Options */}
+          {/* Numerical answer — free-text numeric input */}
+          {isNumeric ? (
+            <View>
+              <Text style={styles.numericLabel}>Enter your answer</Text>
+              <TextInput
+                style={[
+                  styles.numericInput,
+                  current.answered &&
+                    (current.correct ? styles.numericCorrect : styles.numericWrong),
+                ]}
+                value={current.selected ?? ""}
+                onChangeText={handleNumericChange}
+                editable={!current.answered}
+                keyboardType={
+                  Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
+                }
+                placeholder="Type a numeric value"
+                placeholderTextColor="#B6B6C8"
+                returnKeyType="done"
+              />
+              <Text style={styles.numericHint}>
+                Decimals and negative values are allowed.
+              </Text>
+            </View>
+          ) : (
+          /* Options */
           <View style={styles.optionsList}>
             {question.options.map((opt, idx) => (
               <TouchableOpacity
@@ -378,6 +467,7 @@ export default function PracticeQuestions({
               </TouchableOpacity>
             ))}
           </View>
+          )}
 
           {/* Swipe hint */}
           <Text style={styles.swipeHint}>— Swipe to move between questions —</Text>
@@ -396,6 +486,16 @@ export default function PracticeQuestions({
                     Correct answer:{" "}
                     <Text style={{ fontWeight: "700", color: "#16A34A" }}>
                       {stripHtml(correctOptObj.text)}
+                    </Text>
+                  </Text>
+                </View>
+              )}
+              {!current.correct && isNumeric && !!question.correctAnswer && (
+                <View style={styles.answerInfo}>
+                  <Text style={styles.answerInfoText}>
+                    Correct answer:{" "}
+                    <Text style={{ fontWeight: "700", color: "#16A34A" }}>
+                      {question.correctAnswer}
                     </Text>
                   </Text>
                 </View>
@@ -578,6 +678,28 @@ const styles = StyleSheet.create({
   optLetterWrong: { backgroundColor: "#EF4444", borderColor: "#EF4444" },
   optLetterText: { fontSize: 12, fontWeight: "700" },
   optText: { flex: 1, fontSize: 14, fontWeight: "500", color: "#1A1A2E" },
+
+  // Numerical input
+  numericLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  numericInput: {
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A1A2E",
+    backgroundColor: "#fff",
+  },
+  numericCorrect: { borderColor: "#22C55E", backgroundColor: "#F0FDF4" },
+  numericWrong: { borderColor: "#EF4444", backgroundColor: "#FEF2F2" },
+  numericHint: { fontSize: 12, color: "#9CA3AF", marginTop: 8 },
 
   swipeHint: {
     textAlign: "center",

@@ -48,6 +48,10 @@ export interface ChapterItem {
   topics: TopicItem[];
   accuracy: number | null;
   subjectName: string;
+  // When set, these IDs are used as `topic_ids` for the practice session
+  // instead of the chapter's own id. An empty array means "all topics in the
+  // subject" — the backend expands it (mirrors the web "all topics at once").
+  topicIds?: number[];
 }
 
 export interface SubjectGroup {
@@ -75,6 +79,25 @@ const toArray = (raw: unknown): any[] => {
 
 const unwrap = (res: any): any =>
   res && typeof res === "object" && "data" in res ? (res as any).data : res;
+
+// Services reject with a plain ApiError ({ status, errors }) rather than an
+// Error instance, so pull a human-readable reason out of either shape.
+export const extractErrorMessage = (err: any, fallback: string): string => {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object") {
+    const errs = err.errors;
+    if (errs && typeof errs === "object") {
+      const nf = errs.nonFieldErrors;
+      if (Array.isArray(nf) && nf.length) return nf.join(" · ");
+      // Fall back to any field-level error messages the backend returned.
+      const parts = Object.values(errs).flat().filter(Boolean) as string[];
+      if (parts.length) return parts.join(" · ");
+    }
+    if (typeof err.status === "number" && err.status > 0)
+      return `${fallback} (HTTP ${err.status})`;
+  }
+  return fallback;
+};
 
 const parseAccuracy = (v: any): number | null => {
   if (v == null) return null;
@@ -219,7 +242,8 @@ export default function PracticeScreen() {
       const res = await getExamSyllabusService(examId);
       setSubjectGroups(normalizeSyllabus(res));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load syllabus.");
+      console.log("Syllabus load error:", JSON.stringify(err));
+      setError(extractErrorMessage(err, "Failed to load syllabus."));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -270,6 +294,20 @@ export default function PracticeScreen() {
   setPracticeVisible(true);
 };
 
+  // Practise across every topic in the subject at once. An empty `topicIds`
+  // tells the backend to draw from all topics under the subject.
+  const handleAllTopicsPress = (subject: SubjectGroup) => {
+    setActiveChapter({
+      id: 0,
+      name: `All ${subject.name} topics`,
+      topics: [],
+      accuracy: subject.accuracy,
+      subjectName: subject.name,
+      topicIds: [],
+    });
+    setPracticeVisible(true);
+  };
+
   const handleBack = () => {
     if (navScreen === "subtopics") setNavScreen("topics");
     else if (navScreen === "topics") setNavScreen("subjects");
@@ -283,6 +321,7 @@ export default function PracticeScreen() {
           subject={selectedSubject}
           onBack={() => setNavScreen("subjects")}
           onTopicPress={handleTopicPress}
+          onAllTopicsPress={() => handleAllTopicsPress(selectedSubject)}
         />
         {activeChapter && activeExamId != null && (
           <PracticeExamFlow

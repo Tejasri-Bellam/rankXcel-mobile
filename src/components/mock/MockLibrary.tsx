@@ -8,6 +8,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +28,16 @@ import RequestMockModal from './RequestMock';
 
 
 // ─── helpers ────────────────────────────────────────────────────────────────
+
+// Pull `{ results, next }` out of a (possibly nested) paginated API response.
+const extractPage = <T,>(response: any): { results: T[]; next: string | null } => {
+  const body = response?.data ?? response;
+  if (Array.isArray(body)) return { results: body, next: null };
+  if (Array.isArray(body?.results)) return { results: body.results, next: body.next ?? null };
+  if (Array.isArray(body?.data?.results))
+    return { results: body.data.results, next: body.data.next ?? null };
+  return { results: [], next: null };
+};
 
 const isExamObject = (v: MockTest['exam']): v is ExamObject =>
   typeof v === 'object' && v !== null && 'name' in v;
@@ -147,17 +159,21 @@ export default function MockLibrary({
   const [resumeMock, setResumeMock] = useState<MockTest | null>(null);
   const [requestVisible, setRequestVisible] = useState(false);
 
+  // Pagination — the list endpoint is paginated; pull pages as the user scrolls.
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+
   const loadMocks = useCallback(async (isRefresh = false) => {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
-      const response = await getMockTestsService(activeExamId ?? undefined, testType);
-      const r = response as any;
-      let data: MockTest[] = [];
-      if (Array.isArray(r?.data)) data = r.data;
-      else if (Array.isArray(r?.data?.results)) data = r.data.results;
-      else if (Array.isArray(r?.results)) data = r.results;
-      setAllMocks(data);
+      const response = await getMockTestsService(activeExamId ?? undefined, testType, 1);
+      const { results, next } = extractPage<MockTest>(response);
+      setAllMocks(results);
+      setPage(1);
+      setHasMore(!!next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load mock tests.');
     } finally {
@@ -165,6 +181,35 @@ export default function MockLibrary({
       setRefreshing(false);
     }
   }, [activeExamId, testType]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current || loading || refreshing || !hasMore) return;
+    loadingMoreRef.current = true;
+    const nextPage = page + 1;
+    try {
+      setLoadingMore(true);
+      const response = await getMockTestsService(activeExamId ?? undefined, testType, nextPage);
+      const { results, next } = extractPage<MockTest>(response);
+      setAllMocks((prev) => {
+        const seen = new Set(prev.map((m) => String(m.id)));
+        return [...prev, ...results.filter((m) => !seen.has(String(m.id)))];
+      });
+      setPage(nextPage);
+      setHasMore(!!next);
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+    }
+  }, [activeExamId, testType, page, hasMore, loading, refreshing]);
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const distanceFromBottom =
+      contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    if (distanceFromBottom < 400) loadMore();
+  }, [loadMore]);
 
   useEffect(() => { loadMocks(); }, [loadMocks]);
 
@@ -213,6 +258,8 @@ export default function MockLibrary({
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -259,6 +306,9 @@ export default function MockLibrary({
                 <Ionicons name="document-text-outline" size={40} color="#D1D5DB" />
                 <Text style={styles.emptyText}>No mock tests found</Text>
               </View>
+            )}
+            {loadingMore && (
+              <ActivityIndicator size="small" color="#3B7DF8" style={{ marginVertical: 16 }} />
             )}
           </View>
         )}

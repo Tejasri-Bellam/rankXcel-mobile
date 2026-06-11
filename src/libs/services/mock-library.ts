@@ -64,13 +64,21 @@ export interface MockResponse<T = any> {
   previous?: string | null;
 }
 
-// Mock Tests
+// Mock Tests — exam-scoped list: GET /v1/exams/{examId}/mock-tests/
+// Falls back to the global endpoint when no target exam is selected.
 export async function getMockTestsService(
   examId?: number | string,
   testType: TestType = 'MOCK_TEST',
+  page?: number,
 ) {
-  const examQs = examId != null ? `&exam_id=${examId}` : '';
-  return await genericGet(`/v1/mock-tests/?test_type=${testType}${examQs}`, true);
+  const pageQs = page && page > 1 ? `&page=${page}` : '';
+  if (examId != null) {
+    return await genericGet(
+      `/v1/exams/${examId}/mock-tests/?test_type=${testType}${pageQs}`,
+      true,
+    );
+  }
+  return await genericGet(`/v1/mock-tests/?test_type=${testType}${pageQs}`, true);
 }
 
 // Mock Test By ID
@@ -195,6 +203,9 @@ export async function submitMockTestService(id: number | string) {
 // Submit Response
 export interface MockResponsePayload {
   selected_choice_ids: number[];
+  // NUMERICAL questions submit a typed value rather than choice ids. The field
+  // name mirrors the assessments responses endpoint (not in the OpenAPI spec).
+  numeric_answer?: string | null;
   is_marked_for_review?: boolean;
   time_spent_seconds?: number;
 }

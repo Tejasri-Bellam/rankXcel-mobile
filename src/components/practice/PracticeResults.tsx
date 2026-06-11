@@ -41,6 +41,30 @@ const formatTime = (s: number) => {
   return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 };
 
+const isNumericType = (t?: string): boolean =>
+  !!t && t.toUpperCase().includes("NUMERIC");
+
+type QStatus = "correct" | "wrong" | "skipped";
+
+// Resolve each question's outcome from the answer key carried back from the
+// session. Falls back to recomputing when correctness was left undetermined
+// during play (e.g. an API check that didn't return `is_correct`).
+const computeStatus = (q: PracticeApiQuestion, a?: AnswerState): QStatus => {
+  const sel = a?.selected ?? null;
+  const answered = sel != null && !(typeof sel === "string" && sel.trim() === "");
+  if (!answered) return "skipped";
+  if (a?.correct === true) return "correct";
+  if (a?.correct === false) return "wrong";
+  if (isNumericType(q.type)) {
+    if (q.correctAnswer != null)
+      return String(sel).trim() === String(q.correctAnswer).trim() ? "correct" : "wrong";
+  } else if (q.correctChoiceId != null) {
+    return String(sel) === String(q.correctChoiceId) ? "correct" : "wrong";
+  }
+  // Attempted but no answer key available — still count it as attempted.
+  return "wrong";
+};
+
 export default function PracticeResults({
   chapterName,
   questions,
@@ -52,9 +76,10 @@ export default function PracticeResults({
 }: Props) {
   const [view, setView] = useState<"results" | "review">("results");
 
-  const correct = answers.filter((a) => a.correct === true).length;
-  const wrong = answers.filter((a) => a.correct === false).length;
-  const total = answers.length;
+  const statuses = questions.map((q, i) => computeStatus(q, answers[i]));
+  const correct = statuses.filter((s) => s === "correct").length;
+  const wrong = statuses.filter((s) => s === "wrong").length;
+  const total = questions.length;
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
   const color = accColor(accuracy);
 
@@ -84,12 +109,14 @@ export default function PracticeResults({
           {questions.map((q, i) => {
             const ans = answers[i];
             const userSel = ans?.selected ?? null;
+            const qStatus = statuses[i];
             const status =
-              ans?.correct === true
+              qStatus === "correct"
                 ? { label: "Correct", color: "#16A34A", bg: "#DCFCE7", icon: "checkmark" as const }
-                : ans?.correct === false
+                : qStatus === "wrong"
                 ? { label: "Wrong", color: "#DC2626", bg: "#FEE2E2", icon: "close" as const }
-                : { label: "Skipped", color: "#DC2626", bg: "#FEE2E2", icon: "close" as const };
+                : { label: "Skipped", color: "#9CA3AF", bg: "#F3F4F6", icon: "remove" as const };
+            const numeric = isNumericType(q.type);
 
             return (
               <View key={q.id} style={styles.reviewCard}>
@@ -105,7 +132,32 @@ export default function PracticeResults({
 
                 <Text style={styles.reviewQText}>{q.text}</Text>
 
-                {q.options.map((opt, oi) => {
+                {numeric ? (
+                  <View style={styles.numericReview}>
+                    <Text style={styles.numericReviewRow}>
+                      Your answer:{" "}
+                      <Text
+                        style={{
+                          fontWeight: "700",
+                          color: qStatus === "correct" ? "#15803D" : "#B91C1C",
+                        }}
+                      >
+                        {userSel != null && String(userSel).trim() !== ""
+                          ? String(userSel)
+                          : "—"}
+                      </Text>
+                    </Text>
+                    {qStatus !== "correct" && q.correctAnswer != null && (
+                      <Text style={styles.numericReviewRow}>
+                        Correct answer:{" "}
+                        <Text style={{ fontWeight: "700", color: "#15803D" }}>
+                          {String(q.correctAnswer)}
+                        </Text>
+                      </Text>
+                    )}
+                  </View>
+                ) : (
+                  q.options.map((opt, oi) => {
                   const isCorrect = String(opt.id) === String(q.correctChoiceId);
                   const isUserWrong =
                     String(opt.id) === String(userSel) && !isCorrect;
@@ -134,7 +186,8 @@ export default function PracticeResults({
                       ) : null}
                     </View>
                   );
-                })}
+                  })
+                )}
 
                 {q.explanation ? (
                   <View style={styles.whyBox}>
@@ -378,6 +431,9 @@ const styles = StyleSheet.create({
   optWrong: { borderColor: "#F4B0B0", backgroundColor: "#FDECEC" },
   optLetter: { fontSize: 13, fontWeight: "800", width: 16 },
   optText: { flex: 1, fontSize: 14, fontWeight: "500" },
+
+  numericReview: { gap: 6, marginBottom: 4 },
+  numericReviewRow: { fontSize: 14, color: "#1A1A2E" },
 
   whyBox: {
     backgroundColor: "#F4F6FB",

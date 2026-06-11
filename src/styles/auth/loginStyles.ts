@@ -13,6 +13,14 @@ export const loginStyles = StyleSheet.create({
     paddingBottom: 24,
   },
 
+  // Header row: back button on the left, country selector on the right.
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+
   // Back button (white rounded square with chevron)
   backButton: {
     width: 32,
@@ -21,7 +29,6 @@ export const loginStyles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
     shadowColor: '#1E293B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,

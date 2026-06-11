@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import PracticeQuestions, { PracticeApiQuestion } from "./PracticeQuestions";
 import PracticeResults from "./PracticeResults";
-import { ChapterItem } from "./PracticeScreen";
+import { ChapterItem, extractErrorMessage } from "./PracticeScreen";
 import PracticeSettingsModal from "./PracticeSettingsModal";
 
 type Screen = "settings" | "loading" | "questions" | "results";
@@ -125,6 +125,12 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
     type: q.question_type ?? q.type ?? q.question?.question_type ?? "MCQ",
     options,
     correctChoiceId: correctId,
+    correctAnswer:
+      q.correct_answer ??
+      q.correct_numeric_answer ??
+      q.numeric_answer ??
+      q.question?.correct_answer ??
+      null,
     explanation:
       q.explanation ??
       q.solution ??
@@ -166,6 +172,7 @@ export const PracticeExamFlow = ({
 }: PracticeExamFlowProps) => {
   const [screen, setScreen] = useState<Screen>("settings");
   const [questions, setQuestions] = useState<PracticeApiQuestion[]>([]);
+  const [finalQuestions, setFinalQuestions] = useState<PracticeApiQuestion[]>([]);
   const [mockId, setMockId] = useState<number | string | null>(null);
   const [finalAnswers, setFinalAnswers] = useState<AnswerState[]>([]);
   const [finalSeconds, setFinalSeconds] = useState(0);
@@ -178,6 +185,7 @@ export const PracticeExamFlow = ({
     if (visible) {
       setScreen("settings");
       setQuestions([]);
+      setFinalQuestions([]);
       setMockId(null);
       setFinalAnswers([]);
       setFinalSeconds(0);
@@ -207,7 +215,9 @@ export const PracticeExamFlow = ({
         throw new Error(`Subject "${chapter.subjectName}" not found.`);
       const subjectId = Number(matchedSubject.id);
 
-      const topicIds = [chapter.id];
+      // A `topicIds` override drives multi-topic sessions (e.g. "all topics at
+      // once", where an empty array means every topic in the subject).
+      const topicIds = chapter.topicIds ?? [chapter.id];
 
       const payload = {
         exam: examId,
@@ -253,10 +263,8 @@ export const PracticeExamFlow = ({
       setQuestions(normalized);
       setScreen("questions");
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "No published questions available.";
+      console.log("Practice create error:", JSON.stringify(err));
+      const msg = extractErrorMessage(err, "No published questions available.");
       setLoadError(msg);
       setScreen("settings");
       Alert.alert("Error", msg);
@@ -265,9 +273,14 @@ export const PracticeExamFlow = ({
     }
   };
 
-  const handleEnd = async (answers: AnswerState[], seconds: number) => {
+  const handleEnd = async (
+    answers: AnswerState[],
+    seconds: number,
+    finished: PracticeApiQuestion[],
+  ) => {
     setFinalAnswers(answers);
     setFinalSeconds(seconds);
+    setFinalQuestions(finished);
     if (mockId != null) {
       try {
         setSubmittingMock(true);
@@ -324,7 +337,7 @@ export const PracticeExamFlow = ({
       {screen === "results" && (
         <PracticeResults
           chapterName={chapter.name}
-          questions={questions}
+          questions={finalQuestions.length > 0 ? finalQuestions : questions}
           answers={finalAnswers}
           totalSeconds={finalSeconds}
           submitting={submittingMock}

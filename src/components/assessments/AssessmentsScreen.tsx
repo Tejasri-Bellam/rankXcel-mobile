@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
@@ -7,8 +7,11 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { getassessmentsService } from "@/src/libs/services/assessments";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import LiveTestDetail, { LiveStatus } from "./LiveTestDetail";
@@ -31,6 +34,10 @@ const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "Upcoming", value: "upcoming" },
   { label: "Completed", value: "completed" },
 ];
+
+const FILTER_VALUES = FILTERS.map((f) => f.value);
+const isFilterValue = (v: unknown): v is FilterValue =>
+  typeof v === "string" && (FILTER_VALUES as string[]).includes(v);
 
 // "Completed" maps to the results-out status.
 const FILTER_STATUS: Record<Exclude<FilterValue, "all">, LiveStatus> = {
@@ -110,6 +117,13 @@ const participantCount = (item: any): number => {
 
 export default function AssessmentsScreen() {
   const { activeExamId } = useTargetExam();
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    tab?: string;
+    openId?: string;
+    openName?: string;
+  }>();
+  const openHandledRef = useRef(false);
 
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +133,43 @@ export default function AssessmentsScreen() {
   );
   const [filter, setFilter] = useState<FilterValue>("all");
 
+  // Pagination — the list endpoint is paginated; pull pages as the user scrolls.
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+
+  // Honour a `tab` filter passed in via navigation (e.g. Home's "Upcoming live
+  // → All"), then clear it so a manual filter change isn't overridden later.
+  useEffect(() => {
+    if (isFilterValue(params.tab)) {
+      setFilter(params.tab);
+      router.setParams({ tab: undefined } as any);
+    }
+  }, [params.tab, router]);
+
+  // Deep-link from Home's "Upcoming live": open the tapped assessment's detail
+  // (so the user can register), matching by id when present, else by name.
+  useEffect(() => {
+    if (openHandledRef.current) return;
+    const { openId, openName } = params;
+    if (!openId && !openName) return;
+    if (data.length === 0) return; // wait until the list has loaded
+    const match = data.find((it: any) => {
+      if (openId && String(it?.id) === String(openId)) return true;
+      if (
+        openName &&
+        String(it?.name).trim().toLowerCase() ===
+          String(openName).trim().toLowerCase()
+      )
+        return true;
+      return false;
+    });
+    openHandledRef.current = true;
+    router.setParams({ openId: undefined, openName: undefined } as any);
+    if (match) setSelected({ item: match, status: deriveStatus(match) });
+  }, [data, params.openId, params.openName, router]);
+
   const fetchAssessments = async (isRefresh = false) => {
     if (activeExamId == null) {
       setData([]);
@@ -127,16 +178,55 @@ export default function AssessmentsScreen() {
     }
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
-      const res = await getassessmentsService(activeExamId);
+      const res = await getassessmentsService(activeExamId, 1);
       const raw: any = res?.data;
       const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
       setData(list);
+      setPage(1);
+      setHasMore(!Array.isArray(raw) && !!raw?.next);
     } catch (error: any) {
       console.log("ASSESSMENTS ERROR:", JSON.stringify(error, null, 2));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const loadMore = async () => {
+    if (
+      loadingMoreRef.current ||
+      loading ||
+      refreshing ||
+      !hasMore ||
+      activeExamId == null
+    )
+      return;
+    loadingMoreRef.current = true;
+    const nextPage = page + 1;
+    try {
+      setLoadingMore(true);
+      const res = await getassessmentsService(activeExamId, nextPage);
+      const raw: any = res?.data;
+      const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
+      setData((prev) => {
+        const seen = new Set(prev.map((x) => String(x.id)));
+        return [...prev, ...list.filter((x: any) => !seen.has(String(x.id)))];
+      });
+      setPage(nextPage);
+      setHasMore(!Array.isArray(raw) && !!raw?.next);
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+    }
+  };
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const distanceFromBottom =
+      contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    if (distanceFromBottom < 400) loadMore();
   };
 
   useEffect(() => {
@@ -178,12 +268,19 @@ export default function AssessmentsScreen() {
   const order: Record<LiveStatus, number> = { live: 0, upcoming: 1, results: 2 };
   const allTests = data
     .filter(matchesActiveExam)
+    // Live tab shows only assessments the student has registered for.
+    .filter((item) => Boolean(item?.is_registered))
     .map((item) => ({ item, status: deriveStatus(item) }))
     .sort((a, b) => order[a.status] - order[b.status]);
 
+  // Live tab matches strictly on the backend's live student_status (registered
+  // is already enforced above); other tabs use the derived card status.
+  const isLive = (t: { item: any; status: LiveStatus }) =>
+    String(t.item?.student_status ?? "").toLowerCase() === "live";
+
   const counts: Record<FilterValue, number> = {
     all: allTests.length,
-    live: allTests.filter((t) => t.status === "live").length,
+    live: allTests.filter(isLive).length,
     upcoming: allTests.filter((t) => t.status === "upcoming").length,
     completed: allTests.filter((t) => t.status === "results").length,
   };
@@ -191,7 +288,9 @@ export default function AssessmentsScreen() {
   const tests =
     filter === "all"
       ? allTests
-      : allTests.filter((t) => t.status === FILTER_STATUS[filter]);
+      : filter === "live"
+        ? allTests.filter(isLive)
+        : allTests.filter((t) => t.status === FILTER_STATUS[filter]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
@@ -199,6 +298,8 @@ export default function AssessmentsScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -297,6 +398,14 @@ export default function AssessmentsScreen() {
               );
             })}
           </View>
+        )}
+
+        {loadingMore && (
+          <ActivityIndicator
+            size="small"
+            color="#2F86FF"
+            style={{ marginVertical: 16 }}
+          />
         )}
       </ScrollView>
     </SafeAreaView>

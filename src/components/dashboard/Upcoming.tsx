@@ -50,7 +50,11 @@ export default function Upcoming({ dashboardData }: UpcomingProps) {
             onPress={() =>
               router.push({
                 pathname: "/assessments",
-                params: { tab: "upcoming" },
+                params: {
+                  tab: "upcoming",
+                  openId: item.id ?? item.assessment_id ?? undefined,
+                  openName: item.name,
+                },
               })
             }
           >
