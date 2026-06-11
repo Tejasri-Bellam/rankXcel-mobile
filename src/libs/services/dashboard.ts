@@ -6,6 +6,8 @@ export async function getDashboardUserService() {
 }
 
 // GET /api/v1/exams/my-target-exams/?country={id}
+// Returns the logged-in user's assigned target exams, scoped by the auth token
+// AND filtered to the given country (the user's country from /get_country/).
 export async function getMyTargetExamsService(countryId?: number | string | null) {
   const query =
     countryId != null && countryId !== ""

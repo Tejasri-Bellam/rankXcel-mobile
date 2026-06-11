@@ -11,7 +11,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { assessmentStartService } from "@/src/libs/services/assessments-attempts";
-import { reattemptAssessmentService } from "@/src/libs/services/assessments";
+import {
+  reattemptAssessmentService,
+  registerAssessmentService,
+} from "@/src/libs/services/assessments";
 import ExamNavigator from "./ExamNavigator";
 import ExamResults from "./ExamResults";
 import SolutionViewer from "./SolutionViewer";
@@ -66,11 +69,33 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
   const [timeTaken, setTimeTaken] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // DUMMY: there is no "register for a live test" API yet, so registration is
-  // tracked locally and seeded from item.is_registered when the API provides it.
+  // Seeded from the list's `is_registered`; flipped on a successful register.
   const [registered, setRegistered] = useState<boolean>(
     Boolean(item?.is_registered)
   );
+  const [registering, setRegistering] = useState(false);
+
+  const handleRegister = async () => {
+    if (registering || registered) return;
+    try {
+      setRegistering(true);
+      await registerAssessmentService(assessmentId);
+      setRegistered(true);
+    } catch (err: any) {
+      // Already-registered responses still mean "registered".
+      const code = err?.body?.code ?? err?.errors?.code?.[0];
+      if (code === "ALREADY_REGISTERED") {
+        setRegistered(true);
+      } else {
+        Alert.alert(
+          "Error",
+          err?.body?.error ?? err?.message ?? "Couldn't register for this test."
+        );
+      }
+    } finally {
+      setRegistering(false);
+    }
+  };
 
   // Real field if the list provides it; otherwise a placeholder so the card
   // matches the design. (No participant-count API yet — see backend list.)
@@ -257,12 +282,19 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     }
     return (
       <TouchableOpacity
-        style={s.primaryBtn}
-        onPress={() => setRegistered(true)} // DUMMY: no register API yet
+        style={[s.primaryBtn, registering && { opacity: 0.7 }]}
+        onPress={handleRegister}
+        disabled={registering}
         activeOpacity={0.85}
       >
-        <Ionicons name="notifications-outline" size={17} color="#fff" />
-        <Text style={s.primaryBtnText}>Register</Text>
+        {registering ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <>
+            <Ionicons name="notifications-outline" size={17} color="#fff" />
+            <Text style={s.primaryBtnText}>Register</Text>
+          </>
+        )}
       </TouchableOpacity>
     );
   };

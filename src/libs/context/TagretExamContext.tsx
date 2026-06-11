@@ -71,8 +71,10 @@ export function TargetExamProvider({
 
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      // A country passed in (region switch) is persisted so later refreshes keep
-      // scoping the catalogue to it; otherwise fall back to the saved selection.
+      // Resolve the country to scope by: one passed in (region switch) is
+      // persisted; otherwise use the saved selection (set from /get_country/ at
+      // login). my-target-exams is scoped by the auth token AND this country, so
+      // the list is specific to the logged-in user in their country.
       let activeCountryId = countryId;
       if (activeCountryId != null && activeCountryId !== "") {
         await AsyncStorage.setItem(COUNTRY_KEY, String(activeCountryId));

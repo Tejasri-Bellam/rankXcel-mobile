@@ -27,6 +27,10 @@ export interface InProgressSession {
 }
 
 export interface UpcomingAssessment {
+  // `id` isn't always present in the dashboard payload; used to deep-link into
+  // the assessment's detail when available (else we match by name).
+  id?: number;
+  assessment_id?: number;
   name: string;
   time_label: string;
   difficulty: string;

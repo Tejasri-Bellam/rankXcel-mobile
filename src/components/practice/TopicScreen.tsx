@@ -20,6 +20,7 @@ interface Props {
   subject: SubjectGroup;
   onBack: () => void;
   onTopicPress: (chapter: ChapterItem) => void;
+  onAllTopicsPress: () => void;
 }
 
 const getDotColor = (accuracy: number | null): string => {
@@ -27,8 +28,11 @@ const getDotColor = (accuracy: number | null): string => {
   return getAccuracyColor(accuracy);
 };
 
-export default function TopicsScreen({ subject, onBack, onTopicPress }: Props) {
-  const overallPct = subject.accuracy ?? 0;
+export default function TopicsScreen({ subject, onBack, onTopicPress, onAllTopicsPress }: Props) {
+  const hasTopics = subject.chapters.length > 0;
+  // "All topics at once" only applies to flat subjects — every topic is a leaf
+  // (no sub-topics). Subjects with sub-topics are drilled into per topic.
+  const isFlat = hasTopics && subject.chapters.every((c) => c.topics.length === 0);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
@@ -60,41 +64,75 @@ export default function TopicsScreen({ subject, onBack, onTopicPress }: Props) {
           </View>
         </View>
 
-        {/* Topics list label */}
-        <Text style={styles.sectionLabel}>TOPICS</Text>
-
-        {/* Topics */}
-        <View style={styles.topicWrap}>
-          {subject.chapters.map((chapter, idx) => {
-            const dotColor = getDotColor(chapter.accuracy);
-            const isLast = idx === subject.chapters.length - 1;
-            return (
+        {!hasTopics ? (
+          /* Subject with no topic tree — practise across the whole subject. */
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              No topics here yet — practise across the whole subject.
+            </Text>
+            <TouchableOpacity
+              style={styles.startWholeBtn}
+              onPress={onAllTopicsPress}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="play" size={16} color="#fff" />
+              <Text style={styles.startWholeText}>Start practice</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Practise every topic at once — flat subjects only */}
+            {isFlat && (
               <TouchableOpacity
-                key={chapter.name + idx}
-                style={[styles.topicRow, isLast && styles.topicRowLast]}
-                onPress={() => onTopicPress(chapter)}
-                activeOpacity={0.7}
+                style={styles.allTopicsBtn}
+                onPress={onAllTopicsPress}
+                activeOpacity={0.85}
               >
-                <View style={styles.topicInfo}>
-                  <Text style={styles.topicName}>{chapter.name}</Text>
-                  <Text style={styles.topicMeta}>
-                    {chapter.topics.length > 0
-                      ? `${chapter.topics.length} sub-topics`
-                      : "questions"}{" "}
-                    · {chapter.accuracy !== null ? `${chapter.accuracy}%` : "—"}
+                <View style={styles.allTopicsIcon}>
+                  <Ionicons name="play" size={16} color="#3B7DF8" />
+                </View>
+                <View style={styles.allTopicsInfo}>
+                  <Text style={styles.allTopicsTitle}>Practice all topics at once</Text>
+                  <Text style={styles.allTopicsMeta}>
+                    Mixed questions from all {subject.chapters.length} topics
                   </Text>
                 </View>
-                <View style={[styles.topicDot, { backgroundColor: dotColor }]} />
-                <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
+                <Ionicons name="chevron-forward" size={18} color="#3B7DF8" />
               </TouchableOpacity>
-            );
-          })}
-          {subject.chapters.length === 0 && (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No topics found</Text>
+            )}
+
+            {/* Topics list label */}
+            <Text style={styles.sectionLabel}>TOPICS</Text>
+
+            {/* Topics */}
+            <View style={styles.topicWrap}>
+              {subject.chapters.map((chapter, idx) => {
+                const dotColor = getDotColor(chapter.accuracy);
+                const isLast = idx === subject.chapters.length - 1;
+                return (
+                  <TouchableOpacity
+                    key={chapter.name + idx}
+                    style={[styles.topicRow, isLast && styles.topicRowLast]}
+                    onPress={() => onTopicPress(chapter)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.topicInfo}>
+                      <Text style={styles.topicName}>{chapter.name}</Text>
+                      <Text style={styles.topicMeta}>
+                        {chapter.topics.length > 0
+                          ? `${chapter.topics.length} sub-topics`
+                          : "questions"}{" "}
+                        · {chapter.accuracy !== null ? `${chapter.accuracy}%` : "—"}
+                      </Text>
+                    </View>
+                    <View style={[styles.topicDot, { backgroundColor: dotColor }]} />
+                    <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          )}
-        </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -156,6 +194,38 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     marginTop: 3,
   },
+  allTopicsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#EEF4FF",
+    borderWidth: 1.5,
+    borderColor: "#C9DDFF",
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  allTopicsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#DCE8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  allTopicsInfo: { flex: 1 },
+  allTopicsTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1A1A2E",
+  },
+  allTopicsMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
   sectionLabel: {
     fontSize: 11,
     fontWeight: "700",
@@ -206,9 +276,27 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: "center",
     paddingVertical: 40,
+    paddingHorizontal: 24,
+    gap: 16,
   },
   emptyText: {
     fontSize: 14,
     color: "#9CA3AF",
+    textAlign: "center",
+  },
+  startWholeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#3B7DF8",
+    borderRadius: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  startWholeText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
   },
 });

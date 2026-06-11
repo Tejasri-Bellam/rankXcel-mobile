@@ -12,8 +12,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { loginStyles as styles } from '@/src/styles/auth/loginStyles';
 import { loginService, signupService } from '@/src/libs/services/auth';
+import {
+  getCountriesService,
+  getCountryService,
+  normalizeUserCountry,
+} from '@/src/libs/services/countries';
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
+import CountrySelect from '@/src/components/common/CountrySelect';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type AuthMode = 'login' | 'signup';
@@ -86,10 +92,102 @@ const getApiErrorMessage = (err: any): string => {
   return 'Something went wrong';
 };
 
+type LoginRegion = {
+  name: string;
+  currency?: string;
+  flag?: string;
+  flagUrl?: string;
+};
+
+// The login payload can carry the user's country in several shapes; grab
+// whichever is present.
+const pickRegionSource = (data: any): any =>
+  data?.region ??
+  data?.country ??
+  data?.user?.region ??
+  data?.user?.country ??
+  data?.user?.country_detail ??
+  null;
+
+// Normalize the login response into a region object + the country id we need to
+// scope the target-exam catalogue (GET /my-target-exams/?country={id}).
+const normalizeLoginRegion = (
+  data: any
+): { region: LoginRegion; countryId: number | string | null } => {
+  const src = pickRegionSource(data);
+  const region: LoginRegion =
+    typeof src === 'string'
+      ? { name: src }
+      : src
+        ? {
+            name: src.name ?? src.country_name ?? src.label ?? '',
+            currency: src.currency ?? src.currency_code ?? undefined,
+            flag: src.flag ?? src.emoji ?? undefined,
+            flagUrl: src.flag_url ?? src.flagUrl ?? undefined,
+          }
+        : { name: '' };
+
+  const idCandidates = [
+    data?.country_id,
+    data?.user?.country_id,
+    typeof src === 'object' && src ? src.id : undefined,
+    typeof src === 'object' && src ? src.country_id : undefined,
+    typeof src === 'object' && src ? src.country?.id : undefined,
+  ];
+  const countryId =
+    idCandidates.find((v) => v != null && v !== '') ?? null;
+
+  return { region, countryId };
+};
+
+// get_country only returns { id, name, iso_code_2 }; the flag/currency live in
+// the countries master. Look them up so the profile sidebar can render the flag.
+const enrichRegionFromCatalogue = async (
+  region: LoginRegion,
+  countryId: number | string | null
+): Promise<LoginRegion> => {
+  if (region.flagUrl && region.currency) return region;
+  try {
+    const res: any = await getCountriesService();
+    const payload = res?.data;
+    const list: any[] = Array.isArray(payload)
+      ? payload
+      : payload?.results ?? payload?.data ?? payload?.countries ?? [];
+    const match = list.find((c: any) => {
+      if (countryId != null && String(c?.id) === String(countryId)) return true;
+      return (
+        String(c?.name ?? c?.country_name ?? c?.label ?? '').toLowerCase() ===
+        region.name.toLowerCase()
+      );
+    });
+    if (!match) return region;
+    return {
+      ...region,
+      currency:
+        region.currency ?? match.currency ?? match.currency_code ?? undefined,
+      flagUrl:
+        region.flagUrl ??
+        match.flag_url ??
+        match.flagUrl ??
+        match.flag ??
+        undefined,
+    };
+  } catch {
+    return region;
+  }
+};
+
 const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  // Used to drop any leftover in-memory exam state from a previous session.
-  const { reset: resetTargetExam } = useTargetExam();
+  // Used to drop any leftover in-memory exam state from a previous session, and
+  // to load this user's country-scoped target exams right after login.
+  const { reset: resetTargetExam, refreshExams } = useTargetExam();
+
+  // Country chosen via the header selector — used as a fallback when the
+  // authenticated /get_country/ lookup can't resolve a country after login.
+  const [selectedCountryId, setSelectedCountryId] = useState<
+    number | string | null
+  >(null);
 
   // Login state
   const [email, setEmail] = useState('');
@@ -172,33 +270,57 @@ const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
         await storageSetAccessToken(data?.token);
       }
 
-      // Persist the user's region from the login response so the profile
-      // sidebar can show it (handles a few possible response shapes).
-      const regionSource =
-        data?.region ?? data?.country ?? data?.user?.region ?? data?.user?.country;
-      if (regionSource) {
-        const region =
-          typeof regionSource === 'string'
-            ? { name: regionSource }
-            : {
-                name:
-                  regionSource.name ??
-                  regionSource.country_name ??
-                  regionSource.label ??
-                  '',
-                currency:
-                  regionSource.currency ??
-                  regionSource.currency_code ??
-                  undefined,
-                flag: regionSource.flag ?? regionSource.emoji ?? undefined,
-              };
-        if (region.name) {
-          await AsyncStorage.setItem('region', JSON.stringify(region));
+      // The login response doesn't carry the country, so fetch it from
+      // /v1/get_country/. The country id scopes the whole catalogue (target
+      // exams → mocks, syllabus, live tests). Fall back to anything the login
+      // response happens to include if the call fails.
+      let region: LoginRegion = { name: '' };
+      let countryId: number | string | null = null;
+      try {
+        const countryRes: any = await getCountryService();
+        const userCountry = normalizeUserCountry(countryRes?.data);
+        if (userCountry) {
+          countryId = userCountry.id;
+          region = { name: userCountry.name };
         }
+      } catch {
+        // Non-fatal — fall back to the login payload below.
+      }
+      if (countryId == null) {
+        const fallback = normalizeLoginRegion(data);
+        region = fallback.region;
+        countryId = fallback.countryId;
+      }
+      // Last resort: honour whatever the user picked in the header selector.
+      if (countryId == null && selectedCountryId != null) {
+        countryId = selectedCountryId;
+      }
+      // Resolve flag/currency from the countries master for the sidebar.
+      if (region.name) {
+        region = await enrichRegionFromCatalogue(region, countryId);
+      }
+
+      // Persist the region (incl. id when known) so the profile sidebar shows it
+      // and later refreshes keep scoping the catalogue to the same country.
+      if (region.name) {
+        await AsyncStorage.setItem(
+          'region',
+          JSON.stringify(countryId != null ? { ...region, id: countryId } : region)
+        );
+      }
+      if (countryId != null) {
+        await AsyncStorage.setItem('regionCountryId', String(countryId));
       }
       if (data?.user) {
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
       }
+
+      // Load this student's target exams scoped to their country, defaulting the
+      // selection to the first exam. Mocks / syllabus / live tests all follow
+      // the selected target exam. Fire-and-forget: refreshExams sets its
+      // in-flight guard synchronously, so the dashboard's own initial load is
+      // deduped against this one.
+      refreshExams(countryId ?? undefined);
 
       router.replace('/dashboard');
     } catch (error: any) {
@@ -258,13 +380,16 @@ const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Back button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.push('/')}
-          >
-            <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
-          </TouchableOpacity>
+          {/* Header: back button (left) + country selector (top-right) */}
+          <View style={styles.topRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.push('/')}
+            >
+              <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
+            </TouchableOpacity>
+            <CountrySelect onChange={(c) => setSelectedCountryId(c.id)} />
+          </View>
 
           {/* Brand */}
           <View style={styles.brandRow}>

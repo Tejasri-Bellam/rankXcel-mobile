@@ -24,7 +24,11 @@ import {
   getTargetExamsService,
   deleteTargetExamService,
 } from "@/src/libs/services/profile";
-import { getCountriesService } from "@/src/libs/services/countries";
+import {
+  getCountriesService,
+  getCountryService,
+  normalizeUserCountry,
+} from "@/src/libs/services/countries";
 import { storageGetAccessToken, clearUserSession } from "@/src/libs/storage";
 import { useTargetExam, TargetExam } from "@/src/libs/context/TagretExamContext";
 
@@ -40,6 +44,7 @@ type Props = {
 };
 
 type RegionInfo = {
+  id?: number | string;
   name: string;
   currency?: string;
   flagUrl?: string;
@@ -198,8 +203,26 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
       // keep default
     }
 
-    // The saved region may predate flag support (or be the default India with
-    // no flag). Resolve the flag from the countries catalogue by name match.
+    // Authoritative current country comes from /v1/get_country/ — keep the
+    // sidebar (and regionCountryId, which scopes the catalogue) in sync with it.
+    try {
+      const countryRes: any = await getCountryService();
+      const userCountry = normalizeUserCountry(countryRes?.data);
+      if (userCountry) {
+        current = {
+          ...current,
+          id: userCountry.id,
+          name: userCountry.name || current.name,
+        };
+        setRegion(current);
+        await AsyncStorage.setItem("regionCountryId", String(userCountry.id));
+      }
+    } catch {
+      // Non-fatal — fall back to the saved region.
+    }
+
+    // Resolve flag/currency from the countries catalogue (get_country doesn't
+    // include them). Match on id when known, else by name.
     if (!current.flagUrl) {
       try {
         const res: any = await getCountriesService();
@@ -209,8 +232,10 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
           : payload?.results ?? payload?.data ?? payload?.countries ?? [];
         const match = list
           .map(normalizeCountry)
-          .find(
-            (c) => c.name.toLowerCase() === current.name.toLowerCase()
+          .find((c) =>
+            current.id != null
+              ? String(c.id) === String(current.id)
+              : c.name.toLowerCase() === current.name.toLowerCase()
           );
         if (match?.flagUrl) {
           const next: RegionInfo = {
@@ -233,6 +258,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
 
   const handleSelectCountry = async (country: Country) => {
     const next: RegionInfo = {
+      id: country.id,
       name: country.name,
       currency: country.currency,
       flagUrl: country.flagUrl,
