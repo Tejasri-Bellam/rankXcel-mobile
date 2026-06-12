@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getassessmentsService } from "@/src/libs/services/assessments";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
+import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import LiveTestDetail, { LiveStatus } from "./LiveTestDetail";
 import { liveTestsStyles as styles } from "@/src/styles/sidebar/assessments/liveTests";
 
@@ -117,6 +118,7 @@ const participantCount = (item: any): number => {
 
 export default function AssessmentsScreen() {
   const { activeExamId } = useTargetExam();
+  const onHeaderScroll = useHeaderScrollHandler();
   const router = useRouter();
   const params = useLocalSearchParams<{
     tab?: string;
@@ -335,7 +337,10 @@ export default function AssessmentsScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
+        onScroll={(e) => {
+          handleScroll(e);
+          onHeaderScroll(e);
+        }}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl

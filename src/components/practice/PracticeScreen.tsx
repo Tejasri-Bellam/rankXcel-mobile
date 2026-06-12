@@ -1,4 +1,5 @@
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
+import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import { getExamSyllabusService } from "@/src/libs/services/practice";
 import { COLORS } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
@@ -222,6 +223,7 @@ export default function PracticeScreen() {
   }>();
 
   const { activeExamId } = useTargetExam();
+  const onHeaderScroll = useHeaderScrollHandler();
 
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -378,6 +380,8 @@ export default function PracticeScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={onHeaderScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
