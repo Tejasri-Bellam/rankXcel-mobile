@@ -123,7 +123,9 @@ export default function AssessmentsScreen() {
     openId?: string;
     openName?: string;
   }>();
-  const openHandledRef = useRef(false);
+  // The deep-link target we've already resolved (id/name), so we don't re-open
+  // it — while still allowing a *new* deep-link to be handled.
+  const handledOpenKeyRef = useRef<string | null>(null);
 
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,10 +135,12 @@ export default function AssessmentsScreen() {
   );
   const [filter, setFilter] = useState<FilterValue>("all");
 
-  // Pagination — the list endpoint is paginated; pull pages as the user scrolls.
+  // Pagination — the list endpoint is paginated (20/page); pull pages as the
+  // user scrolls. `totalCount` is the server's total across all pages.
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
   const loadingMoreRef = useRef(false);
 
   // Honour a `tab` filter passed in via navigation (e.g. Home's "Upcoming live
@@ -147,28 +151,6 @@ export default function AssessmentsScreen() {
       router.setParams({ tab: undefined } as any);
     }
   }, [params.tab, router]);
-
-  // Deep-link from Home's "Upcoming live": open the tapped assessment's detail
-  // (so the user can register), matching by id when present, else by name.
-  useEffect(() => {
-    if (openHandledRef.current) return;
-    const { openId, openName } = params;
-    if (!openId && !openName) return;
-    if (data.length === 0) return; // wait until the list has loaded
-    const match = data.find((it: any) => {
-      if (openId && String(it?.id) === String(openId)) return true;
-      if (
-        openName &&
-        String(it?.name).trim().toLowerCase() ===
-          String(openName).trim().toLowerCase()
-      )
-        return true;
-      return false;
-    });
-    openHandledRef.current = true;
-    router.setParams({ openId: undefined, openName: undefined } as any);
-    if (match) setSelected({ item: match, status: deriveStatus(match) });
-  }, [data, params.openId, params.openName, router]);
 
   const fetchAssessments = async (isRefresh = false) => {
     if (activeExamId == null) {
@@ -184,6 +166,9 @@ export default function AssessmentsScreen() {
       setData(list);
       setPage(1);
       setHasMore(!Array.isArray(raw) && !!raw?.next);
+      setTotalCount(
+        typeof raw?.count === "number" ? raw.count : list.length
+      );
     } catch (error: any) {
       console.log("ASSESSMENTS ERROR:", JSON.stringify(error, null, 2));
     } finally {
@@ -214,6 +199,7 @@ export default function AssessmentsScreen() {
       });
       setPage(nextPage);
       setHasMore(!Array.isArray(raw) && !!raw?.next);
+      if (typeof raw?.count === "number") setTotalCount(raw.count);
     } catch {
       setHasMore(false);
     } finally {
@@ -232,6 +218,56 @@ export default function AssessmentsScreen() {
   useEffect(() => {
     fetchAssessments();
   }, [activeExamId]);
+
+  // Deep-link from Home's "Upcoming live": open the tapped assessment's detail
+  // (the register page), matching by id (else by name). The list is paginated,
+  // so if it's not on the loaded pages yet, keep paging until we find it.
+  useEffect(() => {
+    const { openId, openName } = params;
+    if (!openId && !openName) return;
+    if (loading) return; // wait for the first page
+
+    const key = String(openId ?? openName);
+    if (handledOpenKeyRef.current === key) return;
+
+    const match = data.find((it: any) => {
+      if (openId && String(it?.id) === String(openId)) return true;
+      if (
+        openName &&
+        String(it?.name).trim().toLowerCase() ===
+          String(openName).trim().toLowerCase()
+      )
+        return true;
+      return false;
+    });
+
+    if (match) {
+      handledOpenKeyRef.current = key;
+      router.setParams({ openId: undefined, openName: undefined } as any);
+      setSelected({ item: match, status: deriveStatus(match) });
+      return;
+    }
+
+    // Not on the loaded pages yet — pull the next page and retry when it lands.
+    if (hasMore && !loadingMore) {
+      loadMore();
+      return;
+    }
+
+    // Exhausted every page without a match — stop trying for this target.
+    if (!hasMore) {
+      handledOpenKeyRef.current = key;
+      router.setParams({ openId: undefined, openName: undefined } as any);
+    }
+  }, [
+    data,
+    params.openId,
+    params.openName,
+    loading,
+    hasMore,
+    loadingMore,
+    router,
+  ]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -264,22 +300,23 @@ export default function AssessmentsScreen() {
     return String(examId) === String(activeExamId);
   };
 
-  // Order: live first, then upcoming, then results.
+  // Order: live first, then upcoming, then results. All tabs show every
+  // assessment for the exam (so the student can browse/register); only the Live
+  // filter is restricted to registered + live below.
   const order: Record<LiveStatus, number> = { live: 0, upcoming: 1, results: 2 };
   const allTests = data
     .filter(matchesActiveExam)
-    // Live tab shows only assessments the student has registered for.
-    .filter((item) => Boolean(item?.is_registered))
     .map((item) => ({ item, status: deriveStatus(item) }))
     .sort((a, b) => order[a.status] - order[b.status]);
 
-  // Live tab matches strictly on the backend's live student_status (registered
-  // is already enforced above); other tabs use the derived card status.
+  // Live filter = registered AND the backend's live student_status.
   const isLive = (t: { item: any; status: LiveStatus }) =>
+    Boolean(t.item?.is_registered) &&
     String(t.item?.student_status ?? "").toLowerCase() === "live";
 
   const counts: Record<FilterValue, number> = {
-    all: allTests.length,
+    // "All" reflects the server's total across all pages, not just what's loaded.
+    all: totalCount || allTests.length,
     live: allTests.filter(isLive).length,
     upcoming: allTests.filter((t) => t.status === "upcoming").length,
     completed: allTests.filter((t) => t.status === "results").length,
