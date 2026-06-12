@@ -11,6 +11,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS } from "@/src/styles/styles";
+import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
 import { getConsistencyService } from "@/src/libs/services/dashboard";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
@@ -153,6 +154,7 @@ const Metric = ({
 export default function AnalyticsScreen() {
   const { targetExams, activeExamId, dashboardData, isLoading, refresh } =
     useDashboard();
+  const onHeaderScroll = useHeaderScrollHandler();
 
   const [consistency, setConsistency] = useState<ConsistencyData>(EMPTY_CONSISTENCY);
   const [refreshing, setRefreshing] = useState(false);
@@ -228,6 +230,8 @@ export default function AnalyticsScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={onHeaderScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

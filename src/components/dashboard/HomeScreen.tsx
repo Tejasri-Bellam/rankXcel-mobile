@@ -7,10 +7,8 @@ import {
   View,
 } from "react-native";
 
-import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
-
 import { COLORS } from "@/src/styles/styles";
-import { useHeaderScroll } from "@/src/libs/context/HeaderScrollContext";
+import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import Greeting from "./Greeting";
 import ExamReadiness from "./ExamReadiness";
 import DailyGoal from "./DailyGoal";
@@ -36,19 +34,8 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = React.useState(false);
 
   // Drive the shared header's background: transparent at the top, solid once
-  // the user scrolls. Reset to transparent when leaving the screen.
-  const { setScrolled } = useHeaderScroll();
-
-  React.useEffect(() => {
-    return () => setScrolled(false);
-  }, [setScrolled]);
-
-  const onScroll = React.useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      setScrolled(e.nativeEvent.contentOffset.y > 8);
-    },
-    [setScrolled]
-  );
+  // the user scrolls (reset to transparent on focus change).
+  const onScroll = useHeaderScrollHandler();
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);

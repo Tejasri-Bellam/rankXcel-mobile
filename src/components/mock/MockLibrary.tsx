@@ -23,6 +23,7 @@ import {
 } from '../../libs/services/mock-library';
 import { MockTest } from '@/src/libs/types/mock-library';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
+import { useHeaderScrollHandler } from '@/src/libs/context/HeaderScrollContext';
 import MockDetails from './Details';
 import RequestMockModal from './RequestMock';
 
@@ -149,6 +150,7 @@ export default function MockLibrary({
   showBuild = true,
 }: MockLibraryProps = {}) {
   const { activeExamId } = useTargetExam();
+  const onHeaderScroll = useHeaderScrollHandler();
 
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -258,7 +260,10 @@ export default function MockLibrary({
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
+        onScroll={(e) => {
+          handleScroll(e);
+          onHeaderScroll(e);
+        }}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
