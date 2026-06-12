@@ -22,9 +22,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PracticeExamFlow from "./PracticeExamFlow";
-import TopicsScreen from "./TopicScreen";
-import SubTopicsScreen from "./SubTopic";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
+
+// Blue accent used across the syllabus drill-down screens (matches the mockups).
+const ACCENT = "#3B7DF8";
 
 export interface TopicItem {
   id: number;
@@ -117,12 +118,28 @@ export const getAccuracyColor = (accuracy: number) => {
   return "#F97316";
 };
 
+// Weak → Mastered scale used by every node's progress colour.
+export const SCALE_COLORS = ["#EF4444", "#F97316", "#F59E0B", "#4ADE80", "#16A34A"];
+
+export const getNodeColor = (accuracy: number | null): string => {
+  if (accuracy == null) return SCALE_COLORS[0];
+  if (accuracy >= 80) return SCALE_COLORS[4];
+  if (accuracy >= 60) return SCALE_COLORS[3];
+  if (accuracy >= 40) return SCALE_COLORS[2];
+  if (accuracy >= 20) return SCALE_COLORS[1];
+  return SCALE_COLORS[0];
+};
+
 export const getStrengthLabel = (accuracy: number | null): string => {
   if (accuracy === null) return "Not started";
   if (accuracy >= 65) return "Strong";
   if (accuracy >= 40) return "Building";
   return "Weak";
 };
+
+// Colour of the strength square next to each row (grey when unattempted).
+const squareColor = (accuracy: number | null): string =>
+  accuracy === null ? "#D1D5DB" : getAccuracyColor(accuracy);
 
 // GET /api/v1/exams/{examId}/syllabus/ returns the full nested tree:
 //   [{ id, name, accuracy, topics: [{ id, name, accuracy,
@@ -145,6 +162,7 @@ const normalizeSyllabus = (raw: any): SubjectGroup[] => {
           id: Number(st?.id ?? 0),
           name: String(st?.name ?? st?.code ?? ""),
           accuracy: parseAccuracy(st?.accuracy),
+          questionCount: Number(st?.question_count ?? st?.questions_count ?? 0) || undefined,
         })
       );
       return {
@@ -154,6 +172,7 @@ const normalizeSyllabus = (raw: any): SubjectGroup[] => {
         accuracy: parseAccuracy(topic?.accuracy),
         subjectName,
         hasChildren: subtopics.length > 0,
+        questionCount: Number(topic?.question_count ?? topic?.questions_count ?? 0) || undefined,
       };
     });
 
@@ -212,6 +231,65 @@ export const AccuracyRing = ({
   );
 };
 
+// "< Back" row + big page title — the drill-down header used by the
+// topics / sub-topics screens.
+const BackHeader = ({ title, onBack }: { title: string; onBack: () => void }) => (
+  <>
+    <View style={styles.topBar}>
+      <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
+        <Ionicons name="chevron-back" size={18} color={ACCENT} />
+        <Text style={styles.backText}>Back</Text>
+      </TouchableOpacity>
+    </View>
+    <Text style={styles.bigTitle} numberOfLines={1}>
+      {title}
+    </Text>
+  </>
+);
+
+// White summary card with a progress ring, strength label and a meta line.
+const StatBanner = ({
+  pct,
+  status,
+  meta,
+}: {
+  pct: number | null;
+  status: string;
+  meta: string;
+}) => (
+  <View style={styles.banner}>
+    <AccuracyRing pct={pct} size={64} stroke={6} fontSize={15} showPercent />
+    <View style={styles.bannerInfo}>
+      <Text style={styles.bannerStatus}>{status}</Text>
+      <Text style={styles.bannerMeta}>{meta}</Text>
+    </View>
+  </View>
+);
+
+// Small blue play button shown on every practisable (leaf) row.
+const PlayButton = () => (
+  <View style={styles.playBtn}>
+    <Ionicons name="play" size={15} color={ACCENT} />
+  </View>
+);
+
+// Full-width "Practice all" bar pinned below a list.
+const PracticeAllBar = ({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity style={styles.practiceAllBar} activeOpacity={0.85} onPress={onPress}>
+    <View style={styles.practiceAllIcon}>
+      <Ionicons name="play" size={16} color="#fff" />
+    </View>
+    <Text style={styles.practiceAllLabel}>{label}</Text>
+    <Ionicons name="arrow-forward" size={18} color="#fff" />
+  </TouchableOpacity>
+);
+
 export default function PracticeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -222,8 +300,14 @@ export default function PracticeScreen() {
     examId?: string;
   }>();
 
-  const { activeExamId } = useTargetExam();
+  const { activeExamId, targetExams } = useTargetExam();
   const onHeaderScroll = useHeaderScrollHandler();
+
+  const examName = useMemo(
+    () =>
+      targetExams.find((e) => String(e.id) === String(activeExamId))?.name ?? "",
+    [targetExams, activeExamId]
+  );
 
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -278,28 +362,46 @@ export default function PracticeScreen() {
     router.setParams({ chapterName: undefined, subjectName: undefined, questionCount: undefined, durationMinutes: undefined, examId: undefined } as any);
   }, [params, activeExamId, router]);
 
-  const handleSubjectPress = (subject: SubjectGroup) => {
-    // The full tree is already loaded — just drill into its topics.
-    setSelectedSubject(subject);
-    setNavScreen("topics");
+  // Open the practice/test flow for any node in the tree. `timed` starts the
+  // session as a timed test; otherwise it's untimed practice.
+  const openPractice = (chapter: ChapterItem, timed = false) => {
+    setActiveChapter(chapter);
+    setAutoQuestionCount(undefined);
+    setAutoTimerMinutes(timed ? 15 : undefined);
+    setPracticeVisible(true);
   };
 
-  const handleTopicPress = (chapter: ChapterItem) => {
-    // `chapter.topics` holds the sub-topics from the syllabus tree.
-    // No sub-topics → go straight to practising the topic.
-    if (chapter.topics.length === 0) {
-      setActiveChapter(chapter);
-      setPracticeVisible(true);
-      return;
-    }
-    setSelectedChapter(chapter);
-    setNavScreen("subtopics");
-  };
+  // A leaf topic practises itself (the flow defaults topic_ids to [chapter.id]).
+  const topicToChapter = (
+    topic: ChapterItem,
+    subject: SubjectGroup
+  ): ChapterItem => ({ ...topic, subjectName: subject.name });
 
- const handleSubTopicPress = (chapter: ChapterItem) => {
-  setActiveChapter(chapter);
-  setPracticeVisible(true);
-};
+  // A subtopic practises just its own id.
+  const subToChapter = (
+    sub: TopicItem,
+    subject: SubjectGroup
+  ): ChapterItem => ({
+    id: sub.id,
+    name: sub.name,
+    topics: [],
+    accuracy: sub.accuracy,
+    subjectName: subject.name,
+    topicIds: [sub.id],
+  });
+
+  // "Practice all" for a topic — every sub-topic id, or the topic itself.
+  const topicAllChapter = (
+    topic: ChapterItem,
+    subject: SubjectGroup
+  ): ChapterItem => ({
+    id: topic.id,
+    name: topic.name,
+    topics: [],
+    accuracy: topic.accuracy,
+    subjectName: subject.name,
+    topicIds: topic.topics.length ? topic.topics.map((t) => t.id) : [topic.id],
+  });
 
   // Practise across every topic in the subject at once. An empty `topicIds`
   // tells the backend to draw from all topics under the subject.
@@ -315,65 +417,147 @@ export default function PracticeScreen() {
     setPracticeVisible(true);
   };
 
-  const handleBack = () => {
-    if (navScreen === "subtopics") setNavScreen("topics");
-    else if (navScreen === "topics") setNavScreen("subjects");
-    else router.back();
-  };
+  // Shared practice/test modal — reused across every screen.
+  const practiceModal =
+    activeChapter && activeExamId != null ? (
+      <PracticeExamFlow
+        visible={practiceVisible}
+        chapter={activeChapter}
+        examId={Number(activeExamId)}
+        initialQuestionCount={autoQuestionCount}
+        initialTimerMinutes={autoTimerMinutes}
+        onClose={() => {
+          setPracticeVisible(false);
+          setActiveChapter(null);
+          if (activeExamId != null) loadSubjects(Number(activeExamId), true);
+        }}
+      />
+    ) : null;
 
+  // Topics screen — the subject's topics. Topics with sub-topics drill into the
+  // sub-topics screen; leaf topics show a play button that starts practice.
   if (navScreen === "topics" && selectedSubject) {
+    const subject = selectedSubject;
     return (
-      <>
-        <TopicsScreen
-          subject={selectedSubject}
-          onBack={() => setNavScreen("subjects")}
-          onTopicPress={handleTopicPress}
-          onAllTopicsPress={() => handleAllTopicsPress(selectedSubject)}
-        />
-        {activeChapter && activeExamId != null && (
-          <PracticeExamFlow
-            visible={practiceVisible}
-            chapter={activeChapter}
-            examId={Number(activeExamId)}
-            initialQuestionCount={autoQuestionCount}
-            initialTimerMinutes={autoTimerMinutes}
-            onClose={() => {
-              setPracticeVisible(false);
-              setActiveChapter(null);
-              if (activeExamId != null) loadSubjects(Number(activeExamId), true);
-            }}
+      <SafeAreaView style={styles.safeArea} edges={[]}>
+        <BackHeader title={subject.name} onBack={() => setNavScreen("subjects")} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.screenContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <StatBanner
+            pct={subject.accuracy}
+            status={getStrengthLabel(subject.accuracy)}
+            meta={`${subject.chapters.length} topic${subject.chapters.length === 1 ? "" : "s"} in ${subject.name}`}
           />
-        )}
-      </>
+
+          <Text style={styles.sectionLabel}>TOPICS</Text>
+          <View style={styles.listCard}>
+            {subject.chapters.map((topic, idx) => {
+              const hasSubs = topic.topics.length > 0;
+              const isLast = idx === subject.chapters.length - 1;
+              const meta = hasSubs
+                ? `${topic.topics.length} sub-topic${topic.topics.length === 1 ? "" : "s"} · ${topic.accuracy ?? 0}%`
+                : topic.questionCount
+                  ? `${topic.questionCount} questions · ${topic.accuracy ?? 0}%`
+                  : `${getStrengthLabel(topic.accuracy)} · ${topic.accuracy ?? 0}%`;
+              return (
+                <TouchableOpacity
+                  key={topic.id || topic.name + idx}
+                  style={[styles.listRow, isLast && styles.listRowLast]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (hasSubs) {
+                      setSelectedChapter(topic);
+                      setNavScreen("subtopics");
+                    } else {
+                      openPractice(topicToChapter(topic, subject));
+                    }
+                  }}
+                >
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listName}>{topic.name}</Text>
+                    <Text style={styles.listMeta}>{meta}</Text>
+                  </View>
+                  <View style={[styles.square, { backgroundColor: squareColor(topic.accuracy) }]} />
+                  {hasSubs ? (
+                    <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+                  ) : (
+                    <PlayButton />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {subject.chapters.length > 0 && (
+            <PracticeAllBar
+              label="Practice all topics"
+              onPress={() => handleAllTopicsPress(subject)}
+            />
+          )}
+        </ScrollView>
+        {practiceModal}
+      </SafeAreaView>
     );
   }
 
-  if (navScreen === "subtopics" && selectedChapter) {
+  // Sub-topics screen — every sub-topic is practisable (play button), plus a
+  // "Practice all" bar that drills the whole topic.
+  if (navScreen === "subtopics" && selectedChapter && selectedSubject) {
+    const subject = selectedSubject;
+    const topic = selectedChapter;
     return (
-      <>
-        <SubTopicsScreen
-          chapter={selectedChapter}
-          onBack={() => setNavScreen("topics")}
-          onSubTopicPress={handleSubTopicPress}
-        />
-        {activeChapter && activeExamId != null && (
-          <PracticeExamFlow
-            visible={practiceVisible}
-            chapter={activeChapter}
-            examId={Number(activeExamId)}
-            initialQuestionCount={autoQuestionCount}
-            initialTimerMinutes={autoTimerMinutes}
-            onClose={() => {
-              setPracticeVisible(false);
-              setActiveChapter(null);
-              if (activeExamId != null) loadSubjects(Number(activeExamId), true);
-            }}
+      <SafeAreaView style={styles.safeArea} edges={[]}>
+        <BackHeader title={topic.name} onBack={() => setNavScreen("topics")} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.screenContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <StatBanner
+            pct={topic.accuracy}
+            status={getStrengthLabel(topic.accuracy)}
+            meta={subject.name}
           />
-        )}
-      </>
+
+          <Text style={styles.sectionLabel}>SUB-TOPICS</Text>
+          <View style={styles.listCard}>
+            {topic.topics.map((sub, idx) => {
+              const isLast = idx === topic.topics.length - 1;
+              const meta = sub.questionCount
+                ? `${sub.questionCount} questions · ${getStrengthLabel(sub.accuracy)}`
+                : `${getStrengthLabel(sub.accuracy)} · ${sub.accuracy ?? 0}%`;
+              return (
+                <TouchableOpacity
+                  key={sub.id || sub.name + idx}
+                  style={[styles.listRow, isLast && styles.listRowLast]}
+                  activeOpacity={0.7}
+                  onPress={() => openPractice(subToChapter(sub, subject))}
+                >
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listName}>{sub.name}</Text>
+                    <Text style={styles.listMeta}>{meta}</Text>
+                  </View>
+                  <View style={[styles.square, { backgroundColor: squareColor(sub.accuracy) }]} />
+                  <PlayButton />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <PracticeAllBar
+            label="Practice all"
+            onPress={() => openPractice(topicAllChapter(topic, subject))}
+          />
+        </ScrollView>
+        {practiceModal}
+      </SafeAreaView>
     );
   }
 
+  // Subjects screen — the syllabus root.
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
       <ScrollView
@@ -396,6 +580,7 @@ export default function PracticeScreen() {
           <Text style={styles.pageTitle}>Syllabus</Text>
           <Text style={styles.pageSubtitle}>
             Adaptive map — weakest areas first. Tap a subject to drill in.
+            {examName ? ` · ${examName}` : ""}
           </Text>
         </View>
 
@@ -420,19 +605,23 @@ export default function PracticeScreen() {
           <View style={styles.cardList}>
             {subjectGroups.map((subject, idx) => (
               <TouchableOpacity
-                key={subject.name + idx}
+                key={subject.id || subject.name + idx}
                 style={styles.subjectCard}
-                onPress={() => handleSubjectPress(subject)}
-                activeOpacity={0.75}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setSelectedChapter(null);
+                  setSelectedSubject(subject);
+                  setNavScreen("topics");
+                }}
               >
-                <AccuracyRing pct={subject.accuracy} size={56} stroke={4} fontSize={13} />
-                <View style={styles.subjectIcon}>
-                  <Text style={{ fontSize: 22 }}>{subjectEmoji(subject.name)}</Text>
-                </View>
-                <View style={styles.subjectInfo}>
-                  <Text style={styles.subjectName}>{subject.name}</Text>
+                <AccuracyRing pct={subject.accuracy} size={48} stroke={5} fontSize={14} />
+                <View style={styles.nodeInfo}>
+                  <View style={styles.subjectNameRow}>
+                    <Text style={{ fontSize: 18 }}>{subjectEmoji(subject.name)}</Text>
+                    <Text style={styles.subjectName}>{subject.name}</Text>
+                  </View>
                   <Text style={styles.subjectMeta}>
-                    {subject.topicCount > 0 ? `${subject.topicCount} topics · ` : ""}
+                    {subject.topicCount} topic{subject.topicCount === 1 ? "" : "s"} ·{" "}
                     {getStrengthLabel(subject.accuracy)}
                   </Text>
                 </View>
@@ -448,20 +637,7 @@ export default function PracticeScreen() {
         )}
       </ScrollView>
 
-      {activeChapter && activeExamId != null && (
-        <PracticeExamFlow
-          visible={practiceVisible}
-          chapter={activeChapter}
-          examId={Number(activeExamId)}
-          initialQuestionCount={autoQuestionCount}
-          initialTimerMinutes={autoTimerMinutes}
-          onClose={() => {
-            setPracticeVisible(false);
-            setActiveChapter(null);
-            if (activeExamId != null) loadSubjects(Number(activeExamId), true);
-          }}
-        />
-      )}
+      {practiceModal}
     </SafeAreaView>
   );
 }
@@ -491,31 +667,137 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 12,
   },
+
+  // Subject card
   subjectCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
-    padding: 16,
+    padding: 14,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
   },
-  subjectIcon: { marginHorizontal: 2 },
-  subjectInfo: { flex: 1 },
-  subjectName: {
-    fontSize: 16,
-    fontWeight: "700",
+  subjectNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  subjectName: { fontSize: 16, fontWeight: "700", color: "#1A1A2E" },
+  subjectMeta: { fontSize: 13, color: "#9CA3AF", marginTop: 4 },
+
+  nodeInfo: { flex: 1 },
+
+  // Drill-down header
+  topBar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    backgroundColor: "#EEEFF5",
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    alignSelf: "flex-start",
+  },
+  backText: { fontSize: 15, fontWeight: "600", color: ACCENT },
+  bigTitle: {
+    fontSize: 28,
+    fontWeight: "800",
     color: "#1A1A2E",
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 16,
+    backgroundColor: "#EEEFF5",
   },
-  subjectMeta: {
-    fontSize: 13,
-    color: "#9CA3AF",
-    marginTop: 2,
+  screenContent: { paddingHorizontal: 16, paddingBottom: 32 },
+
+  // Stat banner
+  banner: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
+  bannerInfo: { flex: 1 },
+  bannerStatus: { fontSize: 17, fontWeight: "800", color: "#1A1A2E" },
+  bannerMeta: { fontSize: 13, color: "#9CA3AF", marginTop: 3 },
+
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#AAAAAA",
+    letterSpacing: 1,
+    paddingHorizontal: 4,
+    marginTop: 22,
+    marginBottom: 8,
+  },
+
+  // List card (topics / sub-topics)
+  listCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  listRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  listRowLast: { borderBottomWidth: 0 },
+  listInfo: { flex: 1 },
+  listName: { fontSize: 15, fontWeight: "700", color: "#1A1A2E" },
+  listMeta: { fontSize: 12, color: "#9CA3AF", marginTop: 3 },
+  square: { width: 26, height: 26, borderRadius: 8 },
+
+  // Leaf-row play button
+  playBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#EEF4FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Practice-all bar
+  practiceAllBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: ACCENT,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 15,
+    marginTop: 16,
+  },
+  practiceAllIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  practiceAllLabel: { flex: 1, fontSize: 15, fontWeight: "700", color: "#fff" },
+
+  // States
   centered: {
     alignItems: "center",
     paddingTop: 60,

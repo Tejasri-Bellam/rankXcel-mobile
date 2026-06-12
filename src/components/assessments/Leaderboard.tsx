@@ -124,8 +124,17 @@ export default function Leaderboard({ assessmentId, onBack }: Props) {
         const res = await getAssessmentLeaderboardService(assessmentId);
         if (!cancelled) setBoard(normalizeLeaderboard(res));
       } catch (err: any) {
-        if (!cancelled)
-          setError(err?.message ?? "Couldn't load the leaderboard.");
+        if (!cancelled) {
+          // A leaderboard that isn't available yet (e.g. an upcoming/unranked
+          // test) comes back as a 4xx — that's an empty state, not an error.
+          // Only surface genuine network/server failures.
+          const status = Number(err?.status);
+          if (status >= 400 && status < 500) {
+            setBoard({ rows: [], yourResult: null, totalParticipants: 0 });
+          } else {
+            setError(err?.message ?? "Couldn't load the leaderboard.");
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
