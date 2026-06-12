@@ -276,8 +276,20 @@ export default function MockLibrary({
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>{title}</Text>
-          <Text style={styles.pageSubtitle}>{subtitle}</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.pageTitle}>{title}</Text>
+            <Text style={styles.pageSubtitle}>{subtitle}</Text>
+          </View>
+          {showBuild && (
+            <TouchableOpacity
+              style={styles.buildBtn}
+              onPress={() => setRequestVisible(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="add" size={15} color="#3B7DF8" />
+              <Text style={styles.buildBtnText}>Build mock</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Content */}
@@ -317,18 +329,6 @@ export default function MockLibrary({
             )}
           </View>
         )}
-
-        {/* Build a custom mock */}
-        {showBuild && (
-          <TouchableOpacity
-            style={styles.buildBtn}
-            onPress={() => setRequestVisible(true)}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="add" size={16} color="#3B7DF8" />
-            <Text style={styles.buildBtnText}>Build a custom mock</Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
       <RequestMockModal
@@ -351,7 +351,11 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 20,
     backgroundColor: '#EEEFF5',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
+  headerText: { flex: 1, marginRight: 12 },
   pageTitle: { fontSize: 28, fontWeight: '800', color: '#1A1A2E', marginBottom: 4 },
   pageSubtitle: { fontSize: 13, color: '#9CA3AF', lineHeight: 18 },
 
@@ -404,18 +408,17 @@ const styles = StyleSheet.create({
   buildBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 16,
-    borderRadius: 16,
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#3B7DF8',
     borderStyle: 'dashed',
     backgroundColor: '#fff',
+    flexShrink: 0,
   },
-  buildBtnText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
+  buildBtnText: { fontSize: 13, fontWeight: '600', color: '#3B7DF8' },
 
   centered: { alignItems: 'center', paddingTop: 60, gap: 12 },
   loadingText: { fontSize: 14, color: '#9CA3AF' },

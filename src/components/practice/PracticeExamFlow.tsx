@@ -1,10 +1,12 @@
 import {
-  createMockTestService,
   getMockTestQuestionsService,
-  getSubjectOptionsService,
   startMockTestService,
   submitMockTestService
 } from "@/src/libs/services/mock-library";
+import {
+  getOptionsSubjectsService,
+  requestMockTestService,
+} from "@/src/libs/services/syllabus";
 import { COLORS } from "@/src/styles/styles";
 import React, { useEffect, useState } from "react";
 import {
@@ -204,7 +206,7 @@ export const PracticeExamFlow = ({
     setScreen("loading");
     setCreating(true);
     try {
-      const subjRes = await getSubjectOptionsService(examId);
+      const subjRes = await getOptionsSubjectsService(examId);
       const subjects = toArray(unwrap(subjRes));
       const matchedSubject = subjects.find(
         (s: any) =>
@@ -229,7 +231,7 @@ export const PracticeExamFlow = ({
         test_type: "PRACTICE_TEST" as const,
       };
 
-      const createRes = await createMockTestService(payload);
+      const createRes = await requestMockTestService(examId, payload);
       const body = unwrap(createRes);
       const newId =
         body?.id ??

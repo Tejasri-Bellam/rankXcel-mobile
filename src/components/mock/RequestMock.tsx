@@ -19,9 +19,9 @@ import {
   createMockTestService,
   getMyTargetExamsOptionsService,
   getSubjectOptionsService,
-  getSubjectTopicsService,
   OptionItem,
 } from '../../libs/services/mock-library';
+import { getTopicsService } from '../../libs/services/practice';
 
 const toOptionsArray = (raw: unknown): OptionItem[] => {
   if (Array.isArray(raw)) return raw as OptionItem[];
@@ -100,7 +100,7 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
     if (!selectedSubject) return;
     setSelectedTopic(null); setSelectedSubtopic(null); setTopics([]); setSubtopics([]);
     // Topics for the subject: /v1/subjects/{id}/topics/
-    getSubjectTopicsService(selectedSubject.id)
+    getTopicsService(selectedSubject.id)
       .then((r) => setTopics(toOptionsArray(r)))
       .catch(() => {});
   }, [selectedSubject]);
@@ -108,13 +108,12 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
   useEffect(() => {
     if (!selectedSubject || !selectedTopic) return;
     setSelectedSubtopic(null); setSubtopics([]);
-    // Subtopics: /v1/subjects/{id}/topics/?parent={topicId} — the API already
+    // Subtopics: /v1/subjects/{id}/topics/?parent_id={topicId} — the API already
     // returns only the children of the selected topic, so use the response as-is.
-    getSubjectTopicsService(selectedSubject.id, selectedTopic.id)
+    getTopicsService(selectedSubject.id, selectedTopic.id)
       .then((r) => setSubtopics(toOptionsArray(r)))
       .catch(() => {});
   }, [selectedSubject, selectedTopic]);
-console.log('ffff', selectedSubject, selectedTopic, subtopics);
 
   const canSubmit = !!selectedExam && !!selectedSubject && Number(duration) > 0 && Number(questionCount) > 0 && !submitting;
 
