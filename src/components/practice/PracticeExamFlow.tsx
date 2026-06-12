@@ -227,7 +227,7 @@ export const PracticeExamFlow = ({
         topic_ids: topicIds,
         question_count: count,
         total_duration_minutes: timer > 0 ? timer : 0,
-        difficulty: difficulty === "mixed" ? null : difficulty,
+        difficulty,
         test_type: "PRACTICE_TEST" as const,
       };
 
