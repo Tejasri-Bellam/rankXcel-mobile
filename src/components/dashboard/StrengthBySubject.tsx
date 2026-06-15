@@ -36,7 +36,7 @@ export default function StrengthBySubject({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <Ionicons name="stats-chart" size={15} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Strength by subject</Text>
+          <Text style={styles.sectionTitle}>Strength by Subject</Text>
         </View>
         <TouchableOpacity onPress={() => router.push("/analytics")}>
           <Text style={styles.link}>Stats ›</Text>

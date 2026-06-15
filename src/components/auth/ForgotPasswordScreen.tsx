@@ -1,31 +1,30 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { forgotPasswordService } from "@/src/libs/services/auth";
+import { forgotPasswordStyles } from "@/src/styles/auth/forgotPasswordStyles";
+import { router } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
-  ActivityIndicator,
-  Animated,
-  StyleSheet,
-} from 'react-native';
-import { router } from 'expo-router';
-import { forgotPasswordService } from '@/src/libs/services/auth';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { forgotPasswordStyles } from '@/src/styles/auth/forgotPasswordStyles';
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // Types
-  
-  type Step = 'email' | 'checkEmail';
+
+type Step = "email" | "checkEmail";
 
 export default function ForgotPasswordScreen() {
-  const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
+  const [resendTimer, setResendTimer] = useState(30);
 
   // Slide animation
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -53,17 +52,28 @@ export default function ForgotPasswordScreen() {
     animateIn();
   }, [step]);
 
+  // Resend countdown timer
+  useEffect(() => {
+    if (step !== "checkEmail") return;
+
+    const interval = setInterval(() => {
+      setResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [step]);
+
   // Handlers
 
   const handleSendResetLink = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address.');
+      Alert.alert("Error", "Please enter your email address.");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address.');
+      Alert.alert("Error", "Please enter a valid email address.");
       return;
     }
 
@@ -74,11 +84,13 @@ export default function ForgotPasswordScreen() {
         email: email.trim().toLowerCase(),
       });
 
-      setStep('checkEmail');
+      setStep("checkEmail");
+      setResendTimer(30);
     } catch (error: any) {
       Alert.alert(
-        'Error',
-        error?.response?.data?.message || 'Failed to send reset link. Please try again.'
+        "Error",
+        error?.response?.data?.message ||
+          "Failed to send reset link. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -91,11 +103,12 @@ export default function ForgotPasswordScreen() {
       await forgotPasswordService({
         email: email.trim().toLowerCase(),
       });
-      Alert.alert('Sent', 'Reset link has been resent to your email.');
+      setResendTimer(30);
+      Alert.alert("Sent", "Reset link has been resent to your email.");
     } catch (error: any) {
       Alert.alert(
-        'Error',
-        error?.response?.data?.message || 'Failed to resend. Please try again.'
+        "Error",
+        error?.response?.data?.message || "Failed to resend. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -106,133 +119,111 @@ export default function ForgotPasswordScreen() {
     router.back();
   };
 
+  // Back button
+  const BackButton = () => (
+    <TouchableOpacity
+      style={forgotPasswordStyles.backButton}
+      onPress={handleBackToLogin}
+      activeOpacity={0.7}
+    >
+      <Text style={forgotPasswordStyles.backButtonIcon}>‹</Text>
+    </TouchableOpacity>
+  );
+
   // Logo Component
   const Logo = () => (
-    <View style={forgotPasswordStyles.logoContainer}>
+    <View style={forgotPasswordStyles.logoRow}>
       <View style={forgotPasswordStyles.logoBox}>
-        <Text style={forgotPasswordStyles.logoText}>RX</Text>
+        <Text style={forgotPasswordStyles.logoIcon}>⚡</Text>
       </View>
       <Text style={forgotPasswordStyles.logoLabel}>RankXcel</Text>
     </View>
   );
 
   // Email Step
-  if (step === 'email') {
-  return (
-  <View style={forgotPasswordStyles.safeArea}>
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={forgotPasswordStyles.flex}
-    >
-      <ScrollView
-        contentContainerStyle={forgotPasswordStyles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View
-          style={[
-            forgotPasswordStyles.card,
-            {
-              transform: [{ translateY: slideAnim }],
-              opacity: fadeAnim,
-            },
-          ]}
+  if (step === "email") {
+    return (
+      <View style={forgotPasswordStyles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={forgotPasswordStyles.flex}
         >
-          <Logo />
+          <ScrollView
+            contentContainerStyle={forgotPasswordStyles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <BackButton />
 
-          <View style={forgotPasswordStyles.headerSection}>
-            <Text style={forgotPasswordStyles.title}>
-              Reset your password
-            </Text>
+            <Animated.View
+              style={[
+                forgotPasswordStyles.content,
+                {
+                  transform: [{ translateY: slideAnim }],
+                  opacity: fadeAnim,
+                },
+              ]}
+            >
+              <Logo />
 
-            <Text style={forgotPasswordStyles.subtitle}>
-              Enter your email address and we'll send you a link to reset your
-              password.
-            </Text>
-          </View>
+              <View style={forgotPasswordStyles.headerSection}>
+                <Text style={forgotPasswordStyles.title}>Reset password</Text>
+                <Text style={forgotPasswordStyles.subtitle}>
+                  We'll email you a secure reset link.
+                </Text>
+              </View>
 
-          <View style={forgotPasswordStyles.form}>
-            <View style={forgotPasswordStyles.inputGroup}>
-              <Text style={forgotPasswordStyles.label}>
-                Email address{" "}
-                <Text style={forgotPasswordStyles.required}>*</Text>
-              </Text>
+              <View style={forgotPasswordStyles.form}>
+                <View style={forgotPasswordStyles.inputGroup}>
+                  <Text style={forgotPasswordStyles.label}>Email</Text>
 
-              <View
-                style={[
-                  forgotPasswordStyles.inputWrapper,
-                  emailFocused &&
-                    forgotPasswordStyles.inputWrapperFocused,
-                ]}
-              >
-                <View
-                  style={forgotPasswordStyles.inputIconContainer}
-                >
-                  <Text style={forgotPasswordStyles.inputIcon}>
-                    ✉
-                  </Text>
+                  <View
+                    style={[
+                      forgotPasswordStyles.inputWrapper,
+                      emailFocused && forgotPasswordStyles.inputWrapperFocused,
+                    ]}
+                  >
+                    <Text style={forgotPasswordStyles.inputIcon}>👤</Text>
+
+                    <TextInput
+                      style={forgotPasswordStyles.textInput}
+                      placeholder="aanya@example.com"
+                      placeholderTextColor="#9CA3AF"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!loading}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
+                    />
+                  </View>
                 </View>
 
-                <TextInput
-                  style={forgotPasswordStyles.textInput}
-                  placeholder="you@example.com"
-                  placeholderTextColor="#9CA3AF"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => setEmailFocused(false)}
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[
-                forgotPasswordStyles.primaryBtn,
-                loading &&
-                  forgotPasswordStyles.primaryBtnDisabled,
-              ]}
-              onPress={handleSendResetLink}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator
-                  color="#fff"
-                  size="small"
-                />
-              ) : (
-                <Text
-                  style={forgotPasswordStyles.primaryBtnText}
+                <TouchableOpacity
+                  style={[
+                    forgotPasswordStyles.primaryBtn,
+                    loading && forgotPasswordStyles.primaryBtnDisabled,
+                  ]}
+                  onPress={handleSendResetLink}
+                  disabled={loading}
+                  activeOpacity={0.85}
                 >
-                  Send Reset Link
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={forgotPasswordStyles.backRow}
-              onPress={handleBackToLogin}
-              activeOpacity={0.7}
-            >
-              <Text style={forgotPasswordStyles.backArrow}>
-                ←
-              </Text>
-
-              <Text style={forgotPasswordStyles.backText}>
-                {" "}
-                Back to login
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  </View>
-);
+                  {loading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={forgotPasswordStyles.primaryBtnText}>
+                      Send reset link
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    );
   }
 
   // Check Email Step
@@ -242,9 +233,11 @@ export default function ForgotPasswordScreen() {
         contentContainerStyle={forgotPasswordStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <BackButton />
+
         <Animated.View
           style={[
-            forgotPasswordStyles.card,
+            forgotPasswordStyles.content,
             {
               transform: [{ translateY: slideAnim }],
               opacity: fadeAnim,
@@ -253,69 +246,53 @@ export default function ForgotPasswordScreen() {
         >
           <Logo />
 
-          {/* Green circle check icon */}
-          <View style={forgotPasswordStyles.successIconWrapper}>
-            <View style={forgotPasswordStyles.successIconOuter}>
-              <View style={forgotPasswordStyles.successIconInner}>
-                <Text style={forgotPasswordStyles.successCheckmark}>✓</Text>
-              </View>
-            </View>
-          </View>
-
           <View style={forgotPasswordStyles.headerSection}>
-            <Text style={forgotPasswordStyles.title}>Check your email</Text>
+            <Text style={forgotPasswordStyles.title}>Reset password</Text>
             <Text style={forgotPasswordStyles.subtitle}>
-              We've sent a password reset link to{' '}
-              <Text style={forgotPasswordStyles.emailHighlight}>{email}</Text>
-              {'. '}The link expires in 15 minutes.
+              We'll email you a secure reset link.
             </Text>
           </View>
 
-          {/* Didn't receive it section */}
-          <View style={forgotPasswordStyles.didntReceiveBox}>
-            <Text style={forgotPasswordStyles.didntReceiveTitle}>Didn't receive it?</Text>
-            <View style={forgotPasswordStyles.tipList}>
-              <View style={forgotPasswordStyles.tipRow}>
-                <Text style={forgotPasswordStyles.tipBullet}>•</Text>
-                <Text style={forgotPasswordStyles.tipText}>Check your spam or junk folder</Text>
-              </View>
-              <View style={forgotPasswordStyles.tipRow}>
-                <Text style={forgotPasswordStyles.tipBullet}>•</Text>
-                <Text style={forgotPasswordStyles.tipText}>
-                  Make sure you typed the correct email
-                </Text>
-              </View>
-              <View style={forgotPasswordStyles.tipRow}>
-                <Text style={forgotPasswordStyles.tipBullet}>•</Text>
-                <Text style={forgotPasswordStyles.tipText}>
-                  Wait a few minutes and try again
-                </Text>
-              </View>
+          {/* Green check icon */}
+          <View style={forgotPasswordStyles.successIconWrapper}>
+            <View style={forgotPasswordStyles.successIconBox}>
+              <Text style={forgotPasswordStyles.successCheckmark}>✓</Text>
             </View>
           </View>
+
+          <Text style={forgotPasswordStyles.checkTitle}>Check your inbox</Text>
+          <Text style={forgotPasswordStyles.checkSubtitle}>
+            A reset link is on its way to{" "}
+            <Text style={forgotPasswordStyles.emailHighlight}>{email}</Text>.
+          </Text>
+
+          {/* Back to login */}
+          <TouchableOpacity
+            style={forgotPasswordStyles.secondaryBtn}
+            onPress={handleBackToLogin}
+            activeOpacity={0.85}
+          >
+            <Text style={forgotPasswordStyles.secondaryBtnText}>
+              Back to log in
+            </Text>
+          </TouchableOpacity>
 
           {/* Resend */}
           <TouchableOpacity
             onPress={handleResendEmail}
-            disabled={loading}
+            disabled={loading || resendTimer > 0}
             activeOpacity={0.7}
             style={forgotPasswordStyles.resendRow}
           >
             {loading ? (
-              <ActivityIndicator color="#5B4FCF" size="small" />
+              <ActivityIndicator color="#3B7DF8" size="small" />
+            ) : resendTimer > 0 ? (
+              <Text style={forgotPasswordStyles.resendText}>
+                Resend available in {resendTimer}s
+              </Text>
             ) : (
-              <Text style={forgotPasswordStyles.resendText}>Resend available in 45s</Text>
+              <Text style={forgotPasswordStyles.resendText}>Resend email</Text>
             )}
-          </TouchableOpacity>
-
-          {/* Back to login */}
-          <TouchableOpacity
-            style={forgotPasswordStyles.backRow}
-            onPress={handleBackToLogin}
-            activeOpacity={0.7}
-          >
-            <Text style={forgotPasswordStyles.backArrow}>←</Text>
-            <Text style={forgotPasswordStyles.backText}> Back to login</Text>
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
