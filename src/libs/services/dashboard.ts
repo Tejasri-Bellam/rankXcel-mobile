@@ -21,6 +21,22 @@ export async function getDashboardDataService(examId: number | string) {
   return await genericGet(`/v1/dashboard/${examId}/`, true);
 }
 
+// GET /api/v1/exams/{exam_id}/stats/
+// Headline Stats numbers for the active exam:
+//   { exam_readiness, avg_accuracy, total_attempts }
+export async function getExamStatsService(examId: number | string) {
+  return await genericGet(`/v1/exams/${examId}/stats/`, true);
+}
+
+// GET /api/v1/exams/{exam_id}/trends/
+// Performance trends for the Stats → Trends tab. Response:
+//   { accuracy_trend: [{ index, accuracy, type, submitted_at }], accuracy_delta,
+//     time_per_question_trend: [{ index, seconds, ... }], time_delta,
+//     percentile_trend: [{ index, percentile, ... }] }
+export async function getExamTrendsService(examId: number | string) {
+  return await genericGet(`/v1/exams/${examId}/trends/`, true);
+}
+
 // GET /api/v1/student/consistency/
 // Daily activity feed for the Stats consistency heatmap.
 export async function getConsistencyService() {

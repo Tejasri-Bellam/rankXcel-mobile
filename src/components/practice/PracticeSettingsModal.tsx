@@ -4,7 +4,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -24,7 +23,6 @@ interface Props {
 }
 
 const QUESTION_OPTIONS = [5, 10, 20];
-const MAX_QUESTIONS = 100; // matches the MockTestCreate `question_count` cap
 
 const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
   { value: "easy", label: "Easy" },
@@ -44,21 +42,11 @@ export default function PracticeSettingsModal({
   onCancel,
 }: Props) {
   const [questionCount, setQuestionCount] = useState<number>(
-    initialQuestionCount && initialQuestionCount > 0
-      ? Math.min(initialQuestionCount, MAX_QUESTIONS)
-      : 5
+    initialQuestionCount && QUESTION_OPTIONS.includes(initialQuestionCount)
+      ? initialQuestionCount
+      : QUESTION_OPTIONS[0]
   );
   const [difficulty, setDifficulty] = useState<Difficulty>("mixed" as Difficulty);
-
-  // Free-typed count, capped at MAX_QUESTIONS. 0 means "empty" (Start disabled).
-  const handleCountInput = (txt: string) => {
-    const digits = txt.replace(/[^0-9]/g, "");
-    if (digits === "") {
-      setQuestionCount(0);
-      return;
-    }
-    setQuestionCount(Math.min(parseInt(digits, 10), MAX_QUESTIONS));
-  };
 
   const canStart = questionCount >= 1 && !loading;
 
@@ -130,21 +118,6 @@ export default function PracticeSettingsModal({
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Custom count — type any number (like Mocks / Assessments) */}
-        <View style={styles.customRow}>
-          <Text style={styles.customLabel}>Or enter a number</Text>
-          <TextInput
-            style={styles.customInput}
-            value={questionCount > 0 ? String(questionCount) : ""}
-            onChangeText={handleCountInput}
-            keyboardType="number-pad"
-            placeholder="e.g. 15"
-            placeholderTextColor="#9CA3AF"
-            maxLength={3}
-          />
-        </View>
-        <Text style={styles.customHint}>Up to {MAX_QUESTIONS} questions</Text>
 
         {/* Difficulty section */}
         <Text style={[styles.sectionLabel, { marginTop: 20 }]}>DIFFICULTY</Text>
@@ -303,36 +276,6 @@ const styles = StyleSheet.create({
   },
   qBtnTextActive: {
     color: "#3B7DF8",
-  },
-
-  customRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 12,
-  },
-  customLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: "#555",
-  },
-  customInput: {
-    width: 96,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1A1A2E",
-    textAlign: "center",
-    backgroundColor: "#fff",
-  },
-  customHint: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    marginTop: 6,
   },
 
   diffRow: {

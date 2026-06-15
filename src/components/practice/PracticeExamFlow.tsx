@@ -162,6 +162,9 @@ interface PracticeExamFlowProps {
   initialQuestionCount?: number;
   initialTimerMinutes?: number;
   onClose: () => void;
+  /** Called when the user finishes a session and leaves the results screen.
+   * Defaults to onClose; the syllabus uses it to return to the root + refresh. */
+  onCompleted?: () => void;
 }
 
 export const PracticeExamFlow = ({
@@ -171,6 +174,7 @@ export const PracticeExamFlow = ({
   initialQuestionCount,
   initialTimerMinutes,
   onClose,
+  onCompleted,
 }: PracticeExamFlowProps) => {
   const [screen, setScreen] = useState<Screen>("settings");
   const [questions, setQuestions] = useState<PracticeApiQuestion[]>([]);
@@ -344,7 +348,7 @@ export const PracticeExamFlow = ({
           totalSeconds={finalSeconds}
           submitting={submittingMock}
           onTryAgain={handleTryAgain}
-          onBackToHub={onClose}
+          onBackToHub={onCompleted ?? onClose}
         />
       )}
     </Modal>

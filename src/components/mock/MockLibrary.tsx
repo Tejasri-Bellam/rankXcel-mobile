@@ -342,7 +342,7 @@ export default function MockLibrary({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#EEEFF5' },
+  safeArea: { flex: 1, backgroundColor: '#F7F8FC' },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
 
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 20,
-    backgroundColor: '#EEEFF5',
+    backgroundColor: '#F7F8FC',
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',

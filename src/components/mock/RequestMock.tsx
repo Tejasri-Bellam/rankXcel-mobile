@@ -51,6 +51,8 @@ const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
   { value: 'any', label: 'Any' },
 ];
 
+const QUESTION_OPTIONS = [5, 10, 20];
+
 export default function RequestMockModal({ visible, onClose, onCreated, defaultExamId }: Props) {
   const [exams, setExams] = useState<OptionItem[]>([]);
   const [subjects, setSubjects] = useState<OptionItem[]>([]);
@@ -62,7 +64,7 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
   const [selectedSubtopic, setSelectedSubtopic] = useState<OptionItem | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [duration, setDuration] = useState('');
-  const [questionCount, setQuestionCount] = useState('');
+  const [questionCount, setQuestionCount] = useState<number>(QUESTION_OPTIONS[0]);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
@@ -70,7 +72,7 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
     setSelectedExam(null); setSelectedSubject(null);
     setSelectedTopic(null); setSelectedSubtopic(null);
     setSubjects([]); setTopics([]); setSubtopics([]);
-    setDifficulty('medium'); setDuration(''); setQuestionCount('');
+    setDifficulty('medium'); setDuration(''); setQuestionCount(QUESTION_OPTIONS[0]);
   }, []);
 
   useEffect(() => {
@@ -228,19 +230,24 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
                   ))}
                 </View>
 
-                <View style={styles.inlineRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Duration (min) <Text style={styles.req}>*</Text></Text>
-                    <TextInput style={styles.input} placeholder="e.g. 180"
-                      placeholderTextColor="#9CA3AF" keyboardType="number-pad"
-                      value={duration} onChangeText={setDuration} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Questions <Text style={styles.req}>*</Text></Text>
-                    <TextInput style={styles.input} placeholder="e.g. 90"
-                      placeholderTextColor="#9CA3AF" keyboardType="number-pad"
-                      value={questionCount} onChangeText={setQuestionCount} />
-                  </View>
+                <Text style={styles.label}>Duration (min) <Text style={styles.req}>*</Text></Text>
+                <TextInput style={styles.input} placeholder="e.g. 180"
+                  placeholderTextColor="#9CA3AF" keyboardType="number-pad"
+                  value={duration} onChangeText={setDuration} />
+
+                <Text style={styles.label}>Questions <Text style={styles.req}>*</Text></Text>
+                <View style={styles.diffRow}>
+                  {QUESTION_OPTIONS.map((n) => (
+                    <TouchableOpacity
+                      key={n}
+                      style={[styles.diffBtn, questionCount === n && styles.diffBtnActive]}
+                      onPress={() => setQuestionCount(n)}
+                    >
+                      <Text style={[styles.diffText, questionCount === n && styles.diffTextActive]}>
+                        {n}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
 
                 <View style={styles.actions}>
@@ -298,7 +305,6 @@ const styles = StyleSheet.create({
   diffBtnActive: { backgroundColor: '#3B7DF8', borderColor: '#3B7DF8' },
   diffText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   diffTextActive: { color: '#fff' },
-  inlineRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
   input: {
     borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 11, fontSize: 13, color: '#1A1A2E',
