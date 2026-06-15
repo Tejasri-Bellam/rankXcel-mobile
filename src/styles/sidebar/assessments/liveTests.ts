@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 
-const BG = "#EEEFF5";
+const BG = "#F7F8FC";
 
 export const liveTestsStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BG },

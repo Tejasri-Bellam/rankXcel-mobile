@@ -213,19 +213,22 @@ export const AccuracyRing = ({
   showPercent?: boolean;
   bgColor?: string;
 }) => {
-  const color = pct !== null ? getAccuracyColor(pct) : "#D1D5DB";
+  // Treat a missing/null accuracy as 0 so subjects, topics and subtopics
+  // always show a numeric value instead of a dash.
+  const acc = pct ?? 0;
+  const color = getAccuracyColor(acc);
 
   return (
     <CircleProgress
       size={size}
       strokeWidth={stroke}
-      progress={pct ?? 0}
+      progress={acc}
       color={color}
       trackColor="#E9EBF2"
       bgColor={bgColor}
     >
-      <Text style={{ fontSize, fontWeight: "800", color: pct !== null ? color : "#9CA3AF" }}>
-        {pct !== null ? `${pct}${showPercent ? "%" : ""}` : "—"}
+      <Text style={{ fontSize, fontWeight: "800", color }}>
+        {`${acc}${showPercent ? "%" : ""}`}
       </Text>
     </CircleProgress>
   );
@@ -431,6 +434,17 @@ export default function PracticeScreen() {
           setActiveChapter(null);
           if (activeExamId != null) loadSubjects(Number(activeExamId), true);
         }}
+        onCompleted={() => {
+          // After finishing a session, return to the syllabus root and reload so
+          // the updated subject/topic/subtopic accuracy shows immediately
+          // (drill-down screens render from stale snapshots otherwise).
+          setPracticeVisible(false);
+          setActiveChapter(null);
+          setSelectedChapter(null);
+          setSelectedSubject(null);
+          setNavScreen("subjects");
+          if (activeExamId != null) loadSubjects(Number(activeExamId), true);
+        }}
       />
     ) : null;
 
@@ -527,7 +541,7 @@ export default function PracticeScreen() {
             {topic.topics.map((sub, idx) => {
               const isLast = idx === topic.topics.length - 1;
               const meta = sub.questionCount
-                ? `${sub.questionCount} questions · ${getStrengthLabel(sub.accuracy)}`
+                ? `${sub.questionCount} questions · ${sub.accuracy ?? 0}%`
                 : `${getStrengthLabel(sub.accuracy)} · ${sub.accuracy ?? 0}%`;
               return (
                 <TouchableOpacity
@@ -643,14 +657,14 @@ export default function PracticeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#EEEFF5" },
+  safeArea: { flex: 1, backgroundColor: "#F7F8FC" },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 32 },
   header: {
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
-    backgroundColor: "#EEEFF5",
+    backgroundColor: "#F7F8FC",
   },
   pageTitle: {
     fontSize: 28,
@@ -692,7 +706,7 @@ const styles = StyleSheet.create({
   topBar: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    backgroundColor: "#EEEFF5",
+    backgroundColor: "#F7F8FC",
   },
   backBtn: {
     flexDirection: "row",
@@ -708,7 +722,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 6,
     paddingBottom: 16,
-    backgroundColor: "#EEEFF5",
+    backgroundColor: "#F7F8FC",
   },
   screenContent: { paddingHorizontal: 16, paddingBottom: 32 },
 

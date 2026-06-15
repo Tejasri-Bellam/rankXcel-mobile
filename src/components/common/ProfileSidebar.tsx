@@ -193,32 +193,43 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
 
   const loadRegion = async () => {
     let current: RegionInfo = region;
+    // Whether we already have a country the user has settled on — either the
+    // initial default persisted at login or a later manual change. Once present,
+    // it takes precedence and must not be overwritten by /v1/get_country/.
+    let haveSelectedCountry = false;
     try {
       const saved = await AsyncStorage.getItem("region");
       if (saved) {
-        current = { ...region, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        current = { ...region, ...parsed };
         setRegion(current);
+        if (parsed?.id != null) haveSelectedCountry = true;
       }
     } catch {
       // keep default
     }
 
-    // Authoritative current country comes from /v1/get_country/ — keep the
-    // sidebar (and regionCountryId, which scopes the catalogue) in sync with it.
-    try {
-      const countryRes: any = await getCountryService();
-      const userCountry = normalizeUserCountry(countryRes?.data);
-      if (userCountry) {
-        current = {
-          ...current,
-          id: userCountry.id,
-          name: userCountry.name || current.name,
-        };
-        setRegion(current);
-        await AsyncStorage.setItem("regionCountryId", String(userCountry.id));
+    // /v1/get_country/ is only the INITIAL default source. Use it solely when
+    // there's no saved selection yet; afterwards the user's selection wins so a
+    // manual change isn't reset every time the sidebar reopens.
+    if (!haveSelectedCountry) {
+      try {
+        const countryRes: any = await getCountryService();
+        const userCountry = normalizeUserCountry(countryRes?.data);
+        if (userCountry) {
+          current = {
+            ...current,
+            id: userCountry.id,
+            name: userCountry.name || current.name,
+          };
+          setRegion(current);
+          await AsyncStorage.setItem("regionCountryId", String(userCountry.id));
+          // Persist so subsequent opens treat this as the established selection.
+          await AsyncStorage.setItem("region", JSON.stringify(current));
+        }
+      } catch {
+        // Non-fatal — fall back to the saved/default region.
       }
-    } catch {
-      // Non-fatal — fall back to the saved region.
     }
 
     // Resolve flag/currency from the countries catalogue (get_country doesn't
@@ -230,13 +241,18 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
         const list: any[] = Array.isArray(payload)
           ? payload
           : payload?.results ?? payload?.data ?? payload?.countries ?? [];
-        const match = list
-          .map(normalizeCountry)
-          .find((c) =>
-            current.id != null
-              ? String(c.id) === String(current.id)
-              : c.name.toLowerCase() === current.name.toLowerCase()
-          );
+        const catalogue = list.map(normalizeCountry);
+        // The catalogue (/v1/masters/options/countries/) and /v1/get_country/
+        // don't share an id space, so try id first and fall back to name match.
+        const match =
+          (current.id != null
+            ? catalogue.find((c) => String(c.id) === String(current.id))
+            : undefined) ??
+          (current.name
+            ? catalogue.find(
+                (c) => c.name.toLowerCase() === current.name.toLowerCase()
+              )
+            : undefined);
         if (match?.flagUrl) {
           const next: RegionInfo = {
             ...current,
@@ -498,7 +514,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
               icon={<Ionicons name="time-outline" size={18} color={COLORS.textMedium} />}
               iconBg={COLORS.grayBg}
               title="History"
-              onPress={() => go("/analytics")}
+              onPress={() => go("/history")}
             />
             <Row
               icon={<Ionicons name="notifications-outline" size={18} color={COLORS.orange} />}
