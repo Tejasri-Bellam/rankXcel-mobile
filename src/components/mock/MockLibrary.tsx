@@ -336,6 +336,7 @@ export default function MockLibrary({
         onClose={() => setRequestVisible(false)}
         onCreated={() => { setRequestVisible(false); loadMocks(true); }}
         defaultExamId={activeExamId}
+        testType={testType}
       />
     </SafeAreaView>
   );

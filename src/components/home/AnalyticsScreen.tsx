@@ -332,13 +332,14 @@ export default function AnalyticsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadConsistency = useCallback(async () => {
+    if (activeExamId == null) return;
     try {
-      const res = await getConsistencyService();
+      const res = await getConsistencyService(activeExamId);
       setConsistency(normalizeConsistency(res));
     } catch {
       setConsistency(EMPTY_CONSISTENCY);
     }
-  }, []);
+  }, [activeExamId]);
 
   const loadExamStats = useCallback(async () => {
     if (activeExamId == null) return;
