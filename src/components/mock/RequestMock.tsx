@@ -2,26 +2,21 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import { Dropdown } from 'react-native-element-dropdown';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  createMockTestService,
-  getMyTargetExamsOptionsService,
+  createExamMockTestService,
   getSubjectOptionsService,
   OptionItem,
+  TestType,
 } from '../../libs/services/mock-library';
-import { getTopicsService } from '../../libs/services/practice';
 
 const toOptionsArray = (raw: unknown): OptionItem[] => {
   if (Array.isArray(raw)) return raw as OptionItem[];
@@ -35,116 +30,122 @@ const toOptionsArray = (raw: unknown): OptionItem[] => {
   return [];
 };
 
+// Subject → emoji, mirroring StrengthBySubject. Falls back to a book.
+const SUBJECT_EMOJI: Record<string, string> = {
+  Physics: '⚛️',
+  Chemistry: '🧪',
+  Mathematics: '📐',
+  Mathemetics: '📐',
+};
+const subjectEmoji = (name: string) => SUBJECT_EMOJI[name] ?? '📘';
+
 interface Props {
   visible: boolean;
   onClose: () => void;
   onCreated: (mockId: string) => void;
   defaultExamId?: number | string | null;
+  // 'MOCK_TEST' supports full-syllabus + multi-subject; practice is single-subject.
+  testType?: TestType;
 }
 
-type Difficulty = 'easy' | 'medium' | 'hard' | 'any';
+type Scope = 'full' | 'subjects';
+type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
 
 const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
   { value: 'easy', label: 'Easy' },
   { value: 'medium', label: 'Medium' },
   { value: 'hard', label: 'Hard' },
-  { value: 'any', label: 'Any' },
+  { value: 'mixed', label: 'Mixed' },
 ];
 
-const QUESTION_OPTIONS = [5, 10, 20];
+const QUESTION_OPTIONS = [15, 30, 50, 75];
+const DURATION_OPTIONS = [30, 60, 90, 180];
 
-export default function RequestMockModal({ visible, onClose, onCreated, defaultExamId }: Props) {
-  const [exams, setExams] = useState<OptionItem[]>([]);
+export default function RequestMockModal({
+  visible,
+  onClose,
+  onCreated,
+  defaultExamId,
+  testType = 'MOCK_TEST',
+}: Props) {
+  const insets = useSafeAreaInsets();
+  const isPractice = testType === 'PRACTICE_TEST';
+
   const [subjects, setSubjects] = useState<OptionItem[]>([]);
-  const [topics, setTopics] = useState<OptionItem[]>([]);
-  const [subtopics, setSubtopics] = useState<OptionItem[]>([]);
-  const [selectedExam, setSelectedExam] = useState<OptionItem | null>(null);
-  const [selectedSubject, setSelectedSubject] = useState<OptionItem | null>(null);
-  const [selectedTopic, setSelectedTopic] = useState<OptionItem | null>(null);
-  const [selectedSubtopic, setSelectedSubtopic] = useState<OptionItem | null>(null);
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [duration, setDuration] = useState('');
-  const [questionCount, setQuestionCount] = useState<number>(QUESTION_OPTIONS[0]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+
+  // Practice has no full-syllabus scope — always pick subjects.
+  const [scope, setScope] = useState<Scope>(isPractice ? 'subjects' : 'full');
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<number[]>([]);
+  const [questionCount, setQuestionCount] = useState<number>(30);
+  const [difficulty, setDifficulty] = useState<Difficulty>('mixed');
+  const [duration, setDuration] = useState<number>(60);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
   const resetForm = useCallback(() => {
-    setSelectedExam(null); setSelectedSubject(null);
-    setSelectedTopic(null); setSelectedSubtopic(null);
-    setSubjects([]); setTopics([]); setSubtopics([]);
-    setDifficulty('medium'); setDuration(''); setQuestionCount(QUESTION_OPTIONS[0]);
-  }, []);
+    setScope(isPractice ? 'subjects' : 'full');
+    setSelectedSubjectIds([]);
+    setQuestionCount(30);
+    setDifficulty('mixed');
+    setDuration(60);
+  }, [isPractice]);
 
   useEffect(() => {
     if (!visible) return;
     resetForm();
-    (async () => {
-      try {
-        const res = await getMyTargetExamsOptionsService();
-        const list = toOptionsArray(res);
-        setExams(list);
-        if (defaultExamId != null) {
-          const match = list.find((e) => String(e.id) === String(defaultExamId));
-          if (match) setSelectedExam(match);
-        }
-      } catch {}
-    })();
+    if (defaultExamId == null) return;
+    setLoadingSubjects(true);
+    getSubjectOptionsService(Number(defaultExamId))
+      .then((r) => setSubjects(toOptionsArray(r)))
+      .catch(() => setSubjects([]))
+      .finally(() => setLoadingSubjects(false));
   }, [visible, resetForm, defaultExamId]);
 
-  useEffect(() => {
-    if (!selectedExam) return;
-    setSelectedSubject(null); setSelectedTopic(null); setSelectedSubtopic(null);
-    setSubjects([]); setTopics([]); setSubtopics([]);
-    getSubjectOptionsService(selectedExam.id).then((r) => setSubjects(toOptionsArray(r))).catch(() => {});
-  }, [selectedExam]);
+  const toggleSubject = (id: number) => {
+    if (isPractice) {
+      // Practice is single-subject only.
+      setSelectedSubjectIds((prev) => (prev[0] === id ? [] : [id]));
+      return;
+    }
+    setSelectedSubjectIds((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+    );
+  };
 
-  useEffect(() => {
-    if (!selectedSubject) return;
-    setSelectedTopic(null); setSelectedSubtopic(null); setTopics([]); setSubtopics([]);
-    // Topics for the subject: /v1/subjects/{id}/topics/
-    getTopicsService(selectedSubject.id)
-      .then((r) => setTopics(toOptionsArray(r)))
-      .catch(() => {});
-  }, [selectedSubject]);
-
-  useEffect(() => {
-    if (!selectedSubject || !selectedTopic) return;
-    setSelectedSubtopic(null); setSubtopics([]);
-    // Subtopics: /v1/subjects/{id}/topics/?parent_id={topicId} — the API already
-    // returns only the children of the selected topic, so use the response as-is.
-    getTopicsService(selectedSubject.id, selectedTopic.id)
-      .then((r) => setSubtopics(toOptionsArray(r)))
-      .catch(() => {});
-  }, [selectedSubject, selectedTopic]);
-
-  const canSubmit = !!selectedExam && !!selectedSubject && Number(duration) > 0 && Number(questionCount) > 0 && !submitting;
+  const needsSubjects = scope === 'subjects' || isPractice;
+  const canSubmit =
+    defaultExamId != null &&
+    !submitting &&
+    (!needsSubjects || selectedSubjectIds.length > 0);
 
   const handleSubmit = async () => {
-    if (submittingRef.current || !selectedExam || !selectedSubject) return;
-    const dNum = Number(duration);
-    const qNum = Number(questionCount);
-    if (!dNum || !qNum) { Alert.alert('Missing fields', 'Enter duration and number of questions.'); return; }
+    if (submittingRef.current || defaultExamId == null) return;
+    if (needsSubjects && selectedSubjectIds.length === 0) {
+      Alert.alert('Pick a subject', 'Select at least one subject to continue.');
+      return;
+    }
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      const topicIds = selectedSubtopic
-        ? [selectedSubtopic.id]
-        : selectedTopic
-        ? [selectedTopic.id]
-        : [];
-      const payload = {
-        exam: selectedExam.id,
-        subject: selectedSubject.id,
-        topic_ids: topicIds,
-        question_count: qNum,
-        total_duration_minutes: dNum,
-        difficulty: difficulty === 'any' ? null : difficulty,
-        test_type: 'MOCK_TEST' as const,
-      };
-      console.log('Create mock payload:', JSON.stringify(payload));
-      const res = await createMockTestService(payload);
-      console.log('Create mock response:', JSON.stringify(res));
-      const created = (res as any)?.data;
+      const fullSyllabus = scope === 'full' && !isPractice;
+      const payload = fullSyllabus
+        ? {
+            test_type: testType as 'MOCK_TEST' | 'PRACTICE_TEST',
+            is_full_syllabus: true as const,
+            question_count: questionCount,
+            difficulty,
+            total_duration_minutes: duration,
+          }
+        : {
+            test_type: testType as 'MOCK_TEST' | 'PRACTICE_TEST',
+            subject_ids: selectedSubjectIds,
+            question_count: questionCount,
+            difficulty,
+            total_duration_minutes: duration,
+          };
+      const res = await createExamMockTestService(defaultExamId, payload);
+      const created = (res as any)?.data ?? res;
       const newId = created?.mock_test_id ?? created?.id;
       if (!newId) throw new Error('No ID returned.');
       onCreated(String(newId));
@@ -152,8 +153,7 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
     } catch (err) {
       // The axios interceptor rejects with a custom ApiError: { status, errors, body }
       const apiErr = err as { status?: number; errors?: Record<string, string[]>; body?: any };
-      console.log('Create mock error status:', apiErr?.status, 'body:', JSON.stringify(apiErr?.body), 'errors:', JSON.stringify(apiErr?.errors));
-      let message = 'Could not create mock test.';
+      let message = 'Could not generate mock test.';
       if (apiErr?.errors && typeof apiErr.errors === 'object') {
         const parts = Object.entries(apiErr.errors).map(([k, v]) => {
           const text = Array.isArray(v) ? v.join(', ') : String(v);
@@ -170,106 +170,153 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
     }
   };
 
+  const renderChipRow = <T,>(
+    items: { value: T; label: string }[],
+    selected: T,
+    onSelect: (v: T) => void,
+  ) => (
+    <View style={styles.chipRow}>
+      {items.map((it) => {
+        const active = it.value === selected;
+        return (
+          <TouchableOpacity
+            key={String(it.value)}
+            style={[styles.optChip, active && styles.optChipActive]}
+            onPress={() => onSelect(it.value)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.optChipText, active && styles.optChipTextActive]}>
+              {it.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <KeyboardAvoidingView
-              style={styles.panel}
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]}
+        >
+          <View style={styles.handle} />
+
+          <View style={styles.header}>
+            <Text style={styles.title}>
+              {isPractice ? 'Build a practice set' : 'Build your own mock'}
+            </Text>
+            <TouchableOpacity
+              style={styles.closeIcon}
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <TouchableOpacity style={styles.closeIcon} onPress={onClose}>
-                <Ionicons name="close" size={18} color="#6B7280" />
-              </TouchableOpacity>
-              <Text style={styles.title}>Add Mock Test</Text>
-              <Text style={styles.subtitle}>
-                Configure your custom mock test based on your preferences.
-              </Text>
+              <Ionicons name="close" size={18} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.subtitle}>
+            We'll auto-generate a fresh paper to your spec — different questions every time.
+          </Text>
 
-              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                <Text style={styles.label}>Exam <Text style={styles.req}>*</Text></Text>
-                <Dropdown style={[styles.dropdown, styles.dropdownDisabled]} data={exams}
-                  labelField="name" valueField="id" placeholder="Select exam..."
-                  value={selectedExam?.id} disable
-                  onChange={(item) => setSelectedExam(item)} />
-
-                <Text style={styles.label}>Subject <Text style={styles.req}>*</Text></Text>
-                <Dropdown style={[styles.dropdown, !selectedExam && styles.dropdownDisabled]}
-                  data={subjects} labelField="name" valueField="id" search searchPlaceholder="Search..."
-                  placeholder={selectedExam ? 'Select subject' : 'Select exam first'}
-                  value={selectedSubject?.id} disable={!selectedExam}
-                  onChange={(item) => setSelectedSubject(item)} />
-
-                <Text style={styles.label}>Topic</Text>
-                <Dropdown style={[styles.dropdown, !selectedSubject && styles.dropdownDisabled]}
-                  data={topics} labelField="name" valueField="id" search searchPlaceholder="Search..."
-                  placeholder={selectedSubject ? 'Select topic' : 'Select subject first'}
-                  value={selectedTopic?.id} disable={!selectedSubject}
-                  onChange={(item) => setSelectedTopic(item)} />
-
-                <Text style={styles.label}>Subtopic</Text>
-                <Dropdown style={[styles.dropdown, !selectedTopic && styles.dropdownDisabled]}
-                  data={subtopics} labelField="name" valueField="id" search searchPlaceholder="Search..."
-                  placeholder={selectedTopic ? 'Select subtopic' : 'Select topic first'}
-                  value={selectedSubtopic?.id} disable={!selectedTopic}
-                  onChange={(item) => setSelectedSubtopic(item)} />
-
-                <Text style={styles.label}>Difficulty</Text>
-                <View style={styles.diffRow}>
-                  {DIFFICULTY_OPTIONS.map((d) => (
-                    <TouchableOpacity
-                      key={d.value}
-                      style={[styles.diffBtn, difficulty === d.value && styles.diffBtnActive]}
-                      onPress={() => setDifficulty(d.value)}
-                    >
-                      <Text style={[styles.diffText, difficulty === d.value && styles.diffTextActive]}>
-                        {d.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }}>
+            {/* Scope — mocks only */}
+            {!isPractice && (
+              <>
+                <Text style={styles.sectionLabel}>SCOPE</Text>
+                <View style={styles.segment}>
+                  {([
+                    { value: 'full', label: 'Full syllabus' },
+                    { value: 'subjects', label: 'Pick subjects' },
+                  ] as { value: Scope; label: string }[]).map((s) => {
+                    const active = scope === s.value;
+                    return (
+                      <TouchableOpacity
+                        key={s.value}
+                        style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                        onPress={() => setScope(s.value)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                          {s.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
+              </>
+            )}
 
-                <Text style={styles.label}>Duration (min) <Text style={styles.req}>*</Text></Text>
-                <TextInput style={styles.input} placeholder="e.g. 180"
-                  placeholderTextColor="#9CA3AF" keyboardType="number-pad"
-                  value={duration} onChangeText={setDuration} />
+            {/* Subject chips */}
+            {needsSubjects && (
+              <>
+                {isPractice && <Text style={[styles.sectionLabel, { marginTop: 4 }]}>SUBJECT</Text>}
+                {loadingSubjects ? (
+                  <ActivityIndicator color="#6366F1" style={{ marginVertical: 12 }} />
+                ) : subjects.length === 0 ? (
+                  <Text style={styles.emptySubjects}>No subjects available for this exam.</Text>
+                ) : (
+                  <View style={styles.subjectWrap}>
+                    {subjects.map((subj) => {
+                      const active = selectedSubjectIds.includes(subj.id);
+                      return (
+                        <TouchableOpacity
+                          key={subj.id}
+                          style={[styles.subjectChip, active && styles.subjectChipActive]}
+                          onPress={() => toggleSubject(subj.id)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.subjectEmoji}>{subjectEmoji(subj.name)}</Text>
+                          <Text
+                            style={[styles.subjectText, active && styles.subjectTextActive]}
+                          >
+                            {subj.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            )}
 
-                <Text style={styles.label}>Questions <Text style={styles.req}>*</Text></Text>
-                <View style={styles.diffRow}>
-                  {QUESTION_OPTIONS.map((n) => (
-                    <TouchableOpacity
-                      key={n}
-                      style={[styles.diffBtn, questionCount === n && styles.diffBtnActive]}
-                      onPress={() => setQuestionCount(n)}
-                    >
-                      <Text style={[styles.diffText, questionCount === n && styles.diffTextActive]}>
-                        {n}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+            <Text style={styles.sectionLabel}>NUMBER OF QUESTIONS</Text>
+            {renderChipRow(
+              QUESTION_OPTIONS.map((n) => ({ value: n, label: String(n) })),
+              questionCount,
+              setQuestionCount,
+            )}
 
-                <View style={styles.actions}>
-                  <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={submitting}>
-                    <Text style={styles.cancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.submitBtn, !canSubmit && { opacity: 0.5 }]}
-                    onPress={handleSubmit} disabled={!canSubmit}
-                  >
-                    {submitting ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.submitText}>Request Mock Test</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+            <Text style={styles.sectionLabel}>DIFFICULTY</Text>
+            {renderChipRow(DIFFICULTY_OPTIONS, difficulty, setDifficulty)}
+
+            <Text style={styles.sectionLabel}>TIME LIMIT</Text>
+            {renderChipRow(
+              DURATION_OPTIONS.map((n) => ({ value: n, label: `${n}m` })),
+              duration,
+              setDuration,
+            )}
+
+            <TouchableOpacity
+              style={[styles.generateBtn, !canSubmit && { opacity: 0.5 }]}
+              onPress={handleSubmit}
+              disabled={!canSubmit}
+              activeOpacity={0.9}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="sparkles" size={16} color="#fff" />
+                  <Text style={styles.generateText}>
+                    {isPractice ? 'Generate practice' : 'Generate mock'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
@@ -277,47 +324,117 @@ export default function RequestMockModal({ visible, onClose, onCreated, defaultE
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
   },
-  panel: {
+  sheet: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     maxHeight: '88%',
   },
-  closeIcon: { position: 'absolute', top: 16, right: 16, padding: 4, zIndex: 10 },
-  title: { fontSize: 18, fontWeight: '800', color: '#1A1A2E', marginBottom: 4, paddingRight: 28 },
-  subtitle: { fontSize: 12, color: '#9CA3AF', marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: '#1A1A2E', marginBottom: 6, marginTop: 10 },
-  req: { color: '#EF4444' },
-  dropdown: {
-    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#fff',
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+    alignSelf: 'center',
+    marginBottom: 16,
   },
-  dropdownDisabled: { backgroundColor: '#F9FAFB' },
-  diffRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  diffBtn: {
-    flex: 1, paddingVertical: 10, borderRadius: 10,
-    borderWidth: 1.5, borderColor: '#E5E7EB', alignItems: 'center',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  diffBtnActive: { backgroundColor: '#3B7DF8', borderColor: '#3B7DF8' },
-  diffText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  diffTextActive: { color: '#fff' },
-  input: {
-    borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 11, fontSize: 13, color: '#1A1A2E',
+  title: { fontSize: 20, fontWeight: '800', color: '#1A1A2E', flex: 1, paddingRight: 12 },
+  closeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelBtn: {
-    paddingHorizontal: 18, paddingVertical: 12, borderRadius: 10,
-    borderWidth: 1, borderColor: '#E5E7EB',
+  subtitle: { fontSize: 13, color: '#9CA3AF', marginTop: 8, lineHeight: 19 },
+
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6B7280',
+    letterSpacing: 0.5,
+    marginTop: 22,
+    marginBottom: 10,
   },
-  cancelText: { color: '#3B7DF8', fontWeight: '600', fontSize: 13 },
-  submitBtn: {
-    flex: 1, backgroundColor: '#3B7DF8', borderRadius: 10,
-    paddingVertical: 12, alignItems: 'center',
+
+  // Segmented scope control
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: '#EEF0F6',
+    borderRadius: 12,
+    padding: 4,
   },
-  submitText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 9,
+    alignItems: 'center',
+  },
+  segmentBtnActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  segmentText: { fontSize: 14, fontWeight: '600', color: '#9CA3AF' },
+  segmentTextActive: { color: '#1A1A2E', fontWeight: '700' },
+
+  // Subject chips
+  subjectWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  subjectChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  subjectChipActive: { borderColor: '#6366F1', backgroundColor: '#EEF0FF' },
+  subjectEmoji: { fontSize: 15 },
+  subjectText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  subjectTextActive: { color: '#4338CA' },
+  emptySubjects: { fontSize: 13, color: '#9CA3AF', marginVertical: 8 },
+
+  // Option chip rows (questions / difficulty / time)
+  chipRow: { flexDirection: 'row', gap: 10 },
+  optChip: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  optChipActive: { borderColor: '#6366F1', backgroundColor: '#EEF0FF' },
+  optChipText: { fontSize: 15, fontWeight: '700', color: '#374151' },
+  optChipTextActive: { color: '#4338CA' },
+
+  generateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#6366F1',
+    borderRadius: 16,
+    paddingVertical: 17,
+    marginTop: 28,
+  },
+  generateText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 });

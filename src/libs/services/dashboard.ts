@@ -37,10 +37,13 @@ export async function getExamTrendsService(examId: number | string) {
   return await genericGet(`/v1/exams/${examId}/trends/`, true);
 }
 
-// GET /api/v1/student/consistency/
+// GET /api/v1/student/consistency/?exam_id={exam_id}
 // Daily activity feed for the Stats consistency heatmap.
-export async function getConsistencyService() {
-  return await genericGet(`/v1/student/consistency/`, true);
+export async function getConsistencyService(examId: number | string) {
+  return await genericGet(
+    `/v1/student/consistency/?exam_id=${encodeURIComponent(examId)}`,
+    true
+  );
 }
 
 // GET /api/v1/dashboard/{exam_id}/history/?page={page}&type={type}

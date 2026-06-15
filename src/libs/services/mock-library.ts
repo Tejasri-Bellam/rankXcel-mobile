@@ -156,6 +156,30 @@ export async function createMockTestService(payload: CreateMockTestPayload) {
   return await genericPost(`/v1/mock-tests/`, payload, { isMultipart: false, useAccessToken: true });
 }
 
+// Build-your-own mock — exam-scoped: POST /v1/exams/{examId}/mock-tests/
+// Three scopes are supported via one payload shape:
+//   • Pick subjects   → subject_ids: [..] (one or many) + count/difficulty/duration
+//   • Full syllabus   → is_full_syllabus: true (subjects omitted; duration auto from exam)
+//   • Practice        → test_type: 'PRACTICE_TEST' with a single subject_id
+export interface BuildMockTestPayload {
+  test_type: 'MOCK_TEST' | 'PRACTICE_TEST';
+  subject_ids?: number[];
+  is_full_syllabus?: boolean;
+  question_count?: number;
+  difficulty?: 'easy' | 'medium' | 'hard' | 'mixed';
+  total_duration_minutes?: number;
+}
+
+export async function createExamMockTestService(
+  examId: number | string,
+  payload: BuildMockTestPayload,
+) {
+  return await genericPost(`/v1/exams/${examId}/mock-tests/`, payload, {
+    isMultipart: false,
+    useAccessToken: true,
+  });
+}
+
 // Options
 export interface OptionItem {
   id: number;
