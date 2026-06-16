@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MockExamScreen from './ExamScreen';
-import { getMockTestQuestionsService } from '../../libs/services/mock-library';
+import { getMockTestService } from '../../libs/services/mock-library';
 
 interface Props {
   mockId: number | string;
@@ -88,7 +88,7 @@ export default function MockExamNavigator({
     try {
       setLoading(true);
       setError(null);
-      const res = await getMockTestQuestionsService(mockId);
+      const res = await getMockTestService(mockId);
       const raw: any = res?.data ?? res;
       let examData: any = null;
 
