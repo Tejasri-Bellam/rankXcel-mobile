@@ -141,41 +141,61 @@ export const getStrengthLabel = (accuracy: number | null): string => {
 const squareColor = (accuracy: number | null): string =>
   accuracy === null ? "#D1D5DB" : getAccuracyColor(accuracy);
 
-// GET /api/v1/exams/{examId}/syllabus/ returns the full nested tree:
-//   [{ id, name, accuracy, topics: [{ id, name, accuracy,
-//        subtopics: [{ id, name, accuracy }] }] }]
-// Mapped onto the screen's model: subject → SubjectGroup, its `topics` →
-// `chapters` (ChapterItem), and each topic's `subtopics` → `chapter.topics`.
-const normalizeSyllabus = (raw: any): SubjectGroup[] => {
-  const subjects = toArray(unwrap(raw));
+// A single topic node (with its `subtopics`) → ChapterItem.
+const normalizeTopic = (topic: any, subjectName: string): ChapterItem => {
+  const subtopicsRaw = Array.isArray(topic?.subtopics) ? topic.subtopics : [];
+  const subtopics: TopicItem[] = subtopicsRaw.map(
+    (st: any): TopicItem => ({
+      id: Number(st?.id ?? 0),
+      name: String(st?.name ?? st?.code ?? ""),
+      accuracy: parseAccuracy(st?.accuracy),
+      questionCount: Number(st?.question_count ?? st?.questions_count ?? 0) || undefined,
+    })
+  );
+  return {
+    id: Number(topic?.id ?? 0),
+    name: String(topic?.name ?? topic?.code ?? ""),
+    topics: subtopics,
+    accuracy: parseAccuracy(topic?.accuracy),
+    subjectName,
+    hasChildren: subtopics.length > 0,
+    questionCount: Number(topic?.question_count ?? topic?.questions_count ?? 0) || undefined,
+  };
+};
 
-  return subjects.map((subj: any): SubjectGroup => {
+// GET /api/v1/exams/{examId}/syllabus/ returns one of two shapes depending on
+// the exam's `display_subject` setting:
+//   display_subject = true  → subjects → topics → subtopics:
+//     [{ id, name, accuracy, topics: [{ ..., subtopics: [...] }] }]
+//   display_subject = false → topics → subtopics (no subject wrapper):
+//     [{ id, name, accuracy, subtopics: [...] }]
+// We detect the shape from the response (a top-level `topics` array means the
+// subject layer is present) rather than relying on a flag the API doesn't send.
+// Both are mapped onto the screen's model: subject → SubjectGroup, its topics →
+// `chapters` (ChapterItem), and each topic's subtopics → `chapter.topics`. When
+// subjects are hidden, all topics are folded into a single synthetic subject so
+// the rest of the screen (and the practice flow) work unchanged.
+const normalizeSyllabus = (
+  raw: any
+): { subjects: SubjectGroup[]; displaySubjects: boolean } => {
+  const items = toArray(unwrap(raw));
+  const displaySubjects = items.some((it: any) => Array.isArray(it?.topics));
+
+  if (!displaySubjects) {
+    // Topics-only: no subject in the payload. The exam still has a subject (the
+    // practice flow resolves it via /options/subjects/), so leave subjectName
+    // empty and let the flow fall back to the exam's sole subject.
+    const chapters = items.map((topic: any) => normalizeTopic(topic, ""));
+    return {
+      subjects: [{ id: 0, name: "", chapters, accuracy: null, topicCount: chapters.length }],
+      displaySubjects: false,
+    };
+  }
+
+  const subjects = items.map((subj: any): SubjectGroup => {
     const subjectName = String(subj?.name ?? subj?.code ?? "Subject");
     const topicsRaw = Array.isArray(subj?.topics) ? subj.topics : [];
-
-    const chapters: ChapterItem[] = topicsRaw.map((topic: any): ChapterItem => {
-      const subtopicsRaw = Array.isArray(topic?.subtopics)
-        ? topic.subtopics
-        : [];
-      const subtopics: TopicItem[] = subtopicsRaw.map(
-        (st: any): TopicItem => ({
-          id: Number(st?.id ?? 0),
-          name: String(st?.name ?? st?.code ?? ""),
-          accuracy: parseAccuracy(st?.accuracy),
-          questionCount: Number(st?.question_count ?? st?.questions_count ?? 0) || undefined,
-        })
-      );
-      return {
-        id: Number(topic?.id ?? 0),
-        name: String(topic?.name ?? topic?.code ?? ""),
-        topics: subtopics,
-        accuracy: parseAccuracy(topic?.accuracy),
-        subjectName,
-        hasChildren: subtopics.length > 0,
-        questionCount: Number(topic?.question_count ?? topic?.questions_count ?? 0) || undefined,
-      };
-    });
-
+    const chapters = topicsRaw.map((topic: any) => normalizeTopic(topic, subjectName));
     return {
       id: Number(subj?.id ?? 0),
       name: subjectName,
@@ -184,6 +204,8 @@ const normalizeSyllabus = (raw: any): SubjectGroup[] => {
       topicCount: chapters.length,
     };
   });
+
+  return { subjects, displaySubjects: true };
 };
 
 // Pick a subject glyph by name, with a neutral fallback for non-science
@@ -313,6 +335,9 @@ export default function PracticeScreen() {
   );
 
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
+  // When the exam hides subjects (display_subject = false) the syllabus root
+  // lists topics directly instead of subject cards.
+  const [displaySubjects, setDisplaySubjects] = useState(true);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -334,7 +359,9 @@ export default function PracticeScreen() {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
       const res = await getExamSyllabusService(examId);
-      setSubjectGroups(normalizeSyllabus(res));
+      const { subjects, displaySubjects } = normalizeSyllabus(res);
+      setSubjectGroups(subjects);
+      setDisplaySubjects(displaySubjects);
     } catch (err) {
       console.log("Syllabus load error:", JSON.stringify(err));
       setError(extractErrorMessage(err, "Failed to load syllabus."));
@@ -411,7 +438,7 @@ export default function PracticeScreen() {
   const handleAllTopicsPress = (subject: SubjectGroup) => {
     setActiveChapter({
       id: 0,
-      name: `All ${subject.name} topics`,
+      name: subject.name ? `All ${subject.name} topics` : "All topics",
       topics: [],
       accuracy: subject.accuracy,
       subjectName: subject.name,
@@ -419,6 +446,59 @@ export default function PracticeScreen() {
     });
     setPracticeVisible(true);
   };
+
+  // Topic list card + "Practice all" bar — shared by the topics drill-down
+  // screen and the subject-less syllabus root (display_subject = false). Topics
+  // with sub-topics drill in; leaf topics start practice directly.
+  const renderTopicRows = (subject: SubjectGroup) => (
+    <>
+      <View style={styles.listCard}>
+        {subject.chapters.map((topic, idx) => {
+          const hasSubs = topic.topics.length > 0;
+          const isLast = idx === subject.chapters.length - 1;
+          const meta = hasSubs
+            ? `${topic.topics.length} sub-topic${topic.topics.length === 1 ? "" : "s"} · ${topic.accuracy ?? 0}%`
+            : topic.questionCount
+              ? `${topic.questionCount} questions · ${topic.accuracy ?? 0}%`
+              : `${getStrengthLabel(topic.accuracy)} · ${topic.accuracy ?? 0}%`;
+          return (
+            <TouchableOpacity
+              key={topic.id || topic.name + idx}
+              style={[styles.listRow, isLast && styles.listRowLast]}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (hasSubs) {
+                  setSelectedSubject(subject);
+                  setSelectedChapter(topic);
+                  setNavScreen("subtopics");
+                } else {
+                  openPractice(topicToChapter(topic, subject));
+                }
+              }}
+            >
+              <View style={styles.listInfo}>
+                <Text style={styles.listName}>{topic.name}</Text>
+                <Text style={styles.listMeta}>{meta}</Text>
+              </View>
+              <View style={[styles.square, { backgroundColor: squareColor(topic.accuracy) }]} />
+              {hasSubs ? (
+                <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+              ) : (
+                <PlayButton />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {subject.chapters.length > 0 && (
+        <PracticeAllBar
+          label="Practice all topics"
+          onPress={() => handleAllTopicsPress(subject)}
+        />
+      )}
+    </>
+  );
 
   // Shared practice/test modal — reused across every screen.
   const practiceModal =
@@ -467,50 +547,7 @@ export default function PracticeScreen() {
           />
 
           <Text style={styles.sectionLabel}>TOPICS</Text>
-          <View style={styles.listCard}>
-            {subject.chapters.map((topic, idx) => {
-              const hasSubs = topic.topics.length > 0;
-              const isLast = idx === subject.chapters.length - 1;
-              const meta = hasSubs
-                ? `${topic.topics.length} sub-topic${topic.topics.length === 1 ? "" : "s"} · ${topic.accuracy ?? 0}%`
-                : topic.questionCount
-                  ? `${topic.questionCount} questions · ${topic.accuracy ?? 0}%`
-                  : `${getStrengthLabel(topic.accuracy)} · ${topic.accuracy ?? 0}%`;
-              return (
-                <TouchableOpacity
-                  key={topic.id || topic.name + idx}
-                  style={[styles.listRow, isLast && styles.listRowLast]}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (hasSubs) {
-                      setSelectedChapter(topic);
-                      setNavScreen("subtopics");
-                    } else {
-                      openPractice(topicToChapter(topic, subject));
-                    }
-                  }}
-                >
-                  <View style={styles.listInfo}>
-                    <Text style={styles.listName}>{topic.name}</Text>
-                    <Text style={styles.listMeta}>{meta}</Text>
-                  </View>
-                  <View style={[styles.square, { backgroundColor: squareColor(topic.accuracy) }]} />
-                  {hasSubs ? (
-                    <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
-                  ) : (
-                    <PlayButton />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {subject.chapters.length > 0 && (
-            <PracticeAllBar
-              label="Practice all topics"
-              onPress={() => handleAllTopicsPress(subject)}
-            />
-          )}
+          {renderTopicRows(subject)}
         </ScrollView>
         {practiceModal}
       </SafeAreaView>
@@ -524,7 +561,10 @@ export default function PracticeScreen() {
     const topic = selectedChapter;
     return (
       <SafeAreaView style={styles.safeArea} edges={[]}>
-        <BackHeader title={topic.name} onBack={() => setNavScreen("topics")} />
+        <BackHeader
+          title={topic.name}
+          onBack={() => setNavScreen(displaySubjects ? "topics" : "subjects")}
+        />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.screenContent}
@@ -593,7 +633,8 @@ export default function PracticeScreen() {
         <View style={styles.header}>
           <Text style={styles.pageTitle}>Syllabus</Text>
           <Text style={styles.pageSubtitle}>
-            Adaptive map — weakest areas first. Tap a subject to drill in.
+            Adaptive map — weakest areas first. Tap a{" "}
+            {displaySubjects ? "subject" : "topic"} to drill in.
             {examName ? ` · ${examName}` : ""}
           </Text>
         </View>
@@ -602,7 +643,9 @@ export default function PracticeScreen() {
         {loading ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Loading subjects...</Text>
+            <Text style={styles.loadingText}>
+              Loading {displaySubjects ? "subjects" : "topics"}...
+            </Text>
           </View>
         ) : error ? (
           <View style={styles.centered}>
@@ -614,6 +657,18 @@ export default function PracticeScreen() {
             >
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
+          </View>
+        ) : !displaySubjects ? (
+          // Subjects hidden (display_subject = false): the syllabus root is the
+          // topics list itself — there's a single synthetic subject holding them.
+          <View style={styles.screenContent}>
+            {subjectGroups[0] && subjectGroups[0].chapters.length > 0 ? (
+              renderTopicRows(subjectGroups[0])
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No topics found</Text>
+              </View>
+            )}
           </View>
         ) : (
           <View style={styles.cardList}>

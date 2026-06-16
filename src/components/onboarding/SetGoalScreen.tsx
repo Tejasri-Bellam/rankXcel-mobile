@@ -6,6 +6,7 @@ import {
   Alert,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -206,27 +207,26 @@ const SetGoalScreen = () => {
           {/* Target year */}
           <View style={s.inputGroup}>
             <Text style={s.label}>{data.goal.labels.year}</Text>
-            <View style={s.yearRow}>
-              {data.goal.years.map((year) => {
-                const selected = targetYear === year;
-                return (
-                  <TouchableOpacity
-                    key={year}
-                    style={[s.yearPill, selected && s.yearPillSelected]}
-                    onPress={() => setTargetYear(year)}
-                    activeOpacity={0.85}
-                  >
-                    <Text
-                      style={[
-                        s.yearPillText,
-                        selected && s.yearPillTextSelected,
-                      ]}
-                    >
-                      {year}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+
+            <View style={s.dropdown}>
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color={COLORS.textLight}
+                style={{ marginRight: 10 }}
+              />
+              <TextInput
+                style={s.dropdownText}
+                value={targetYear ? String(targetYear) : ''}
+                onChangeText={(text) => {
+                  const digits = text.replace(/[^0-9]/g, '');
+                  setTargetYear(digits ? Number(digits) : null);
+                }}
+                placeholder={String(data.goal.placeholders.year)}
+                placeholderTextColor={COLORS.textLight}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
             </View>
           </View>
 

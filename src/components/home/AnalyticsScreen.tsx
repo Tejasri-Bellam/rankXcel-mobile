@@ -62,6 +62,13 @@ const readinessLabel = (pct: number) => {
   return "Getting started";
 };
 
+// Readiness colour band: <40% orange, 40–59% yellow, 60–100% green.
+const readinessColor = (pct: number) => {
+  if (pct < 40) return COLORS.orange;
+  if (pct < 60) return COLORS.yellow;
+  return COLORS.green;
+};
+
 const nodeColor = (pct: number) =>
   pct < 35 ? COLORS.orange : pct < 45 ? COLORS.yellow : COLORS.green;
 
@@ -481,9 +488,11 @@ export default function AnalyticsScreen() {
             </View>
             <View style={styles.heatRow}>
               {s.cells.map((c, j) => (
-                <View
+                <TouchableOpacity
                   key={`${c.name}-${j}`}
                   style={[styles.heatRowCell, { backgroundColor: masteryColor(c.pct) }]}
+                  activeOpacity={0.7}
+                  onPress={() => startPracticeForNode({ name: c.name, subject: s.name })}
                 />
               ))}
             </View>
@@ -586,7 +595,7 @@ export default function AnalyticsScreen() {
             size={200}
             strokeWidth={16}
             progress={readiness}
-            color={COLORS.yellow}
+            color={readinessColor(readiness)}
             trackColor="#EAECF4"
             bgColor={COLORS.white}
           >
