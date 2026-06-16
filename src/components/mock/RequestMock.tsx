@@ -44,7 +44,7 @@ interface Props {
   onClose: () => void;
   onCreated: (mockId: string) => void;
   defaultExamId?: number | string | null;
-  // 'MOCK_TEST' supports full-syllabus + multi-subject; practice is single-subject.
+  // 'MOCK_TEST' supports full-syllabus + multi-subject; practice is multi-subject only.
   testType?: TestType;
 }
 
@@ -103,11 +103,6 @@ export default function RequestMockModal({
   }, [visible, resetForm, defaultExamId]);
 
   const toggleSubject = (id: number) => {
-    if (isPractice) {
-      // Practice is single-subject only.
-      setSelectedSubjectIds((prev) => (prev[0] === id ? [] : [id]));
-      return;
-    }
     setSelectedSubjectIds((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
     );
@@ -250,7 +245,7 @@ export default function RequestMockModal({
             {/* Subject chips */}
             {needsSubjects && (
               <>
-                {isPractice && <Text style={[styles.sectionLabel, { marginTop: 4 }]}>SUBJECT</Text>}
+                {isPractice && <Text style={[styles.sectionLabel, { marginTop: 4 }]}>SUBJECTS</Text>}
                 {loadingSubjects ? (
                   <ActivityIndicator color="#6366F1" style={{ marginVertical: 12 }} />
                 ) : subjects.length === 0 ? (
