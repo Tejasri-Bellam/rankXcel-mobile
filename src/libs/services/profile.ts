@@ -34,10 +34,15 @@ export async function getPreferencesService() {
   );
 }
 
-// Get all available exams (for dropdown)
-export async function getExamsListService() {
+// Get all available exams (for dropdown), optionally scoped to a country.
+// GET /v1/exams/?country={id}
+export async function getExamsListService(countryId?: number | string | null) {
+  const query =
+    countryId != null && countryId !== ""
+      ? `?country=${encodeURIComponent(countryId)}`
+      : "";
   return await genericGet(
-    "/v1/exams/",
+    `/v1/exams/${query}`,
     true
   );
 }

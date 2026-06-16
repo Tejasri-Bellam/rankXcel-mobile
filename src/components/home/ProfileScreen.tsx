@@ -29,6 +29,7 @@ import {
 } from 'react-native';
 import { storageSetAccessToken } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -193,10 +194,12 @@ export default function ProfileScreen() {
   }
 };
 
-  // Fetch list of available exams for dropdown
+  // Fetch list of available exams for dropdown, scoped to the country selected
+  // in the profile sidebar (persisted as regionCountryId).
   const fetchExamsList = async () => {
     try {
-      const res = await getExamsListService();
+      const countryId = await AsyncStorage.getItem('regionCountryId');
+      const res = await getExamsListService(countryId);
       if (res.status === 200) {
         const raw: any = res.data;
         const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
@@ -239,6 +242,8 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchPreferences();
+      // Country may have changed in the sidebar; re-scope the exam dropdown.
+      fetchExamsList();
     }, [])
   );
 
