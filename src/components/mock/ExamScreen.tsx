@@ -65,6 +65,9 @@ export default function MockExamScreen({
   const [showSubmitSheet, setShowSubmitSheet] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
+  // `timeTaken` value when the on-screen question became active, so each saved
+  // response carries the seconds spent on that question (see commitCurrentAnswer).
+  const qEnterRef = useRef<number>(0);
 
   // Timer
   useEffect(() => {
@@ -115,16 +118,28 @@ export default function MockExamScreen({
     qId: number | string,
     selectedOpts: string[],
     markedForReview = false,
+    timeSpent = 0,
   ) => {
     const ids = selectedOpts.map((v) => Number(v)).filter((n) => Number.isFinite(n));
     const promise = submitMockResponseService(mockId, qId, {
       selected_choice_ids: ids,
+      numeric_answer: null,
       is_marked_for_review: markedForReview,
-      time_spent_seconds: 0,
+      time_spent_seconds: timeSpent,
     }).catch((e) => console.log('SAVE ERROR:', e));
     pendingSaves.current.add(promise);
     promise.finally(() => pendingSaves.current.delete(promise));
     return promise;
+  };
+
+  // Persist the question currently on screen, stamping the seconds spent on it
+  // since it became active, then reset the per-question timer for the next one.
+  // PUT /v1/mock-tests/{mockId}/responses/{questionId}/
+  const commitCurrentAnswer = (markedForReview = isMarked) => {
+    if (!currentQId) return;
+    const spent = Math.max(0, timeTaken - qEnterRef.current);
+    qEnterRef.current = timeTaken;
+    saveAnswerToServer(currentQId, selectedOptions, markedForReview, spent);
   };
 
   const handleOptionSelect = (optionId: string) => {
@@ -142,17 +157,20 @@ export default function MockExamScreen({
       [currentQId]:
         prev[currentQId] === 'marked' ? 'marked' : newSel.length > 0 ? 'answered' : 'not_answered',
     }));
-    saveAnswerToServer(currentQId, newSel, isMarked);
+    // Answer is persisted to the server on navigation (Next/Prev/jump) and on
+    // submit — see commitCurrentAnswer — not on every tap.
   };
 
   const handleMarkForReview = () => {
     if (!currentQId) return;
     const next = isMarked ? (selectedOptions.length > 0 ? 'answered' : 'not_answered') : 'marked';
     setQStatuses((prev) => ({ ...prev, [currentQId]: next }));
-    saveAnswerToServer(currentQId, selectedOptions, !isMarked);
+    commitCurrentAnswer(!isMarked);
   };
 
   const handleNext = () => {
+    // Save the current question's answer before moving on.
+    commitCurrentAnswer();
     if (currentQId) {
       setQStatuses((prev) => ({
         ...prev,
@@ -178,6 +196,7 @@ export default function MockExamScreen({
   };
 
   const handlePrev = () => {
+    commitCurrentAnswer();
     if (activeQIdx > 0) {
       setActiveQIdx(activeQIdx - 1);
     } else if (activeSectionIdx > 0) {
@@ -188,6 +207,7 @@ export default function MockExamScreen({
   };
 
   const jumpToQuestion = (si: number, qi: number) => {
+    commitCurrentAnswer();
     setActiveSectionIdx(si);
     setActiveQIdx(qi);
     setShowPalette(false);
@@ -199,6 +219,8 @@ export default function MockExamScreen({
       setSubmitting(true);
       setShowSubmitSheet(false);
       setShowPalette(false);
+      // Persist the question on screen (e.g. the last one, which has no Next).
+      commitCurrentAnswer();
       if (pendingSaves.current.size > 0) {
         await Promise.all(Array.from(pendingSaves.current));
       }

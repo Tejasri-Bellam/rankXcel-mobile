@@ -112,6 +112,15 @@ export async function getMockTestQuestionsService(
   return await genericGet(`/v1/mock-tests/${id}/questions/`,true);
 }
 
+// Mock detail — returns the test with its questions AND the user's already
+// saved answers (existing_answers), so an in-progress mock can be resumed.
+// GET /v1/mock-tests/{id}/
+export async function getMockTestService(
+  id: number | string
+) {
+  return await genericGet(`/v1/mock-tests/${id}/`, true);
+}
+
 // Result
 export async function getMockTestResultService(
   id: number | string
