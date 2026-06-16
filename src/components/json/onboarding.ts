@@ -16,7 +16,10 @@ export const OnboardingJson = () => {
       subtitle:
         "Tell us what you're aiming for — we'll tailor everything to your target.",
       labels: { exam: 'Target Exam', year: 'Target Year' },
-      placeholders: { exam: 'Search or select an exam...' },
+      placeholders: {
+        exam: 'Search or select an exam...',
+        year: 'Select target year...',
+      },
       years: [2026, 2027],
       nextBtn: 'Next: Assessment',
       submitBtn: 'Continue',

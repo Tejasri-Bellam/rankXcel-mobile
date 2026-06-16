@@ -212,13 +212,21 @@ export const PracticeExamFlow = ({
     try {
       const subjRes = await getOptionsSubjectsService(examId);
       const subjects = toArray(unwrap(subjRes));
-      const matchedSubject = subjects.find(
-        (s: any) =>
-          String(s?.name ?? "").toLowerCase() ===
-          chapter.subjectName.toLowerCase(),
-      );
+      // When the exam hides subjects (display_subject = false) the syllabus has
+      // no subject name to match on, but the exam still has a single subject —
+      // fall back to it so the session can be created.
+      const matchedSubject =
+        subjects.find(
+          (s: any) =>
+            String(s?.name ?? "").toLowerCase() ===
+            chapter.subjectName.toLowerCase(),
+        ) ?? (subjects.length === 1 ? subjects[0] : undefined);
       if (!matchedSubject?.id)
-        throw new Error(`Subject "${chapter.subjectName}" not found.`);
+        throw new Error(
+          chapter.subjectName
+            ? `Subject "${chapter.subjectName}" not found.`
+            : "No subject found for this exam.",
+        );
       const subjectId = Number(matchedSubject.id);
 
       // A `topicIds` override drives multi-topic sessions (e.g. "all topics at

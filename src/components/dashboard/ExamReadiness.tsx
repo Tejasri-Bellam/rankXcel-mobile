@@ -21,6 +21,13 @@ const readinessLabel = (pct: number) => {
   return "Getting started";
 };
 
+// Readiness colour band: <40% orange, 40–59% yellow, 60–100% green.
+const readinessColor = (pct: number) => {
+  if (pct < 40) return COLORS.orange;
+  if (pct < 60) return COLORS.yellow;
+  return COLORS.green;
+};
+
 export default function ExamReadiness({
   dashboardData,
   examName,
@@ -56,7 +63,7 @@ export default function ExamReadiness({
         size={104}
         strokeWidth={11}
         progress={pct}
-        color={COLORS.yellow}
+        color={readinessColor(pct)}
         trackColor="rgba(255,255,255,0.12)"
         bgColor={CARD_BG}
       >
