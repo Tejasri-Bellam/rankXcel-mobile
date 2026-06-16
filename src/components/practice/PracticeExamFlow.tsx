@@ -227,7 +227,7 @@ export const PracticeExamFlow = ({
 
       const payload = {
         exam: examId,
-        subject: subjectId,
+        subject_ids: [subjectId],
         topic_ids: topicIds,
         question_count: count,
         total_duration_minutes: timer > 0 ? timer : 0,

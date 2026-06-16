@@ -50,7 +50,7 @@ export async function getOptionsTopicsService(topicId: number | string) {
 // POST /v1/exams/{examId}/mock-tests/
 export interface RequestMockTestPayload {
   exam: number;
-  subject: number;
+  subject_ids: number[];
   topic_ids: number[];
   question_count: number;
   // "any" difficulty is normalized to "mixed" by the caller.
