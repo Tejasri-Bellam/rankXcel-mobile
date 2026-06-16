@@ -18,6 +18,7 @@ import { onboardingStyles as s } from '@/src/styles/onboardingStyles';
 import { COLORS } from '@/src/styles/styles';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import { OnboardingJson } from '../json/onboarding';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ExamOption = { id: number; name: string };
 
@@ -37,8 +38,11 @@ const SetGoalScreen = () => {
   useEffect(() => {
     (async () => {
       try {
+        // Scope the exam list to the country selected in the profile sidebar
+        // (persisted as regionCountryId) → GET /v1/exams/?country={id}.
+        const countryId = await AsyncStorage.getItem('regionCountryId');
         const [examsRes, assignedRes] = await Promise.all([
-          getExamsListService(),
+          getExamsListService(countryId),
           getMyTargetExamsService().catch(() => null),
         ]);
 
