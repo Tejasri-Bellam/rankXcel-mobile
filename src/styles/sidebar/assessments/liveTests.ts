@@ -81,6 +81,15 @@ export const liveTestsStyles = StyleSheet.create({
   cardTitle: { fontSize: 17, fontWeight: "800", color: "#1A1A2E", marginBottom: 6 },
   cardMeta: { fontSize: 13, color: "#9CA3AF" },
 
+  studentStatusPill: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+  studentStatusText: { fontSize: 11, fontWeight: "700" },
+
   centered: { alignItems: "center", paddingTop: 80 },
   emptyState: { alignItems: "center", paddingTop: 80, paddingHorizontal: 32, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: "#1A1A2E" },

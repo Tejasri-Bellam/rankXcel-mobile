@@ -69,6 +69,38 @@ const mapStudentStatus = (s?: string): LiveStatus | null => {
   }
 };
 
+// The raw student_status straight from the backend, styled for a small pill.
+// (Distinct from the live/upcoming/results card state — this is the student's
+// own standing: registered, completed, missed, etc.)
+const STUDENT_STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  live: { label: "Live", color: "#EF4444", bg: "#FFECEC" },
+  active: { label: "Active", color: "#EF4444", bg: "#FFECEC" },
+  ongoing: { label: "Ongoing", color: "#EF4444", bg: "#FFECEC" },
+  in_progress: { label: "In progress", color: "#EF4444", bg: "#FFECEC" },
+  upcoming: { label: "Upcoming", color: "#3B82F6", bg: "#EAF1FF" },
+  scheduled: { label: "Scheduled", color: "#3B82F6", bg: "#EAF1FF" },
+  registered: { label: "Registered", color: "#2563EB", bg: "#EAF1FF" },
+  completed: { label: "Completed", color: "#059669", bg: "#E7F6EF" },
+  submitted: { label: "Submitted", color: "#059669", bg: "#E7F6EF" },
+  missed: { label: "Missed", color: "#DC2626", bg: "#FDECEC" },
+  expired: { label: "Expired", color: "#6B7280", bg: "#F1F2F5" },
+  closed: { label: "Closed", color: "#6B7280", bg: "#F1F2F5" },
+};
+
+// Format any student_status value into a display pill, falling back to a
+// title-cased version of the raw string for statuses we haven't styled.
+const studentStatusMeta = (
+  s?: string
+): { label: string; color: string; bg: string } | null => {
+  const key = (s ?? "").toLowerCase();
+  if (!key) return null;
+  if (STUDENT_STATUS_META[key]) return STUDENT_STATUS_META[key];
+  const label = key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return { label, color: "#6B7280", bg: "#F1F2F5" };
+};
+
 const deriveStatus = (item: any): LiveStatus => {
   // Prefer the authoritative server status; fall back to schedule-based timing.
   const mapped = mapStudentStatus(item?.student_status);
@@ -423,14 +455,30 @@ export default function AssessmentsScreen() {
                         {meta.label}
                       </Text>
                     </View>
-                    <Text style={styles.participants}>
+                    {/* <Text style={styles.participants}>
                       {participantCount(item).toLocaleString("en-US")} in
-                    </Text>
+                    </Text> */}
                   </View>
 
                   <Text style={styles.cardTitle} numberOfLines={1}>
                     {item.name}
                   </Text>
+
+                  {(() => {
+                    const ss = studentStatusMeta(item.student_status);
+                    if (!ss) return null;
+                    return (
+                      <View
+                        style={[styles.studentStatusPill, { backgroundColor: ss.bg }]}
+                      >
+                        <Text
+                          style={[styles.studentStatusText, { color: ss.color }]}
+                        >
+                          {ss.label}
+                        </Text>
+                      </View>
+                    );
+                  })()}
 
                   <Text style={styles.cardMeta}>
                     {whenLabel(item, status)} · {item.question_count ?? 0} Qs ·{" "}
