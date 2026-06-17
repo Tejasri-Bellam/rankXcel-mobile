@@ -37,6 +37,26 @@ export async function getExamTrendsService(examId: number | string) {
   return await genericGet(`/v1/exams/${examId}/trends/`, true);
 }
 
+// GET /api/v1/exams/{exam_id}/weakest-nodes/
+// Lowest-accuracy topics for the active exam. Response is a flat array:
+//   [{ topic_id, topic_name, parent_topic_name, subject_name, accuracy,
+//      questions_attempted }]
+export async function getWeakestNodesService(examId: number | string) {
+  return await genericGet(`/v1/exams/${examId}/weakest-nodes/`, true);
+}
+
+// GET /api/v1/exams/{exam_id}/subtopic/{topic_id}/
+// Detailed analytics for a single weak node (sub-topic). Response:
+//   { topic_id, topic_name, parent_topic_name, subject_name, exam_name,
+//     accuracy, label, questions_attempted, avg_time_seconds, attempts,
+//     thirty_day_gain, accuracy_trend: [{ date, accuracy }] }
+export async function getSubtopicDetailService(
+  examId: number | string,
+  topicId: number | string
+) {
+  return await genericGet(`/v1/exams/${examId}/subtopic/${topicId}/`, true);
+}
+
 // GET /api/v1/student/consistency/?exam_id={exam_id}
 // Daily activity feed for the Stats consistency heatmap.
 export async function getConsistencyService(examId: number | string) {

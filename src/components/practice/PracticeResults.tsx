@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import { AnswerState } from "./PracticeExamFlow";
 import { PracticeApiQuestion } from "./PracticeQuestions";
+import { getScoreColor } from "@/src/styles/styles";
 
 interface Props {
   chapterName: string;
@@ -26,8 +27,7 @@ interface Props {
 const SCREEN_BG = "#EEEFF5";
 const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"];
 
-const accColor = (pct: number) =>
-  pct >= 65 ? "#22C55E" : pct >= 40 ? "#F5A623" : "#EF4444";
+const accColor = getScoreColor;
 
 const heading = (pct: number) => {
   if (pct >= 80) return "Great job 🎉";

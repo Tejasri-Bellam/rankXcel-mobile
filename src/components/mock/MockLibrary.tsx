@@ -23,6 +23,7 @@ import {
 } from '../../libs/services/mock-library';
 import { MockTest } from '@/src/libs/types/mock-library';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
+import { getScoreColor } from '@/src/styles/styles';
 import { useHeaderScrollHandler } from '@/src/libs/context/HeaderScrollContext';
 import MockDetails from './Details';
 import RequestMockModal from './RequestMock';
@@ -126,7 +127,9 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
 
       {/* Right: score % or chevron */}
       {isCompleted && lastPct !== null ? (
-        <Text style={styles.mockCardScore}>{lastPct}%</Text>
+        <Text style={[styles.mockCardScore, { color: getScoreColor(lastPct) }]}>
+          {lastPct}%
+        </Text>
       ) : (
         <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
       )}

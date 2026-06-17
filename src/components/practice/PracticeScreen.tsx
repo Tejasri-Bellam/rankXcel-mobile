@@ -1,7 +1,7 @@
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import { getExamSyllabusService } from "@/src/libs/services/practice";
-import { COLORS } from "@/src/styles/styles";
+import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -112,23 +112,14 @@ const parseAccuracy = (v: any): number | null => {
   return Math.round(n);
 };
 
-export const getAccuracyColor = (accuracy: number) => {
-  if (accuracy >= 65) return "#22C55E";
-  if (accuracy >= 40) return "#F59E0B";
-  return "#F97316";
-};
+// Standard percentage scale: red <30, orange 30–39, yellow 40–59, green 60–100.
+export const getAccuracyColor = getScoreColor;
 
 // Weak → Mastered scale used by every node's progress colour.
-export const SCALE_COLORS = ["#EF4444", "#F97316", "#F59E0B", "#4ADE80", "#16A34A"];
+export const SCALE_COLORS = [COLORS.red, COLORS.orange, COLORS.yellow, COLORS.green];
 
-export const getNodeColor = (accuracy: number | null): string => {
-  if (accuracy == null) return SCALE_COLORS[0];
-  if (accuracy >= 80) return SCALE_COLORS[4];
-  if (accuracy >= 60) return SCALE_COLORS[3];
-  if (accuracy >= 40) return SCALE_COLORS[2];
-  if (accuracy >= 20) return SCALE_COLORS[1];
-  return SCALE_COLORS[0];
-};
+export const getNodeColor = (accuracy: number | null): string =>
+  getScoreColor(accuracy);
 
 export const getStrengthLabel = (accuracy: number | null): string => {
   if (accuracy === null) return "Not started";
@@ -320,6 +311,7 @@ export default function PracticeScreen() {
   const params = useLocalSearchParams<{
     chapterName?: string;
     subjectName?: string;
+    topicId?: string;
     questionCount?: string;
     durationMinutes?: string;
     examId?: string;
@@ -383,13 +375,26 @@ export default function PracticeScreen() {
     if (!params?.chapterName || !params?.subjectName || !params?.examId) return;
     if (activeExamId == null) return;
     autoLaunchHandledRef.current = true;
-    setActiveChapter({ id: 0, name: String(params.chapterName), subjectName: String(params.subjectName), topics: [], accuracy: null });
+    // A real topic id targets that specific topic; without one, an empty
+    // `topicIds` tells the backend to draw from all topics under the subject.
+    // Never fall back to a placeholder id of 0 — the API rejects it.
+    const deepLinkTopicId = Number(params.topicId);
+    const topicIds =
+      Number.isFinite(deepLinkTopicId) && deepLinkTopicId > 0 ? [deepLinkTopicId] : [];
+    setActiveChapter({
+      id: topicIds[0] ?? 0,
+      name: String(params.chapterName),
+      subjectName: String(params.subjectName),
+      topics: [],
+      accuracy: null,
+      topicIds,
+    });
     const qc = Number(params.questionCount);
     const dm = Number(params.durationMinutes);
     setAutoQuestionCount(Number.isFinite(qc) && qc > 0 ? qc : undefined);
     setAutoTimerMinutes(Number.isFinite(dm) && dm > 0 ? dm : undefined);
     setPracticeVisible(true);
-    router.setParams({ chapterName: undefined, subjectName: undefined, questionCount: undefined, durationMinutes: undefined, examId: undefined } as any);
+    router.setParams({ chapterName: undefined, subjectName: undefined, topicId: undefined, questionCount: undefined, durationMinutes: undefined, examId: undefined } as any);
   }, [params, activeExamId, router]);
 
   // Open the practice/test flow for any node in the tree. `timed` starts the

@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
-import { COLORS } from "@/src/styles/styles";
+import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DashboardData } from "@/src/libs/types/dashboard";
@@ -16,11 +16,7 @@ const subjectMeta: Record<string, { emoji: string; color: string }> = {
   Mathemetics: { emoji: "📐", color: COLORS.orange },
 };
 
-const barColor = (pct: number) => {
-  if (pct >= 60) return COLORS.green;
-  if (pct >= 40) return COLORS.orange;
-  return COLORS.red;
-};
+const barColor = getScoreColor;
 
 export default function StrengthBySubject({
   dashboardData,

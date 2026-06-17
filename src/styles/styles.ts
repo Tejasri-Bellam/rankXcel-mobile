@@ -24,6 +24,33 @@ export const COLORS = {
   gray: '#6B7280',
   grayBg: '#F3F4F6',
   redBg: '#FEF2F2',
-  
-  
+
+
 } as const;
+
+/**
+ * Standard color scale for percentage / accuracy values across the app.
+ *   0–29  -> red
+ *   30–39 -> orange
+ *   40–59 -> yellow
+ *   60–100 -> green
+ * Values are clamped, so null/undefined falls back to red.
+ */
+export const getScoreColor = (pct: number | null | undefined): string => {
+  if (pct == null) return COLORS.red;
+  if (pct < 30) return COLORS.red;
+  if (pct < 40) return COLORS.orange;
+  if (pct < 60) return COLORS.yellow;
+  return COLORS.green;
+};
+
+/**
+ * Light background variant matching {@link getScoreColor}, for badges/pills.
+ */
+export const getScoreBgColor = (pct: number | null | undefined): string => {
+  if (pct == null) return COLORS.redLight;
+  if (pct < 30) return COLORS.redLight;
+  if (pct < 40) return COLORS.orangeLight;
+  if (pct < 60) return COLORS.yellowLight;
+  return COLORS.greenLight;
+};

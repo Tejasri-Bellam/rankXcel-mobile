@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { startMockTestService, MockTest } from '../../libs/services/mock-library';
+import { startMockTestService, MockTest, MockTestResult } from '../../libs/services/mock-library';
 import MockExamNavigator from './Navigator';
 import MockExamResults from './Results';
 import MockSolutionViewer from './SolutionViewer';
@@ -46,6 +46,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
   const [currentView, setCurrentView] = useState<MockView>(initialView);
   const [startLoading, setStartLoading] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
+  const [submittedResult, setSubmittedResult] = useState<MockTestResult | null>(null);
   const [timeTaken, setTimeTaken] = useState(0);
   const [mockData] = useState<MockTest>(mock);
 
@@ -95,9 +96,10 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
       <MockExamNavigator
         mockId={mockData.id}
         durationMinutes={mockData.total_duration_minutes ?? 60}
-        onSubmit={(answers, seconds) => {
+        onSubmit={(answers, seconds, result) => {
           setSubmittedAnswers(answers);
           setTimeTaken(seconds);
+          setSubmittedResult(result ?? null);
           setCurrentView('results');
         }}
         onBackToMocks={onBack}
@@ -112,6 +114,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
         mock={mockData}
         answers={submittedAnswers}
         timeTakenSeconds={timeTaken}
+        initialResult={submittedResult}
         onBack={onBack}
         onViewSolutions={() => setCurrentView('solutions')}
         onDone={onBack}

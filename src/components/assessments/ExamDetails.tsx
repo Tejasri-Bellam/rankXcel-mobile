@@ -13,7 +13,7 @@ import { router } from 'expo-router';
 import ExamNavigator from './ExamNavigator';
 import ExamResults from './ExamResults';
 import SolutionViewer from './SolutionViewer';
-import { assessmentStartService } from '@/src/libs/services/assessments-attempts';
+import { assessmentStartService, AssessmentResult } from '@/src/libs/services/assessments-attempts';
 import { examDetailsStyles as styles } from '@/src/styles/sidebar/assessments/examDetails';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -48,6 +48,7 @@ export default function ExamDetails({ item, onBack }: Props) {
   const [attemptId] = useState<number>(item?.latest_attempt_id);
   const [currentView, setCurrentView] = useState<ExamView>('detail');
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
+  const [submittedResult, setSubmittedResult] = useState<AssessmentResult | null>(null);
   const [timeTaken, setTimeTaken] = useState(0);
   const [startLoading, setStartLoading] = useState(false);
 
@@ -147,9 +148,10 @@ export default function ExamDetails({ item, onBack }: Props) {
         assessmentId={assessmentId}
         attemptId={attemptId}
         durationMinutes={item?.total_duration_minutes ?? 60}
-        onSubmit={(answers, seconds) => {
+        onSubmit={(answers, seconds, result) => {
           setSubmittedAnswers(answers);
           setTimeTaken(seconds);
+          setSubmittedResult(result ?? null);
           setCurrentView('results');
         }}
         onBackToAssessments={onBack}
@@ -164,8 +166,10 @@ export default function ExamDetails({ item, onBack }: Props) {
         exam={item}
         answers={submittedAnswers}
         timeTakenSeconds={timeTaken}
+        initialResult={submittedResult}
         onBack={() => setCurrentView('detail')}
         onViewSolutions={() => setCurrentView('solutions')}
+        onDone={() => setCurrentView('detail')}
       />
     );
   }

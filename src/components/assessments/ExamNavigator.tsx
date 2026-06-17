@@ -1,5 +1,6 @@
 import React from 'react';
 import ExamScreen from './ExamScreen';
+import { AssessmentResult } from '@/src/libs/services/assessments-attempts';
 
 type Props = {
   assessmentId: number;
@@ -7,7 +8,8 @@ type Props = {
   durationMinutes: number;
   onSubmit: (
     answers: Record<string, string[]>,
-    timeTakenSeconds: number
+    timeTakenSeconds: number,
+    result?: AssessmentResult | null
   ) => void;
   onBackToAssessments?: () => void;
 };

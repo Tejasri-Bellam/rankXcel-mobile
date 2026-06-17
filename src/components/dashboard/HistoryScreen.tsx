@@ -9,7 +9,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { COLORS } from "@/src/styles/styles";
+import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { getDashboardHistoryService } from "@/src/libs/services/dashboard";
 import {
   DashboardHistoryPage,
@@ -26,11 +26,7 @@ const FILTERS: { label: string; value: string | null }[] = [
   { label: "Assessment", value: "assessment" },
 ];
 
-const scoreColor = (pct: number) => {
-  if (pct >= 60) return COLORS.green;
-  if (pct >= 40) return COLORS.orange;
-  return COLORS.red;
-};
+const scoreColor = getScoreColor;
 
 const typeIcon = (type: string): keyof typeof Ionicons.glyphMap => {
   switch ((type || "").toLowerCase()) {

@@ -121,6 +121,34 @@ export async function getMockTestService(
   return await genericGet(`/v1/mock-tests/${id}/`, true);
 }
 
+// Per-topic row inside a result's topic_breakdown map.
+export interface MockTopicBreakdown {
+  score: number;
+  max_score: number;
+  correct_score?: number;
+  wrong_score?: number;
+  correct: number;
+  wrong: number;
+  unattempted: number;
+  topic_name: string;
+  subject_name: string;
+  subtopics?: Record<string, Partial<MockTopicBreakdown>>;
+}
+
+// Shape returned by both POST /submit/ and GET /result/ — they're identical.
+export interface MockTestResult {
+  mock_test_id: number;
+  status: MockStatus;
+  submitted_at: string;
+  total_score: number;
+  max_score: number;
+  percentage: number;
+  accuracy: number;
+  time_taken_seconds: number;
+  topic_breakdown: Record<string, MockTopicBreakdown>;
+  strength_by_subject: Array<{ subject_name: string; accuracy: number }>;
+}
+
 // Result
 export async function getMockTestResultService(
   id: number | string

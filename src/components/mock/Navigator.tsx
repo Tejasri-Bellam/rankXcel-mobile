@@ -2,12 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MockExamScreen from './ExamScreen';
-import { getMockTestService } from '../../libs/services/mock-library';
+import { getMockTestService, MockTestResult } from '../../libs/services/mock-library';
 
 interface Props {
   mockId: number | string;
   durationMinutes: number;
-  onSubmit: (answers: Record<string, string[]>, timeTakenSeconds: number) => void;
+  onSubmit: (
+    answers: Record<string, string[]>,
+    timeTakenSeconds: number,
+    result?: MockTestResult | null,
+  ) => void;
   onBackToMocks?: () => void;
 }
 
