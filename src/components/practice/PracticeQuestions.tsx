@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -14,11 +14,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AnswerState } from "./PracticeExamFlow";
 import {
-  askMockTestTutorService,
+  getConversationMessagesService,
+  getMockQuestionConversationService,
+  sendConversationMessageService,
+  startMockQuestionConversationService,
   submitMockResponseService,
 } from "@/src/libs/services/mock-library";
 import { stripHtml } from "@/src/libs/utils/html";
-import TutorModal from "@/src/components/common/TutorModal";
+import TutorModal, { ConversationApi } from "@/src/components/common/TutorModal";
 
 export interface ExplanationStep {
   number: number;
@@ -210,6 +213,25 @@ export default function PracticeQuestions({
   const question = questionList[currentIdx];
   const isLast = currentIdx === questionList.length - 1;
   const [tutorVisible, setTutorVisible] = useState(false);
+
+  // Conversation-based tutor for the current question. Memoized per question so
+  // the modal's init effect doesn't re-run on every render.
+  const tutorConversation = useMemo<ConversationApi | undefined>(() => {
+    const qid = question?.id;
+    if (qid == null) return undefined;
+    return {
+      open: async () => {
+        try {
+          await startMockQuestionConversationService(mockId, qid);
+        } catch (err) {
+          console.log("TUTOR START ERROR:", err);
+        }
+        return getMockQuestionConversationService(mockId, qid);
+      },
+      loadHistory: (cid) => getConversationMessagesService(cid),
+      send: (cid, message) => sendConversationMessageService(cid, message),
+    };
+  }, [mockId, question?.id]);
 
   const saveResponse = (
     qId: number | string,
@@ -587,7 +609,7 @@ export default function PracticeQuestions({
         onClose={() => setTutorVisible(false)}
         questionId={question?.id}
         questionText={question?.text}
-        ask={(payload) => askMockTestTutorService(mockId, payload)}
+        conversation={tutorConversation}
       />
     </SafeAreaView>
   );
