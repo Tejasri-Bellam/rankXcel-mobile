@@ -105,6 +105,60 @@ export async function askMockTestTutorService(
   });
 }
 
+// AI Tutor conversation (mock review) ----------------------------------------
+// The tutor in the mock review runs as a conversation scoped to a question:
+//   1. POST .../questions/{qid}/conversation/  → start the conversation
+//   2. GET  .../questions/{qid}/conversation/  → fetch the conversation id
+//   3. GET  /conversations/{cid}/follow-up-messages/  → load chat history
+//   4. POST /conversations/{cid}/follow-up-messages/  → send a message / get a reply
+
+// Start (or ensure) a conversation for a question within a mock test.
+export async function startMockQuestionConversationService(
+  mockId: number | string,
+  questionId: number | string,
+) {
+  return await genericPost(
+    `/v1/mock-tests/${mockId}/questions/${questionId}/conversation/`,
+    {},
+    { isMultipart: false, useAccessToken: true, timeout: 60000 },
+  );
+}
+
+// Retrieve the conversation (including its id) for a question.
+export async function getMockQuestionConversationService(
+  mockId: number | string,
+  questionId: number | string,
+) {
+  return await genericGet(
+    `/v1/mock-tests/${mockId}/questions/${questionId}/conversation/`,
+    true,
+  );
+}
+
+// Load the follow-up message history for a conversation.
+export async function getConversationMessagesService(
+  conversationId: string,
+) {
+  return await genericGet(
+    `/v1/conversations/${conversationId}/follow-up-messages/`,
+    true,
+  );
+}
+
+// Send a follow-up message and receive the tutor's reply. The endpoint stores
+// the exchange as { content: { question, response } }, so the input field is
+// `question`.
+export async function sendConversationMessageService(
+  conversationId: string,
+  message: string,
+) {
+  return await genericPost(
+    `/v1/conversations/${conversationId}/follow-up-messages/`,
+    { question: message },
+    { isMultipart: false, useAccessToken: true, timeout: 60000 },
+  );
+}
+
 // Questions
 export async function getMockTestQuestionsService(
   id: number | string
@@ -119,6 +173,34 @@ export async function getMockTestService(
   id: number | string
 ) {
   return await genericGet(`/v1/mock-tests/${id}/`, true);
+}
+
+// Per-topic row inside a result's topic_breakdown map.
+export interface MockTopicBreakdown {
+  score: number;
+  max_score: number;
+  correct_score?: number;
+  wrong_score?: number;
+  correct: number;
+  wrong: number;
+  unattempted: number;
+  topic_name: string;
+  subject_name: string;
+  subtopics?: Record<string, Partial<MockTopicBreakdown>>;
+}
+
+// Shape returned by both POST /submit/ and GET /result/ — they're identical.
+export interface MockTestResult {
+  mock_test_id: number;
+  status: MockStatus;
+  submitted_at: string;
+  total_score: number;
+  max_score: number;
+  percentage: number;
+  accuracy: number;
+  time_taken_seconds: number;
+  topic_breakdown: Record<string, MockTopicBreakdown>;
+  strength_by_subject: Array<{ subject_name: string; accuracy: number }>;
 }
 
 // Result

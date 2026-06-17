@@ -230,8 +230,11 @@ export const PracticeExamFlow = ({
       const subjectId = Number(matchedSubject.id);
 
       // A `topicIds` override drives multi-topic sessions (e.g. "all topics at
-      // once", where an empty array means every topic in the subject).
-      const topicIds = chapter.topicIds ?? [chapter.id];
+      // once", where an empty array means every topic in the subject). Drop any
+      // invalid/placeholder ids (0, NaN) — the backend rejects topic_ids: [0].
+      const topicIds = (chapter.topicIds ?? [chapter.id]).filter(
+        (id) => Number.isFinite(Number(id)) && Number(id) > 0,
+      );
 
       const payload = {
         exam: examId,

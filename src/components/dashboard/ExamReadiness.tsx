@@ -1,7 +1,7 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useRouter } from "expo-router";
-import { COLORS } from "@/src/styles/styles";
+import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { DashboardData } from "@/src/libs/types/dashboard";
 import CircleProgress from "./CircleProgress";
@@ -21,12 +21,8 @@ const readinessLabel = (pct: number) => {
   return "Getting started";
 };
 
-// Readiness colour band: <40% orange, 40–59% yellow, 60–100% green.
-const readinessColor = (pct: number) => {
-  if (pct < 40) return COLORS.orange;
-  if (pct < 60) return COLORS.yellow;
-  return COLORS.green;
-};
+// Readiness colour band: <30 red, 30–39 orange, 40–59 yellow, 60–100 green.
+const readinessColor = getScoreColor;
 
 export default function ExamReadiness({
   dashboardData,

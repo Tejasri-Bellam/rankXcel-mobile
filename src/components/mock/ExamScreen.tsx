@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { submitMockTestService, submitMockResponseService } from '../../libs/services/mock-library';
+import { submitMockTestService, submitMockResponseService, MockTestResult } from '../../libs/services/mock-library';
 import { stripHtml } from '../../libs/utils/html';
 import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
 
@@ -24,7 +24,11 @@ interface Props {
   exam: any;
   initialAnswers?: Record<string, string[]>;
   initialStatuses?: Record<string, QuestionStatus>;
-  onSubmit: (answers: Record<string, string[]>, timeTaken: number) => void;
+  onSubmit: (
+    answers: Record<string, string[]>,
+    timeTaken: number,
+    result?: MockTestResult | null,
+  ) => void;
   onBackToMocks?: () => void;
 }
 
@@ -224,8 +228,9 @@ export default function MockExamScreen({
       if (pendingSaves.current.size > 0) {
         await Promise.all(Array.from(pendingSaves.current));
       }
-      await submitMockTestService(mockId);
-      onSubmit(answers, timeTaken);
+      const submitRes = await submitMockTestService(mockId);
+      const result = (submitRes as any)?.data ?? (submitRes as any) ?? null;
+      onSubmit(answers, timeTaken, result);
     } catch (err) {
       console.log('SUBMIT ERROR:', err);
       Alert.alert('Error', 'Submission failed. Please try again.');

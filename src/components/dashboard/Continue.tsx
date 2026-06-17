@@ -30,18 +30,18 @@ const MAX_ITEMS = 4;
 export default function Continue({ dashboardData, examId }: ContinueProps) {
   const router = useRouter();
 
-  const focus = dashboardData?.todays_focus ?? [];
+  const recommended = dashboardData?.recommended_for_you ?? [];
 
-  // Build the practice list from today's focus topics, de-duplicated by name.
+  // Build the practice list from the recommended topics, de-duplicated by name.
   const seen = new Set<string>();
   const items: PracticeItem[] = [];
 
-  for (const f of focus) {
-    if (seen.has(f.topic_name)) continue;
-    seen.add(f.topic_name);
+  for (const r of recommended) {
+    if (!r.topic_name || seen.has(r.topic_name)) continue;
+    seen.add(r.topic_name);
     items.push({
-      chapter: f.topic_name,
-      subject: f.subject_name,
+      chapter: r.topic_name,
+      subject: r.subject_name,
       status: "Weak",
     });
     if (items.length >= MAX_ITEMS) break;

@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
-import { COLORS } from "@/src/styles/styles";
+import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DashboardData } from "@/src/libs/types/dashboard";
@@ -11,11 +11,7 @@ interface RecentActivityProps {
 
 const MAX_ROWS = 5;
 
-const scoreColor = (pct: number) => {
-  if (pct >= 60) return COLORS.green;
-  if (pct >= 40) return COLORS.orange;
-  return COLORS.red;
-};
+const scoreColor = getScoreColor;
 
 // Icon per activity type ("Practice" | "Mock" | "Assessment").
 const typeIcon = (type: string): keyof typeof Ionicons.glyphMap => {

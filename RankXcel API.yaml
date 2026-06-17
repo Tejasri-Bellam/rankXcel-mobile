@@ -348,6 +348,23 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/v1/assessments/{id}/leaderboard/:
+    get:
+      operationId: assessments_leaderboard_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/assessments/{id}/participants/:
     get:
       operationId: assessments_participants_retrieve
@@ -436,6 +453,23 @@ paths:
       - cookieAuth: []
       responses:
         '204':
+          description: No response body
+  /api/v1/assessments/{id}/register/:
+    post:
+      operationId: assessments_register_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - assessments
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
           description: No response body
   /api/v1/assessments/csv-template/:
     get:
@@ -1051,6 +1085,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/VerifyEmail'
           description: ''
+  /api/v1/conversations/{conversation_id}/follow-up-messages/:
+    get:
+      operationId: conversations_follow_up_messages_retrieve
+      parameters:
+      - in: path
+        name: conversation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - conversations
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: conversations_follow_up_messages_create
+      parameters:
+      - in: path
+        name: conversation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - conversations
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/dashboard/{exam_id}/:
     get:
       operationId: dashboard_retrieve
@@ -1144,6 +1213,84 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Exam'
+          description: ''
+  /api/v1/exams/{exam_id}/assessments/:
+    get:
+      operationId: exams_assessments_retrieve
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/exams/{exam_id}/mock-tests/:
+    get:
+      operationId: exams_mock_tests_list
+      description: List/Create/Retrieve for student mock tests.
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMockTestListList'
+          description: ''
+    post:
+      operationId: exams_mock_tests_create
+      description: List/Create/Retrieve for student mock tests.
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MockTestCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MockTestCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MockTestCreate'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockTestCreate'
           description: ''
   /api/v1/exams/{id}/:
     get:
@@ -1253,6 +1400,45 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/exams/{id}/stats/:
+    get:
+      operationId: exams_stats_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/exams/{id}/subtopic/{topic_id}/:
+    get:
+      operationId: exams_subtopic_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: topic_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/exams/{id}/syllabus/:
     get:
       operationId: exams_syllabus_retrieve
@@ -1273,6 +1459,40 @@ paths:
   /api/v1/exams/{id}/tree/:
     get:
       operationId: exams_tree_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/exams/{id}/trends/:
+    get:
+      operationId: exams_trends_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/exams/{id}/weakest-nodes/:
+    get:
+      operationId: exams_weakest_nodes_retrieve
       parameters:
       - in: path
         name: id
@@ -1609,6 +1829,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/MockTestCreate'
           description: ''
+  /api/v1/mock-tests/{mock_test_id}/questions/{question_id}/conversation/:
+    get:
+      operationId: mock_tests_questions_conversation_retrieve
+      parameters:
+      - in: path
+        name: mock_test_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: question_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: mock_tests_questions_conversation_create
+      parameters:
+      - in: path
+        name: mock_test_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: question_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-tests
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/mock-tests/{id}/:
     get:
       operationId: mock_tests_retrieve
@@ -1618,7 +1881,6 @@ paths:
         name: id
         schema:
           type: integer
-        description: A unique integer value identifying this mock test.
         required: true
       tags:
       - mock-tests
@@ -1742,23 +2004,6 @@ paths:
   /api/v1/mock-tests/{id}/submit/:
     post:
       operationId: mock_tests_submit_create
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - mock-tests
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/mock-tests/{id}/tutor/:
-    post:
-      operationId: mock_tests_tutor_create
       parameters:
       - in: path
         name: id
@@ -2513,19 +2758,6 @@ paths:
       operationId: questions_coverage_retrieve
       tags:
       - questions
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/student/assessments/:
-    get:
-      operationId: student_assessments_retrieve
-      description: GET /api/v1/student/assessments/ — assessments assigned to the
-        student.
-      tags:
-      - student
       security:
       - tokenAuth: []
       - cookieAuth: []
@@ -3479,8 +3711,14 @@ components:
       properties:
         exam:
           type: integer
-        subject:
-          type: integer
+        is_full_syllabus:
+          type: boolean
+          default: false
+        subject_ids:
+          type: array
+          items:
+            type: integer
+          default: []
         topic_ids:
           type: array
           items:
@@ -3490,6 +3728,7 @@ components:
           type: integer
           maximum: 100
           minimum: 1
+          nullable: true
         difficulty:
           nullable: true
           oneOf:
@@ -3501,11 +3740,9 @@ components:
         total_duration_minutes:
           type: integer
           minimum: 0
-          default: 0
+          nullable: true
       required:
       - exam
-      - question_count
-      - subject
       - test_type
     MockTestCreateDifficultyEnum:
       enum:
@@ -3540,9 +3777,13 @@ components:
           allOf:
           - $ref: '#/components/schemas/ExamMinimal'
           readOnly: true
-        subject:
-          allOf:
-          - $ref: '#/components/schemas/SubjectMinimal'
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubjectMinimal'
+          readOnly: true
+        is_full_syllabus:
+          type: string
           readOnly: true
         topics:
           type: string
@@ -3579,9 +3820,10 @@ components:
       - exam
       - expires_at
       - id
+      - is_full_syllabus
       - name
       - question_count
-      - subject
+      - subjects
       - topics
       - total_duration_minutes
     MockTestList:
@@ -3597,9 +3839,13 @@ components:
           allOf:
           - $ref: '#/components/schemas/ExamMinimal'
           readOnly: true
-        subject:
-          allOf:
-          - $ref: '#/components/schemas/SubjectMinimal'
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubjectMinimal'
+          readOnly: true
+        is_full_syllabus:
+          type: string
           readOnly: true
         topics:
           type: string
@@ -3645,11 +3891,12 @@ components:
       required:
       - exam
       - id
+      - is_full_syllabus
       - max_score
       - name
       - question_count
       - score
-      - subject
+      - subjects
       - topics
       - total_duration_minutes
     NullEnum:
@@ -4083,6 +4330,9 @@ components:
         parent:
           type: integer
           nullable: true
+        subtopics:
+          type: string
+          readOnly: true
     PatchedUserMe:
       type: object
       properties:
@@ -4616,10 +4866,14 @@ components:
         parent:
           type: integer
           nullable: true
+        subtopics:
+          type: string
+          readOnly: true
       required:
       - code
       - id
       - name
+      - subtopics
     TopicOption:
       type: object
       properties:

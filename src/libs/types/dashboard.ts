@@ -18,6 +18,13 @@ export interface TodaysFocusItem {
   accuracy: number;
 }
 
+export interface RecommendedItem {
+  topic_name: string;
+  parent_topic_name: string;
+  subject_name: string;
+  accuracy: number;
+}
+
 export interface InProgressSession {
   test_name: string;
   last_section: string;
@@ -55,6 +62,7 @@ export interface DashboardData {
   in_progress_session: InProgressSession | null;
   upcoming_assessments: UpcomingAssessment[];
   todays_focus: TodaysFocusItem[];
+  recommended_for_you: RecommendedItem[];
 }
 
 // GET /api/v1/dashboard/{exam_id}/history/ (paginated)

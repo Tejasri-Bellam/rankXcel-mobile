@@ -12,28 +12,24 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
-import { COLORS } from "@/src/styles/styles";
+import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
 import {
   getConsistencyService,
   getExamStatsService,
   getExamTrendsService,
+  getWeakestNodesService,
 } from "@/src/libs/services/dashboard";
 import HalfCircleProgress from "@/src/components/dashboard/HalfCircleProgress";
 import MiniLineChart from "@/src/components/home/MiniLineChart";
 
 type StatsTab = "overview" | "heatmap" | "trends";
 
-// Weak → Mastered mastery palette (matches the Heatmap legend).
-const MASTERY_COLORS = ["#EF4444", "#F97316", "#FBBF24", "#86E0A3", "#22C55E"];
-const masteryColor = (pct: number) => {
-  if (pct < 35) return MASTERY_COLORS[0];
-  if (pct < 50) return MASTERY_COLORS[1];
-  if (pct < 65) return MASTERY_COLORS[2];
-  if (pct < 80) return MASTERY_COLORS[3];
-  return MASTERY_COLORS[4];
-};
+// Weak → Mastered mastery palette (matches the Heatmap legend): the standard
+// percentage scale — red <30, orange 30–39, yellow 40–59, green 60–100.
+const MASTERY_COLORS = [COLORS.red, COLORS.orange, COLORS.yellow, COLORS.green];
+const masteryColor = getScoreColor;
 
 // DUMMY: still NOT provided by any API (see backend list).
 const DUMMY = {
@@ -62,15 +58,11 @@ const readinessLabel = (pct: number) => {
   return "Getting started";
 };
 
-// Readiness colour band: <40% orange, 40–59% yellow, 60–100% green.
-const readinessColor = (pct: number) => {
-  if (pct < 40) return COLORS.orange;
-  if (pct < 60) return COLORS.yellow;
-  return COLORS.green;
-};
+// Readiness colour band: <30 red, 30–39 orange, 40–59 yellow, 60–100 green.
+const readinessColor = getScoreColor;
 
-const nodeColor = (pct: number) =>
-  pct < 35 ? COLORS.orange : pct < 45 ? COLORS.yellow : COLORS.green;
+// Weakest-node colour band: <30 red, 30–39 orange, 40–59 yellow, 60–100 green.
+const nodeColor = getScoreColor;
 
 // Map a raw daily value to a 0-4 intensity bucket.
 const bucket = (n: number) => {
@@ -133,6 +125,34 @@ const normalizeConsistency = (raw: any): ConsistencyData => {
     consistencyPct: Number(data?.consistency_pct ?? 0),
     totalCount: days.reduce((sum, d) => sum + (d.count || 0), 0),
   };
+};
+
+// Shape of GET /v1/exams/{id}/weakest-nodes/ — lowest-accuracy topics. The API
+// returns a flat array; accuracy is 0–1 (we render it as a 0–100 percentage).
+interface WeakNode {
+  topicId: number | null;
+  name: string;
+  subject: string;
+  parent: string;
+  pct: number;
+  attempted: number;
+}
+
+const normalizeWeakestNodes = (raw: any): WeakNode[] => {
+  const list: any[] = Array.isArray(raw) ? raw : raw?.data ?? raw?.results ?? [];
+  return list.map((n: any) => {
+    // accuracy may arrive as a 0–1 fraction or already as a 0–100 percentage.
+    const acc = Number(n?.accuracy ?? 0) || 0;
+    const pct = acc <= 1 ? acc * 100 : acc;
+    return {
+      topicId: n?.topic_id ?? null,
+      name: n?.topic_name ?? "",
+      subject: n?.subject_name ?? "",
+      parent: n?.parent_topic_name ?? "",
+      pct: Math.max(0, Math.round(pct)),
+      attempted: Number(n?.questions_attempted ?? 0) || 0,
+    };
+  });
 };
 
 // Shape of GET /v1/exams/{id}/stats/ — the headline Stats numbers.
@@ -336,6 +356,7 @@ export default function AnalyticsScreen() {
   const [consistency, setConsistency] = useState<ConsistencyData>(EMPTY_CONSISTENCY);
   const [examStats, setExamStats] = useState<ExamStats>(EMPTY_STATS);
   const [trends, setTrends] = useState<TrendsData>(EMPTY_TRENDS);
+  const [weakestNodes, setWeakestNodes] = useState<WeakNode[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadConsistency = useCallback(async () => {
@@ -368,9 +389,23 @@ export default function AnalyticsScreen() {
     }
   }, [activeExamId]);
 
+  const loadWeakestNodes = useCallback(async () => {
+    if (activeExamId == null) return;
+    try {
+      const res = await getWeakestNodesService(activeExamId);
+      setWeakestNodes(normalizeWeakestNodes(res));
+    } catch {
+      setWeakestNodes([]);
+    }
+  }, [activeExamId]);
+
   useEffect(() => {
     loadConsistency();
   }, [loadConsistency]);
+
+  useEffect(() => {
+    loadWeakestNodes();
+  }, [loadWeakestNodes]);
 
   useEffect(() => {
     loadExamStats();
@@ -388,11 +423,12 @@ export default function AnalyticsScreen() {
         loadConsistency(),
         loadExamStats(),
         loadTrends(),
+        loadWeakestNodes(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refresh, loadConsistency, loadExamStats, loadTrends]);
+  }, [refresh, loadConsistency, loadExamStats, loadTrends, loadWeakestNodes]);
 
   // ── Derived (real) values ──────────────────────────────────────────────────
   // Headline numbers come from GET /v1/exams/{id}/stats/.
@@ -407,34 +443,70 @@ export default function AnalyticsScreen() {
   );
   const examName = activeExam?.name ?? "Your exam";
 
-  const weakest = (
-    dashboardData?.todays_focus?.length
-      ? dashboardData.todays_focus.map((t) => ({
-          name: t.topic_name,
-          subject: t.subject_name,
-          pct: Math.max(0, Math.round(t.accuracy ?? 0)),
-        }))
-      : subjects.map((s) => ({
-          name: s.subject_name,
-          subject: s.subject_name,
-          pct: Math.max(0, Math.round(s.accuracy ?? 0)),
-        }))
-  )
+  // Weakest nodes come from GET /v1/exams/{id}/weakest-nodes/. Show only real
+  // data — when that endpoint has none, render the empty state rather than
+  // falling back to today's focus / subject strengths.
+  const weakest = weakestNodes
+    .map((n) => ({
+      topicId: n.topicId,
+      name: n.name,
+      subject: n.subject,
+      parent: n.parent,
+      attempted: n.attempted,
+      pct: n.pct,
+    }))
     .sort((a, b) => a.pct - b.pct)
     .slice(0, 6);
 
   // Tapping a weak node jumps into Practice for that topic (same deep-link the
   // dashboard's "Continue practising" uses — opens the practice setup modal).
-  const startPracticeForNode = (node: { name: string; subject: string }) => {
+  const startPracticeForNode = (node: {
+    name: string;
+    subject: string;
+    topicId?: number | null;
+  }) => {
     if (activeExamId == null) return;
     router.push({
       pathname: "/practice",
       params: {
         chapterName: node.name,
         subjectName: node.subject,
+        // Pass the real topic id when we have one so practice creation targets
+        // this topic instead of a placeholder id of 0 (rejected by the API).
+        ...(node.topicId != null ? { topicId: String(node.topicId) } : {}),
         questionCount: "20",
         durationMinutes: "30",
         examId: String(activeExamId),
+      },
+    });
+  };
+
+  // Tapping a weak node opens its sub-topic detail screen (accuracy ring, trend
+  // and metrics from GET /v1/exams/{id}/subtopic/{topic_id}/). Fallback nodes
+  // without a topic id (today's focus / subjects) still go straight to Practice.
+  const openNode = (node: {
+    topicId: number | null;
+    name: string;
+    subject: string;
+    parent: string;
+    pct: number;
+    attempted: number;
+  }) => {
+    if (activeExamId == null) return;
+    if (node.topicId == null) {
+      startPracticeForNode(node);
+      return;
+    }
+    router.push({
+      pathname: "/subtopic",
+      params: {
+        examId: String(activeExamId),
+        topicId: String(node.topicId),
+        topicName: node.name,
+        subjectName: node.subject,
+        parentName: node.parent,
+        accuracy: String(node.pct),
+        attempted: String(node.attempted),
       },
     });
   };
@@ -644,7 +716,7 @@ export default function AnalyticsScreen() {
         </View>
         <View style={styles.card}>
           {weakest.length === 0 ? (
-            <Text style={styles.emptyText}>No data yet.</Text>
+            <Text style={styles.emptyText}>No weakest nodes yet.</Text>
           ) : (
             weakest.map((node, i) => {
               const color = nodeColor(node.pct);
@@ -653,12 +725,26 @@ export default function AnalyticsScreen() {
                   key={`${node.name}-${i}`}
                   style={[styles.nodeRow, i === weakest.length - 1 && { marginBottom: 0 }]}
                   activeOpacity={0.7}
-                  onPress={() => startPracticeForNode(node)}
+                  onPress={() => openNode(node)}
                 >
                   <View style={styles.nodeTopRow}>
-                    <Text style={styles.nodeName} numberOfLines={1}>
-                      {node.name}
-                    </Text>
+                    <View style={styles.nodeNameCol}>
+                      <Text style={styles.nodeName} numberOfLines={1}>
+                        {node.name}
+                      </Text>
+                      {node.parent || node.attempted ? (
+                        <Text style={styles.nodeSub} numberOfLines={1}>
+                          {[
+                            node.parent,
+                            node.attempted
+                              ? `${node.attempted} attempted`
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </Text>
+                      ) : null}
+                    </View>
                     <View style={styles.nodeRight}>
                       <Text style={[styles.nodePct, { color }]}>{node.pct}%</Text>
                       <Ionicons name="chevron-forward" size={16} color={COLORS.textLight} />
@@ -886,7 +972,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-  nodeName: { fontSize: 15, fontWeight: "700", color: COLORS.textDark, flex: 1, marginRight: 12 },
+  nodeNameCol: { flex: 1, marginRight: 12 },
+  nodeName: { fontSize: 15, fontWeight: "700", color: COLORS.textDark },
+  nodeSub: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   nodeRight: { flexDirection: "row", alignItems: "center", gap: 4 },
   nodePct: { fontSize: 14, fontWeight: "800" },
   nodeBarBg: { height: 7, backgroundColor: "#EEF0F5", borderRadius: 5, overflow: "hidden" },

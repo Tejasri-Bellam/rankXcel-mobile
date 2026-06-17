@@ -32,13 +32,28 @@ interface ChatMessage {
   isGrounded?: boolean;
 }
 
+// Conversation-based tutor flow (mock review). When provided, the modal opens a
+// conversation, loads its history, then sends each message as a follow-up.
+// All three calls return the raw API response — the modal does the parsing.
+export interface ConversationApi {
+  // POST then GET the question conversation; returns the raw GET response that
+  // carries the conversation id (the modal extracts it).
+  open: () => Promise<any>;
+  // GET /conversations/{id}/follow-up-messages/ — prior chat history.
+  loadHistory: (conversationId: string) => Promise<any>;
+  // POST /conversations/{id}/follow-up-messages/ — send a message, get a reply.
+  send: (conversationId: string, message: string) => Promise<any>;
+}
+
 interface Props {
   visible: boolean;
   onClose: () => void;
   questionId?: number | string;
   questionText?: string;
-  // Calls the tutor endpoint and returns the raw response.
-  ask: (payload: TutorPayload) => Promise<any>;
+  // Single-shot tutor endpoint (assessments). Returns the raw response.
+  ask?: (payload: TutorPayload) => Promise<any>;
+  // Conversation-based tutor (mock review). Takes precedence over `ask`.
+  conversation?: ConversationApi;
 }
 
 interface TutorReply {
@@ -47,7 +62,9 @@ interface TutorReply {
   isGrounded?: boolean;
 }
 
-// Tutor response shape: { content, sources: [{ pdf, page }], is_grounded }.
+// Tutor reply shapes seen from the backend:
+//   • conversation follow-up: { content: { question, response }, ... }
+//   • single-shot tutor:      { content: "...", sources, is_grounded }
 // Kept tolerant of the older field names in case the backend varies.
 const parseTutorReply = (res: any): TutorReply => {
   const body =
@@ -56,8 +73,15 @@ const parseTutorReply = (res: any): TutorReply => {
   if (body == null) return { text: "", sources: [] };
   if (typeof body === "string") return { text: body, sources: [] };
 
+  // `content` may be a plain string or a { question, response } object.
+  const content = body.content;
+  const contentObj = content && typeof content === "object" ? content : null;
+
   const text =
-    body.content ??
+    (typeof content === "string" ? content : undefined) ??
+    contentObj?.response ??
+    contentObj?.answer ??
+    contentObj?.text ??
     body.response ??
     body.message ??
     body.answer ??
@@ -66,7 +90,11 @@ const parseTutorReply = (res: any): TutorReply => {
     body.explanation ??
     "";
 
-  const sourcesRaw = Array.isArray(body.sources) ? body.sources : [];
+  const sourcesRaw = Array.isArray(body.sources)
+    ? body.sources
+    : Array.isArray(contentObj?.sources)
+    ? contentObj.sources
+    : [];
   const seen = new Set<string>();
   const sources: TutorSource[] = [];
   sourcesRaw.forEach((s: any) => {
@@ -79,11 +107,81 @@ const parseTutorReply = (res: any): TutorReply => {
     sources.push({ pdf: String(pdf), page: page != null ? Number(page) : undefined });
   });
 
+  const isGrounded =
+    typeof body.is_grounded === "boolean"
+      ? body.is_grounded
+      : typeof contentObj?.is_grounded === "boolean"
+      ? contentObj.is_grounded
+      : undefined;
+
   return {
     text: typeof text === "string" ? text : "",
     sources,
-    isGrounded: typeof body.is_grounded === "boolean" ? body.is_grounded : undefined,
+    isGrounded,
   };
+};
+
+// Pull a conversation id out of either the POST (start) or GET (retrieve)
+// response. Tolerant of where the id lives since the spec omits the schema.
+const extractConversationId = (res: any): string | null => {
+  const body = res && typeof res === "object" && "data" in res ? res.data : res;
+  if (body == null) return null;
+  if (typeof body === "string") return body;
+  const id =
+    body.conversation_id ??
+    body.conversationId ??
+    body.id ??
+    body.conversation?.id ??
+    body.conversation?.conversation_id ??
+    null;
+  return id != null ? String(id) : null;
+};
+
+// Normalize the follow-up-messages history into chat bubbles. Handles both a
+// role-tagged list and rows that pair a user message with the tutor's reply.
+const parseHistoryMessages = (res: any): ChatMessage[] => {
+  const body = res && typeof res === "object" && "data" in res ? res.data : res;
+  const list: any[] = Array.isArray(body)
+    ? body
+    : body?.results ?? body?.messages ?? body?.follow_up_messages ?? [];
+  const out: ChatMessage[] = [];
+  list.forEach((item: any) => {
+    if (!item) return;
+    const role = item.role ?? item.sender ?? (item.is_user ? "user" : undefined);
+    if (role) {
+      const text = item.content ?? item.message ?? item.text ?? item.answer ?? "";
+      const isUser = role === "user" || role === "student";
+      const reply = isUser ? null : parseTutorReply(item);
+      out.push({
+        role: isUser ? "user" : "tutor",
+        text: typeof text === "string" && text ? text : reply?.text ?? "",
+        sources: reply?.sources,
+        isGrounded: reply?.isGrounded,
+      });
+      return;
+    }
+    // Paired row: a user question alongside the tutor's answer. The follow-up
+    // endpoint nests both under `content`: { question, response }.
+    const content =
+      item.content && typeof item.content === "object" ? item.content : null;
+    const userText =
+      content?.question ??
+      item.message ??
+      item.question ??
+      item.user_message ??
+      item.prompt;
+    if (typeof userText === "string" && userText.trim())
+      out.push({ role: "user", text: userText });
+    const reply = parseTutorReply(item);
+    if (reply.text)
+      out.push({
+        role: "tutor",
+        text: reply.text,
+        sources: reply.sources,
+        isGrounded: reply.isGrounded,
+      });
+  });
+  return out;
 };
 
 // "Units_Measurements_and_Motion_www.jeebooks.in.pdf" → "Units Measurements and Motion"
@@ -106,34 +204,84 @@ export default function TutorModal({
   questionId,
   questionText,
   ask,
+  conversation,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // Conversation mode: id of the active conversation, and whether we're still
+  // starting it / loading its history.
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(false);
+
   const scrollRef = useRef<ScrollView>(null);
 
-  // Reset the conversation each time the modal is opened for a question.
+  // Reset on open, then (in conversation mode) start the conversation and load
+  // its history. Plain `ask` mode just starts from a blank chat each time.
   useEffect(() => {
-    if (visible) {
-      setMessages([]);
-      setInput("");
-      setLoading(false);
+    if (!visible) return;
+    setMessages([]);
+    setInput("");
+    setLoading(false);
+    setConversationId(null);
+
+    if (!conversation) {
+      setInitializing(false);
+      return;
     }
-  }, [visible, questionId]);
+
+    let cancelled = false;
+    setInitializing(true);
+    (async () => {
+      try {
+        const opened = await conversation.open();
+        if (cancelled) return;
+        const cid = extractConversationId(opened);
+        setConversationId(cid);
+        if (cid) {
+          const history = await conversation.loadHistory(cid);
+          if (cancelled) return;
+          setMessages(parseHistoryMessages(history));
+        }
+      } catch (err) {
+        console.log("TUTOR INIT ERROR:", JSON.stringify(err, null, 2));
+      } finally {
+        if (!cancelled) setInitializing(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, questionId, conversation]);
 
   const send = async (text: string) => {
     const message = text.trim();
-    if (!message || loading) return;
+    if (!message || loading || initializing) return;
     setInput("");
     setMessages((prev) => [...prev, { role: "user", text: message }]);
     setLoading(true);
     try {
-      // Spec expects a numeric question_id (e.g. 42); coerce when numeric.
-      const qid =
-        questionId != null && Number.isFinite(Number(questionId))
-          ? Number(questionId)
-          : questionId;
-      const res = await ask({ question_id: qid, message });
+      let res: any;
+      if (conversation) {
+        // Ensure we have a conversation id even if init hadn't resolved one.
+        let cid = conversationId;
+        if (!cid) {
+          cid = extractConversationId(await conversation.open());
+          setConversationId(cid);
+        }
+        if (!cid) throw new Error("Couldn't start the tutor conversation.");
+        res = await conversation.send(cid, message);
+      } else if (ask) {
+        // Spec expects a numeric question_id (e.g. 42); coerce when numeric.
+        const qid =
+          questionId != null && Number.isFinite(Number(questionId))
+            ? Number(questionId)
+            : questionId;
+        res = await ask({ question_id: qid, message });
+      } else {
+        throw new Error("Tutor is unavailable.");
+      }
       const reply = parseTutorReply(res);
       setMessages((prev) => [
         ...prev,
@@ -197,7 +345,14 @@ export default function TutorModal({
               </View>
             )}
 
-            {messages.length === 0 && (
+            {initializing && (
+              <View style={styles.initRow}>
+                <ActivityIndicator size="small" color="#3B7DF8" />
+                <Text style={styles.emptyText}>Loading conversation…</Text>
+              </View>
+            )}
+
+            {!initializing && messages.length === 0 && (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>
                   Ask the tutor anything about this question.
@@ -272,9 +427,12 @@ export default function TutorModal({
               returnKeyType="send"
             />
             <TouchableOpacity
-              style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
+              style={[
+                styles.sendBtn,
+                (!input.trim() || loading || initializing) && styles.sendBtnDisabled,
+              ]}
               onPress={() => send(input)}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || initializing}
               activeOpacity={0.85}
             >
               <Ionicons name="arrow-up" size={18} color="#fff" />
@@ -324,6 +482,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   questionText: { fontSize: 14, color: "#1A1A2E", lineHeight: 20 },
+  initRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+  },
   emptyState: { paddingVertical: 12, gap: 12 },
   emptyText: { fontSize: 13, color: "#9CA3AF", textAlign: "center" },
   quickWrap: { gap: 8 },

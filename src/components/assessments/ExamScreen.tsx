@@ -1,6 +1,7 @@
 import {
   assessmentSubmitService,
   updateAssessmentResponsesService,
+  AssessmentResult,
 } from "@/src/libs/services/assessments-attempts";
 import { stripHtml } from "@/src/libs/utils/html";
 import React, { useEffect, useRef, useState } from "react";
@@ -32,6 +33,7 @@ interface Props {
   onSubmit: (
     answers: Record<string, string[]>,
     timeTakenSeconds: number,
+    result?: AssessmentResult | null,
   ) => void;
   onBackToAssessments?: () => void;
 }
@@ -561,7 +563,11 @@ export default function ExamScreen({
 
       console.log("SUBMIT RESPONSE:", JSON.stringify(response, null, 2));
 
-      onSubmit(answers, timeTaken);
+      // The submit response IS the result payload (same shape as /result/),
+      // so hand it straight to the results screen to render without a re-fetch.
+      const result =
+        ((response as any)?.data ?? (response as any)) as AssessmentResult | null;
+      onSubmit(answers, timeTaken, result);
     } catch (error: any) {
       console.log(
         "SUBMIT ERROR:",

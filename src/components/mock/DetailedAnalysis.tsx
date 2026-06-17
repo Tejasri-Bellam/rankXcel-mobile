@@ -14,6 +14,7 @@ import {
   getMockTestResultService,
   MockTest,
 } from '../../libs/services/mock-library';
+import { getScoreColor, getScoreBgColor } from '@/src/styles/styles';
 
 interface Props {
   mockId: number | string;
@@ -389,23 +390,13 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
                   <View
                     style={[
                       styles.accuracyBadge,
-                      {
-                        backgroundColor:
-                          cp.accuracy >= 70 ? '#F0FDF4'
-                            : cp.accuracy >= 40 ? '#FFFBEB'
-                              : '#FEF2F2',
-                      },
+                      { backgroundColor: getScoreBgColor(cp.accuracy) },
                     ]}
                   >
                     <Text
                       style={[
                         styles.accuracyText,
-                        {
-                          color:
-                            cp.accuracy >= 70 ? '#22C55E'
-                              : cp.accuracy >= 40 ? '#F59E0B'
-                                : '#EF4444',
-                        },
+                        { color: getScoreColor(cp.accuracy) },
                       ]}
                     >
                       {cp.accuracy}%

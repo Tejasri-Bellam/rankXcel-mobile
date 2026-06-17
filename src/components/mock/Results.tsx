@@ -11,15 +11,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
   getMockTestResultService,
-  getMockTestDetailedAnalysisService,
   MockTest,
+  MockTestResult,
+  MockTopicBreakdown,
 } from '../../libs/services/mock-library';
+import { getScoreColor } from '@/src/styles/styles';
 
 interface Props {
   mockId: number | string;
   mock: MockTest;
   answers: Record<string, string[]>;
   timeTakenSeconds: number;
+  // When the result is already known (just submitted), render it immediately
+  // instead of re-fetching /result/ — same shape, so no flicker.
+  initialResult?: MockTestResult | null;
   onBack: () => void;
   onViewSolutions?: () => void;
   onDone: () => void;
@@ -30,7 +35,7 @@ function formatTime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return `${m}m ${s}s`;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 const getMockTitle = (mock: MockTest): string => {
@@ -41,42 +46,49 @@ const getMockTitle = (mock: MockTest): string => {
   return mock.title ?? `${examName} mock`;
 };
 
+const num = (v: any): number => (v != null && !Number.isNaN(Number(v)) ? Number(v) : 0);
+
+// Colour a 0–100 strength/accuracy value: red <30, orange 30–39, yellow 40–59, green 60–100.
+const strengthColor = getScoreColor;
+
+// Stable accent colour per subject name (no design tokens for this on the API).
+const SUBJECT_ACCENTS = ['#3B7DF8', '#F59E0B', '#22C55E', '#A855F7', '#EC4899', '#14B8A6'];
+const subjectAccent = (name: string): string => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return SUBJECT_ACCENTS[h % SUBJECT_ACCENTS.length];
+};
+
 export default function MockExamResults({
   mockId,
   mock,
   timeTakenSeconds,
+  initialResult,
   onBack,
   onViewSolutions,
   onDone,
 }: Props) {
-  const [result, setResult] = useState<any>(null);
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [result, setResult] = useState<MockTestResult | null>(initialResult ?? null);
+  const [loading, setLoading] = useState(!initialResult);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { loadResult(); }, []);
+  useEffect(() => {
+    if (initialResult) return; // already have it from the submit response
+    loadResult();
+  }, []);
 
   const loadResult = async () => {
     try {
       setLoading(true);
       setError(null);
-      // The /result/ endpoint doesn't always carry the correct/wrong
-      // breakdown; the detailed-analysis endpoint does. Fetch both and let
-      // the parser below pull totals from whichever has the data.
-      const [resultRes, analysisRes] = await Promise.allSettled([
-        getMockTestResultService(mockId),
-        getMockTestDetailedAnalysisService(mockId),
-      ]);
-      const resultData =
-        resultRes.status === 'fulfilled' ? (resultRes.value as any)?.data ?? null : null;
-      const analysisData =
-        analysisRes.status === 'fulfilled' ? (analysisRes.value as any)?.data ?? null : null;
-      console.log('MOCK RESULT API:', JSON.stringify(resultData, null, 2));
-      console.log('MOCK RESULT ANALYSIS API:', JSON.stringify(analysisData, null, 2));
-      setResult(resultData);
-      setAnalysis(analysisData);
-      if (!resultData && !analysisData) setError('Failed to load results.');
-    } catch (err) {
+      const res = await getMockTestResultService(mockId);
+      const data = ((res as any)?.data ?? (res as any)) as MockTestResult | null;
+      if (!data) {
+        setError('Failed to load results.');
+        return;
+      }
+      setResult(data);
+    } catch {
       setError('Failed to load results.');
     } finally {
       setLoading(false);
@@ -85,91 +97,82 @@ export default function MockExamResults({
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF5' }}>
+      <SafeAreaView style={styles.centered}>
         <ActivityIndicator size="large" color="#3B7DF8" />
-        <Text style={{ marginTop: 12, color: '#9CA3AF' }}>Loading results…</Text>
+        <Text style={styles.centeredText}>Loading results…</Text>
       </SafeAreaView>
     );
   }
 
-  // ── Parse result ──
-  // Totals can live in several shapes depending on the endpoint:
-  //  • top-level aggregates on /result/ (correct/wrong/skipped)
-  //  • a chapter_breakdown map (on /result/ or detailed-analysis)
-  //  • a subject_summary array (detailed-analysis)
-  // Prefer top-level totals, then sum the breakdown from either source.
-  const num = (...vals: any[]): number => {
-    for (const v of vals) {
-      if (v != null && !Number.isNaN(Number(v))) return Number(v);
-    }
-    return 0;
-  };
-
-  // Aggregate correct/wrong/skipped from a chapter_breakdown map/array or a
-  // subject_summary array (both share the same per-row field names).
-  const sumRows = (source: any): { c: number; w: number; s: number } => {
-    const cb = source?.chapter_breakdown ?? source?.subject_summary;
-    const rows = Array.isArray(cb)
-      ? cb
-      : cb && typeof cb === 'object'
-      ? Object.values(cb)
-      : [];
-    return rows.reduce(
-      (acc: any, r: any) => ({
-        c: acc.c + num(r?.correct),
-        w: acc.w + num(r?.wrong),
-        s: acc.s + num(r?.unattempted, r?.skipped),
-      }),
-      { c: 0, w: 0, s: 0 },
+  if (error || !result) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <Ionicons name="alert-circle-outline" size={36} color="#EF4444" />
+        <Text style={styles.centeredText}>{error ?? 'No results available.'}</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={loadResult} activeOpacity={0.85}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
-  };
+  }
 
-  // Prefer detailed-analysis (richest breakdown), fall back to result.
-  const bd = sumRows(analysis);
-  const bdAlt = sumRows(result);
-  const bdCorrect = bd.c || bdAlt.c;
-  const bdWrong = bd.w || bdAlt.w;
-  const bdSkipped = bd.s || bdAlt.s;
-
-  const totalCorrect = num(
-    result?.correct, result?.total_correct, result?.correct_count,
-    analysis?.correct, analysis?.total_correct,
-    bdCorrect,
-  );
-  const totalWrong = num(
-    result?.wrong, result?.total_wrong, result?.incorrect_count,
-    analysis?.wrong, analysis?.total_wrong,
-    bdWrong,
-  );
-  const totalSkipped = num(
-    result?.skipped, result?.unattempted, result?.total_skipped,
-    analysis?.skipped, analysis?.unattempted,
-    bdSkipped,
-  );
-
+  // ── Derive totals from topic_breakdown ──
+  const topics: MockTopicBreakdown[] = Object.values(result.topic_breakdown ?? {});
+  let correct = 0;
+  let wrong = 0;
+  let skipped = 0;
+  topics.forEach((t) => {
+    correct += num(t.correct);
+    wrong += num(t.wrong);
+    skipped += num(t.unattempted);
+  });
   const totalQ =
-    num(result?.total_questions, result?.total, analysis?.total_questions) ||
-    totalCorrect + totalWrong + totalSkipped ||
-    mock.question_count ||
-    0;
-  // Accuracy shown in the circle — keep it aligned with the "X/Y correct"
-  // label below it (a whole 0–100 number, never the negative/decimal
-  // score-based percentage that negative marking can produce).
-  const pct = totalQ > 0 ? Math.round((totalCorrect / totalQ) * 100) : 0;
-  const timeTaken = Number(
-    result?.time_taken_seconds ?? analysis?.time_taken_seconds ?? timeTakenSeconds ?? 0,
-  );
+    correct + wrong + skipped || num(mock.question_count) || 0;
+
+  // One accuracy value drives the Accuracy card.
+  const accuracyPct =
+    totalQ > 0 ? Math.round((correct / totalQ) * 100) : Math.round(num(result.accuracy));
+
+  // Score percentage (total_score / max_score) — headlines the hero banner.
+  const percentagePct =
+    result.percentage != null && !Number.isNaN(Number(result.percentage))
+      ? Math.round(num(result.percentage))
+      : num(result.max_score) > 0
+      ? Math.round((num(result.total_score) / num(result.max_score)) * 100)
+      : accuracyPct;
+
+  const timeTaken = num(result.time_taken_seconds) || num(timeTakenSeconds);
+  const xp = 100 + correct * 10;
+  const percentile = mock.percentile != null ? Math.round(num(mock.percentile)) : null;
+
+  const verdict =
+    percentagePct >= 80 ? 'Mastered' : percentagePct >= 50 ? 'Good progress' : 'Needs work';
+
+  // Weakest topics → "Practice next" suggestions.
+  const weakTopics = topics
+    .map((t) => {
+      const att = num(t.correct) + num(t.wrong) + num(t.unattempted);
+      return {
+        name: t.topic_name || 'Topic',
+        subject: t.subject_name || '',
+        acc: att > 0 ? Math.round((num(t.correct) / att) * 100) : 0,
+      };
+    })
+    .filter((t) => t.acc < 60)
+    .sort((a, b) => a.acc - b.acc)
+    .slice(0, 4);
+
+  const subjects = (result.strength_by_subject ?? []).map((s) => ({
+    name: s.subject_name,
+    acc: Math.round(num(s.accuracy)),
+  }));
+
   const mockTitle = getMockTitle(mock);
 
-  const motivationText =
-    pct >= 80 ? 'Excellent! 🎉' : pct >= 50 ? 'Keep going 🌱' : 'Keep going 🌱';
-
-  const XP = Math.max(10, Math.round(totalCorrect * 10));
-
   return (
-    <SafeAreaView style={styles.safeArea} edges={[]}>
-      {/* Back */}
-      <View style={styles.header}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Top bar */}
+      <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
           <Text style={styles.backText}>Back</Text>
@@ -177,170 +180,330 @@ export default function MockExamResults({
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* ── Hero banner ── */}
+        <View style={styles.banner}>
+          {/* Decorative concentric rings behind the score */}
+          <View style={styles.ringOuter} pointerEvents="none" />
+          <View style={styles.ringInner} pointerEvents="none" />
 
-        {/* Results label */}
-        <Text style={styles.resultsLabel}>Results</Text>
+          <Text style={styles.bannerTitle} numberOfLines={1}>
+            {mockTitle.toUpperCase()} · COMPLETE
+          </Text>
 
-        {/* Big circle score */}
-        <View style={styles.scoreCircleWrap}>
-          <View style={styles.scoreCircle}>
-            <Text style={styles.scorePct} numberOfLines={1} adjustsFontSizeToFit>
-              {pct}%
-            </Text>
-            <Text style={styles.scoreSubLabel}>{totalCorrect}/{totalQ} correct</Text>
+          <View style={styles.bannerScoreWrap}>
+            <Text style={styles.bannerScore}>{percentagePct}</Text>
+            <Text style={styles.bannerScorePct}>%</Text>
+          </View>
+
+          <Text style={styles.bannerSub}>
+            {correct} of {totalQ} correct · {verdict}
+          </Text>
+
+          <View style={styles.badgeRow}>
+            <View style={styles.badge}>
+              <Ionicons name="flash" size={12} color="#fff" />
+              <Text style={styles.badgeText}>+{xp} XP</Text>
+            </View>
+            <View style={styles.badge}>
+              <Ionicons name="time-outline" size={12} color="#fff" />
+              <Text style={styles.badgeText}>{formatTime(timeTaken)}</Text>
+            </View>
+            {percentile != null && (
+              <View style={styles.badge}>
+                <Ionicons name="trophy-outline" size={12} color="#fff" />
+                <Text style={styles.badgeText}>Top {Math.max(1, 100 - percentile)}%</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Motivation */}
-        <Text style={styles.motivationText}>{motivationText}</Text>
-        <Text style={styles.mockTitleLabel}>{mockTitle}</Text>
-
-        {/* Stats row */}
+        {/* ── Stat cards ── */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Ionicons name="checkmark" size={16} color="#22C55E" />
-            <Text style={styles.statValue}>{totalCorrect}</Text>
+            <Ionicons name="locate-outline" size={18} color="#3B7DF8" />
+            <Text style={styles.statValue}>{accuracyPct}%</Text>
+            <Text style={styles.statLabel}>Accuracy</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="checkmark-circle-outline" size={18} color="#22C55E" />
+            <Text style={styles.statValue}>{correct}/{totalQ}</Text>
             <Text style={styles.statLabel}>Correct</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="close" size={16} color="#EF4444" />
-            <Text style={styles.statValue}>{totalWrong}</Text>
-            <Text style={styles.statLabel}>Wrong</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="remove-outline" size={16} color="#9CA3AF" />
-            <Text style={styles.statValue}>{totalSkipped}</Text>
-            <Text style={styles.statLabel}>Skipped</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="time-outline" size={16} color="#3B7DF8" />
+            <Ionicons name="time-outline" size={18} color="#F59E0B" />
             <Text style={styles.statValue}>{formatTime(timeTaken)}</Text>
             <Text style={styles.statLabel}>Time</Text>
           </View>
         </View>
 
-        {/* XP banner */}
-        <View style={styles.xpBanner}>
-          <Ionicons name="flash" size={16} color="#F59E0B" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.xpTitle}>+{XP} XP earned</Text>
-            <Text style={styles.xpSub}>Streak extended · keep it up!</Text>
-          </View>
-        </View>
-
-        {/* Review answers button */}
+        {/* ── Review all questions ── */}
         {onViewSolutions && (
-          <TouchableOpacity style={styles.reviewBtn} onPress={onViewSolutions} activeOpacity={0.85}>
-            <Ionicons name="eye-outline" size={18} color="#fff" />
-            <Text style={styles.reviewBtnText}>Review answers</Text>
+          <TouchableOpacity style={styles.reviewCard} onPress={onViewSolutions} activeOpacity={0.85}>
+            <Ionicons name="eye-outline" size={18} color="#3B7DF8" />
+            <Text style={styles.reviewCardText}>Review all {totalQ} questions</Text>
           </TouchableOpacity>
         )}
 
-        {/* Done button */}
-        <TouchableOpacity style={styles.doneBtn} onPress={onDone} activeOpacity={0.75}>
-          <Text style={styles.doneBtnText}>Done</Text>
-        </TouchableOpacity>
+        {/* ── Practice next ── */}
+        {weakTopics.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="locate" size={16} color="#3B7DF8" />
+              <Text style={styles.sectionTitle}>Practice next</Text>
+            </View>
+            {weakTopics.map((t, i) => (
+              <TouchableOpacity
+                key={`${t.name}-${i}`}
+                style={styles.practiceRow}
+                onPress={onDone}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.practiceIcon, { backgroundColor: '#F59E0B' }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.practiceName} numberOfLines={1}>{t.name}</Text>
+                  <Text style={styles.practiceSub}>Weak · tap to practise</Text>
+                </View>
+                <View style={styles.practicePill}>
+                  <Ionicons name="play" size={11} color="#3B7DF8" />
+                  <Text style={styles.practicePillText}>Practice</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* ── Strength by subject ── */}
+        {subjects.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="bar-chart-outline" size={16} color="#3B7DF8" />
+              <Text style={styles.sectionTitle}>Strength by subject</Text>
+            </View>
+            {subjects.map((s, i) => (
+              <View key={`${s.name}-${i}`} style={styles.subjectRow}>
+                <View style={styles.subjectHeaderRow}>
+                  <View style={styles.subjectNameWrap}>
+                    <View style={[styles.subjectDot, { backgroundColor: subjectAccent(s.name) }]} />
+                    <Text style={styles.subjectName} numberOfLines={1}>{s.name}</Text>
+                  </View>
+                  <Text style={[styles.subjectPct, { color: strengthColor(s.acc) }]}>{s.acc}%</Text>
+                </View>
+                <View style={styles.subjectTrack}>
+                  <View
+                    style={[
+                      styles.subjectFill,
+                      { width: `${Math.min(100, Math.max(0, s.acc))}%`, backgroundColor: strengthColor(s.acc) },
+                    ]}
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* ── Percentile banner ── */}
+        {percentile != null && (
+          <View style={styles.beatBanner}>
+            <View style={styles.trophyWrap}>
+              <Ionicons name="trophy" size={22} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.beatTitle}>You beat {percentile}% of test-takers</Text>
+              <Text style={styles.beatSub}>Based on everyone who took this set</Text>
+            </View>
+          </View>
+        )}
+
+        {/* ── Bottom actions ── */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.doneBtn} onPress={onDone} activeOpacity={0.75}>
+            <Text style={styles.doneBtnText}>Done</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.keepGoingBtn} onPress={onDone} activeOpacity={0.85}>
+            <Ionicons name="refresh" size={16} color="#fff" />
+            <Text style={styles.keepGoingText}>Keep going</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+const CARD_SHADOW = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.05,
+  shadowRadius: 4,
+  elevation: 1,
+};
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#EEEFF5' },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF5', padding: 24 },
+  centeredText: { marginTop: 12, color: '#9CA3AF', textAlign: 'center' },
+  retryBtn: { marginTop: 16, backgroundColor: '#3B7DF8', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
+  retryBtnText: { color: '#fff', fontWeight: '700' },
+
+  topBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   backText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 20, alignItems: 'center' },
 
-  resultsLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A2E',
-    marginTop: 4,
-    marginBottom: 14,
-    textDecorationLine: 'underline',
-    textDecorationColor: '#EF4444',
-  },
+  scrollContent: { padding: 16, paddingBottom: 28 },
 
-  scoreCircleWrap: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#fff',
+  // Hero banner
+  banner: {
+    backgroundColor: '#C0395C',
+    borderRadius: 22,
+    paddingVertical: 26,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
   },
-  scoreCircle: { alignItems: 'center', justifyContent: 'center' },
-  scorePct: { fontSize: 40, fontWeight: '900', color: '#1A1A2E' },
-  scoreSubLabel: { fontSize: 13, color: '#9CA3AF', marginTop: 2 },
+  ringOuter: {
+    position: 'absolute',
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.12)',
+    top: 10,
+  },
+  ringInner: {
+    position: 'absolute',
+    width: 165,
+    height: 165,
+    borderRadius: 82,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.16)',
+    top: 42,
+  },
+  bannerTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.85)',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  bannerScoreWrap: { flexDirection: 'row', alignItems: 'flex-start' },
+  bannerScore: { fontSize: 64, fontWeight: '900', color: '#fff', lineHeight: 70 },
+  bannerScorePct: { fontSize: 24, fontWeight: '800', color: 'rgba(255,255,255,0.9)', marginTop: 8 },
+  bannerSub: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.92)', marginBottom: 14 },
 
-  motivationText: { fontSize: 22, fontWeight: '800', color: '#1A1A2E', marginBottom: 2 },
-  mockTitleLabel: { fontSize: 13, color: '#9CA3AF', marginBottom: 16 },
-
-  statsRow: {
+  badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  badge: {
     flexDirection: 'row',
-    gap: 8,
-    width: '100%',
-    marginBottom: 14,
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
   },
+  badgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
+  // Stat cards
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   statCard: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 12,
+    borderRadius: 16,
+    paddingVertical: 14,
     paddingHorizontal: 6,
     alignItems: 'center',
     gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    ...CARD_SHADOW,
   },
   statValue: { fontSize: 17, fontWeight: '800', color: '#1A1A2E' },
   statLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '500' },
 
-  xpBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFBEB',
-    borderRadius: 14,
-    padding: 12,
-    width: '100%',
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  xpTitle: { fontSize: 14, fontWeight: '700', color: '#92400E' },
-  xpSub: { fontSize: 12, color: '#B45309', marginTop: 2 },
-
-  reviewBtn: {
+  // Review card
+  reviewCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#3B7DF8',
+    backgroundColor: '#fff',
     borderRadius: 16,
-    paddingVertical: 15,
-    width: '100%',
-    marginBottom: 10,
+    paddingVertical: 16,
+    marginBottom: 14,
+    ...CARD_SHADOW,
   },
-  reviewBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  reviewCardText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
 
+  // Sections
+  section: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+    ...CARD_SHADOW,
+  },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A1A2E' },
+
+  // Practice next
+  practiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+  },
+  practiceIcon: { width: 36, height: 36, borderRadius: 10 },
+  practiceName: { fontSize: 14, fontWeight: '700', color: '#1A1A2E' },
+  practiceSub: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  practicePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EEF4FF',
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  practicePillText: { fontSize: 12, fontWeight: '700', color: '#3B7DF8' },
+
+  // Strength by subject
+  subjectRow: { marginBottom: 14 },
+  subjectHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  subjectNameWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  subjectDot: { width: 12, height: 12, borderRadius: 3 },
+  subjectName: { fontSize: 14, fontWeight: '600', color: '#1A1A2E', flexShrink: 1 },
+  subjectPct: { fontSize: 14, fontWeight: '800' },
+  subjectTrack: { height: 7, borderRadius: 4, backgroundColor: '#EEF0F4', overflow: 'hidden' },
+  subjectFill: { height: '100%', borderRadius: 4 },
+
+  // Percentile banner
+  beatBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+    ...CARD_SHADOW,
+  },
+  trophyWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFF7ED',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  beatTitle: { fontSize: 14, fontWeight: '800', color: '#1A1A2E' },
+  beatSub: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
+
+  // Bottom actions
+  actionsRow: { flexDirection: 'row', gap: 12 },
   doneBtn: {
-    width: '100%',
-    paddingVertical: 14,
+    flex: 1,
+    paddingVertical: 15,
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#E5E7EB',
@@ -348,4 +511,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   doneBtnText: { fontSize: 15, fontWeight: '700', color: '#1A1A2E' },
+  keepGoingBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    borderRadius: 16,
+    backgroundColor: '#4F46E5',
+  },
+  keepGoingText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
