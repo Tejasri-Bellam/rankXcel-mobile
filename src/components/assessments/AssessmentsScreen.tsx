@@ -18,15 +18,6 @@ import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import LiveTestDetail, { LiveStatus } from "./LiveTestDetail";
 import { liveTestsStyles as styles } from "@/src/styles/sidebar/assessments/liveTests";
 
-const STATUS_META: Record<
-  LiveStatus,
-  { label: string; color: string; bg: string; live?: boolean }
-> = {
-  upcoming: { label: "Upcoming", color: "#3B82F6", bg: "#EAF1FF" },
-  live: { label: "Live now", color: "#EF4444", bg: "#FFECEC", live: true },
-  results: { label: "Results out", color: "#6B7280", bg: "#F1F2F5" },
-};
-
 type FilterValue = "all" | "live" | "upcoming" | "completed";
 
 const FILTERS: { label: string; value: FilterValue }[] = [
@@ -80,7 +71,7 @@ const STUDENT_STATUS_META: Record<string, { label: string; color: string; bg: st
   upcoming: { label: "Upcoming", color: "#3B82F6", bg: "#EAF1FF" },
   scheduled: { label: "Scheduled", color: "#3B82F6", bg: "#EAF1FF" },
   registered: { label: "Registered", color: "#2563EB", bg: "#EAF1FF" },
-  completed: { label: "Completed", color: "#059669", bg: "#E7F6EF" },
+  completed: { label: "Results Out", color: "#059669", bg: "#E7F6EF" },
   submitted: { label: "Submitted", color: "#059669", bg: "#E7F6EF" },
   missed: { label: "Missed", color: "#DC2626", bg: "#FDECEC" },
   expired: { label: "Expired", color: "#6B7280", bg: "#F1F2F5" },
@@ -115,9 +106,27 @@ const deriveStatus = (item: any): LiveStatus => {
   return "results";
 };
 
-// upcoming → "Sun 14 Jun, 7:00 PM" · live → "Live now" · results → "Sat 6 Jun (closed)"
+// End time = scheduled_at + total_duration_minutes.
+const assessmentEndTime = (item: any): Date | null => {
+  const start = new Date(item?.scheduled_at).getTime();
+  if (isNaN(start)) return null;
+  return new Date(start + (item?.total_duration_minutes ?? 0) * 60 * 1000);
+};
+
+const timeOnly = (d: Date): string =>
+  d.toLocaleTimeString("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+// upcoming → "Sun 14 Jun, 7:00 PM – 8:00 PM" · live → "Live now · ends 8:00 PM"
+// · results → "Sat 6 Jun (closed)"
 const whenLabel = (item: any, status: LiveStatus): string => {
-  if (status === "live") return "Live now";
+  const end = assessmentEndTime(item);
+  if (status === "live") {
+    return end ? `Live now · ends ${timeOnly(end)}` : "Live now";
+  }
   const d = new Date(item?.scheduled_at);
   if (isNaN(d.getTime())) return status === "results" ? "Closed" : "—";
   if (status === "results") {
@@ -127,7 +136,7 @@ const whenLabel = (item: any, status: LiveStatus): string => {
       month: "short",
     })} (closed)`;
   }
-  return d.toLocaleString("en-GB", {
+  const startStr = d.toLocaleString("en-GB", {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -135,6 +144,7 @@ const whenLabel = (item: any, status: LiveStatus): string => {
     minute: "2-digit",
     hour12: true,
   });
+  return end ? `${startStr} – ${timeOnly(end)}` : startStr;
 };
 
 // Real field if provided; otherwise a stable placeholder so the card matches
@@ -440,45 +450,32 @@ export default function AssessmentsScreen() {
         ) : (
           <View style={styles.cardList}>
             {tests.map(({ item, status }) => {
-              const meta = STATUS_META[status];
+              // The card shows only the backend's student_status pill.
+              const ss = studentStatusMeta(item.student_status);
+              const isLive = ["live", "active", "ongoing", "in_progress"].includes(
+                String(item.student_status ?? "").toLowerCase()
+              );
               return (
                 <TouchableOpacity
                   key={String(item.id)}
-                  style={[styles.card, meta.live && styles.cardLive]}
+                  style={[styles.card, isLive && styles.cardLive]}
                   activeOpacity={0.85}
                   onPress={() => setSelected({ item, status })}
                 >
-                  <View style={styles.cardTopRow}>
-                    <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
-                      {meta.live ? <View style={styles.liveDot} /> : null}
-                      <Text style={[styles.statusPillText, { color: meta.color }]}>
-                        {meta.label}
-                      </Text>
+                  {ss && (
+                    <View style={styles.cardTopRow}>
+                      <View style={[styles.statusPill, { backgroundColor: ss.bg }]}>
+                        {isLive ? <View style={styles.liveDot} /> : null}
+                        <Text style={[styles.statusPillText, { color: ss.color }]}>
+                          {ss.label}
+                        </Text>
+                      </View>
                     </View>
-                    {/* <Text style={styles.participants}>
-                      {participantCount(item).toLocaleString("en-US")} in
-                    </Text> */}
-                  </View>
+                  )}
 
                   <Text style={styles.cardTitle} numberOfLines={1}>
                     {item.name}
                   </Text>
-
-                  {(() => {
-                    const ss = studentStatusMeta(item.student_status);
-                    if (!ss) return null;
-                    return (
-                      <View
-                        style={[styles.studentStatusPill, { backgroundColor: ss.bg }]}
-                      >
-                        <Text
-                          style={[styles.studentStatusText, { color: ss.color }]}
-                        >
-                          {ss.label}
-                        </Text>
-                      </View>
-                    );
-                  })()}
 
                   <Text style={styles.cardMeta}>
                     {whenLabel(item, status)} · {item.question_count ?? 0} Qs ·{" "}

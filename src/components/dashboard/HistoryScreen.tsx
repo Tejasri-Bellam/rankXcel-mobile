@@ -40,17 +40,33 @@ const typeIcon = (type: string): keyof typeof Ionicons.glyphMap => {
   }
 };
 
-// "2026-05-27T05:59:15Z" → "27 May 2026, 11:23"
+const startOfDay = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+const timeLabel = (d: Date) =>
+  d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+// today → "Today, 6:20 PM" · yesterday → "Yesterday" · within 3 days →
+// "2 days ago" / "3 days ago" · older → "27 May 2026"
 const formatDate = (iso: string) => {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString("en-GB", {
+
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+
+  if (diffDays === 0) return `Today, ${timeLabel(d)}`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays >= 2 && diffDays <= 3) return `${diffDays} days ago`;
+
+  return d.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 };
 

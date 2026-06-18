@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import {
   getMockTestResultService,
   MockTest,
@@ -170,7 +171,7 @@ export default function MockExamResults({
   const mockTitle = getMockTitle(mock);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
@@ -183,8 +184,11 @@ export default function MockExamResults({
         {/* ── Hero banner ── */}
         <View style={styles.banner}>
           {/* Decorative concentric rings behind the score */}
-          <View style={styles.ringOuter} pointerEvents="none" />
-          <View style={styles.ringInner} pointerEvents="none" />
+          <View style={styles.ringWrap} pointerEvents="none">
+            <View style={styles.ringOuter}>
+              <View style={styles.ringInner} />
+            </View>
+          </View>
 
           <Text style={styles.bannerTitle} numberOfLines={1}>
             {mockTitle.toUpperCase()} · COMPLETE
@@ -319,7 +323,11 @@ export default function MockExamResults({
           <TouchableOpacity style={styles.doneBtn} onPress={onDone} activeOpacity={0.75}>
             <Text style={styles.doneBtnText}>Done</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.keepGoingBtn} onPress={onDone} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.keepGoingBtn}
+            onPress={() => router.push('/practice')}
+            activeOpacity={0.85}
+          >
             <Ionicons name="refresh" size={16} color="#fff" />
             <Text style={styles.keepGoingText}>Keep going</Text>
           </TouchableOpacity>
@@ -338,8 +346,8 @@ const CARD_SHADOW = {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#EEEFF5' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF5', padding: 24 },
+  safeArea: { flex: 1, backgroundColor: '#F7F8FC' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F8FC', padding: 24 },
   centeredText: { marginTop: 12, color: '#9CA3AF', textAlign: 'center' },
   retryBtn: { marginTop: 16, backgroundColor: '#3B7DF8', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
   retryBtnText: { color: '#fff', fontWeight: '700' },
@@ -360,23 +368,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 14,
   },
+  ringWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ringOuter: {
-    position: 'absolute',
-    width: 230,
-    height: 230,
-    borderRadius: 115,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.12)',
-    top: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ringInner: {
-    position: 'absolute',
-    width: 165,
-    height: 165,
-    borderRadius: 82,
+    width: 125,
+    height: 125,
+    borderRadius: 62,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.16)',
-    top: 42,
   },
   bannerTitle: {
     fontSize: 12,

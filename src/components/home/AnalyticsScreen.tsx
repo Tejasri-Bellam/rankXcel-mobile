@@ -155,25 +155,37 @@ const normalizeWeakestNodes = (raw: any): WeakNode[] => {
   });
 };
 
-// Shape of GET /v1/exams/{id}/stats/ — the headline Stats numbers.
+// Shape of GET /v1/exams/{id}/stats/ — the headline Stats numbers:
+//   { exam_readiness: { readiness_percentage, readiness_label },
+//     avg_accuracy, total_attempts, streak: { current_streak } }
 interface ExamStats {
   examReadiness: number;
+  readinessLabel: string;
   avgAccuracy: number;
   totalAttempts: number;
+  currentStreak: number;
 }
 
 const EMPTY_STATS: ExamStats = {
   examReadiness: 0,
+  readinessLabel: "",
   avgAccuracy: 0,
   totalAttempts: 0,
+  currentStreak: 0,
 };
 
 const normalizeExamStats = (raw: any): ExamStats => {
   const d = raw?.data ?? raw ?? {};
+  // exam_readiness is a nested object { readiness_percentage, readiness_label };
+  // tolerate a legacy flat number too.
+  const readiness = d?.exam_readiness;
+  const isObj = readiness != null && typeof readiness === "object";
   return {
-    examReadiness: Number(d?.exam_readiness ?? 0) || 0,
+    examReadiness: Number(isObj ? readiness?.readiness_percentage : readiness ?? 0) || 0,
+    readinessLabel: isObj ? String(readiness?.readiness_label ?? "") : "",
     avgAccuracy: Number(d?.avg_accuracy ?? 0) || 0,
     totalAttempts: Number(d?.total_attempts ?? 0) || 0,
+    currentStreak: Number(d?.streak?.current_streak ?? 0) || 0,
   };
 };
 
@@ -436,7 +448,11 @@ export default function AnalyticsScreen() {
   const avgAccuracy = Math.round(examStats.avgAccuracy);
   const totalAttempts = examStats.totalAttempts;
   const subjects = dashboardData?.strength_by_subject ?? [];
-  const streakDays = dashboardData?.streak?.current_streak ?? 0;
+  // Streak now comes from the stats endpoint; fall back to the dashboard payload.
+  const streakDays =
+    examStats.currentStreak || dashboardData?.streak?.current_streak || 0;
+  // Prefer the API-provided readiness label, else derive from the percentage.
+  const readinessText = examStats.readinessLabel || readinessLabel(readiness);
 
   const activeExam = targetExams.find(
     (e) => String(e.id) === String(activeExamId)
@@ -675,7 +691,7 @@ export default function AnalyticsScreen() {
           </HalfCircleProgress>
           <Text style={styles.gaugeLabel}>EXAM READINESS</Text>
           <Text style={styles.gaugeSub}>
-            {readinessLabel(readiness)} · {examName} {DUMMY.examYear} in{" "}
+            {readinessText} · {examName} {DUMMY.examYear} in{" "}
             {DUMMY.daysToExam} days
           </Text>
         </View>

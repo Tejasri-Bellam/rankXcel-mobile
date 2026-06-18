@@ -43,19 +43,15 @@ export interface UpcomingAssessment {
   difficulty: string;
 }
 
-export interface StreakDay {
-  day: string;
-  completed: boolean;
-}
-
 export interface DashboardStreak {
   current_streak: number;
-  best_streak: number;
-  streak_days: StreakDay[];
 }
 
 export interface DashboardData {
   selected_exam_id: number;
+  // Exam readiness for the active exam (0–100), used by the homepage gauge.
+  readiness_percentage?: number;
+  readiness_label?: string;
   strength_by_subject: SubjectStrength[];
   streak: DashboardStreak;
   recent_activity: RecentActivityItem[];

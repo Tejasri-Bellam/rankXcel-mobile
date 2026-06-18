@@ -28,11 +28,6 @@ interface Props {
 const getExamName = (exam: MockTest['exam']): string =>
   typeof exam === 'object' && exam !== null && 'name' in exam ? exam.name : String(exam || '');
 
-const getSubjectName = (subject: MockTest['subject']): string =>
-  typeof subject === 'object' && subject !== null && 'name' in subject
-    ? subject.name
-    : String(subject || '');
-
 const formatDuration = (mins: number | null | undefined): string => {
   if (!mins) return '—';
   const h = Math.floor(mins / 60);
@@ -70,10 +65,6 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
   const isNotStarted = mockData.status === 'NOT_STARTED';
 
   const examName = getExamName(mockData.exam);
-  const subjectName = getSubjectName(mockData.subject);
-  const score = mockData.score ?? 0;
-  const maxScore = mockData.max_score ?? mockData.question_count ?? 0;
-  const lastPct = maxScore > 0 ? Math.round((score / maxScore) * 100) : null;
 
   const handleStart = async () => {
     try {
@@ -177,13 +168,13 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
             <Text style={styles.statValue}>{formatDuration(mockData.total_duration_minutes)}</Text>
             <Text style={styles.statLabel}>minutes</Text>
           </View>
-          {isCompleted && lastPct !== null && (
-            <View style={styles.statCard}>
-              <Ionicons name="stats-chart-outline" size={20} color="#3B7DF8" />
-              <Text style={styles.statValue}>{lastPct}%</Text>
-              <Text style={styles.statLabel}>last score</Text>
-            </View>
-          )}
+          {/* Last score — backend doesn't return this yet, so it's a static
+              placeholder until the field is available. */}
+          <View style={styles.statCard}>
+            <Ionicons name="disc-outline" size={20} color="#3B7DF8" />
+            <Text style={styles.statValue}>75%</Text>
+            <Text style={styles.statLabel}>last score</Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -235,7 +226,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  safeArea: { flex: 1, backgroundColor: '#F7F8FC' },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
 
@@ -287,7 +278,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',

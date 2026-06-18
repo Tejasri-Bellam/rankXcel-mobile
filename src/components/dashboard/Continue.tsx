@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
-import { COLORS } from "@/src/styles/styles";
+import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DashboardData } from "@/src/libs/types/dashboard";
@@ -14,6 +14,7 @@ interface PracticeItem {
   chapter: string;
   subject: string;
   status: string;
+  accuracy: number | null;
 }
 
 const subjectStyle: Record<string, { bg: string; text: string }> = {
@@ -43,6 +44,7 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
       chapter: r.topic_name,
       subject: r.subject_name,
       status: "Weak",
+      accuracy: typeof r.accuracy === "number" ? r.accuracy : null,
     });
     if (items.length >= MAX_ITEMS) break;
   }
@@ -79,7 +81,17 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
         const palette = subjectStyle[item.subject] ?? fallbackStyle;
         return (
           <View key={`${item.chapter}-${index}`} style={styles.card}>
-            <View style={[styles.thumb, { backgroundColor: palette.text }]} />
+            <View
+              style={[
+                styles.thumb,
+                {
+                  backgroundColor:
+                    item.accuracy != null
+                      ? getScoreColor(item.accuracy)
+                      : palette.text,
+                },
+              ]}
+            />
 
             <View style={styles.cardInfo}>
               <Text style={styles.cardTitle} numberOfLines={1}>
