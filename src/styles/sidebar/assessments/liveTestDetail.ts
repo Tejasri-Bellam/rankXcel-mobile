@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 
-const BG = "#EEEFF5";
+const BG = "#F7F8FC";
 const ACCENT = "#2F86FF";
 
 export const liveTestDetailStyles = StyleSheet.create({

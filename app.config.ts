@@ -15,7 +15,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     slug: "rankXcel-mobile",
     version: appVersion,
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
+    icon: "./assets/images/image.png",
     scheme: appScheme,
     userInterfaceStyle: "automatic",
     newArchEnabled: true,

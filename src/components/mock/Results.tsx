@@ -171,7 +171,7 @@ export default function MockExamResults({
   const mockTitle = getMockTitle(mock);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
@@ -346,8 +346,8 @@ const CARD_SHADOW = {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#EEEFF5' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF5', padding: 24 },
+  safeArea: { flex: 1, backgroundColor: '#F7F8FC' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F8FC', padding: 24 },
   centeredText: { marginTop: 12, color: '#9CA3AF', textAlign: 'center' },
   retryBtn: { marginTop: 16, backgroundColor: '#3B7DF8', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
   retryBtnText: { color: '#fff', fontWeight: '700' },
