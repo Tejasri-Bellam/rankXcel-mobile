@@ -117,11 +117,16 @@ export async function startMockQuestionConversationService(
   mockId: number | string,
   questionId: number | string,
 ) {
-  return await genericPost(
+  const res = await genericPost(
     `/v1/mock-tests/${mockId}/questions/${questionId}/conversation/`,
     {},
     { isMultipart: false, useAccessToken: true, timeout: 60000 },
   );
+  console.log(
+    `[TUTOR] POST conversation (mock ${mockId}, question ${questionId}) response:`,
+    JSON.stringify(res?.data, null, 2),
+  );
+  return res;
 }
 
 // Retrieve the conversation (including its id) for a question.
@@ -129,20 +134,30 @@ export async function getMockQuestionConversationService(
   mockId: number | string,
   questionId: number | string,
 ) {
-  return await genericGet(
+  const res = await genericGet(
     `/v1/mock-tests/${mockId}/questions/${questionId}/conversation/`,
     true,
   );
+  console.log(
+    `[TUTOR] GET conversation (mock ${mockId}, question ${questionId}) response:`,
+    JSON.stringify(res?.data, null, 2),
+  );
+  return res;
 }
 
 // Load the follow-up message history for a conversation.
 export async function getConversationMessagesService(
   conversationId: string,
 ) {
-  return await genericGet(
+  const res = await genericGet(
     `/v1/conversations/${conversationId}/follow-up-messages/`,
     true,
   );
+  console.log(
+    `[TUTOR] GET follow-up-messages (conversation ${conversationId}) response:`,
+    JSON.stringify(res?.data, null, 2),
+  );
+  return res;
 }
 
 // Send a follow-up message and receive the tutor's reply. The endpoint stores
@@ -152,11 +167,16 @@ export async function sendConversationMessageService(
   conversationId: string,
   message: string,
 ) {
-  return await genericPost(
+  const res = await genericPost(
     `/v1/conversations/${conversationId}/follow-up-messages/`,
     { question: message },
     { isMultipart: false, useAccessToken: true, timeout: 60000 },
   );
+  console.log(
+    `[TUTOR] POST follow-up-messages (conversation ${conversationId}) response:`,
+    JSON.stringify(res?.data, null, 2),
+  );
+  return res;
 }
 
 // Questions

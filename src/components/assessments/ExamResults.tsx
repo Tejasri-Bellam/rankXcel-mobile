@@ -174,8 +174,11 @@ export default function ExamResults({
         {/* ── Hero banner ── */}
         <View style={styles.banner}>
           {/* Decorative concentric rings behind the score */}
-          <View style={styles.ringOuter} pointerEvents="none" />
-          <View style={styles.ringInner} pointerEvents="none" />
+          <View style={styles.ringWrap} pointerEvents="none">
+            <View style={styles.ringOuter}>
+              <View style={styles.ringInner} />
+            </View>
+          </View>
 
           <Text style={styles.bannerTitle} numberOfLines={1}>
             {title.toUpperCase()} · COMPLETE
@@ -359,23 +362,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 14,
   },
+  ringWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ringOuter: {
-    position: 'absolute',
-    width: 230,
-    height: 230,
-    borderRadius: 115,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.12)',
-    top: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   ringInner: {
-    position: 'absolute',
-    width: 165,
-    height: 165,
-    borderRadius: 82,
+    width: 125,
+    height: 125,
+    borderRadius: 62,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.16)',
-    top: 42,
   },
   bannerTitle: {
     fontSize: 12,

@@ -33,14 +33,18 @@ export default function ExamReadiness({
 
   if (!dashboardData) return null;
 
-  // Readiness = average accuracy across tracked subjects.
-  const pct = subjects.length
-    ? Math.round(
-        subjects.reduce((sum, s) => sum + (s.accuracy ?? 0), 0) /
-          subjects.length
-      )
-    : 0;
-  const label = readinessLabel(pct);
+  // Readiness comes straight from the dashboard payload (readiness_percentage);
+  // fall back to the average accuracy across tracked subjects.
+  const pct =
+    dashboardData.readiness_percentage != null
+      ? Math.round(dashboardData.readiness_percentage)
+      : subjects.length
+      ? Math.round(
+          subjects.reduce((sum, s) => sum + (s.accuracy ?? 0), 0) /
+            subjects.length
+        )
+      : 0;
+  const label = dashboardData.readiness_label || readinessLabel(pct);
   const subjectCount = subjects.length;
   const subtitle = [
     examName || "Your exam",

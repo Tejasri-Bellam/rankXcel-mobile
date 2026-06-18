@@ -7,7 +7,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const appVersionCode = parseInt(process.env.APP_VERSION_CODE || "1");
   const appScheme = process.env.APP_SCHEME || "rankxcel-mobile-dev";
   const deepLinkDomain =
-    process.env.EXPO_PUBLIC_DEEP_LINK_DOMAIN || "rankxcel.wmlit.com";
+    process.env.EXPO_PUBLIC_DEEP_LINK_DOMAIN || "mockexams.wmlit.com";
 
   return {
     ...config,
@@ -42,6 +42,20 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
+      intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          {
+            scheme: "https",
+            host: deepLinkDomain,
+            pathPrefix: "/",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+    ],
       permissions: ["INTERNET"],
     },
 

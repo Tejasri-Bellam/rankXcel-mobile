@@ -231,6 +231,19 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
 
   const renderPrimary = () => {
     if (status === "live") {
+      // Only registered students can enter a live test. If they never
+      // registered, the window has effectively passed for them — show an inert
+      // state rather than an "Enter live test" button they can't use.
+      if (!registered) {
+        return (
+          <View style={[s.primaryBtn, s.missedBtn]}>
+            <Ionicons name="time-outline" size={17} color="#9CA3AF" />
+            <Text style={[s.primaryBtnText, { color: "#9CA3AF" }]}>
+              Not registered
+            </Text>
+          </View>
+        );
+      }
       return (
         <TouchableOpacity
           style={s.primaryBtn}

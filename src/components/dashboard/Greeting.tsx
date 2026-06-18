@@ -20,8 +20,7 @@ const formatNumber = (n: number) =>
 export default function Greeting({ user, dashboardData }: GreetingProps) {
   const firstName = getFirstName(user?.name ?? "");
 
-  const streak = dashboardData?.streak;
-  const currentStreak = streak?.current_streak ?? 0;
+  const currentStreak = dashboardData?.streak?.current_streak ?? 0;
 
   // Gamification fields come from auth/me when available, otherwise we fall
   // back to data we do have so the row never renders empty.
@@ -36,7 +35,7 @@ export default function Greeting({ user, dashboardData }: GreetingProps) {
       <Text style={styles.hi}>Hi, {firstName} 👋</Text>
 
       <View style={styles.badgeRow}>
-        {/* Streak */}
+        {/* Current streak */}
         <View style={[styles.badge, { backgroundColor: COLORS.redLight }]}>
           <Ionicons name="flame" size={13} color={COLORS.red} />
           <Text style={[styles.badgeText, { color: COLORS.red }]}>
@@ -45,18 +44,11 @@ export default function Greeting({ user, dashboardData }: GreetingProps) {
         </View>
 
         {/* XP — real when auth/me provides it */}
-        {xp != null ? (
+        {xp != null && (
           <View style={[styles.badge, { backgroundColor: COLORS.yellowLight }]}>
             <Ionicons name="flash" size={13} color={COLORS.orange} />
             <Text style={[styles.badgeText, { color: COLORS.orange }]}>
               {formatNumber(Number(xp))} XP
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.badge, { backgroundColor: COLORS.yellowLight }]}>
-            <Ionicons name="trophy" size={13} color={COLORS.orange} />
-            <Text style={[styles.badgeText, { color: COLORS.orange }]}>
-              Best {streak?.best_streak ?? 0}
             </Text>
           </View>
         )}

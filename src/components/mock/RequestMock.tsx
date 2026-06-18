@@ -388,21 +388,21 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: '#1A1A2E', fontWeight: '700' },
 
   // Subject chips
-  subjectWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  subjectWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop:10 },
   subjectChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    gap: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 7,
     borderRadius: 22,
     borderWidth: 1.5,
     borderColor: '#E5E7EB',
     backgroundColor: '#fff',
   },
   subjectChipActive: { borderColor: '#6366F1', backgroundColor: '#EEF0FF' },
-  subjectEmoji: { fontSize: 15 },
-  subjectText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  subjectEmoji: { fontSize: 8 },
+  subjectText: { fontSize: 10, fontWeight: '600', color: '#374151' },
   subjectTextActive: { color: '#4338CA' },
   emptySubjects: { fontSize: 13, color: '#9CA3AF', marginVertical: 8 },
 
