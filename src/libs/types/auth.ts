@@ -19,7 +19,7 @@ export interface ForgotPasswordPayload {
 }
 
 export interface ResetPasswordConfirmPayload {
-  new_password: string;
+  password: string;
   confirm_password: string;
 }
 
