@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Animated,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { resetPasswordConfirmService } from '@/src/libs/services/auth';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { resetPasswordStyles } from '@/src/styles/auth/resetPasswordStyles';
+import { resetPasswordStyles as styles } from '@/src/styles/auth/resetPasswordStyles';
+
+const BRAND = 'RankXcel';
 
 // Main Screen
 export default function ResetPasswordConfirmScreen() {
@@ -27,19 +28,9 @@ export default function ResetPasswordConfirmScreen() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(24)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 70, friction: 12, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
   // Password strength indicator
   const getPasswordStrength = (pwd: string): { label: string; color: string; pct: number } => {
-    if (pwd.length === 0) return { label: '', color: '#E5E7EB', pct: 0 };
+    if (pwd.length === 0) return { label: '', color: '#DCE6F4', pct: 0 };
     if (pwd.length < 6) return { label: 'Too short', color: '#EF4444', pct: 20 };
     if (pwd.length < 8) return { label: 'Weak', color: '#F97316', pct: 40 };
     const hasUpper = /[A-Z]/.test(pwd);
@@ -76,59 +67,82 @@ export default function ResetPasswordConfirmScreen() {
 
     setLoading(true);
     try {
-      await resetPasswordConfirmService(uidb64, token, {
-        new_password: newPassword,
+      const response = await resetPasswordConfirmService(uidb64, token, {
+        password: newPassword,
         confirm_password: confirmPassword,
       });
+      console.log('RESET PASSWORD RESPONSE:', JSON.stringify(response, null, 2));
       setSuccess(true);
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error?.response?.data?.message ||
-          error?.response?.data?.new_password?.[0] ||
-          'Failed to reset password. The link may have expired.'
-      );
+      console.log('RESET PASSWORD ERROR:', JSON.stringify(error, null, 2));
+      // The API interceptor rejects with { status, errors, body } — not an
+      // axios error — so read the message off that shape.
+      const apiErrors = error?.errors as Record<string, string[]> | undefined;
+      const body = error?.body as Record<string, any> | undefined;
+      const message =
+        apiErrors?.password?.[0] ||
+        apiErrors?.confirm_password?.[0] ||
+        apiErrors?.token?.[0] ||
+        apiErrors?.nonFieldErrors?.[0] ||
+        (typeof body?.message === 'string' ? body.message : undefined) ||
+        (typeof body?.detail === 'string' ? body.detail : undefined) ||
+        'Failed to reset password. The link may have expired.';
+      Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Logo
-  const Logo = () => (
-    <View style={resetPasswordStyles.logoContainer}>
-      <View style={resetPasswordStyles.logoBox}>
-        <Text style={resetPasswordStyles.logoText}>RX</Text>
+  // Back button
+  const BackButton = () => (
+    <TouchableOpacity
+      style={styles.backButton}
+      onPress={() => router.replace('/auth/login')}
+      activeOpacity={0.7}
+    >
+      <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
+    </TouchableOpacity>
+  );
+
+  // Brand
+  const Brand = () => (
+    <View style={styles.brandRow}>
+      <View style={styles.brandIcon}>
+        <Ionicons name="flash" size={22} color="#FFFFFF" />
       </View>
-      <Text style={resetPasswordStyles.logoLabel}>RankXcel</Text>
+      <Text style={styles.brandText}>{BRAND}</Text>
     </View>
   );
 
   // Success state
   if (success) {
     return (
-      <View style={resetPasswordStyles.safeArea}>
-        <ScrollView contentContainerStyle={resetPasswordStyles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Animated.View style={[resetPasswordStyles.card, { opacity: fadeAnim }]}>
-            <Logo />
-            <View style={resetPasswordStyles.successIconWrapper}>
-              <View style={resetPasswordStyles.successIconOuter}>
-                <View style={resetPasswordStyles.successIconInner}>
-                  <Text style={resetPasswordStyles.successCheckmark}>✓</Text>
-                </View>
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.topRow}>
+            <BackButton />
+          </View>
+          <Brand />
+          <Text style={styles.title}>Password updated</Text>
+          <Text style={styles.subtitle}>
+            Your password has been reset successfully. You can now log in with your new password.
+          </Text>
+
+          <View style={styles.successIconWrapper}>
+            <View style={styles.successIconOuter}>
+              <View style={styles.successIconInner}>
+                <Ionicons name="checkmark" size={28} color="#FFFFFF" />
               </View>
             </View>
-            <Text style={resetPasswordStyles.title}>Password Updated!</Text>
-            <Text style={resetPasswordStyles.subtitle}>
-              Your password has been reset successfully. You can now log in with your new password.
-            </Text>
-            <TouchableOpacity
-              style={resetPasswordStyles.primaryBtn}
-              onPress={() => router.replace('/auth/login')}
-              activeOpacity={0.85}
-            >
-              <Text style={resetPasswordStyles.primaryBtnText}>Back to Login</Text>
-            </TouchableOpacity>
-          </Animated.View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => router.replace('/auth/login')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.primaryBtnText}>Back to log in</Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
     );
@@ -136,133 +150,147 @@ export default function ResetPasswordConfirmScreen() {
 
   // Main form
   return (
-    <View style={resetPasswordStyles.safeArea}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={resetPasswordStyles.flex}
+        style={styles.flex}
       >
         <ScrollView
-          contentContainerStyle={resetPasswordStyles.scrollContent}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View
-            style={[
-              resetPasswordStyles.card,
-              { transform: [{ translateY: slideAnim }], opacity: fadeAnim },
-            ]}
-          >
-            <Logo />
+          <View style={styles.topRow}>
+            <BackButton />
+          </View>
 
-            <View style={resetPasswordStyles.headerSection}>
-              <Text style={resetPasswordStyles.title}>Create New Password</Text>
-              <Text style={resetPasswordStyles.subtitle}>
-                Your new password must be different from your previous password.
+          <Brand />
+
+          <Text style={styles.title}>Create new password</Text>
+          <Text style={styles.subtitle}>
+            Your new password must be different from your previous password.
+          </Text>
+
+          <View style={styles.form}>
+            {/* New password */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                New password <Text style={styles.required}>*</Text>
               </Text>
-            </View>
-
-            <View style={resetPasswordStyles.form}>
-              {/* New password */}
-              <View style={resetPasswordStyles.inputGroup}>
-                <Text style={resetPasswordStyles.label}>
-                  New Password <Text style={resetPasswordStyles.required}>*</Text>
-                </Text>
-                <View style={resetPasswordStyles.inputWrapper}>
-                  <TextInput
-                    style={resetPasswordStyles.textInput}
-                    placeholder="Enter new password"
-                    placeholderTextColor="#9CA3AF"
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    secureTextEntry={!showNew}
-                    autoCapitalize="none"
-                    editable={!loading}
-                  />
-                  <TouchableOpacity
-                    style={resetPasswordStyles.eyeBtn}
-                    onPress={() => setShowNew(!showNew)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text style={resetPasswordStyles.eyeIcon}>{showNew ? '🙈' : '👁️'}</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Strength bar */}
-                {newPassword.length > 0 && (
-                  <View style={resetPasswordStyles.strengthWrapper}>
-                    <View style={resetPasswordStyles.strengthBg}>
-                      <View
-                        style={[
-                          resetPasswordStyles.strengthFill,
-                          { width: `${strength.pct}%` as any, backgroundColor: strength.color },
-                        ]}
-                      />
-                    </View>
-                    <Text style={[resetPasswordStyles.strengthLabel, { color: strength.color }]}>
-                      {strength.label}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Confirm password */}
-              <View style={resetPasswordStyles.inputGroup}>
-                <Text style={resetPasswordStyles.label}>
-                  Confirm Password <Text style={resetPasswordStyles.required}>*</Text>
-                </Text>
-                <View
-                  style={[
-                    resetPasswordStyles.inputWrapper,
-                    passwordsMismatch && resetPasswordStyles.inputWrapperError,
-                    passwordsMatch && resetPasswordStyles.inputWrapperSuccess,
-                  ]}
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color="#94A3B8"
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter new password"
+                  placeholderTextColor="#9CA3AF"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNew}
+                  autoCapitalize="none"
+                  editable={!loading}
+                />
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setShowNew(!showNew)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <TextInput
-                    style={resetPasswordStyles.textInput}
-                    placeholder="Re-enter new password"
-                    placeholderTextColor="#9CA3AF"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showConfirm}
-                    autoCapitalize="none"
-                    editable={!loading}
+                  <Ionicons
+                    name={showNew ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#94A3B8"
                   />
-                  <TouchableOpacity
-                    style={resetPasswordStyles.eyeBtn}
-                    onPress={() => setShowConfirm(!showConfirm)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text style={resetPasswordStyles.eyeIcon}>{showConfirm ? '🙈' : '👁️'}</Text>
-                  </TouchableOpacity>
-                </View>
-                {passwordsMismatch && (
-                  <Text style={resetPasswordStyles.errorText}>Passwords do not match</Text>
-                )}
+                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                style={[resetPasswordStyles.primaryBtn, loading && resetPasswordStyles.primaryBtnDisabled]}
-                onPress={handleResetPassword}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={resetPasswordStyles.primaryBtnText}>Reset Password</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={resetPasswordStyles.backRow}
-                onPress={() => router.replace('/auth/login')}
-                activeOpacity={0.7}
-              >
-                <Text style={resetPasswordStyles.backArrow}>←</Text>
-                <Text style={resetPasswordStyles.backText}> Back to login</Text>
-              </TouchableOpacity>
+              {/* Strength bar */}
+              {newPassword.length > 0 && (
+                <View style={styles.strengthWrapper}>
+                  <View style={styles.strengthBg}>
+                    <View
+                      style={[
+                        styles.strengthFill,
+                        { width: `${strength.pct}%` as any, backgroundColor: strength.color },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.strengthLabel, { color: strength.color }]}>
+                    {strength.label}
+                  </Text>
+                </View>
+              )}
             </View>
-          </Animated.View>
+
+            {/* Confirm password */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Confirm password <Text style={styles.required}>*</Text>
+              </Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  passwordsMismatch && styles.inputWrapperError,
+                  passwordsMatch && styles.inputWrapperSuccess,
+                ]}
+              >
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color="#94A3B8"
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Re-enter new password"
+                  placeholderTextColor="#9CA3AF"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirm}
+                  autoCapitalize="none"
+                  editable={!loading}
+                />
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setShowConfirm(!showConfirm)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#94A3B8"
+                  />
+                </TouchableOpacity>
+              </View>
+              {passwordsMismatch && (
+                <Text style={styles.errorText}>Passwords do not match</Text>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
+              onPress={handleResetPassword}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Reset password</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.backRow}
+              onPress={() => router.replace('/auth/login')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.backText}>← Back to log in</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
