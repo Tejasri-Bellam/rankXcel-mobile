@@ -15,6 +15,7 @@ import {
   AssessmentTopicBreakdown,
 } from '@/src/libs/services/assessments-attempts';
 import { getScoreColor } from '@/src/styles/styles';
+import { useRouter } from 'expo-router';
 
 interface Props {
   attemptId: number;
@@ -62,7 +63,7 @@ export default function ExamResults({
   const [result, setResult] = useState<AssessmentResult | null>(initialResult ?? null);
   const [loading, setLoading] = useState(!initialResult);
   const [error, setError] = useState<string | null>(null);
-
+  const router = useRouter();
   useEffect(() => {
     if (initialResult) return; // already have it from the submit response
     loadResult();
@@ -319,11 +320,11 @@ export default function ExamResults({
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.keepGoingBtn}
-            onPress={onViewSolutions ?? onDone ?? onBack}
+            onPress={() => router.push('/practice')}
             activeOpacity={0.85}
           >
             <Ionicons name="eye-outline" size={16} color="#fff" />
-            <Text style={styles.keepGoingText}>Review answers</Text>
+            <Text style={styles.keepGoingText}>Keep Going</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
