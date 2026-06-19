@@ -657,7 +657,7 @@ export default function AnalyticsScreen() {
           />
         }
       >
-        <Text style={styles.pageTitle}>Stats</Text>
+        <Text style={styles.pageTitle}>Performance</Text>
 
         {/* ── Tab switcher ── */}
         <View style={styles.tabBar}>
