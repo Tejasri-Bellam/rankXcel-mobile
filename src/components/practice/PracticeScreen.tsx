@@ -4,13 +4,7 @@ import { getExamSyllabusService } from "@/src/libs/services/practice";
 import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -282,28 +276,66 @@ const StatBanner = ({
   </View>
 );
 
-// Small blue play button shown on every practisable (leaf) row.
+// Small blue play button shown on every practisable (leaf) row. It's the row's
+// default tap target — pressing the row starts untimed practice.
 const PlayButton = () => (
   <View style={styles.playBtn}>
     <Ionicons name="play" size={15} color={ACCENT} />
   </View>
 );
 
-// Full-width "Practice all" bar pinned below a list.
+// File-icon button next to the play button — starts the same node as a TEST
+// (test_type "TEST"): answers are revealed only after the whole test is done.
+const TestButton = ({ onPress }: { onPress: () => void }) => (
+  <TouchableOpacity
+    style={styles.testBtn}
+    onPress={onPress}
+    activeOpacity={0.7}
+    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+  >
+    <Ionicons name="document-text-outline" size={16} color={ACCENT} />
+  </TouchableOpacity>
+);
+
+// Row-level action cluster: play (practice) + file (test).
+const RowActions = ({ onTest }: { onTest: () => void }) => (
+  <View style={styles.rowActions}>
+    <PlayButton />
+    <TestButton onPress={onTest} />
+  </View>
+);
+
+// Full-width "Practice all" bar pinned below a list. The bar itself starts
+// practice; the trailing file-icon button starts the same set as a test.
 const PracticeAllBar = ({
   label,
   onPress,
+  onTest,
 }: {
   label: string;
   onPress: () => void;
+  onTest: () => void;
 }) => (
-  <TouchableOpacity style={styles.practiceAllBar} activeOpacity={0.85} onPress={onPress}>
-    <View style={styles.practiceAllIcon}>
-      <Ionicons name="play" size={16} color="#fff" />
-    </View>
+  <View style={styles.practiceAllBar}>
     <Text style={styles.practiceAllLabel}>{label}</Text>
-    <Ionicons name="arrow-forward" size={18} color="#fff" />
-  </TouchableOpacity>
+    {/* Both actions sit on the right: play = practice, file = test. */}
+    <TouchableOpacity
+      style={styles.practiceAllActionBtn}
+      onPress={onPress}
+      activeOpacity={0.7}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    >
+      <Ionicons name="play" size={16} color="#fff" />
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={styles.practiceAllActionBtn}
+      onPress={onTest}
+      activeOpacity={0.7}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    >
+      <Ionicons name="document-text-outline" size={17} color="#fff" />
+    </TouchableOpacity>
+  </View>
 );
 
 export default function PracticeScreen() {
@@ -340,6 +372,8 @@ export default function PracticeScreen() {
 
   const [practiceVisible, setPracticeVisible] = useState(false);
   const [activeChapter, setActiveChapter] = useState<ChapterItem | null>(null);
+  // Whether the active session is a TEST (file icon) vs untimed practice.
+  const [activeIsTest, setActiveIsTest] = useState(false);
   const [autoQuestionCount, setAutoQuestionCount] = useState<number | undefined>(undefined);
   const [autoTimerMinutes, setAutoTimerMinutes] = useState<number | undefined>(undefined);
   const autoLaunchHandledRef = useRef(false);
@@ -375,6 +409,7 @@ export default function PracticeScreen() {
     if (!params?.chapterName || !params?.subjectName || !params?.examId) return;
     if (activeExamId == null) return;
     autoLaunchHandledRef.current = true;
+    setActiveIsTest(false);
     // A real topic id targets that specific topic; without one, an empty
     // `topicIds` tells the backend to draw from all topics under the subject.
     // Never fall back to a placeholder id of 0 — the API rejects it.
@@ -397,10 +432,12 @@ export default function PracticeScreen() {
     router.setParams({ chapterName: undefined, subjectName: undefined, topicId: undefined, questionCount: undefined, durationMinutes: undefined, examId: undefined } as any);
   }, [params, activeExamId, router]);
 
-  // Open the practice/test flow for any node in the tree. `timed` starts the
-  // session as a timed test; otherwise it's untimed practice.
-  const openPractice = (chapter: ChapterItem, timed = false) => {
+  // Open the practice/test flow for any node in the tree. `isTest` starts the
+  // session in TEST mode (file icon) — same flow, but answers are revealed only
+  // after the whole test. `timed` starts it as a timed session.
+  const openPractice = (chapter: ChapterItem, isTest = false, timed = false) => {
     setActiveChapter(chapter);
+    setActiveIsTest(isTest);
     setAutoQuestionCount(undefined);
     setAutoTimerMinutes(timed ? 15 : undefined);
     setPracticeVisible(true);
@@ -440,7 +477,7 @@ export default function PracticeScreen() {
 
   // Practise across every topic in the subject at once. An empty `topicIds`
   // tells the backend to draw from all topics under the subject.
-  const handleAllTopicsPress = (subject: SubjectGroup) => {
+  const handleAllTopicsPress = (subject: SubjectGroup, isTest = false) => {
     setActiveChapter({
       id: 0,
       name: subject.name ? `All ${subject.name} topics` : "All topics",
@@ -449,6 +486,7 @@ export default function PracticeScreen() {
       subjectName: subject.name,
       topicIds: [],
     });
+    setActiveIsTest(isTest);
     setPracticeVisible(true);
   };
 
@@ -489,7 +527,9 @@ export default function PracticeScreen() {
               {hasSubs ? (
                 <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
               ) : (
-                <PlayButton />
+                <RowActions
+                  onTest={() => openPractice(topicToChapter(topic, subject), true)}
+                />
               )}
             </TouchableOpacity>
           );
@@ -500,6 +540,7 @@ export default function PracticeScreen() {
         <PracticeAllBar
           label="Practice all topics"
           onPress={() => handleAllTopicsPress(subject)}
+          onTest={() => handleAllTopicsPress(subject, true)}
         />
       )}
     </>
@@ -514,6 +555,7 @@ export default function PracticeScreen() {
         examId={Number(activeExamId)}
         initialQuestionCount={autoQuestionCount}
         initialTimerMinutes={autoTimerMinutes}
+        isTest={activeIsTest}
         onClose={() => {
           setPracticeVisible(false);
           setActiveChapter(null);
@@ -600,7 +642,9 @@ export default function PracticeScreen() {
                     <Text style={styles.listMeta}>{meta}</Text>
                   </View>
                   <View style={[styles.square, { backgroundColor: squareColor(sub.accuracy) }]} />
-                  <PlayButton />
+                  <RowActions
+                    onTest={() => openPractice(subToChapter(sub, subject), true)}
+                  />
                 </TouchableOpacity>
               );
             })}
@@ -609,6 +653,7 @@ export default function PracticeScreen() {
           <PracticeAllBar
             label="Practice all"
             onPress={() => openPractice(topicAllChapter(topic, subject))}
+            onTest={() => openPractice(topicAllChapter(topic, subject), true)}
           />
         </ScrollView>
         {practiceModal}
@@ -840,12 +885,23 @@ const styles = StyleSheet.create({
   listMeta: { fontSize: 12, color: "#9CA3AF", marginTop: 3 },
   square: { width: 26, height: 26, borderRadius: 8 },
 
-  // Leaf-row play button
+  // Leaf-row action cluster (play = practice, file = test)
+  rowActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   playBtn: {
     width: 34,
     height: 34,
     borderRadius: 10,
     backgroundColor: "#EEF4FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  testBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -861,15 +917,15 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     marginTop: 16,
   },
-  practiceAllIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
+  practiceAllLabel: { flex: 1, fontSize: 15, fontWeight: "700", color: "#fff" },
+  practiceAllActionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.22)",
     alignItems: "center",
     justifyContent: "center",
   },
-  practiceAllLabel: { flex: 1, fontSize: 15, fontWeight: "700", color: "#fff" },
 
   // States
   centered: {

@@ -91,7 +91,13 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
                       : palette.text,
                 },
               ]}
-            />
+            >
+              {item.accuracy != null && (
+                <Text style={styles.thumbText}>
+                  {Math.round(item.accuracy)}%
+                </Text>
+              )}
+            </View>
 
             <View style={styles.cardInfo}>
               <Text style={styles.cardTitle} numberOfLines={1}>
@@ -148,7 +154,10 @@ const styles: any = {
     width: 44,
     height: 44,
     borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  thumbText: { fontSize: 13, fontWeight: "800", color: COLORS.white },
   cardInfo: { flex: 1, marginLeft: 12 },
   cardTitle: { fontSize: 14, fontWeight: "700", color: COLORS.textDark },
   cardSub: { fontSize: 12, color: COLORS.textLight, marginTop: 3 },

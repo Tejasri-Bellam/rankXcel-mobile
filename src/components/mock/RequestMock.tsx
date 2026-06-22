@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -108,10 +109,22 @@ export default function RequestMockModal({
     );
   };
 
+  const isFullSyllabus = scope === 'full' && !isPractice;
+  const isPresetCount = QUESTION_OPTIONS.includes(questionCount);
+  const customCountValue = !isPresetCount && questionCount > 0 ? String(questionCount) : '';
+
+  const handleCustomCount = (text: string) => {
+    const n = parseInt(text.replace(/[^0-9]/g, ''), 10);
+    setQuestionCount(Number.isFinite(n) ? n : 0);
+  };
+  const adjustCount = (delta: number) =>
+    setQuestionCount((prev) => Math.max(1, Math.min(200, (prev || 0) + delta)));
+
   const needsSubjects = scope === 'subjects' || isPractice;
   const canSubmit =
     defaultExamId != null &&
     !submitting &&
+    questionCount > 0 &&
     (!needsSubjects || selectedSubjectIds.length > 0);
 
   const handleSubmit = async () => {
@@ -123,14 +136,13 @@ export default function RequestMockModal({
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      const fullSyllabus = scope === 'full' && !isPractice;
-      const payload = fullSyllabus
+      const payload = isFullSyllabus
         ? {
+            // Time limit is set automatically by the backend for full-syllabus mocks.
             test_type: testType as 'MOCK_TEST' | 'PRACTICE_TEST',
             is_full_syllabus: true as const,
             question_count: questionCount,
             difficulty,
-            total_duration_minutes: duration,
           }
         : {
             test_type: testType as 'MOCK_TEST' | 'PRACTICE_TEST',
@@ -282,14 +294,68 @@ export default function RequestMockModal({
               setQuestionCount,
             )}
 
-            <Text style={styles.sectionLabel}>DIFFICULTY</Text>
-            {renderChipRow(DIFFICULTY_OPTIONS, difficulty, setDifficulty)}
+            {/* Custom count — typing here overrides the preset chips above. */}
+            <View style={styles.customCountRow}>
+              <TextInput
+                style={styles.customCountInput}
+                placeholder="Custom count"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="number-pad"
+                value={customCountValue}
+                onChangeText={handleCustomCount}
+              />
+              <View style={styles.stepper}>
+                <TouchableOpacity
+                  style={styles.stepBtn}
+                  onPress={() => adjustCount(1)}
+                  hitSlop={{ top: 6, bottom: 2, left: 6, right: 6 }}
+                >
+                  <Ionicons name="chevron-up" size={14} color="#6B7280" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.stepBtn}
+                  onPress={() => adjustCount(-1)}
+                  hitSlop={{ top: 2, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="chevron-down" size={14} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-            <Text style={styles.sectionLabel}>TIME LIMIT</Text>
-            {renderChipRow(
-              DURATION_OPTIONS.map((n) => ({ value: n, label: `${n}m` })),
-              duration,
-              setDuration,
+            <Text style={styles.sectionLabel}>DIFFICULTY</Text>
+            <View style={styles.segment}>
+              {DIFFICULTY_OPTIONS.map((d) => {
+                const active = difficulty === d.value;
+                return (
+                  <TouchableOpacity
+                    key={d.value}
+                    style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                    onPress={() => setDifficulty(d.value)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                      {d.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {isFullSyllabus ? (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoBoxText}>
+                  Time limit is set automatically for full-syllabus mocks.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.sectionLabel}>TIME LIMIT</Text>
+                {renderChipRow(
+                  DURATION_OPTIONS.map((n) => ({ value: n, label: `${n}m` })),
+                  duration,
+                  setDuration,
+                )}
+              </>
             )}
 
             <TouchableOpacity
@@ -420,6 +486,46 @@ const styles = StyleSheet.create({
   optChipActive: { borderColor: '#6366F1', backgroundColor: '#EEF0FF' },
   optChipText: { fontSize: 15, fontWeight: '700', color: '#374151' },
   optChipTextActive: { color: '#4338CA' },
+
+  // Custom count input + stepper
+  customCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    paddingLeft: 14,
+    paddingRight: 6,
+  },
+  customCountInput: {
+    flex: 1,
+    paddingVertical: 13,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A2E',
+  },
+  stepper: { justifyContent: 'center' },
+  stepBtn: {
+    width: 28,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Auto time-limit info box (full syllabus)
+  infoBox: {
+    marginTop: 22,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  infoBoxText: { fontSize: 13, color: '#9CA3AF', lineHeight: 19 },
 
   generateBtn: {
     flexDirection: 'row',

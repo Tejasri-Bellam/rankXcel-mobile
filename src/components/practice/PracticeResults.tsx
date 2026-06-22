@@ -20,6 +20,7 @@ interface Props {
   answers: AnswerState[];
   totalSeconds: number;
   submitting?: boolean;
+  isTest?: boolean;
   onTryAgain: () => void;
   onBackToHub: () => void;
 }
@@ -71,6 +72,7 @@ export default function PracticeResults({
   answers,
   totalSeconds,
   submitting = false,
+  isTest = false,
   onTryAgain,
   onBackToHub,
 }: Props) {
@@ -240,7 +242,7 @@ export default function PracticeResults({
         </View>
 
         <Text style={styles.heading}>{heading(accuracy)}</Text>
-        <Text style={styles.subheading}>{chapterName} · practice</Text>
+        <Text style={styles.subheading}>{chapterName} · {isTest ? "test" : "practice"}</Text>
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>

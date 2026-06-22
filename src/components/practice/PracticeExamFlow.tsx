@@ -161,6 +161,9 @@ interface PracticeExamFlowProps {
   examId: number;
   initialQuestionCount?: number;
   initialTimerMinutes?: number;
+  /** Test mode (file icon) instead of practice. Sends test_type "TEST" and
+   * defers all answer feedback until the whole test is finished. */
+  isTest?: boolean;
   onClose: () => void;
   /** Called when the user finishes a session and leaves the results screen.
    * Defaults to onClose; the syllabus uses it to return to the root + refresh. */
@@ -173,6 +176,7 @@ export const PracticeExamFlow = ({
   examId,
   initialQuestionCount,
   initialTimerMinutes,
+  isTest = false,
   onClose,
   onCompleted,
 }: PracticeExamFlowProps) => {
@@ -243,6 +247,8 @@ export const PracticeExamFlow = ({
         question_count: count,
         total_duration_minutes: timer > 0 ? timer : 0,
         difficulty,
+        // Both practice and test use PRACTICE_TEST — test mode differs only in
+        // deferring answer feedback to the end, not in the backend test_type.
         test_type: "PRACTICE_TEST" as const,
       };
 
@@ -298,17 +304,53 @@ export const PracticeExamFlow = ({
     setFinalAnswers(answers);
     setFinalSeconds(seconds);
     setFinalQuestions(finished);
+    setScreen("results");
     if (mockId != null) {
       try {
         setSubmittingMock(true);
         await submitMockTestService(mockId);
+        // In test mode no per-question answer key was fetched during play
+        // (feedback is deferred to the end), so pull it once after submission
+        // and merge it in — the results/review screens compute outcomes from
+        // each question's correctChoiceId/correctAnswer. Best-effort: if the
+        // API returns no key, the played questions are kept as-is.
+        if (isTest) {
+          try {
+            const qRes = await getMockTestQuestionsService(mockId);
+            const raw = unwrap(qRes);
+            const arr =
+              (Array.isArray(raw?.questions) && raw.questions) ||
+              findQuestionsArray(raw) ||
+              toArray(raw);
+            const key = arr
+              .map(normalizeQuestion)
+              .filter(Boolean) as PracticeApiQuestion[];
+            if (key.length > 0) {
+              setFinalQuestions((prev) =>
+                prev.map((q) => {
+                  const match = key.find((k) => String(k.id) === String(q.id));
+                  if (!match) return q;
+                  return {
+                    ...q,
+                    correctChoiceId: match.correctChoiceId ?? q.correctChoiceId,
+                    correctAnswer: match.correctAnswer ?? q.correctAnswer ?? null,
+                    explanation: match.explanation || q.explanation,
+                    explanationStructured:
+                      match.explanationStructured ?? q.explanationStructured ?? null,
+                  };
+                }),
+              );
+            }
+          } catch (e) {
+            console.log("Test answer-key fetch error:", e);
+          }
+        }
       } catch (e) {
         console.log("Practice submit error:", e);
       } finally {
         setSubmittingMock(false);
       }
     }
-    setScreen("results");
   };
 
   const handleTryAgain = () => {
@@ -329,6 +371,7 @@ export const PracticeExamFlow = ({
           errorText={loadError}
           initialQuestionCount={initialQuestionCount}
           initialTimerMinutes={initialTimerMinutes}
+          isTest={isTest}
           onBegin={handleBegin}
           onCancel={onClose}
         />
@@ -337,7 +380,9 @@ export const PracticeExamFlow = ({
       {screen === "loading" && (
         <View style={loadStyles.container}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={loadStyles.text}>Preparing your practice...</Text>
+          <Text style={loadStyles.text}>
+            Preparing your {isTest ? "test" : "practice"}...
+          </Text>
         </View>
       )}
 
@@ -347,6 +392,7 @@ export const PracticeExamFlow = ({
           questions={questions}
           chapterName={chapter.name}
           timerMinutes={timerMinutes}
+          isTest={isTest}
           onEnd={handleEnd}
         />
       )}
@@ -358,6 +404,7 @@ export const PracticeExamFlow = ({
           answers={finalAnswers}
           totalSeconds={finalSeconds}
           submitting={submittingMock}
+          isTest={isTest}
           onTryAgain={handleTryAgain}
           onBackToHub={onCompleted ?? onClose}
         />

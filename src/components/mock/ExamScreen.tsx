@@ -217,18 +217,23 @@ export default function MockExamScreen({
     setShowPalette(false);
   };
 
+  // Flush the on-screen answer + any in-flight saves, then submit the attempt.
+  const flushAndSubmit = async () => {
+    // Persist the question on screen (e.g. the last one, which has no Next).
+    commitCurrentAnswer();
+    if (pendingSaves.current.size > 0) {
+      await Promise.all(Array.from(pendingSaves.current));
+    }
+    return submitMockTestService(mockId);
+  };
+
   const handleFinalSubmit = async () => {
     if (submitting) return;
     try {
       setSubmitting(true);
       setShowSubmitSheet(false);
       setShowPalette(false);
-      // Persist the question on screen (e.g. the last one, which has no Next).
-      commitCurrentAnswer();
-      if (pendingSaves.current.size > 0) {
-        await Promise.all(Array.from(pendingSaves.current));
-      }
-      const submitRes = await submitMockTestService(mockId);
+      const submitRes = await flushAndSubmit();
       const result = (submitRes as any)?.data ?? (submitRes as any) ?? null;
       onSubmit(answers, timeTaken, result);
     } catch (err) {
@@ -236,6 +241,37 @@ export default function MockExamScreen({
       Alert.alert('Error', 'Submission failed. Please try again.');
       setSubmitting(false);
     }
+  };
+
+  // X (close) in the header: confirm, submit the attempt, then leave to the
+  // mock list. Submitting here means the mock can't be restarted from scratch.
+  const handleExit = () => {
+    if (submitting) return;
+    Alert.alert(
+      'Exit test?',
+      "Your test will be submitted and you won't be able to change your answers.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Submit & Exit',
+          style: 'destructive',
+          onPress: async () => {
+            if (submitting) return;
+            try {
+              setSubmitting(true);
+              setShowSubmitSheet(false);
+              setShowPalette(false);
+              await flushAndSubmit();
+              onBackToMocks?.();
+            } catch (err) {
+              console.log('SUBMIT ERROR:', err);
+              Alert.alert('Error', 'Submission failed. Please try again.');
+              setSubmitting(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   // Current flat index
@@ -279,7 +315,7 @@ export default function MockExamScreen({
     <SafeAreaView style={styles.safeArea} edges={[]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.closeBtn} onPress={onBackToMocks} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.closeBtn} onPress={handleExit} activeOpacity={0.7}>
           <Ionicons name="close" size={18} color="#555" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
