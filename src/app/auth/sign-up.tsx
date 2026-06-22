@@ -1,6 +1,3 @@
-import React from "react";
-import LoginScreen from "@/src/components/auth/LoginScreen";
+import SignupScreen from "@/src/components/auth/SignupScreen";
 
-export default function SignUp() {
-  return <LoginScreen initialMode="signup" />;
-}
+export default SignupScreen;
