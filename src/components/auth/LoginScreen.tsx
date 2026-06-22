@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +23,7 @@ import {
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import CountrySelect from '@/src/components/common/CountrySelect';
+import InputField from '@/src/components/common/InputField';
 import Toast, { useToast } from '@/src/components/common/Toast';
 import {
   EMAIL_REGEX,
@@ -356,72 +356,34 @@ const LoginScreen = () => {
 
           {/* Form */}
           <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Email <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  fieldErrors.email && styles.inputWrapperError,
-                ]}
-              >
-                <Ionicons
-                  name="mail-outline"
-                  size={20}
-                  color="#94A3B8"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="you@email.com"
-                  placeholderTextColor="#9CA3AF"
-                  value={email}
-                  onChangeText={(t) => {
-                    setEmail(t);
-                    clearFieldError('email');
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-              {!!fieldErrors.email && (
-                <Text style={styles.fieldError}>{fieldErrors.email}</Text>
-              )}
-            </View>
+            <InputField
+              label="Email"
+              required
+              icon="mail-outline"
+              placeholder="you@email.com"
+              value={email}
+              onChangeText={(t) => {
+                setEmail(t);
+                clearFieldError('email');
+              }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={fieldErrors.email}
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Password <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  fieldErrors.password && styles.inputWrapperError,
-                ]}
-              >
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#94A3B8"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Your password"
-                  placeholderTextColor="#9CA3AF"
-                  value={password}
-                  onChangeText={(t) => {
-                    setPassword(t);
-                    clearFieldError('password');
-                  }}
-                  secureTextEntry
-                />
-              </View>
-              {!!fieldErrors.password && (
-                <Text style={styles.fieldError}>{fieldErrors.password}</Text>
-              )}
-            </View>
+            <InputField
+              label="Password"
+              required
+              icon="lock-closed-outline"
+              placeholder="Your password"
+              value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                clearFieldError('password');
+              }}
+              password
+              error={fieldErrors.password}
+            />
 
             <TouchableOpacity
               onPress={() => router.push('../auth/forgot-password')}

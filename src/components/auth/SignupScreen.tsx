@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +23,7 @@ import {
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import CountrySelect from '@/src/components/common/CountrySelect';
+import InputField from '@/src/components/common/InputField';
 import Toast, { useToast } from '@/src/components/common/Toast';
 import {
   EMAIL_REGEX,
@@ -388,174 +388,76 @@ const SignupScreen = () => {
 
           {/* Form */}
           <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Full name <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  fieldErrors.fullName && styles.inputWrapperError,
-                ]}
-              >
-                <Ionicons
-                  name="person-outline"
-                  size={20}
-                  color="#94A3B8"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Arjun Mehta"
-                  placeholderTextColor="#9CA3AF"
-                  value={fullName}
-                  onChangeText={(t) => {
-                    setFullName(t);
-                    clearFieldError('fullName');
-                  }}
-                />
-              </View>
-              {!!fieldErrors.fullName && (
-                <Text style={styles.fieldError}>{fieldErrors.fullName}</Text>
-              )}
-            </View>
+            <InputField
+              label="Full name"
+              required
+              icon="person-outline"
+              placeholder="Arjun Mehta"
+              value={fullName}
+              onChangeText={(t) => {
+                setFullName(t);
+                clearFieldError('fullName');
+              }}
+              error={fieldErrors.fullName}
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Email <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  fieldErrors.email && styles.inputWrapperError,
-                ]}
-              >
-                <Ionicons
-                  name="mail-outline"
-                  size={20}
-                  color="#94A3B8"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="you@email.com"
-                  placeholderTextColor="#9CA3AF"
-                  value={email}
-                  onChangeText={(t) => {
-                    setEmail(t);
-                    clearFieldError('email');
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-              {!!fieldErrors.email && (
-                <Text style={styles.fieldError}>{fieldErrors.email}</Text>
-              )}
-            </View>
+            <InputField
+              label="Email"
+              required
+              icon="mail-outline"
+              placeholder="you@email.com"
+              value={email}
+              onChangeText={(t) => {
+                setEmail(t);
+                clearFieldError('email');
+              }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={fieldErrors.email}
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Mobile number <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  fieldErrors.mobileNumber && styles.inputWrapperError,
-                ]}
-              >
-                <Ionicons
-                  name="call-outline"
-                  size={20}
-                  color="#94A3B8"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="9876543210"
-                  placeholderTextColor="#9CA3AF"
-                  value={mobileNumber}
-                  onChangeText={(t) => {
-                    setMobileNumber(t);
-                    clearFieldError('mobileNumber');
-                  }}
-                  keyboardType="phone-pad"
-                />
-              </View>
-              {fieldErrors.mobileNumber ? (
-                <Text style={styles.fieldError}>{fieldErrors.mobileNumber}</Text>
-              ) : (
-                <Text style={styles.inputHint}>10 digit mobile number</Text>
-              )}
-            </View>
+            <InputField
+              label="Mobile number"
+              required
+              icon="call-outline"
+              placeholder="9876543210"
+              value={mobileNumber}
+              onChangeText={(t) => {
+                setMobileNumber(t);
+                clearFieldError('mobileNumber');
+              }}
+              keyboardType="phone-pad"
+              error={fieldErrors.mobileNumber}
+              hint="10 digit mobile number"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Password <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  fieldErrors.password && styles.inputWrapperError,
-                ]}
-              >
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#94A3B8"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Min. 8 characters"
-                  placeholderTextColor="#9CA3AF"
-                  value={password}
-                  onChangeText={(t) => {
-                    setPassword(t);
-                    clearFieldError('password');
-                  }}
-                  secureTextEntry
-                />
-              </View>
-              {!!fieldErrors.password && (
-                <Text style={styles.fieldError}>{fieldErrors.password}</Text>
-              )}
-            </View>
+            <InputField
+              label="Password"
+              required
+              icon="lock-closed-outline"
+              placeholder="Min. 8 characters"
+              value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                clearFieldError('password');
+              }}
+              password
+              error={fieldErrors.password}
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Confirm password <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  fieldErrors.confirmPassword && styles.inputWrapperError,
-                ]}
-              >
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#94A3B8"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Re-enter your password"
-                  placeholderTextColor="#9CA3AF"
-                  value={confirmPassword}
-                  onChangeText={(t) => {
-                    setConfirmPassword(t);
-                    clearFieldError('confirmPassword');
-                  }}
-                  secureTextEntry
-                />
-              </View>
-              {!!fieldErrors.confirmPassword && (
-                <Text style={styles.fieldError}>
-                  {fieldErrors.confirmPassword}
-                </Text>
-              )}
-            </View>
+            <InputField
+              label="Confirm password"
+              required
+              icon="lock-closed-outline"
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChangeText={(t) => {
+                setConfirmPassword(t);
+                clearFieldError('confirmPassword');
+              }}
+              password
+              error={fieldErrors.confirmPassword}
+            />
 
             <TouchableOpacity
               style={styles.checkboxContainer}
