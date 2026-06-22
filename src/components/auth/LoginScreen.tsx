@@ -10,8 +10,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import { loginStyles as styles } from '@/src/styles/auth/loginStyles';
-import { loginService, signupService } from '@/src/libs/services/auth';
+import { googleLoginService, loginService, signupService } from '@/src/libs/services/auth';
 import {
   getCountriesService,
   getCountryService,
@@ -242,6 +246,76 @@ const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
     return errors;
   };
 
+  // Shared post-authentication flow used by both password login and Google
+  // sign-in: clear any stale session, persist the new token + region, and route
+  // into the dashboard.
+  const completeLogin = async (data: any) => {
+    // Safety net: clear any data left behind by a previous session before
+    // storing the new one. A clean logout already does this, but the app may
+    // have been killed mid-session — without this, the new student could
+    // inherit the previous student's cached exam selection and dashboard.
+    await clearUserSession();
+    resetTargetExam();
+
+    if (data?.token) {
+      await storageSetAccessToken(data?.token);
+    }
+
+    // The login response doesn't carry the country, so fetch it from
+    // /v1/get_country/. The country id scopes the whole catalogue (target
+    // exams → mocks, syllabus, live tests). Fall back to anything the login
+    // response happens to include if the call fails.
+    let region: LoginRegion = { name: '' };
+    let countryId: number | string | null = null;
+    try {
+      const countryRes: any = await getCountryService();
+      const userCountry = normalizeUserCountry(countryRes?.data);
+      if (userCountry) {
+        countryId = userCountry.id;
+        region = { name: userCountry.name };
+      }
+    } catch {
+      // Non-fatal — fall back to the login payload below.
+    }
+    if (countryId == null) {
+      const fallback = normalizeLoginRegion(data);
+      region = fallback.region;
+      countryId = fallback.countryId;
+    }
+    // Last resort: honour whatever the user picked in the header selector.
+    if (countryId == null && selectedCountryId != null) {
+      countryId = selectedCountryId;
+    }
+    // Resolve flag/currency from the countries master for the sidebar.
+    if (region.name) {
+      region = await enrichRegionFromCatalogue(region, countryId);
+    }
+
+    // Persist the region (incl. id when known) so the profile sidebar shows it
+    // and later refreshes keep scoping the catalogue to the same country.
+    if (region.name) {
+      await AsyncStorage.setItem(
+        'region',
+        JSON.stringify(countryId != null ? { ...region, id: countryId } : region)
+      );
+    }
+    if (countryId != null) {
+      await AsyncStorage.setItem('regionCountryId', String(countryId));
+    }
+    if (data?.user) {
+      await AsyncStorage.setItem('user', JSON.stringify(data.user));
+    }
+
+    // Load this student's target exams scoped to their country, defaulting the
+    // selection to the first exam. Mocks / syllabus / live tests all follow
+    // the selected target exam. Fire-and-forget: refreshExams sets its
+    // in-flight guard synchronously, so the dashboard's own initial load is
+    // deduped against this one.
+    refreshExams(countryId ?? undefined);
+
+    router.replace('/dashboard');
+  };
+
   const handleLogin = async () => {
     setErrorMsg('');
     const errors = validateLogin();
@@ -259,70 +333,7 @@ const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
       const { data } = (await loginService(payload)) as { data: any };
       console.log('LOGIN RESPONSE:', JSON.stringify(data, null, 2));
 
-      // Safety net: clear any data left behind by a previous session before
-      // storing the new one. A clean logout already does this, but the app may
-      // have been killed mid-session — without this, the new student could
-      // inherit the previous student's cached exam selection and dashboard.
-      await clearUserSession();
-      resetTargetExam();
-
-      if (data?.token) {
-        await storageSetAccessToken(data?.token);
-      }
-
-      // The login response doesn't carry the country, so fetch it from
-      // /v1/get_country/. The country id scopes the whole catalogue (target
-      // exams → mocks, syllabus, live tests). Fall back to anything the login
-      // response happens to include if the call fails.
-      let region: LoginRegion = { name: '' };
-      let countryId: number | string | null = null;
-      try {
-        const countryRes: any = await getCountryService();
-        const userCountry = normalizeUserCountry(countryRes?.data);
-        if (userCountry) {
-          countryId = userCountry.id;
-          region = { name: userCountry.name };
-        }
-      } catch {
-        // Non-fatal — fall back to the login payload below.
-      }
-      if (countryId == null) {
-        const fallback = normalizeLoginRegion(data);
-        region = fallback.region;
-        countryId = fallback.countryId;
-      }
-      // Last resort: honour whatever the user picked in the header selector.
-      if (countryId == null && selectedCountryId != null) {
-        countryId = selectedCountryId;
-      }
-      // Resolve flag/currency from the countries master for the sidebar.
-      if (region.name) {
-        region = await enrichRegionFromCatalogue(region, countryId);
-      }
-
-      // Persist the region (incl. id when known) so the profile sidebar shows it
-      // and later refreshes keep scoping the catalogue to the same country.
-      if (region.name) {
-        await AsyncStorage.setItem(
-          'region',
-          JSON.stringify(countryId != null ? { ...region, id: countryId } : region)
-        );
-      }
-      if (countryId != null) {
-        await AsyncStorage.setItem('regionCountryId', String(countryId));
-      }
-      if (data?.user) {
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
-      }
-
-      // Load this student's target exams scoped to their country, defaulting the
-      // selection to the first exam. Mocks / syllabus / live tests all follow
-      // the selected target exam. Fire-and-forget: refreshExams sets its
-      // in-flight guard synchronously, so the dashboard's own initial load is
-      // deduped against this one.
-      refreshExams(countryId ?? undefined);
-
-      router.replace('/dashboard');
+      await completeLogin(data);
     } catch (error: any) {
       console.log('LOGIN ERROR:', JSON.stringify(error, null, 2));
       setFieldErrors(getApiFieldErrors(error));
@@ -364,6 +375,60 @@ const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
       console.log('SIGNUP ERROR:', JSON.stringify(error, null, 2));
       setFieldErrors(getApiFieldErrors(error));
       setErrorMsg(getApiErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setErrorMsg('');
+    setFieldErrors({});
+    setLoading(true);
+
+    try {
+      // Android only — verifies a usable Play Services is present. No-op on iOS.
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
+
+      // Sign out of any cached Google session first so the account picker /
+      // consent screen always shows rather than silently reusing an account.
+      try {
+        await GoogleSignin.signOut();
+      } catch {
+        // Nothing was signed in — ignore.
+      }
+
+      const userInfo: any = await GoogleSignin.signIn();
+
+      // The user dismissed the Google sheet.
+      if (userInfo?.type === 'cancelled') {
+        return;
+      }
+
+      // idToken lives under `.data` on newer SDKs, at the top level on older ones.
+      const idToken: string | null =
+        userInfo?.data?.idToken ?? userInfo?.idToken ?? null;
+      if (!idToken) {
+        throw new Error('No idToken returned from Google');
+      }
+
+      const { data } = (await googleLoginService({
+        access_token: idToken,
+      })) as { data: any };
+      console.log('GOOGLE LOGIN RESPONSE:', JSON.stringify(data, null, 2));
+
+      await completeLogin(data);
+    } catch (error: any) {
+      // User-initiated cancellations are not errors worth surfacing.
+      if (
+        error?.code === statusCodes.SIGN_IN_CANCELLED ||
+        error?.code === statusCodes.IN_PROGRESS
+      ) {
+        return;
+      }
+      console.log('GOOGLE LOGIN ERROR:', JSON.stringify(error, null, 2));
+      setErrorMsg(getApiErrorMessage(error) || 'Google sign-in failed');
     } finally {
       setLoading(false);
     }
@@ -692,6 +757,8 @@ const LoginScreen = ({ initialMode = 'login' }: AuthScreenProps) => {
             <TouchableOpacity
               style={[styles.socialButton, styles.googleButton]}
               activeOpacity={0.85}
+              onPress={handleGoogleSignIn}
+              disabled={loading}
             >
               <Text style={styles.googleG}>G</Text>
               <Text style={styles.googleButtonText}>Continue with Google</Text>

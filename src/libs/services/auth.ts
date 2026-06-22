@@ -10,6 +10,14 @@ export async function loginService(data: any) {
   );
 }
 
+export async function googleLoginService(data: any) {
+  return await genericPost(
+    "/v1/auth/google_sso/",
+    data,
+    { useAccessToken: false }
+  );
+}
+
 // Signup / Register
 export async function signupService(
   values: SignupPayload

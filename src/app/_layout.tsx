@@ -1,5 +1,5 @@
 import { Stack, usePathname, useGlobalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { BackHandler, StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ import ProfileSidebar from "@/src/components/common/ProfileSidebar";
 import BottomNav from "@/src/components/common/BottomNav";
 import { TargetExamProvider } from "../libs/context/TagretExamContext";
 import { HeaderScrollProvider } from "../libs/context/HeaderScrollContext";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 const HEADER_ROUTES = [
   "/dashboard",
@@ -48,7 +49,8 @@ function AppShell() {
 
   const showHeader = matches(HEADER_ROUTES) && !inExamFlow;
   const showTabs = matches(TAB_ROUTES);
-
+  const client_id = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  const googleSigninConfigured = useRef(false);
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (profileOpen) {
@@ -59,6 +61,27 @@ function AppShell() {
     });
     return () => sub.remove();
   }, [profileOpen]);
+
+  useEffect(() => {
+    const configureGoogle = async () => {
+      try {
+        if (!googleSigninConfigured.current && client_id) {
+          GoogleSignin.configure({
+            webClientId: client_id,
+            offlineAccess: true,
+            scopes: ["profile", "email"],
+          });
+          googleSigninConfigured.current = true;
+        } else if (!client_id) {
+          console.warn("🚨 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID missing from .env");
+        }
+      } catch (error) {
+        console.error("❌ GoogleSignin configure error:", error);
+      }
+    };
+
+    configureGoogle();
+  }, []);
 
   return (
     <>
