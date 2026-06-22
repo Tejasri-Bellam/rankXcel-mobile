@@ -18,6 +18,9 @@ interface Props {
   errorText?: string | null;
   initialQuestionCount?: number;
   initialTimerMinutes?: number;
+  // Test mode — same setup screen, but the copy/CTA describe an end-of-test
+  // review rather than per-question instant feedback.
+  isTest?: boolean;
   onBegin: (questions: number, difficulty: Difficulty, timerMinutes: number) => void;
   onCancel: () => void;
 }
@@ -38,6 +41,7 @@ export default function PracticeSettingsModal({
   errorText,
   initialQuestionCount,
   initialTimerMinutes,
+  isTest = false,
   onBegin,
   onCancel,
 }: Props) {
@@ -74,23 +78,38 @@ export default function PracticeSettingsModal({
         {/* Page Title */}
         <Text style={styles.pageTitle}>{chapterName}</Text>
 
-        {/* Play icon box */}
+        {/* Mode icon box */}
         <View style={styles.playBox}>
-          <Ionicons name="play" size={22} color="#3B7DF8" />
+          <Ionicons
+            name={isTest ? "document-text-outline" : "play"}
+            size={22}
+            color="#3B7DF8"
+          />
         </View>
 
         {/* Description */}
-        <Text style={styles.description}>
-          Low-pressure practice with{" "}
-          <Text style={styles.bold}>instant feedback</Text>, explanations and an{" "}
-          <Text style={styles.bold}>AI tutor</Text> on every question. Retry freely — this builds mastery.
-        </Text>
+        {isTest ? (
+          <Text style={styles.description}>
+            Exam-style test — answer every question first, then see your{" "}
+            <Text style={styles.bold}>results and answers</Text> at the end.
+            Review explanations and the <Text style={styles.bold}>AI tutor</Text>{" "}
+            once you finish.
+          </Text>
+        ) : (
+          <Text style={styles.description}>
+            Low-pressure practice with{" "}
+            <Text style={styles.bold}>instant feedback</Text>, explanations and an{" "}
+            <Text style={styles.bold}>AI tutor</Text> on every question. Retry freely — this builds mastery.
+          </Text>
+        )}
 
         {/* Feature badges */}
         <View style={styles.badgesRow}>
           <View style={[styles.badge, styles.badgeGreen]}>
             <Ionicons name="checkmark" size={13} color="#16A34A" />
-            <Text style={[styles.badgeText, { color: "#16A34A" }]}>Instant feedback</Text>
+            <Text style={[styles.badgeText, { color: "#16A34A" }]}>
+              {isTest ? "Review at end" : "Instant feedback"}
+            </Text>
           </View>
           <View style={[styles.badge, styles.badgeBlue]}>
             <Ionicons name="sparkles" size={13} color="#1D4ED8" />
@@ -161,7 +180,9 @@ export default function PracticeSettingsModal({
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <Text style={styles.startBtnText}>Start practice</Text>
+              <Text style={styles.startBtnText}>
+                {isTest ? "Start test" : "Start practice"}
+              </Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" />
             </>
           )}

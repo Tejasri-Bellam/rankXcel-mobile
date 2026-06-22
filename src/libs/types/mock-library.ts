@@ -41,6 +41,7 @@ export interface MockTest {
   id: number | string;
   title?: string;
   exam: ExamObject | string;
+  name: string;
   subject: SubjectObject | string;
   chapters: number[];
   difficulty: Difficulty;

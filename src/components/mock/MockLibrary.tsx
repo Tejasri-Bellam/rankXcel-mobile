@@ -108,7 +108,7 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
       {/* Content */}
       <View style={styles.mockCardBody}>
         <Text style={styles.mockCardTitle} numberOfLines={1}>
-          {mock.title || `${getExamName(mock.exam)} Mock`}
+          {mock.name}
         </Text>
 
         {/* Tag + meta */}
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   },
   mockCardBody: { flex: 1 },
   mockCardTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     color: '#1A1A2E',
     marginBottom: 6,

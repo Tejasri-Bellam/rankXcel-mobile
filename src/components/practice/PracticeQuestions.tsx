@@ -94,6 +94,9 @@ interface Props {
   questions: PracticeApiQuestion[];
   chapterName: string;
   timerMinutes: number;
+  // Test mode: answers are saved but never revealed per-question; feedback is
+  // deferred to the results/review screens once the whole test is finished.
+  isTest?: boolean;
   // `finalQuestions` carries the per-question correct answers / explanations
   // fetched during the session so the results & review screens can use them.
   onEnd: (
@@ -139,17 +142,22 @@ const ProgressBar = ({
   current,
   total,
   answers,
+  isTest = false,
 }: {
   current: number;
   total: number;
   answers: AnswerState[];
+  isTest?: boolean;
 }) => (
   <View style={pbStyles.container}>
     {answers.map((a, i) => {
       let bg = "#E5E7EB";
       if (i === current) bg = "#3B7DF8";
       else if (i < current) {
-        if (a.correct === true) bg = "#22C55E";
+        // Test mode never reveals correctness mid-test — answered segments
+        // show a neutral filled state instead of green/red.
+        if (isTest) bg = a.answered ? "#BFD3FB" : "#E5E7EB";
+        else if (a.correct === true) bg = "#22C55E";
         else if (a.correct === false) bg = "#EF4444";
       }
       return (
@@ -177,6 +185,7 @@ export default function PracticeQuestions({
   questions,
   chapterName,
   timerMinutes,
+  isTest = false,
   onEnd,
 }: Props) {
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -212,6 +221,10 @@ export default function PracticeQuestions({
   const current = answers[currentIdx];
   const question = questionList[currentIdx];
   const isLast = currentIdx === questionList.length - 1;
+  // Whether to reveal the answer key for the current question. Practice reveals
+  // it once "Check answer" marks the question answered; test defers all feedback
+  // to the results screen, so it never reveals mid-session.
+  const reveal = !isTest && current.answered;
   const [tutorVisible, setTutorVisible] = useState(false);
 
   // Conversation-based tutor for the current question. Memoized per question so
@@ -351,6 +364,32 @@ export default function PracticeQuestions({
     else finishPractice();
   };
 
+  // Test mode: save the (optional) answer without revealing it and advance —
+  // or finish the whole test on the last question. Re-answering a locked
+  // question is skipped; an unanswered question can still be skipped past.
+  const handleTestNext = async () => {
+    const hasAnswer = isNumeric
+      ? !!current.selected && current.selected.trim() !== ""
+      : !!current.selected;
+    if (!current.answered && hasAnswer) {
+      const idx = currentIdx;
+      const selected = current.selected as string;
+      setSavingIdx(idx);
+      try {
+        await saveResponse(question.id, selected, current.markedForReview, isNumeric);
+      } finally {
+        setSavingIdx(null);
+      }
+      setAnswers((prev) => {
+        const next = [...prev];
+        next[idx] = { ...next[idx], answered: true, correct: null };
+        return next;
+      });
+    }
+    if (!isLast) navigateTo(currentIdx + 1);
+    else finishPractice();
+  };
+
   const finishPractice = async () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (pendingSaves.current.size > 0) {
@@ -363,7 +402,7 @@ export default function PracticeQuestions({
 
   // Option styling
   const getOptStyle = (optId: string) => {
-    if (!current.answered) {
+    if (!reveal) {
       return [styles.optRow, current.selected === optId && styles.optSelected];
     }
     if (optId === question.correctChoiceId) return [styles.optRow, styles.optCorrect];
@@ -372,7 +411,7 @@ export default function PracticeQuestions({
   };
 
   const getLetterStyle = (optId: string) => {
-    if (!current.answered) {
+    if (!reveal) {
       return [styles.optLetter, current.selected === optId && styles.optLetterSelected];
     }
     if (optId === question.correctChoiceId) return [styles.optLetter, styles.optLetterCorrect];
@@ -381,15 +420,15 @@ export default function PracticeQuestions({
   };
 
   const getLetterTextStyle = (optId: string) => {
-    if (!current.answered && current.selected === optId) return { color: "#fff" };
-    if (current.answered) {
+    if (!reveal && current.selected === optId) return { color: "#fff" };
+    if (reveal) {
       if (optId === question.correctChoiceId || optId === current.selected) return { color: "#fff" };
     }
     return { color: "#9CA3AF" };
   };
 
   const getOptTextStyle = (optId: string) => {
-    if (!current.answered) {
+    if (!reveal) {
       return [styles.optText, current.selected === optId && { color: "#3B7DF8", fontWeight: "600" as const }];
     }
     if (optId === question.correctChoiceId) return [styles.optText, { color: "#16A34A", fontWeight: "600" as const }];
@@ -411,17 +450,26 @@ export default function PracticeQuestions({
           <Text style={styles.headerChapter} numberOfLines={1}>
             {chapterName}
           </Text>
-          <Text style={styles.headerMode}>Practice</Text>
-          <ProgressBar current={currentIdx} total={questionList.length} answers={answers} />
+          <Text style={styles.headerMode}>{isTest ? "Test" : "Practice"}</Text>
+          <ProgressBar
+            current={currentIdx}
+            total={questionList.length}
+            answers={answers}
+            isTest={isTest}
+          />
         </View>
-        <TouchableOpacity
-          style={styles.tutorBtn}
-          activeOpacity={0.8}
-          onPress={() => setTutorVisible(true)}
-        >
-          <Ionicons name="sparkles" size={13} color="#fff" />
-          <Text style={styles.tutorText}>Tutor</Text>
-        </TouchableOpacity>
+        {/* No AI tutor during a test — feedback (and the tutor) are deferred to
+            the review after the whole test. */}
+        {!isTest && (
+          <TouchableOpacity
+            style={styles.tutorBtn}
+            activeOpacity={0.8}
+            onPress={() => setTutorVisible(true)}
+          >
+            <Ionicons name="sparkles" size={13} color="#fff" />
+            <Text style={styles.tutorText}>Tutor</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Body */}
@@ -447,7 +495,7 @@ export default function PracticeQuestions({
               <TextInput
                 style={[
                   styles.numericInput,
-                  current.answered &&
+                  reveal &&
                     (current.correct ? styles.numericCorrect : styles.numericWrong),
                 ]}
                 value={current.selected ?? ""}
@@ -480,10 +528,10 @@ export default function PracticeQuestions({
                   </Text>
                 </View>
                 <Text style={getOptTextStyle(opt.id)}>{stripHtml(opt.text)}</Text>
-                {current.answered && opt.id === question.correctChoiceId && (
+                {reveal && opt.id === question.correctChoiceId && (
                   <Ionicons name="checkmark" size={18} color="#22C55E" style={{ marginLeft: "auto" }} />
                 )}
-                {current.answered && opt.id === current.selected && opt.id !== question.correctChoiceId && (
+                {reveal && opt.id === current.selected && opt.id !== question.correctChoiceId && (
                   <Ionicons name="close" size={18} color="#EF4444" style={{ marginLeft: "auto" }} />
                 )}
               </TouchableOpacity>
@@ -495,7 +543,7 @@ export default function PracticeQuestions({
           <Text style={styles.swipeHint}>— Swipe to move between questions —</Text>
 
           {/* Feedback */}
-          {current.answered && (
+          {reveal && (
             <View style={[styles.feedbackBox, current.correct ? styles.feedbackCorrect : styles.feedbackWrong]}>
               <View style={styles.feedbackHeader}>
                 <Text style={[styles.feedbackTitle, { color: current.correct ? "#22C55E" : "#EF4444" }]}>
@@ -565,7 +613,37 @@ export default function PracticeQuestions({
 
       {/* Bottom bar */}
       <View style={styles.bottomBar}>
-        {!current.answered ? (
+        {isTest ? (
+          <View style={styles.navRow}>
+            {currentIdx > 0 && (
+              <TouchableOpacity
+                style={styles.prevBtn}
+                onPress={() => navigateTo(currentIdx - 1)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="arrow-back" size={16} color="#555" />
+                <Text style={styles.prevBtnText}>Prev</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.nextBtn, { flex: currentIdx > 0 ? 1 : undefined, width: currentIdx === 0 ? "100%" : undefined }]}
+              onPress={handleTestNext}
+              disabled={savingIdx === currentIdx}
+              activeOpacity={0.85}
+            >
+              {savingIdx === currentIdx ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.nextBtnText}>
+                    {isLast ? "Submit test" : "Next question"}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={16} color="#fff" />
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : !current.answered ? (
           <TouchableOpacity
             style={[styles.checkBtn, (!current.selected || savingIdx === currentIdx) && styles.checkBtnDisabled]}
             onPress={handleCheckAnswer}
@@ -604,13 +682,15 @@ export default function PracticeQuestions({
         )}
       </View>
 
-      <TutorModal
-        visible={tutorVisible}
-        onClose={() => setTutorVisible(false)}
-        questionId={question?.id}
-        questionText={question?.text}
-        conversation={tutorConversation}
-      />
+      {!isTest && (
+        <TutorModal
+          visible={tutorVisible}
+          onClose={() => setTutorVisible(false)}
+          questionId={question?.id}
+          questionText={question?.text}
+          conversation={tutorConversation}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -785,14 +865,17 @@ const styles = StyleSheet.create({
   },
   checkBtnDisabled: { backgroundColor: "#D1D5DB" },
   checkBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
-  navRow: { flexDirection: "row", gap: 10, alignItems: "center" },
+  // Stretch so Prev and the primary button share the exact same height and
+  // their top/bottom edges line up.
+  navRow: { flexDirection: "row", gap: 10, alignItems: "stretch" },
   prevBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 4,
     paddingHorizontal: 16,
     paddingVertical: 15,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1.5,
     borderColor: "#E5E7EB",
     backgroundColor: "#fff",

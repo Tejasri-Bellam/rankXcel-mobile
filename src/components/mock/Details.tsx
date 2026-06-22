@@ -133,7 +133,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {mockData.title || `${examName} Mock`}
+          {mockData.name}
         </Text>
       </View>
 
@@ -148,7 +148,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
         </View>
 
         {/* Title */}
-        <Text style={styles.title}>{mockData.title || `${examName} Mock Test`}</Text>
+        <Text style={styles.title}>{mockData.name}</Text>
 
         {/* Description */}
         <Text style={styles.description}>
