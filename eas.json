@@ -16,7 +16,8 @@
         "EXPO_PUBLIC_APP_VERSION": "1.0.0",
         "EXPO_PUBLIC_APP_ENV": "dev",
         "EXPO_PUBLIC_API_BASE_URL": "https://rankxcelapi.wmlit.com/api",
-        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "mockexams.wmlit.com   "
+        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "mockexams.wmlit.com   ",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID" : "1021654406717-pq839sf6i05mfb55jt7mf8a2malrohor.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"
@@ -40,7 +41,8 @@
         "EXPO_PUBLIC_APP_VERSION": "1.0.0",
         "EXPO_PUBLIC_APP_ENV": "qa",
         "EXPO_PUBLIC_API_BASE_URL": "https://rankxcelapi.wmlit.com/api",
-        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "rankxcel.wmlit.com"
+        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "rankxcel.wmlit.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1021654406717-pq839sf6i05mfb55jt7mf8a2malrohor.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -61,7 +63,8 @@
         "EXPO_PUBLIC_APP_VERSION": "1.0.0",
         "EXPO_PUBLIC_APP_ENV": "prod",
         "EXPO_PUBLIC_API_BASE_URL": "https://rankxcelapi.wmlit.com/api",
-        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "rankxcel.wmlit.com"
+        "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "rankxcel.wmlit.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1021654406717-pq839sf6i05mfb55jt7mf8a2malrohor.apps.googleusercontent.com"
       }
     }
   },

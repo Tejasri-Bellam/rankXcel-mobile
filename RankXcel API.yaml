@@ -14,6 +14,171 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/v1/admin/staff/:
+    get:
+      operationId: admin_staff_list
+      description: |-
+        Admin-only CRUD for staff accounts — Admin and Content Reviewer users.
+
+        Queryset is scoped to staff roles (students are managed elsewhere).
+        PATCH-only updates (no PUT). Destroy soft-deletes by suspending the
+        account rather than hard-deleting, so authored content keeps its FK.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - ADMIN
+          - CONTENT_REVIEWER
+          - STUDENT
+        description: |-
+          * `STUDENT` - Student
+          * `ADMIN` - Admin
+          * `CONTENT_REVIEWER` - Content Reviewer
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserDetailList'
+          description: ''
+    post:
+      operationId: admin_staff_create
+      description: |-
+        Admin-only CRUD for staff accounts — Admin and Content Reviewer users.
+
+        Queryset is scoped to staff roles (students are managed elsewhere).
+        PATCH-only updates (no PUT). Destroy soft-deletes by suspending the
+        account rather than hard-deleting, so authored content keeps its FK.
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffCreate'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffCreate'
+          description: ''
+  /api/v1/admin/staff/{id}/:
+    get:
+      operationId: admin_staff_retrieve
+      description: |-
+        Admin-only CRUD for staff accounts — Admin and Content Reviewer users.
+
+        Queryset is scoped to staff roles (students are managed elsewhere).
+        PATCH-only updates (no PUT). Destroy soft-deletes by suspending the
+        account rather than hard-deleting, so authored content keeps its FK.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+          description: ''
+    patch:
+      operationId: admin_staff_partial_update
+      description: |-
+        Admin-only CRUD for staff accounts — Admin and Content Reviewer users.
+
+        Queryset is scoped to staff roles (students are managed elsewhere).
+        PATCH-only updates (no PUT). Destroy soft-deletes by suspending the
+        account rather than hard-deleting, so authored content keeps its FK.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUpdate'
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUpdate'
+          description: ''
+    delete:
+      operationId: admin_staff_destroy
+      description: |-
+        Admin-only CRUD for staff accounts — Admin and Content Reviewer users.
+
+        Queryset is scoped to staff roles (students are managed elsewhere).
+        PATCH-only updates (no PUT). Destroy soft-deletes by suspending the
+        account rather than hard-deleting, so authored content keeps its FK.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/admin/stats/:
     get:
       operationId: admin_stats_retrieve
@@ -25,6 +190,88 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/v1/admin/students/:
+    get:
+      operationId: admin_students_list
+      description: |-
+        Admin-only, read-only list/detail of students.
+
+        GET /api/v1/admin/students/      -> paginated students + high-level `stats`
+        GET /api/v1/admin/students/{id}/ -> one student
+
+        Filters on the list: ?search=<name|email>, ?status=active|inactive|
+        suspended|pending_verification.
+      parameters:
+      - in: query
+        name: exam
+        schema:
+          type: number
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - inactive
+          - pending_verification
+          - suspended
+        description: |-
+          * `active` - Active
+          * `inactive` - Inactive
+          * `suspended` - Suspended
+          * `pending_verification` - Pending Verification
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminStudentList'
+          description: ''
+  /api/v1/admin/students/{id}/:
+    get:
+      operationId: admin_students_retrieve
+      description: |-
+        Admin-only, read-only list/detail of students.
+
+        GET /api/v1/admin/students/      -> paginated students + high-level `stats`
+        GET /api/v1/admin/students/{id}/ -> one student
+
+        Filters on the list: ?search=<name|email>, ?status=active|inactive|
+        suspended|pending_verification.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStudent'
+          description: ''
   /api/v1/ai-generate-questions/previous-year/:
     post:
       operationId: ai_generate_questions_previous_year_create
@@ -521,6 +768,18 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/v1/auth/apple_sso/:
+    post:
+      operationId: auth_apple_sso_create
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
   /api/v1/auth/forgot-password/:
     post:
       operationId: auth_forgot_password_create
@@ -549,6 +808,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ForgotPassword'
           description: ''
+  /api/v1/auth/google_sso/:
+    post:
+      operationId: auth_google_sso_create
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
   /api/v1/auth/login/:
     post:
       operationId: auth_login_create
@@ -722,64 +993,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResendOTP'
-          description: ''
-  /api/v1/auth/students/:
-    get:
-      operationId: auth_students_retrieve
-      description: |-
-        GET /api/v1/auth/students/ — paginated list of students with per-row
-        aggregates (target exam, mocks count, avg score, last_login, status).
-        Filters: ?status=, ?exam=<exam_id>, ?search=<name|email>.
-      tags:
-      - auth
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StudentListItem'
-          description: ''
-  /api/v1/auth/students/{id}/:
-    get:
-      operationId: auth_students_retrieve_2
-      description: GET /api/v1/auth/students/<id>/ — full drill-in payload for one
-        student.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - auth
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StudentDetail'
-          description: ''
-  /api/v1/auth/students/stats/:
-    get:
-      operationId: auth_students_stats_retrieve
-      description: GET /api/v1/auth/students/stats/ — header counts for the dashboard.
-      tags:
-      - auth
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StudentStats'
           description: ''
   /api/v1/auth/users/:
     get:
@@ -1292,6 +1505,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/MockTestCreate'
           description: ''
+  /api/v1/exams/{exam_id}/topics/performance/:
+    get:
+      operationId: exams_topics_performance_retrieve
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exams
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/exams/{id}/:
     get:
       operationId: exams_retrieve
@@ -2830,23 +3060,6 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/v1/student/topics/performance/{exam_id}/:
-    get:
-      operationId: student_topics_performance_retrieve
-      parameters:
-      - in: path
-        name: exam_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - student
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
   /api/v1/subjects/:
     get:
       operationId: subjects_list
@@ -3303,6 +3516,40 @@ components:
       - email
       - name
       - password
+    AdminStudent:
+      type: object
+      description: |-
+        One student row for the admin students list/detail. Read-only.
+        Requires `threshold_30d` in serializer context and the queryset to
+        prefetch `target_exams__exam`.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        last_login:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          readOnly: true
+        target_exams:
+          type: array
+          items: {}
+          readOnly: true
+      required:
+      - email
+      - id
+      - name
+      - status
+      - target_exams
     AdminUpdateUser:
       type: object
       properties:
@@ -3644,10 +3891,14 @@ components:
           type: string
         code:
           type: string
+        total_marks:
+          type: number
+          format: double
       required:
       - code
       - id
       - name
+      - total_marks
     ExamOption:
       type: object
       properties:
@@ -3682,18 +3933,10 @@ components:
           type: string
           format: email
         role:
-          $ref: '#/components/schemas/InviteAdminUserRoleEnum'
+          $ref: '#/components/schemas/Role804Enum'
       required:
       - email
       - role
-    InviteAdminUserRoleEnum:
-      enum:
-      - ADMIN
-      - CONTENT_REVIEWER
-      type: string
-      description: |-
-        * `ADMIN` - ADMIN
-        * `CONTENT_REVIEWER` - CONTENT_REVIEWER
     Login:
       type: object
       properties:
@@ -3902,6 +4145,29 @@ components:
     NullEnum:
       enum:
       - null
+    PaginatedAdminStudentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminStudent'
     PaginatedAssessmentListList:
       type: object
       required:
@@ -4274,6 +4540,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedStaffUpdate:
+      type: object
+      description: |-
+        PATCH only — email is immutable. Admin can rename, change role
+        (is_staff is kept in sync), or toggle is_active to suspend/reactivate.
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/Role804Enum'
+        is_active:
+          type: boolean
     PatchedSubject:
       type: object
       properties:
@@ -4565,6 +4847,14 @@ components:
       required:
       - email
       - purpose
+    Role804Enum:
+      enum:
+      - ADMIN
+      - CONTENT_REVIEWER
+      type: string
+      description: |-
+        * `ADMIN` - ADMIN
+        * `CONTENT_REVIEWER` - CONTENT_REVIEWER
     RoleF40Enum:
       enum:
       - STUDENT
@@ -4585,6 +4875,51 @@ components:
         * `MANUAL` - Manually Created
         * `AI_GENERATED` - AI Generated
         * `PREVIOUS_YEAR` - Previous Year Paper
+    StaffCreate:
+      type: object
+      description: |-
+        Admin creates a staff account (Admin or Content Reviewer) with a password.
+        The account is active + verified immediately; is_staff is derived from role
+        (Admins get Django admin access, Content Reviewers use the REST API only).
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/Role804Enum'
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - name
+      - password
+      - role
+    StaffUpdate:
+      type: object
+      description: |-
+        PATCH only — email is immutable. Admin can rename, change role
+        (is_staff is kept in sync), or toggle is_active to suspend/reactivate.
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/Role804Enum'
+        is_active:
+          type: boolean
+      required:
+      - name
     Status451Enum:
       enum:
       - DRAFT
@@ -4617,117 +4952,6 @@ components:
         * `NOT_STARTED` - Not Started
         * `IN_PROGRESS` - In Progress
         * `SUBMITTED` - Submitted
-    StudentDetail:
-      type: object
-      description: 'Full drill-in panel: profile + performance + subject breakdown
-        + recent mocks.'
-      properties:
-        id:
-          type: integer
-        student_code:
-          type: string
-          readOnly: true
-        name:
-          type: string
-        status:
-          type: string
-        profile:
-          type: object
-          additionalProperties: {}
-        performance:
-          type: object
-          additionalProperties: {}
-        subject_breakdown:
-          type: array
-          items: {}
-        recent_mocks:
-          type: array
-          items: {}
-        activity_engagement:
-          type: object
-          additionalProperties: {}
-      required:
-      - activity_engagement
-      - id
-      - name
-      - performance
-      - profile
-      - recent_mocks
-      - status
-      - student_code
-      - subject_breakdown
-    StudentListItem:
-      type: object
-      description: |-
-        One row in the admin Student Dashboard table. Built from a dict; the
-        view computes per-student aggregates in bulk and passes them in.
-      properties:
-        id:
-          type: integer
-        student_code:
-          type: string
-          readOnly: true
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        target_exam:
-          type: string
-          nullable: true
-        mocks_count:
-          type: integer
-        avg_score:
-          type: number
-          format: double
-          nullable: true
-        avg_max_score:
-          type: number
-          format: double
-          nullable: true
-        last_login:
-          type: string
-          format: date-time
-          nullable: true
-        status:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-      required:
-      - avg_max_score
-      - avg_score
-      - created_at
-      - email
-      - id
-      - last_login
-      - mocks_count
-      - name
-      - status
-      - student_code
-      - target_exam
-    StudentStats:
-      type: object
-      properties:
-        total:
-          type: integer
-        active:
-          type: integer
-        inactive_no_login_30d:
-          type: integer
-        suspended:
-          type: integer
-        currently_in_exam:
-          type: integer
-        new_this_week:
-          type: integer
-      required:
-      - active
-      - currently_in_exam
-      - inactive_no_login_30d
-      - new_this_week
-      - suspended
-      - total
     Subject:
       type: object
       properties:
@@ -4909,6 +5133,9 @@ components:
           maxLength: 20
         role:
           $ref: '#/components/schemas/RoleF40Enum'
+        role_display:
+          type: string
+          readOnly: true
         is_active:
           type: boolean
         is_email_verified:
@@ -4930,6 +5157,7 @@ components:
       - is_email_verified
       - last_login
       - name
+      - role_display
     UserMe:
       type: object
       properties:
