@@ -13,8 +13,13 @@ import {
   GoogleSignin,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { loginStyles as styles } from '@/src/styles/styles/auth/loginstyles';
-import { googleLoginService, signupService } from '@/src/libs/services/auth';
+import {
+  appleLoginService,
+  googleLoginService,
+  signupService,
+} from '@/src/libs/services/auth';
 import {
   getCountriesService,
   getCountryService,
@@ -332,6 +337,52 @@ const SignupScreen = () => {
     }
   };
 
+  // Sign in with Apple (iOS only). The native sheet returns a signed identity
+  // token (JWT) we forward to the backend as `access_token`, mirroring Google.
+  const handleAppleSignIn = async () => {
+    setFieldErrors({});
+    setLoading(true);
+
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const identityToken = credential.identityToken;
+      if (!identityToken) {
+        throw new Error('No identityToken returned from Apple');
+      }
+
+      // Apple only returns the name/email on the FIRST authorization for an
+      // Apple ID; forward them when present so the backend can capture them on
+      // first sign-up. Subsequent logins rely on the token alone.
+      const payload: Record<string, any> = { access_token: identityToken };
+      if (credential.fullName?.givenName)
+        payload.first_name = credential.fullName.givenName;
+      if (credential.fullName?.familyName)
+        payload.last_name = credential.fullName.familyName;
+      if (credential.email) payload.email = credential.email;
+
+      const { data } = (await appleLoginService(payload)) as { data: any };
+      console.log('APPLE SIGNUP RESPONSE:', JSON.stringify(data, null, 2));
+
+      showToast('Signed in successfully', 'success');
+      await completeLogin(data);
+    } catch (error: any) {
+      // User dismissed the Apple sheet — not an error worth surfacing.
+      if (error?.code === 'ERR_REQUEST_CANCELED') {
+        return;
+      }
+      console.log('APPLE SIGNUP ERROR:', JSON.stringify(error, null, 2));
+      showToast(getApiErrorMessage(error) || 'Apple sign-in failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Toast {...toast} onHide={hideToast} />
@@ -496,18 +547,23 @@ const SignupScreen = () => {
             </View>
 
             {/* Social buttons */}
-            <TouchableOpacity
-              style={[styles.socialButton, styles.appleButton]}
-              activeOpacity={0.85}
-            >
-              <Ionicons
-                name="logo-apple"
-                size={20}
-                color="#FFFFFF"
-                style={styles.socialIcon}
-              />
-              <Text style={styles.appleButtonText}>Continue with Apple</Text>
-            </TouchableOpacity>
+            {/* Sign in with Apple is only available on iOS. */}
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={[styles.socialButton, styles.appleButton]}
+                activeOpacity={0.85}
+                onPress={handleAppleSignIn}
+                disabled={loading}
+              >
+                <Ionicons
+                  name="logo-apple"
+                  size={20}
+                  color="#FFFFFF"
+                  style={styles.socialIcon}
+                />
+                <Text style={styles.appleButtonText}>Continue with Apple</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.socialButton, styles.googleButton]}

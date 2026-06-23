@@ -223,7 +223,7 @@ export default function RequestMockModal({
             </TouchableOpacity>
           </View>
           <Text style={styles.subtitle}>
-            We'll auto-generate a fresh paper to your spec — different questions every time.
+            {`We'll auto-generate a fresh paper to your spec — different questions every time.`}
           </Text>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }}>

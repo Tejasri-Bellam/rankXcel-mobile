@@ -166,6 +166,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
       loadUser();
       loadRegion();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const handleClose = () => {

@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 
-import { SafeAreaView } from "react-native-safe-area-context";
 import { mockAnalysisStyles as styles } from "@/src/styles/styles/mock/detailedanalysisstyles";
 import {
   getAssessmentDetailedAnalysisService,
@@ -110,6 +109,7 @@ export default function AssessmentDetailedAnalysis({
   const [activeTab, setActiveTab] = useState<AnalysisTab>("subject");
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const load = async () => {

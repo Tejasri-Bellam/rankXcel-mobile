@@ -106,10 +106,6 @@ function createAxiosInstance(): AxiosInstance {
   instance.interceptors.response.use(
     (response) => response,
     (error: AxiosError<ErrorResponseData>) => {
-      const status = error.response?.status;
-      const hadAuthHeader = Boolean(
-        (error.config?.headers as Record<string, unknown> | undefined)?.["Authorization"],
-      );
       return Promise.reject(customizeAxiosError(error));
     }
   );

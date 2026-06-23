@@ -147,17 +147,6 @@ const whenLabel = (item: any, status: LiveStatus): string => {
   return end ? `${startStr} – ${timeOnly(end)}` : startStr;
 };
 
-// Real field if provided; otherwise a stable placeholder so the card matches
-// the design. (No participant-count API yet — see backend list.)
-const participantCount = (item: any): number => {
-  const real =
-    item?.participant_count ??
-    item?.registered_count ??
-    item?.participants_count;
-  if (real != null) return Number(real);
-  return 1000 + ((Number(item?.id) || 1) * 1373) % 19000; // DUMMY
-};
-
 export default function AssessmentsScreen() {
   const { activeExamId } = useTargetExam();
   const onHeaderScroll = useHeaderScrollHandler();
@@ -203,7 +192,8 @@ export default function AssessmentsScreen() {
       return;
     }
     try {
-      isRefresh ? setRefreshing(true) : setLoading(true);
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
       const res = await getassessmentsService(activeExamId, 1);
       const raw: any = res?.data;
       const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
@@ -261,6 +251,7 @@ export default function AssessmentsScreen() {
 
   useEffect(() => {
     fetchAssessments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeExamId]);
 
   // Deep-link from Home's "Upcoming live": open the tapped assessment's detail
@@ -303,6 +294,7 @@ export default function AssessmentsScreen() {
       handledOpenKeyRef.current = key;
       router.setParams({ openId: undefined, openName: undefined } as any);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     data,
     params.openId,

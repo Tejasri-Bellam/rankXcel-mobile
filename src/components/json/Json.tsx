@@ -1,6 +1,6 @@
 export function AssesmentsJson(){
-    return
-    ( [
+    return (
+    [
   {
     "id": 25,
     "name": "Eamcet",

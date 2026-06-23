@@ -31,7 +31,7 @@ interface YourResult {
   topPercent: number | null;
 }
 
-interface Leaderboard {
+interface LeaderboardData {
   rows: LeaderRow[];
   yourResult: YourResult | null;
   totalParticipants: number;
@@ -46,7 +46,7 @@ const num = (v: any): number => {
 // { total_participants, top_ranks: [{ rank, student_name, percentage }],
 //   your_result: { rank, percentage, top_percent } }
 // Parsed defensively (also tolerates an array / { results: [...] } fallback).
-const normalizeLeaderboard = (res: any): Leaderboard => {
+const normalizeLeaderboard = (res: any): LeaderboardData => {
   const body = res?.data ?? res ?? {};
   const list: any[] = Array.isArray(body)
     ? body
@@ -103,7 +103,7 @@ const initials = (name: string) =>
     .toUpperCase();
 
 export default function Leaderboard({ assessmentId, onBack }: Props) {
-  const [board, setBoard] = useState<Leaderboard>({
+  const [board, setBoard] = useState<LeaderboardData>({
     rows: [],
     yourResult: null,
     totalParticipants: 0,

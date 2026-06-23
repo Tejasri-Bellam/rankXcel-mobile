@@ -70,6 +70,7 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadReview(); }, []);
 
   // Conversation-based tutor for the selected question. Memoized per question so

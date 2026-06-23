@@ -71,6 +71,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadReview(); }, []);
 
   const questions: any[] = useMemo(() => reviewData?.questions ?? [], [reviewData]);

@@ -8,7 +8,6 @@ const GRAY = '#9898B0';
 const GREEN = '#22C55E';
 const GREEN_BG = '#F0FDF4';
 const ORANGE = '#F97316';
-const YELLOW_BG = '#FFFBEB';
 const RED = '#EF4444';
 
 export const examDetailsStyles = StyleSheet.create({

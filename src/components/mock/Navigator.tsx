@@ -30,6 +30,7 @@ export default function MockExamNavigator({
   const [initialAnswers, setInitialAnswers] = useState<Record<string, string[]>>({});
   const [initialStatuses, setInitialStatuses] = useState<Record<string, QuestionStatus>>({});
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadQuestions(); }, []);
 
   const normalizeQuestion = (q: any): any | null => {
@@ -148,7 +149,7 @@ export default function MockExamNavigator({
       setInitialAnswers(savedAnswers);
       setInitialStatuses(savedStatuses);
       setExam(examData);
-    } catch (err) {
+    } catch {
       setError('Failed to load questions. Please go back and try again.');
     } finally {
       setLoading(false);

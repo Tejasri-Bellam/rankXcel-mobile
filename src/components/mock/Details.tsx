@@ -25,9 +25,6 @@ interface Props {
   initialView?: MockView;
 }
 
-const getExamName = (exam: MockTest['exam']): string =>
-  typeof exam === 'object' && exam !== null && 'name' in exam ? exam.name : String(exam || '');
-
 const formatDuration = (mins: number | null | undefined): string => {
   if (!mins) return '—';
   const h = Math.floor(mins / 60);
@@ -63,8 +60,6 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
   const isCompleted = mockData.status === 'SUBMITTED';
   const isInProgress = mockData.status === 'IN_PROGRESS';
   const isNotStarted = mockData.status === 'NOT_STARTED';
-
-  const examName = getExamName(mockData.exam);
 
   const handleStart = async () => {
     try {
