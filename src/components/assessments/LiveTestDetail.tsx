@@ -61,6 +61,21 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
   const meta = STATUS_META[status];
   const assessmentId: number = item?.id;
 
+  // The scheduled test window: results — and the leaderboard — only become
+  // meaningful once it has fully elapsed. A submitted attempt before then is
+  // "Completed", not "Results out". (No schedule info → treat as ended.)
+  const examStart = new Date(item?.scheduled_at).getTime();
+  const examEnded = isNaN(examStart)
+    ? true
+    : Date.now() >= examStart + (item?.total_duration_minutes ?? 0) * 60 * 1000;
+
+  // Show "Completed" while the window is still open; only flip to the
+  // results-out pill once the exam has actually ended.
+  const displayMeta =
+    status === "results" && !examEnded
+      ? { label: "Completed", color: "#2563EB", bg: "#EAF1FF", live: false }
+      : meta;
+
   const [view, setView] = useState<View_>("detail");
   const [attemptId, setAttemptId] = useState<number>(item?.latest_attempt_id);
   const [submittedAnswers, setSubmittedAnswers] = useState<
@@ -75,12 +90,25 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
   );
   const [registering, setRegistering] = useState(false);
 
+  // Real field if the list provides it; otherwise a placeholder so the card
+  // matches the design. (No participant-count API yet — see backend list.)
+  // Kept in state so a successful register reflects immediately, without
+  // waiting for the list to refetch.
+  const [participants, setParticipants] = useState<number>(
+    item?.participant_count ??
+      item?.registered_count ??
+      item?.participants_count ??
+      0
+  );
+
   const handleRegister = async () => {
     if (registering || registered) return;
     try {
       setRegistering(true);
       await registerAssessmentService(assessmentId);
       setRegistered(true);
+      // Reflect this registration in the displayed count right away.
+      setParticipants((c) => c + 1);
     } catch (err: any) {
       // Already-registered responses still mean "registered".
       const code = err?.body?.code ?? err?.errors?.code?.[0];
@@ -96,14 +124,6 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       setRegistering(false);
     }
   };
-
-  // Real field if the list provides it; otherwise a placeholder so the card
-  // matches the design. (No participant-count API yet — see backend list.)
-  const participants: number =
-    item?.participant_count ??
-    item?.registered_count ??
-    item?.participants_count ??
-    0;
 
   const durationMinutes = item?.total_duration_minutes ?? 60;
   const questionCount = item?.question_count ?? 0;
@@ -123,6 +143,11 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (view === "solutions") {
         setView("results");
+        return true;
+      }
+      if (view === "exam") {
+        // Ongoing attempt — block hardware back. The student must submit
+        // (via the X or Submit button) to leave the exam.
         return true;
       }
       if (view !== "detail") {
@@ -328,10 +353,10 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       >
         <Text style={s.kicker}>Live Test</Text>
 
-        <View style={[s.statusPill, { backgroundColor: meta.bg }]}>
-          {meta.live ? <View style={s.liveDot} /> : null}
-          <Text style={[s.statusPillText, { color: meta.color }]}>
-            {meta.label}
+        <View style={[s.statusPill, { backgroundColor: displayMeta.bg }]}>
+          {displayMeta.live ? <View style={s.liveDot} /> : null}
+          <Text style={[s.statusPillText, { color: displayMeta.color }]}>
+            {displayMeta.label}
           </Text>
         </View>
 
@@ -364,14 +389,17 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
 
         {renderPrimary()}
 
-        <TouchableOpacity
-          style={s.secondaryBtn}
-          onPress={() => setView("leaderboard")}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="trophy-outline" size={16} color="#1A1A2E" />
-          <Text style={s.secondaryBtnText}>Leaderboard</Text>
-        </TouchableOpacity>
+        {/* Leaderboard is only meaningful once results are out (exam ended). */}
+        {examEnded && (
+          <TouchableOpacity
+            style={s.secondaryBtn}
+            onPress={() => setView("leaderboard")}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="trophy-outline" size={16} color="#1A1A2E" />
+            <Text style={s.secondaryBtnText}>Leaderboard</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );

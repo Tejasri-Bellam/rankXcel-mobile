@@ -73,7 +73,7 @@ const STUDENT_STATUS_META: Record<string, { label: string; color: string; bg: st
   registered: { label: "Registered", color: "#2563EB", bg: "#EAF1FF" },
   completed: { label: "Results Out", color: "#059669", bg: "#E7F6EF" },
   submitted: { label: "Submitted", color: "#059669", bg: "#E7F6EF" },
-  missed: { label: "Missed", color: "#DC2626", bg: "#FDECEC" },
+  missed: { label: "Missed", color: "#6B7280", bg: "#F1F2F5" },
   expired: { label: "Expired", color: "#6B7280", bg: "#F1F2F5" },
   closed: { label: "Closed", color: "#6B7280", bg: "#F1F2F5" },
 };
@@ -111,6 +111,30 @@ const assessmentEndTime = (item: any): Date | null => {
   const start = new Date(item?.scheduled_at).getTime();
   if (isNaN(start)) return null;
   return new Date(start + (item?.total_duration_minutes ?? 0) * 60 * 1000);
+};
+
+// Whether the test's scheduled window has fully elapsed (i.e. results time).
+const examHasEnded = (item: any): boolean => {
+  const end = assessmentEndTime(item);
+  return end ? Date.now() >= end.getTime() : false;
+};
+
+// Backend statuses that mean the student has finished their attempt.
+const SUBMITTED_STATUSES = new Set(["completed", "submitted"]);
+
+// The student-status pill, with one timing rule on top of STUDENT_STATUS_META:
+// a submitted/completed attempt reads "Completed" while the test window is
+// still open, and only flips to "Results Out" once the exam has actually ended.
+const studentDisplayMeta = (
+  item: any
+): { label: string; color: string; bg: string } | null => {
+  const raw = String(item?.student_status ?? "").toLowerCase();
+  if (SUBMITTED_STATUSES.has(raw)) {
+    return examHasEnded(item)
+      ? { label: "Results Out", color: "#059669", bg: "#E7F6EF" }
+      : { label: "Completed", color: "#2563EB", bg: "#EAF1FF" };
+  }
+  return studentStatusMeta(item?.student_status);
 };
 
 const timeOnly = (d: Date): string =>
@@ -167,6 +191,8 @@ export default function AssessmentsScreen() {
     null
   );
   const [filter, setFilter] = useState<FilterValue>("all");
+  // Bumped on a timer so time-based labels / statuses re-derive without a refetch.
+  const [, setNow] = useState(() => Date.now());
 
   // Pagination — the list endpoint is paginated (20/page); pull pages as the
   // user scrolls. `totalCount` is the server's total across all pages.
@@ -185,14 +211,16 @@ export default function AssessmentsScreen() {
     }
   }, [params.tab, router]);
 
-  const fetchAssessments = async (isRefresh = false) => {
+  const fetchAssessments = async (isRefresh = false, silent = false) => {
     if (activeExamId == null) {
       setData([]);
       setLoading(false);
       return;
     }
     try {
-      if (isRefresh) setRefreshing(true);
+      if (silent) {
+        // background refresh (auto status flip) — no spinner
+      } else if (isRefresh) setRefreshing(true);
       else setLoading(true);
       const res = await getassessmentsService(activeExamId, 1);
       const raw: any = res?.data;
@@ -253,6 +281,37 @@ export default function AssessmentsScreen() {
     fetchAssessments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeExamId]);
+
+  // Tick every 30s so time-only labels (e.g. "Live now · ends …") stay current
+  // even while the screen sits open.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // The card's live/upcoming/results state is driven by the backend's
+  // student_status, so a re-render alone won't flip an "upcoming" test to
+  // "live" — we need fresh data. Schedule a silent refetch for the exact moment
+  // the soonest test starts (upcoming → live) or ends (live → results), so the
+  // list updates on its own without a manual pull-to-refresh.
+  useEffect(() => {
+    if (loading || refreshing || activeExamId == null) return;
+    const now = Date.now();
+    let next = Infinity;
+    for (const item of data) {
+      const start = new Date(item?.scheduled_at).getTime();
+      if (isNaN(start)) continue;
+      const end = start + (item?.total_duration_minutes ?? 0) * 60 * 1000;
+      if (start > now) next = Math.min(next, start);
+      if (end > now) next = Math.min(next, end);
+    }
+    if (!isFinite(next)) return;
+    // +1s buffer so the boundary has definitely passed when we refetch.
+    const delay = Math.max(next - now + 1000, 1000);
+    const id = setTimeout(() => fetchAssessments(false, true), delay);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, loading, refreshing, activeExamId]);
 
   // Deep-link from Home's "Upcoming live": open the tapped assessment's detail
   // (the register page), matching by id (else by name). The list is paginated,
@@ -442,8 +501,9 @@ export default function AssessmentsScreen() {
         ) : (
           <View style={styles.cardList}>
             {tests.map(({ item, status }) => {
-              // The card shows only the backend's student_status pill.
-              const ss = studentStatusMeta(item.student_status);
+              // The card shows only the backend's student_status pill (with the
+              // submitted→"Completed"/"Results Out" timing rule applied).
+              const ss = studentDisplayMeta(item);
               const isLive = ["live", "active", "ongoing", "in_progress"].includes(
                 String(item.student_status ?? "").toLowerCase()
               );
