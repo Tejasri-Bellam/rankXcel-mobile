@@ -642,7 +642,9 @@ export default function ExamScreen({
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.closeBtn}
-          onPress={onBackToAssessments}
+          // An ongoing attempt can't simply be abandoned — the close button
+          // routes to the submit flow rather than navigating back.
+          onPress={() => setShowSubmitModal(true)}
           activeOpacity={0.7}
         >
           <Ionicons name="close" size={18} color="#555" />
@@ -697,6 +699,20 @@ export default function ExamScreen({
             <Text style={styles.qLabel}>
               QUESTION {currentFlatIdx + 1} / {totalQ}
             </Text>
+            <View style={styles.marksRow}>
+              <View style={[styles.marksChip, styles.marksChipPositive]}>
+                <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
+                  +{activeQuestion.marks_correct}
+                </Text>
+              </View>
+              <View style={[styles.marksChip, styles.marksChipNegative]}>
+                <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
+                  {activeQuestion.marks_incorrect > 0
+                    ? `-${activeQuestion.marks_incorrect}`
+                    : activeQuestion.marks_incorrect}
+                </Text>
+              </View>
+            </View>
             <TouchableOpacity
               style={[styles.markBtn, isMarked && styles.markBtnActive]}
               onPress={handleMarkForReview}

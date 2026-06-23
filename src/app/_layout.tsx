@@ -48,7 +48,9 @@ function AppShell() {
     view === "leaderboard";
 
   const showHeader = matches(HEADER_ROUTES) && !inExamFlow;
-  const showTabs = matches(TAB_ROUTES);
+  // Hide the bottom tab bar while actually sitting the exam — it would
+  // otherwise stack on top of the exam's own Prev/Next/Submit bar.
+  const showTabs = matches(TAB_ROUTES) && view !== "exam";
   const client_id = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
   const ios_client_id = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
   const googleSigninConfigured = useRef(false);

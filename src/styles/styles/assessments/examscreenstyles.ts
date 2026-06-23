@@ -71,6 +71,13 @@ export const examScreenStyles = StyleSheet.create({
     marginBottom: 14,
   },
   qLabel: { fontSize: 11, fontWeight: "700", color: "#9CA3AF", letterSpacing: 1 },
+  marksRow: { flexDirection: "row", alignItems: "center", gap: 6, marginLeft: "auto", marginRight: 10 },
+  marksChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  marksChipPositive: { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" },
+  marksChipNegative: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
+  marksChipText: { fontSize: 12, fontWeight: "700", fontVariant: ["tabular-nums"] as any },
+  marksChipTextPositive: { color: "#059669" },
+  marksChipTextNegative: { color: "#DC2626" },
   markBtn: {
     flexDirection: "row",
     alignItems: "center",
