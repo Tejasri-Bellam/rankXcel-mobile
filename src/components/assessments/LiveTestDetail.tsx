@@ -19,7 +19,7 @@ import ExamNavigator from "./ExamNavigator";
 import ExamResults from "./ExamResults";
 import SolutionViewer from "./SolutionViewer";
 import Leaderboard from "./Leaderboard";
-import { liveTestDetailStyles as s } from "@/src/styles/sidebar/assessments/liveTestDetail";
+import { liveTestDetailStyles as s } from "@/src/styles/styles/assessments/livetestdetailstyles";
 
 export type LiveStatus = "upcoming" | "live" | "results";
 

@@ -13,7 +13,7 @@ import {
   GoogleSignin,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
-import { loginStyles as styles } from '@/src/styles/auth/loginStyles';
+import { loginStyles as styles } from '@/src/styles/styles/auth/loginstyles';
 import { googleLoginService, signupService } from '@/src/libs/services/auth';
 import {
   getCountriesService,

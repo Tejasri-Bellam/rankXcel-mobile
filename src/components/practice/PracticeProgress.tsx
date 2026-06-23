@@ -1,6 +1,7 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { AnswerState } from "./PracticeExamFlow";
+import { practiceProgressStyles as styles } from "@/src/styles/styles/practice/practiceprogressstyles";
 
 interface Props {
   current: number;
@@ -33,22 +34,3 @@ export default function PracticeProgress({ current, total, answers }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    gap: 3,
-    flex: 1,
-    height: 3,
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  segment: {
-    flex: 1,
-    height: "100%",
-    borderRadius: 2,
-  },
-  segmentActive: {
-    flex: 1.4,
-  },
-});

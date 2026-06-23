@@ -1,5 +1,5 @@
 import { forgotPasswordService } from "@/src/libs/services/auth";
-import { forgotPasswordStyles } from "@/src/styles/auth/forgotPasswordStyles";
+import { forgotPasswordStyles } from "@/src/styles/styles/auth/forgotpasswordscreenstyles";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {

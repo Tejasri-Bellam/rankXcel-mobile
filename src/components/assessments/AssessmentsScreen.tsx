@@ -16,7 +16,7 @@ import { getassessmentsService } from "@/src/libs/services/assessments";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import LiveTestDetail, { LiveStatus } from "./LiveTestDetail";
-import { liveTestsStyles as styles } from "@/src/styles/sidebar/assessments/liveTests";
+import { liveTestsStyles as styles } from "@/src/styles/styles/assessments/assessmentsscreenstyles";
 
 type FilterValue = "all" | "live" | "upcoming" | "completed";
 

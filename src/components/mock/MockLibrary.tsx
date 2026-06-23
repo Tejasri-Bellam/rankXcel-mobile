@@ -4,7 +4,6 @@ import {
   BackHandler,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -27,6 +26,7 @@ import { getScoreColor } from '@/src/styles/styles';
 import { useHeaderScrollHandler } from '@/src/libs/context/HeaderScrollContext';
 import MockDetails from './Details';
 import RequestMockModal from './RequestMock';
+import { mockLibraryStyles as styles } from '@/src/styles/styles/mock/mocklibrarystyles';
 
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -344,96 +344,3 @@ export default function MockLibrary({
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F7F8FC' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
-
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    backgroundColor: '#F7F8FC',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  headerText: { flex: 1, marginRight: 12 },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: '#1A1A2E', marginBottom: 4 },
-  pageSubtitle: { fontSize: 13, color: '#9CA3AF', lineHeight: 18 },
-
-  cardList: { paddingHorizontal: 16, gap: 12 },
-
-  mockCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  mockCardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#EEF4FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  mockCardBody: { flex: 1 },
-  mockCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1A1A2E',
-    marginBottom: 6,
-  },
-  mockCardMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  mockTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  mockTagText: { fontSize: 11, fontWeight: '700' },
-  mockMetaText: { fontSize: 12, color: '#9CA3AF' },
-  mockCardScore: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#22C55E',
-    flexShrink: 0,
-  },
-
-  buildBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#3B7DF8',
-    borderStyle: 'dashed',
-    backgroundColor: '#fff',
-    flexShrink: 0,
-  },
-  buildBtnText: { fontSize: 13, fontWeight: '600', color: '#3B7DF8' },
-
-  centered: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  loadingText: { fontSize: 14, color: '#9CA3AF' },
-  errorText: { fontSize: 14, color: '#EF4444', textAlign: 'center', paddingHorizontal: 24 },
-  retryBtn: {
-    backgroundColor: '#3B7DF8',
-    paddingHorizontal: 28,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  retryText: { color: '#fff', fontWeight: '700' },
-  emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText: { fontSize: 14, color: '#9CA3AF' },
-});

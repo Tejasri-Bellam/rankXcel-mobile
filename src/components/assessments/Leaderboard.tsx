@@ -2,13 +2,15 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { leaderboardStyles as s } from "@/src/styles/sidebar/assessments/leaderboard";
+import {
+  leaderboardStyles as s,
+  leaderboardExtraStyles as lb,
+} from "@/src/styles/styles/assessments/leaderboardstyles";
 import { getAssessmentLeaderboardService } from "@/src/libs/services/assessments";
 
 interface Props {
@@ -240,20 +242,3 @@ export default function Leaderboard({ assessmentId, onBack }: Props) {
   );
 }
 
-const lb = StyleSheet.create({
-  summary: { paddingHorizontal: 16, marginBottom: 8, gap: 10 },
-  participants: { fontSize: 13, color: "#9CA3AF" },
-  yourCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#EAF1FF",
-    borderRadius: 14,
-    padding: 14,
-  },
-  yourLabel: { fontSize: 12, color: "#6B7280" },
-  yourRank: { fontSize: 20, fontWeight: "800", color: "#1A1A2E", marginTop: 2 },
-  yourRight: { alignItems: "flex-end" },
-  yourPct: { fontSize: 18, fontWeight: "800", color: "#3B82F6" },
-  yourTop: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-});

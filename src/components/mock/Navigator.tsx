@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MockExamScreen from './ExamScreen';
 import { getMockTestService, MockTestResult } from '../../libs/services/mock-library';
+import { navigatorStyles } from '@/src/styles/styles/mock/navigatorstyles';
 
 interface Props {
   mockId: number | string;
@@ -156,30 +157,30 @@ export default function MockExamNavigator({
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+      <SafeAreaView style={navigatorStyles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B7DF8" />
-        <Text style={{ marginTop: 12, color: '#9CA3AF', fontSize: 14 }}>Loading mock test…</Text>
+        <Text style={navigatorStyles.loadingText}>Loading mock test…</Text>
       </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fff' }}>
-        <Text style={{ fontSize: 36, marginBottom: 16 }}>⚠️</Text>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#1A1A2E', marginBottom: 8, textAlign: 'center' }}>
+      <SafeAreaView style={navigatorStyles.errorContainer}>
+        <Text style={navigatorStyles.errorIcon}>⚠️</Text>
+        <Text style={navigatorStyles.errorTitle}>
           Failed to Load
         </Text>
-        <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginBottom: 24 }}>{error}</Text>
+        <Text style={navigatorStyles.errorText}>{error}</Text>
         <TouchableOpacity
           onPress={loadQuestions}
-          style={{ backgroundColor: '#3B7DF8', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginBottom: 12 }}
+          style={navigatorStyles.retryBtn}
         >
-          <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+          <Text style={navigatorStyles.retryText}>Retry</Text>
         </TouchableOpacity>
         {onBackToMocks && (
           <TouchableOpacity onPress={onBackToMocks}>
-            <Text style={{ color: '#9CA3AF', fontSize: 14 }}>← Back to Mock Library</Text>
+            <Text style={navigatorStyles.backText}>← Back to Mock Library</Text>
           </TouchableOpacity>
         )}
       </SafeAreaView>

@@ -14,7 +14,7 @@ import ExamNavigator from './ExamNavigator';
 import ExamResults from './ExamResults';
 import SolutionViewer from './SolutionViewer';
 import { assessmentStartService, AssessmentResult } from '@/src/libs/services/assessments-attempts';
-import { examDetailsStyles as styles } from '@/src/styles/sidebar/assessments/examDetails';
+import { examDetailsStyles as styles } from '@/src/styles/styles/assessments/examdetailsstyles';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Props {

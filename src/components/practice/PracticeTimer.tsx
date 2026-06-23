@@ -1,7 +1,8 @@
 import { COLORS } from "@/src/styles/styles";
+import { practiceTimerStyles as timerStyles } from "@/src/styles/styles/practice/practicetimerstyles";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, StyleSheet, } from "react-native";
+import { View, Text } from "react-native";
 
 
 export default function PracticeTimer() {
@@ -35,20 +36,4 @@ const TimerDisplay = ({ running }: { running: boolean }) => {
     );
 }
 }
-const timerStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  text: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-});
 

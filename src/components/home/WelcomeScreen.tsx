@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { WelcomeJson } from '../json/welcome';
-import { welcomeStyles } from '@/src/styles/welcomeStyles';
+import { welcomeStyles } from '@/src/styles/styles/home/welcomescreenstyles';
 
 const { width } = Dimensions.get('window');
 
