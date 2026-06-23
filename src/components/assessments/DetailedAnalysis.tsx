@@ -9,7 +9,7 @@ import {
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import { mockAnalysisStyles as styles } from "@/src/styles/sidebar/mockExams/detailedAnalysis";
+import { mockAnalysisStyles as styles } from "@/src/styles/styles/mock/detailedanalysisstyles";
 import {
   getAssessmentDetailedAnalysisService,
   getassessmentResultService,

@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { homeData } from '../json/home';
-import { homeStyles } from '@/src/styles/homeStyles';
+import { homeStyles } from '@/src/styles/styles/home/homescreenstyles';
 
 
 const HomeScreen = () => {

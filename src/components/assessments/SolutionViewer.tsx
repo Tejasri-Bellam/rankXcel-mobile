@@ -10,12 +10,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { solutionViewerStyles as styles } from '@/src/styles/styles/assessments/solutionviewerstyles';
 
 interface Props {
   attemptId: number;
@@ -332,141 +332,3 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#EEEFF5' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    backgroundColor: '#EEEFF5',
-    gap: 10,
-  },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  backText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#1A1A2E' },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 40, gap: 16 },
-
-  questionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  qCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  qCardNum: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
-  outcomeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-  },
-  outcomeBadgeCorrect: { backgroundColor: '#DCFCE7' },
-  outcomeBadgeWrong: { backgroundColor: '#FEE2E2' },
-  outcomeBadgeText: { fontSize: 12, fontWeight: '700', color: '#6B7280' },
-  qCardText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1A2E',
-    lineHeight: 22,
-    marginBottom: 16,
-  },
-
-  arCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#EEF0F4',
-    padding: 12,
-    marginBottom: 12,
-  },
-  arLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6C5CE7',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  arText: { fontSize: 14, color: '#1A1A2E', lineHeight: 20 },
-
-  optRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#fff',
-    marginBottom: 8,
-  },
-  optRowCorrect: { borderColor: '#22C55E', backgroundColor: '#F0FDF4' },
-  optRowWrong: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
-  optLetter: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    lineHeight: 28,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#6B7280',
-  },
-  optLetterCorrect: { backgroundColor: '#22C55E', borderColor: '#22C55E', color: '#fff' },
-  optLetterWrong: { backgroundColor: '#EF4444', borderColor: '#EF4444', color: '#fff' },
-  optText: { flex: 1, fontSize: 14, color: '#1A1A2E', fontWeight: '500' },
-
-  numericRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
-  numericBox: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
-    backgroundColor: '#fff',
-  },
-  numericBoxUser: { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
-  numericBoxCorrect: { borderColor: '#22C55E', backgroundColor: '#F0FDF4' },
-  numericBoxLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', marginBottom: 4 },
-  numericBoxValue: { fontSize: 16, fontWeight: '800', color: '#1A1A2E' },
-
-  whyBox: {
-    marginTop: 10,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 10,
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#3B7DF8',
-  },
-  whyLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
-  whyText: { fontSize: 13, color: '#6B7280', lineHeight: 20 },
-  askTutorBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 5,
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#EEF4FF',
-  },
-  askTutorText: { fontSize: 12, fontWeight: '700', color: '#3B7DF8' },
-});

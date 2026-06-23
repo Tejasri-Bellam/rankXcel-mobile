@@ -15,7 +15,7 @@ import {
   getExamsListService,
   getMyTargetExamsService,
 } from '@/src/libs/services/profile';
-import { onboardingStyles as s } from '@/src/styles/onboardingStyles';
+import { onboardingStyles as s } from '@/src/styles/styles/onboarding/setgoalscreenstyles';
 import { COLORS } from '@/src/styles/styles';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import { OnboardingJson } from '../json/onboarding';

@@ -8,12 +8,12 @@ import {
   requestMockTestService,
 } from "@/src/libs/services/syllabus";
 import { COLORS } from "@/src/styles/styles";
+import { practiceExamFlowStyles as loadStyles } from "@/src/styles/styles/practice/practiceexamflowstyles";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -412,19 +412,5 @@ export const PracticeExamFlow = ({
     </Modal>
   );
 };
-
-const loadStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    gap: 16,
-  },
-  text: {
-    fontSize: 14,
-    color: "#9CA3AF",
-  },
-});
 
 export default PracticeExamFlow;

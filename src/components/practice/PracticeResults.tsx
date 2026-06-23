@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -13,6 +12,7 @@ import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import { AnswerState } from "./PracticeExamFlow";
 import { PracticeApiQuestion } from "./PracticeQuestions";
 import { getScoreColor } from "@/src/styles/styles";
+import { practiceResultsStyles as styles } from "@/src/styles/styles/practice/practiceresultsstyles";
 
 interface Props {
   chapterName: string;
@@ -301,148 +301,3 @@ export default function PracticeResults({
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: SCREEN_BG },
-  topBar: { paddingHorizontal: 16, paddingTop: 12 },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 2, alignSelf: "flex-start" },
-  backText: { fontSize: 16, fontWeight: "600", color: "#3B82F6" },
-
-  scroll: { flex: 1 },
-
-  // Results view
-  resultsContent: { paddingHorizontal: 20, paddingBottom: 32, alignItems: "center" },
-  resultsTitle: { fontSize: 16, fontWeight: "700", color: "#1A1A2E", marginBottom: 18 },
-  ringWrap: { marginBottom: 16 },
-  ringPct: { fontSize: 32, fontWeight: "800", color: "#1A1A2E" },
-  ringSub: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
-  heading: { fontSize: 24, fontWeight: "800", color: "#1A1A2E", marginBottom: 4 },
-  subheading: { fontSize: 14, color: "#9CA3AF", marginBottom: 22 },
-
-  statsRow: { flexDirection: "row", gap: 12, alignSelf: "stretch", marginBottom: 14 },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: "center",
-    gap: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  statValue: { fontSize: 20, fontWeight: "800", color: "#1A1A2E", marginTop: 4 },
-  statLabel: { fontSize: 12, color: "#9CA3AF" },
-
-  xpBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    alignSelf: "stretch",
-    backgroundColor: "#EAF1FF",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 20,
-  },
-  xpTitle: { fontSize: 14, fontWeight: "700", color: "#1A1A2E" },
-  xpSub: { fontSize: 12, color: "#6B7280", marginTop: 1 },
-
-  submittingRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
-  submittingText: { fontSize: 12, color: "#9CA3AF" },
-
-  reviewBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    alignSelf: "stretch",
-    backgroundColor: "#2F86FF",
-    borderRadius: 14,
-    paddingVertical: 16,
-    marginBottom: 12,
-    shadowColor: "#2F86FF",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  reviewBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-  doneBtn: {
-    alignSelf: "stretch",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  doneBtnText: { fontSize: 15, fontWeight: "700", color: "#1A1A2E" },
-  tryAgain: { marginTop: 14, padding: 6 },
-  tryAgainText: { fontSize: 13, fontWeight: "600", color: "#9CA3AF" },
-
-  // Review view
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#1A1A2E",
-    paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 14,
-  },
-  reviewContent: { paddingHorizontal: 16, paddingBottom: 24, gap: 14 },
-  reviewCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  reviewHeadRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
-  qTag: { fontSize: 13, fontWeight: "800", color: "#9CA3AF" },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  statusPillText: { fontSize: 11, fontWeight: "700" },
-  reviewQText: { fontSize: 15, fontWeight: "700", color: "#1A1A2E", marginBottom: 12 },
-
-  optRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    marginBottom: 8,
-  },
-  optNeutral: { borderColor: "#EDEFF4", backgroundColor: "#F8F9FC" },
-  optCorrect: { borderColor: "#86E0A3", backgroundColor: "#E9F9EF" },
-  optWrong: { borderColor: "#F4B0B0", backgroundColor: "#FDECEC" },
-  optLetter: { fontSize: 13, fontWeight: "800", width: 16 },
-  optText: { flex: 1, fontSize: 14, fontWeight: "500" },
-
-  numericReview: { gap: 6, marginBottom: 4 },
-  numericReviewRow: { fontSize: 14, color: "#1A1A2E" },
-
-  whyBox: {
-    backgroundColor: "#F4F6FB",
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 4,
-  },
-  whyLabel: { fontWeight: "800", color: "#3B82F6" },
-  whyText: { fontSize: 13, color: "#6B7280", lineHeight: 19 },
-});

@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IntroJson } from '../json/intro';
-import { INTRO, introStyles as s } from '@/src/styles/introStyles';
+import { INTRO, introStyles as s } from '@/src/styles/styles/onboarding/introcarouselstyles';
 
 const tap = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) =>
   Haptics.impactAsync(style).catch(() => {});
@@ -43,7 +43,7 @@ const IntroCarousel = () => {
   };
 
   return (
-    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.container} edges={[]}>
       {/* Skip */}
       <View style={s.topBar}>
         <Pressable

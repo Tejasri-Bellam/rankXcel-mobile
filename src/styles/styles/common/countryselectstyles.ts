@@ -1,0 +1,101 @@
+import { StyleSheet } from "react-native";
+
+export const countrySelectStyles = StyleSheet.create({
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#1E293B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.45)",
+  },
+  sheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    paddingTop: 10,
+  },
+  handle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#CBD5E1",
+    marginBottom: 12,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sheetTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  sheetClose: {
+    padding: 4,
+  },
+  sheetSub: {
+    fontSize: 13,
+    color: "#64748B",
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  center: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  empty: {
+    paddingVertical: 30,
+    textAlign: "center",
+    color: "#94A3B8",
+  },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#EEF2F7",
+    marginBottom: 8,
+  },
+  cardSelected: {
+    borderColor: "#2F8AF4",
+    backgroundColor: "#F0F7FF",
+  },
+  cardName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  cardSub: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+});

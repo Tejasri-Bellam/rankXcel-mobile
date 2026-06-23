@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { resetPasswordConfirmService } from '@/src/libs/services/auth';
-import { resetPasswordStyles as styles } from '@/src/styles/auth/resetPasswordStyles';
+import { resetPasswordStyles as styles } from '@/src/styles/styles/auth/resetpasswordstyles';
 
 const BRAND = 'RankXcel';
 

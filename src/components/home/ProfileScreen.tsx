@@ -11,7 +11,7 @@ import {
   updateMeService,
   updateNotificationsService,
 } from '@/src/libs/services/profile';
-import { profileStyles } from '@/src/styles/sidebar/profileStyles';
+import { profileStyles } from '@/src/styles/styles/home/profilescreenstyles';
 import { COLORS } from '@/src/styles/styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
