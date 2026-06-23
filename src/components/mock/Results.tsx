@@ -76,6 +76,7 @@ export default function MockExamResults({
   useEffect(() => {
     if (initialResult) return; // already have it from the submit response
     loadResult();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadResult = async () => {

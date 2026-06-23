@@ -50,6 +50,7 @@ function AppShell() {
   const showHeader = matches(HEADER_ROUTES) && !inExamFlow;
   const showTabs = matches(TAB_ROUTES);
   const client_id = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  const ios_client_id = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
   const googleSigninConfigured = useRef(false);
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -68,6 +69,10 @@ function AppShell() {
         if (!googleSigninConfigured.current && client_id) {
           GoogleSignin.configure({
             webClientId: client_id,
+            iosClientId: ios_client_id,
+            // Required for Google Sign-In on iOS — the native iOS OAuth client
+            // id. Without it GoogleSignin.signIn() throws on iOS.
+            ...(ios_client_id ? { iosClientId: ios_client_id } : {}),
             offlineAccess: true,
             scopes: ["profile", "email"],
           });
@@ -81,6 +86,7 @@ function AppShell() {
     };
 
     configureGoogle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

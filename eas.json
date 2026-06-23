@@ -17,7 +17,8 @@
         "EXPO_PUBLIC_APP_ENV": "dev",
         "EXPO_PUBLIC_API_BASE_URL": "https://rankxcelapi.wmlit.com/api",
         "EXPO_PUBLIC_DEEP_LINK_DOMAIN": "mockexams.wmlit.com   ",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID" : "1021654406717-pq839sf6i05mfb55jt7mf8a2malrohor.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID" : "1021654406717-pq839sf6i05mfb55jt7mf8a2malrohor.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "1021654406717-4j0q3f5g6v8b9r1k2h0j1l2m3n4o5p6q.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"

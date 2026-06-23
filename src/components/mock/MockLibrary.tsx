@@ -13,11 +13,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  createMockTestService,
   getMockTestsService,
   ExamObject,
   SubjectObject,
-  OptionItem,
   TestType,
 } from '../../libs/services/mock-library';
 import { MockTest } from '@/src/libs/types/mock-library';
@@ -46,9 +44,6 @@ const isExamObject = (v: MockTest['exam']): v is ExamObject =>
 
 const isSubjectObject = (v: MockTest['subject']): v is SubjectObject =>
   typeof v === 'object' && v !== null && 'name' in v;
-
-const getExamName = (exam: MockTest['exam']): string =>
-  isExamObject(exam) ? exam.name : String(exam || '');
 
 const getExamId = (exam: MockTest['exam']): number | null =>
   isExamObject(exam) ? exam.id : null;
@@ -172,7 +167,8 @@ export default function MockLibrary({
 
   const loadMocks = useCallback(async (isRefresh = false) => {
     try {
-      isRefresh ? setRefreshing(true) : setLoading(true);
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
       setError(null);
       const response = await getMockTestsService(activeExamId ?? undefined, testType, 1);
       const { results, next } = extractPage<MockTest>(response);

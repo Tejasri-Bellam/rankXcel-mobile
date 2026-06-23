@@ -79,6 +79,7 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<AnalysisTab>('subject');
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   const load = async () => {

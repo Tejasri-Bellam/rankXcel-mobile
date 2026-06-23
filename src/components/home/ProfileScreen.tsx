@@ -1,4 +1,3 @@
-import { logoutService } from '@/src/libs/services/auth';
 import {
   addTargetExamService,
   deleteAccountService,
@@ -19,7 +18,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Text,
   TextInput,
   View,
@@ -30,8 +28,6 @@ import {
 import { storageSetAccessToken } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const { width } = Dimensions.get('window');
 
 // Types
 // `id` is the exam id (used to dedupe the dropdown); `recordId` is the
@@ -94,7 +90,6 @@ export default function ProfileScreen() {
 
   const [loading, setLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [logoutLoading, setLogoutLoading] = useState(false);
 
   // Personal info
   const [name, setname] = useState('');

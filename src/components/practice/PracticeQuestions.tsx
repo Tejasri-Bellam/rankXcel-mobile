@@ -213,6 +213,7 @@ export default function PracticeQuestions({
 
   useEffect(() => {
     if (timerMinutes > 0 && totalSeconds >= timerMinutes * 60) handleEndPractice();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalSeconds, timerMinutes]);
 
   const current = answers[currentIdx];

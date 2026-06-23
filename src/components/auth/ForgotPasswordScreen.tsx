@@ -50,6 +50,7 @@ export default function ForgotPasswordScreen() {
 
   useEffect(() => {
     animateIn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   // Resend countdown timer
@@ -169,7 +170,7 @@ export default function ForgotPasswordScreen() {
               <View style={forgotPasswordStyles.headerSection}>
                 <Text style={forgotPasswordStyles.title}>Reset password</Text>
                 <Text style={forgotPasswordStyles.subtitle}>
-                  We'll email you a secure reset link.
+                  {`We'll email you a secure reset link.`}
                 </Text>
               </View>
 
@@ -249,7 +250,7 @@ export default function ForgotPasswordScreen() {
           <View style={forgotPasswordStyles.headerSection}>
             <Text style={forgotPasswordStyles.title}>Reset password</Text>
             <Text style={forgotPasswordStyles.subtitle}>
-              We'll email you a secure reset link.
+              {`We'll email you a secure reset link.`}
             </Text>
           </View>
 

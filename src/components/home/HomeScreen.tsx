@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { homeData } from '../json/home';
 import { homeStyles } from '@/src/styles/styles/home/homescreenstyles';
 
@@ -179,7 +178,7 @@ const HomeScreen = () => {
             </View>
             <Text style={homeStyles.featureCardTitle}>Precision Mistake Analysis</Text>
             <Text style={homeStyles.featureCardDesc}>
-              Not just "wrong answer" — the AI tells you if it was a concept gap, a formula error, or a calculation mistake, and shows you exactly where your reasoning diverged.
+              {`Not just "wrong answer" — the AI tells you if it was a concept gap, a formula error, or a calculation mistake, and shows you exactly where your reasoning diverged.`}
             </Text>
             <View style={homeStyles.checklist}>
               <View style={homeStyles.checklistItem}>
@@ -204,7 +203,7 @@ const HomeScreen = () => {
             </View>
             <Text style={homeStyles.featureCardTitle}>Dual-Verified AI Solutions</Text>
             <Text style={homeStyles.featureCardDesc}>
-              Every solution passes two checks: a CAS (Computer Algebra System) verification and an independent AI pass. The "Dual Verified" badge means you can trust it.
+              {`Every solution passes two checks: a CAS (Computer Algebra System) verification and an independent AI pass. The "Dual Verified" badge means you can trust it.`}
             </Text>
             <View style={homeStyles.checklist}>
               <View style={homeStyles.checklistItem}>
@@ -281,7 +280,7 @@ const HomeScreen = () => {
           <View style={homeStyles.testimonialCard}>
             <Text style={homeStyles.stars}>★★★★★</Text>
             <Text style={homeStyles.testimonialText}>
-              "The mistake analysis is like having a JEE topper coach who watches every single question you attempt. My Rotational Mechanics accuracy went from 28% to 71% in 3 weeks."
+              {`"The mistake analysis is like having a JEE topper coach who watches every single question you attempt. My Rotational Mechanics accuracy went from 28% to 71% in 3 weeks."`}
             </Text>
             <Text style={homeStyles.testimonialAuthorName}>Arjun M.</Text>
             <Text style={homeStyles.testimonialAuthorSub}>AIR 2847 | JEE Main Jan 2025</Text>
@@ -290,7 +289,7 @@ const HomeScreen = () => {
           <View style={homeStyles.testimonialCard}>
             <Text style={homeStyles.stars}>★★★★★</Text>
             <Text style={homeStyles.testimonialText}>
-              "I had done 60+ mocks on other platforms. RankXcel was the first one that told me I have a specific formula misuse pattern in Electrochemistry — not just 'you're weak in Chemistry'."
+              {`"I had done 60+ mocks on other platforms. RankXcel was the first one that told me I have a specific formula misuse pattern in Electrochemistry — not just 'you're weak in Chemistry'."`}
             </Text>
             <Text style={homeStyles.testimonialAuthorName}>Kavya S.</Text>
             <Text style={homeStyles.testimonialAuthorSub}>99.2 percentile | Drop Year Student</Text>
@@ -299,7 +298,7 @@ const HomeScreen = () => {
           <View style={homeStyles.testimonialCard}>
             <Text style={homeStyles.stars}>★★★★★</Text>
             <Text style={homeStyles.testimonialText}>
-              "The dual-verified solutions are the real differentiator. I stopped second-guessing the answers I was studying from. That trust alone saved me hours."
+              {`"The dual-verified solutions are the real differentiator. I stopped second-guessing the answers I was studying from. That trust alone saved me hours."`}
             </Text>
             <Text style={homeStyles.testimonialAuthorName}>Rohan I.</Text>
             <Text style={homeStyles.testimonialAuthorSub}>JEE Main + BITSAT aspirant</Text>

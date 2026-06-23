@@ -5,9 +5,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { View, Text } from "react-native";
 
 
-export default function PracticeTimer() {
-
-const TimerDisplay = ({ running }: { running: boolean }) => {
+export default function PracticeTimer({ running }: { running: boolean }) {
   const [seconds, setSeconds] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -35,5 +33,3 @@ const TimerDisplay = ({ running }: { running: boolean }) => {
         </View>
     );
 }
-}
-

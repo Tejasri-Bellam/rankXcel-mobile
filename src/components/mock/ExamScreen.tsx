@@ -2,8 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  AppState,
-  AppStateStatus,
   Modal,
   ScrollView,
   Text,
@@ -82,6 +80,7 @@ export default function MockExamScreen({
       setTimeTaken((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!exam?.sections?.length) {

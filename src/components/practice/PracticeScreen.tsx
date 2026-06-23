@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import PracticeExamFlow from "./PracticeExamFlow";
+import { PracticeExamFlow } from "./PracticeExamFlow";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import { practiceScreenStyles as styles } from "@/src/styles/styles/practice/practicescreenstyles";
 
@@ -382,7 +382,8 @@ export default function PracticeScreen() {
   // (GET /v1/exams/{examId}/syllabus/) — subjects → topics → subtopics.
   const loadSubjects = useCallback(async (examId: number, isRefresh = false) => {
     try {
-      isRefresh ? setRefreshing(true) : setLoading(true);
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
       setError(null);
       const res = await getExamSyllabusService(examId);
       const { subjects, displaySubjects } = normalizeSyllabus(res);

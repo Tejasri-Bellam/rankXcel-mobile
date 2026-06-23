@@ -221,7 +221,7 @@ export interface MockTestResult {
   accuracy: number;
   time_taken_seconds: number;
   topic_breakdown: Record<string, MockTopicBreakdown>;
-  strength_by_subject: Array<{ subject_name: string; accuracy: number }>;
+  strength_by_subject: { subject_name: string; accuracy: number }[];
 }
 
 // Result

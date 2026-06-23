@@ -8,6 +8,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const appScheme = process.env.APP_SCHEME || "rankxcel-mobile-dev";
   const deepLinkDomain =
     process.env.EXPO_PUBLIC_DEEP_LINK_DOMAIN || "mockexams.wmlit.com";
+  // Reversed iOS OAuth client id (e.g. com.googleusercontent.apps.<id>). The
+  // google-signin config plugin registers it as a CFBundleURLScheme so iOS can
+  // hand the OAuth callback back to the app.
+  const googleIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME?.trim();
 
   return {
     ...config,
@@ -24,6 +28,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       supportsTablet: true,
       bundleIdentifier: packageName,
       buildNumber: String(appVersionCode),
+      // Enables the "Sign in with Apple" capability on the iOS app. Required for
+      // AppleAuthentication.signInAsync() — without it the native sheet errors.
+      usesAppleSignIn: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         CFBundleDisplayName: appName,
@@ -78,6 +85,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           },
         },
       ],
+      // Registers the iOS URL scheme Google Sign-In needs for its OAuth
+      // callback. Only added when the reversed client id is configured.
+      ...(googleIosUrlScheme
+        ? [
+            [
+              "@react-native-google-signin/google-signin",
+              { iosUrlScheme: googleIosUrlScheme },
+            ] as [string, any],
+          ]
+        : []),
+      // Adds the Sign in with Apple entitlement to the native iOS project.
+      "expo-apple-authentication",
     ],
 
     experiments: {

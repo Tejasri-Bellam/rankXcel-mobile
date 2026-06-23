@@ -8,7 +8,6 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { resendOtpService, verifyEmailService } from '@/src/libs/services/auth';
 import { storageSetAccessToken } from '@/src/libs/storage';

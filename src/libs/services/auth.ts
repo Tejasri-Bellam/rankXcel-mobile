@@ -1,4 +1,4 @@
-import { SignupPayload, ForgotPasswordPayload, ResetPasswordConfirmPayload, VerifyEmailPayload, ResendOtpPayload, UpdateProfilePayload, } from "../types/auth";
+import { SignupPayload, ForgotPasswordPayload, ResetPasswordConfirmPayload, VerifyEmailPayload, ResendOtpPayload, } from "../types/auth";
 import { genericPost } from "./genericService";
 
 
@@ -13,6 +13,14 @@ export async function loginService(data: any) {
 export async function googleLoginService(data: any) {
   return await genericPost(
     "/v1/auth/google_sso/",
+    data,
+    { useAccessToken: false }
+  );
+}
+
+export async function appleLoginService(data: any) {
+  return await genericPost(
+    "/v1/auth/apple_sso/",
     data,
     { useAccessToken: false }
   );

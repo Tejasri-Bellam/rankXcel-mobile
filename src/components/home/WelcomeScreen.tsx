@@ -4,13 +4,10 @@ import {
   Text,
   TouchableOpacity,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { WelcomeJson } from '../json/welcome';
 import { welcomeStyles } from '@/src/styles/styles/home/welcomescreenstyles';
-
-const { width } = Dimensions.get('window');
 
 const WelcomeScreen = () => {
   const data = WelcomeJson();
@@ -47,6 +44,7 @@ const WelcomeScreen = () => {
         )
       ),
     ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
    const steps = data.steps;

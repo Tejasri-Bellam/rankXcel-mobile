@@ -18,6 +18,7 @@ export default function Header({ onProfilePress }: HeaderProps) {
 
   useEffect(() => {
     fetchUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchUser = async () => {
