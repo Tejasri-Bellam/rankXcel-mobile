@@ -11,15 +11,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import {
   getMockTestResultService,
+  getMockAttemptResultService,
   MockTest,
   MockTestResult,
   MockTopicBreakdown,
 } from '../../libs/services/mock-library';
 import { getScoreColor } from '@/src/styles/styles';
+import { SUBJECT_ACCENTS } from '@/src/libs/constants';
 import { resultsStyles as styles } from '@/src/styles/styles/mock/resultsstyles';
 
 interface Props {
   mockId: number | string;
+  // Attempt to read the result from; when set, the attempt-based /result/
+  // endpoint is used, otherwise it falls back to the mock-based one.
+  attemptId?: number | string | null;
   mock: MockTest;
   answers: Record<string, string[]>;
   timeTakenSeconds: number;
@@ -53,7 +58,6 @@ const num = (v: any): number => (v != null && !Number.isNaN(Number(v)) ? Number(
 const strengthColor = getScoreColor;
 
 // Stable accent colour per subject name (no design tokens for this on the API).
-const SUBJECT_ACCENTS = ['#3B7DF8', '#F59E0B', '#22C55E', '#A855F7', '#EC4899', '#14B8A6'];
 const subjectAccent = (name: string): string => {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
@@ -62,6 +66,7 @@ const subjectAccent = (name: string): string => {
 
 export default function MockExamResults({
   mockId,
+  attemptId,
   mock,
   timeTakenSeconds,
   initialResult,
@@ -83,7 +88,10 @@ export default function MockExamResults({
     try {
       setLoading(true);
       setError(null);
-      const res = await getMockTestResultService(mockId);
+      const res =
+        attemptId != null
+          ? await getMockAttemptResultService(attemptId)
+          : await getMockTestResultService(mockId);
       const data = ((res as any)?.data ?? (res as any)) as MockTestResult | null;
       if (!data) {
         setError('Failed to load results.');

@@ -50,12 +50,14 @@ export async function getOptionsTopicsService(topicId: number | string) {
 // POST /v1/exams/{examId}/mock-tests/
 export interface RequestMockTestPayload {
   exam: number;
-  subject_ids: number[];
+  is_full_syllabus: boolean;
+  // Practice/test sessions are scoped to a single subject.
+  subject_id: number;
   topic_ids: number[];
   question_count: number;
   // "any" difficulty is normalized to "mixed" by the caller.
   difficulty?: "easy" | "medium" | "hard" | "mixed" | null;
-  test_type: "PRACTICE_TEST" | "MOCK_TEST";
+  test_type: "PRACTICE_TEST" | "MOCK_TEST" | "TEST";
   total_duration_minutes?: number;
 }
 

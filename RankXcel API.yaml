@@ -3,6 +3,98 @@ info:
   title: RankXcel API
   version: 1.0.0
 paths:
+  /api/v1/admin/mock-tests/:
+    get:
+      operationId: admin_mock_tests_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminMockTestList'
+          description: ''
+    post:
+      operationId: admin_mock_tests_create
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminMockTestCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminMockTestCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminMockTestCreate'
+        required: true
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMockTestCreate'
+          description: ''
+  /api/v1/admin/mock-tests/{id}/publish/:
+    post:
+      operationId: admin_mock_tests_publish_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/admin/mock-tests/{id}/questions/:
+    get:
+      operationId: admin_mock_tests_questions_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - admin
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMockTestQuestionList'
+          description: ''
   /api/v1/admin/quality/low-accuracy-topics/:
     get:
       operationId: admin_quality_low_accuracy_topics_retrieve
@@ -2009,6 +2101,132 @@ paths:
                 items:
                   $ref: '#/components/schemas/CountryOption'
           description: ''
+  /api/v1/mock-test-attempts/{attempt_id}/detailed-analysis/:
+    get:
+      operationId: mock_test_attempts_detailed_analysis_retrieve
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-test-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-test-attempts/{attempt_id}/questions/:
+    get:
+      operationId: mock_test_attempts_questions_retrieve
+      description: GET questions + existing answers for an in-progress attempt (resume
+        flow).
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-test-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-test-attempts/{attempt_id}/responses/:
+    post:
+      operationId: mock_test_attempts_responses_create
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-test-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-test-attempts/{attempt_id}/responses/{question_id}/:
+    put:
+      operationId: mock_test_attempts_responses_update
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: question_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-test-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-test-attempts/{attempt_id}/result/:
+    get:
+      operationId: mock_test_attempts_result_retrieve
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-test-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-test-attempts/{attempt_id}/review/:
+    get:
+      operationId: mock_test_attempts_review_retrieve
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-test-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/mock-test-attempts/{attempt_id}/submit/:
+    post:
+      operationId: mock_test_attempts_submit_create
+      parameters:
+      - in: path
+        name: attempt_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - mock-test-attempts
+      security:
+      - tokenAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/mock-tests/:
     get:
       operationId: mock_tests_list
@@ -2124,82 +2342,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/MockTestDetail'
           description: ''
-  /api/v1/mock-tests/{id}/detailed-analysis/:
-    get:
-      operationId: mock_tests_detailed_analysis_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - mock-tests
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/mock-tests/{id}/questions/:
-    get:
-      operationId: mock_tests_questions_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - mock-tests
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/mock-tests/{id}/responses/{question_id}/:
-    put:
-      operationId: mock_tests_responses_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      - in: path
-        name: question_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - mock-tests
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/mock-tests/{id}/result/:
-    get:
-      operationId: mock_tests_result_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - mock-tests
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/mock-tests/{id}/review/:
-    get:
-      operationId: mock_tests_review_retrieve
+  /api/v1/mock-tests/{id}/retake/:
+    post:
+      operationId: mock_tests_retake_create
       parameters:
       - in: path
         name: id
@@ -2217,23 +2362,6 @@ paths:
   /api/v1/mock-tests/{id}/start/:
     post:
       operationId: mock_tests_start_create
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - mock-tests
-      security:
-      - tokenAuth: []
-      - cookieAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/mock-tests/{id}/submit/:
-    post:
-      operationId: mock_tests_submit_create
       parameters:
       - in: path
         name: id
@@ -3516,6 +3644,63 @@ components:
       - email
       - name
       - password
+    AdminMockTest:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        exam:
+          allOf:
+          - $ref: '#/components/schemas/ExamMinimal'
+          readOnly: true
+        test_type:
+          $ref: '#/components/schemas/TestTypeEnum'
+        question_count:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        difficulty:
+          type: string
+          nullable: true
+          maxLength: 10
+        total_duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/Status451Enum'
+        is_official:
+          type: boolean
+          description: True for admin-created shared templates; False for student-created
+            personal mocks.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - exam
+      - id
+      - question_count
+      - total_duration_minutes
+      - updated_at
+    AdminMockTestCreate:
+      type: object
+      properties:
+        exam:
+          type: integer
+        name:
+          type: string
+        difficulty:
+          type: string
+          nullable: true
+      required:
+      - exam
     AdminStudent:
       type: object
       description: |-
@@ -3899,6 +4084,19 @@ components:
       - id
       - name
       - total_marks
+    ExamMockMinimal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        code:
+          type: string
+      required:
+      - code
+      - id
+      - name
     ExamOption:
       type: object
       properties:
@@ -3954,22 +4152,30 @@ components:
       properties:
         exam:
           type: integer
+        test_type:
+          allOf:
+          - $ref: '#/components/schemas/TestTypeEnum'
+          default: MOCK_TEST
         is_full_syllabus:
           type: boolean
-          default: false
         subject_ids:
           type: array
           items:
             type: integer
+            minimum: 1
           default: []
+        subject_id:
+          type: integer
+          minimum: 1
+          nullable: true
         topic_ids:
           type: array
           items:
             type: integer
+            minimum: 1
           default: []
         question_count:
           type: integer
-          maximum: 100
           minimum: 1
           nullable: true
         difficulty:
@@ -3978,15 +4184,13 @@ components:
           - $ref: '#/components/schemas/MockTestCreateDifficultyEnum'
           - $ref: '#/components/schemas/BlankEnum'
           - $ref: '#/components/schemas/NullEnum'
-        test_type:
-          $ref: '#/components/schemas/MockTestCreateTestTypeEnum'
         total_duration_minutes:
           type: integer
-          minimum: 0
+          minimum: 1
           nullable: true
       required:
       - exam
-      - test_type
+      - is_full_syllabus
     MockTestCreateDifficultyEnum:
       enum:
       - easy
@@ -3999,14 +4203,6 @@ components:
         * `medium` - medium
         * `hard` - hard
         * `mixed` - mixed
-    MockTestCreateTestTypeEnum:
-      enum:
-      - MOCK_TEST
-      - PRACTICE_TEST
-      type: string
-      description: |-
-        * `MOCK_TEST` - MOCK_TEST
-        * `PRACTICE_TEST` - PRACTICE_TEST
     MockTestDetail:
       type: object
       properties:
@@ -4018,7 +4214,7 @@ components:
           readOnly: true
         exam:
           allOf:
-          - $ref: '#/components/schemas/ExamMinimal'
+          - $ref: '#/components/schemas/ExamMockMinimal'
           readOnly: true
         subjects:
           type: array
@@ -4032,7 +4228,7 @@ components:
           type: string
           readOnly: true
         test_type:
-          $ref: '#/components/schemas/TestType25cEnum'
+          $ref: '#/components/schemas/TestTypeEnum'
         question_count:
           type: integer
           maximum: 2147483647
@@ -4046,22 +4242,9 @@ components:
           maximum: 2147483647
           minimum: 0
         status:
-          $ref: '#/components/schemas/StatusC92Enum'
-        started_at:
-          type: string
-          format: date-time
-          nullable: true
-        expires_at:
-          type: string
-          format: date-time
-          readOnly: true
-        submitted_at:
-          type: string
-          format: date-time
-          nullable: true
+          $ref: '#/components/schemas/Status451Enum'
       required:
       - exam
-      - expires_at
       - id
       - is_full_syllabus
       - name
@@ -4080,7 +4263,7 @@ components:
           readOnly: true
         exam:
           allOf:
-          - $ref: '#/components/schemas/ExamMinimal'
+          - $ref: '#/components/schemas/ExamMockMinimal'
           readOnly: true
         subjects:
           type: array
@@ -4094,7 +4277,7 @@ components:
           type: string
           readOnly: true
         test_type:
-          $ref: '#/components/schemas/TestType25cEnum'
+          $ref: '#/components/schemas/TestTypeEnum'
         question_count:
           type: integer
           maximum: 2147483647
@@ -4108,43 +4291,106 @@ components:
           maximum: 2147483647
           minimum: 0
         status:
-          $ref: '#/components/schemas/StatusC92Enum'
-        started_at:
-          type: string
-          format: date-time
-          nullable: true
-        submitted_at:
-          type: string
-          format: date-time
-          nullable: true
-        score:
-          type: string
-          readOnly: true
-        max_score:
-          type: string
-          readOnly: true
-        percentage:
-          type: number
-          format: double
-          nullable: true
-        accuracy:
-          type: number
-          format: double
-          nullable: true
+          $ref: '#/components/schemas/Status451Enum'
+        is_official:
+          type: boolean
+          description: True for admin-created shared templates; False for student-created
+            personal mocks.
       required:
       - exam
       - id
       - is_full_syllabus
-      - max_score
       - name
       - question_count
-      - score
       - subjects
       - topics
       - total_duration_minutes
+    MockTestQuestion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        question_id:
+          type: integer
+          readOnly: true
+        order:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        question_type:
+          type: string
+          readOnly: true
+        difficulty:
+          type: string
+          readOnly: true
+        question_text:
+          type: string
+          readOnly: true
+        image:
+          type: string
+          readOnly: true
+        assertion_text:
+          type: string
+          readOnly: true
+        reason_text:
+          type: string
+          readOnly: true
+        subject:
+          type: string
+          readOnly: true
+        choices:
+          type: string
+          readOnly: true
+        marks_correct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          readOnly: true
+        marks_wrong:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - assertion_text
+      - choices
+      - difficulty
+      - id
+      - image
+      - marks_correct
+      - marks_wrong
+      - question_id
+      - question_text
+      - question_type
+      - reason_text
+      - subject
     NullEnum:
       enum:
       - null
+    PaginatedAdminMockTestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminMockTest'
     PaginatedAdminStudentList:
       type: object
       required:
@@ -4260,6 +4506,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MockTestList'
+    PaginatedMockTestQuestionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MockTestQuestion'
     PaginatedQuestionListList:
       type: object
       required:
@@ -4591,6 +4860,10 @@ components:
         topics:
           type: string
           readOnly: true
+        total_marks:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
     PatchedTopic:
       type: object
       properties:
@@ -4942,16 +5215,6 @@ components:
         * `PUBLISHED` - Published
         * `REJECTED` - Rejected
         * `INACTIVE` - Inactive
-    StatusC92Enum:
-      enum:
-      - NOT_STARTED
-      - IN_PROGRESS
-      - SUBMITTED
-      type: string
-      description: |-
-        * `NOT_STARTED` - Not Started
-        * `IN_PROGRESS` - In Progress
-        * `SUBMITTED` - Submitted
     Subject:
       type: object
       properties:
@@ -4987,12 +5250,17 @@ components:
         topics:
           type: string
           readOnly: true
+        total_marks:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
       required:
       - code
       - id
       - name
       - questions_count
       - topics
+      - total_marks
     SubjectMinimal:
       type: object
       properties:
@@ -5059,7 +5327,7 @@ components:
       required:
       - id
       - name
-    TestType25cEnum:
+    TestTypeEnum:
       enum:
       - MOCK_TEST
       - PRACTICE_TEST

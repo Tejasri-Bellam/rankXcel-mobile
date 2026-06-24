@@ -37,8 +37,7 @@ import {
   getApiFieldErrors,
 } from '@/src/components/auth/authForm';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const BRAND = 'RankXcel';
+import { BRAND } from '@/src/libs/constants';
 
 type LoginRegion = {
   name: string;

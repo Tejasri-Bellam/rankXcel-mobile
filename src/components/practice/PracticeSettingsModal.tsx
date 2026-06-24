@@ -10,6 +10,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Difficulty } from "./PracticeExamFlow";
 import { practiceSettingsModalStyles as styles } from "@/src/styles/styles/practice/practicesettingsmodalstyles";
+import {
+  PRACTICE_DIFFICULTY_OPTIONS as DIFFICULTY_OPTIONS,
+  PRACTICE_QUESTION_OPTIONS as QUESTION_OPTIONS,
+} from "@/src/libs/constants";
 
 interface Props {
   chapterName: string;
@@ -24,15 +28,6 @@ interface Props {
   onBegin: (questions: number, difficulty: Difficulty, timerMinutes: number) => void;
   onCancel: () => void;
 }
-
-const QUESTION_OPTIONS = [5, 10, 20];
-
-const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
-  { value: "easy", label: "Easy" },
-  { value: "medium", label: "Med" },
-  { value: "hard", label: "Hard" },
-  { value: "mixed" as Difficulty, label: "Mixed" },
-];
 
 export default function PracticeSettingsModal({
   chapterName,

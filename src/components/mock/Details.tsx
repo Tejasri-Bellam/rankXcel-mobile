@@ -11,7 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { startMockTestService, MockTest, MockTestResult } from '../../libs/services/mock-library';
+import {
+  startMockTestService,
+  retakeMockTestService,
+  MockTest,
+  MockTestResult,
+} from '../../libs/services/mock-library';
 import MockExamNavigator from './Navigator';
 import MockExamResults from './Results';
 import MockSolutionViewer from './SolutionViewer';
@@ -37,6 +42,9 @@ const formatDuration = (mins: number | null | undefined): string => {
 export default function MockDetails({ mock, onBack, initialView = 'detail' }: Props) {
   const [currentView, setCurrentView] = useState<MockView>(initialView);
   const [startLoading, setStartLoading] = useState(false);
+  // Attempt id from the /start/ response; drives the attempt-based questions,
+  // response-save and submit endpoints.
+  const [attemptId, setAttemptId] = useState<number | string | null>(null);
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
   const [submittedResult, setSubmittedResult] = useState<MockTestResult | null>(null);
   const [timeTaken, setTimeTaken] = useState(0);
@@ -50,37 +58,87 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (currentView === 'solutions') { setCurrentView('results'); return true; }
-      if (currentView === 'exam') { setCurrentView('detail'); return true; }
+      // Block device-back while writing the mock — the test must be submitted
+      // (via the in-screen Submit / X) rather than abandoned by going back.
+      if (currentView === 'exam') { return true; }
       onBack();
       return true;
     });
     return () => sub.remove();
   }, [currentView, onBack]);
 
-  const isCompleted = mockData.status === 'SUBMITTED';
   const isInProgress = mockData.status === 'IN_PROGRESS';
-  const isNotStarted = mockData.status === 'NOT_STARTED';
+  // Retake is offered once the student has at least one attempt.
+  const canRetake = Number(mockData.total_attempts ?? 0) > 0;
+  // Attempt id for viewing results: the just-finished attempt this session, else
+  // the latest attempt from the mock list/detail.
+  const resultAttemptId = attemptId ?? mockData.latest_attempt_id ?? null;
 
+  // Start (or resume) an attempt. The /start/ response carries the attempt_id
+  // that the questions / response / submit endpoints are keyed on; for an
+  // already in-progress mock it returns the current attempt.
   const handleStart = async () => {
     try {
       setStartLoading(true);
-      await startMockTestService(String(mockData.id));
-    } catch (error: any) {
-      const code = error?.body?.code ?? error?.errors?.code?.[0];
-      if (code !== 'INVALID_STATE') {
-        Alert.alert('Error', error?.body?.error ?? 'Failed to start. Please try again.');
+      const res = await startMockTestService(String(mockData.id));
+      const data: any = (res as any)?.data ?? res;
+      const aId = data?.attempt_id ?? data?.attempt?.id ?? null;
+      if (aId == null) {
+        Alert.alert('Error', 'Could not start the attempt. Please try again.');
+        setCurrentView('detail');
         return;
       }
+      setAttemptId(aId);
+      setCurrentView('exam');
+    } catch (error: any) {
+      // Some backends return the in-progress attempt id in the error body.
+      const aId = error?.body?.attempt_id ?? null;
+      if (aId != null) {
+        setAttemptId(aId);
+        setCurrentView('exam');
+        return;
+      }
+      Alert.alert('Error', error?.body?.error ?? 'Failed to start. Please try again.');
+      setCurrentView('detail');
     } finally {
       setStartLoading(false);
     }
-    setCurrentView('exam');
   };
 
-  if (currentView === 'exam') {
+  // Retake a submitted mock: reset it, then start a fresh attempt.
+  const handleRetake = async () => {
+    try {
+      setStartLoading(true);
+      await retakeMockTestService(String(mockData.id));
+    } catch (error: any) {
+      Alert.alert('Error', error?.body?.error ?? 'Failed to retake. Please try again.');
+      return;
+    } finally {
+      setStartLoading(false);
+    }
+    await handleStart();
+  };
+
+  // Entering straight into the exam view (e.g. "Resume" from the library) has no
+  // attempt id yet — kick off /start/ to obtain it.
+  useEffect(() => {
+    if (currentView === 'exam' && attemptId == null) handleStart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (currentView === 'exam' && attemptId == null) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center' }]} edges={[]}>
+        <ActivityIndicator size="large" color="#3B7DF8" />
+      </SafeAreaView>
+    );
+  }
+
+  if (currentView === 'exam' && attemptId != null) {
     return (
       <MockExamNavigator
         mockId={mockData.id}
+        attemptId={attemptId}
         durationMinutes={mockData.total_duration_minutes ?? 60}
         onSubmit={(answers, seconds, result) => {
           setSubmittedAnswers(answers);
@@ -97,6 +155,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
     return (
       <MockExamResults
         mockId={mockData.id}
+        attemptId={resultAttemptId}
         mock={mockData}
         answers={submittedAnswers}
         timeTakenSeconds={timeTaken}
@@ -112,6 +171,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
     return (
       <MockSolutionViewer
         mockId={mockData.id}
+        attemptId={resultAttemptId}
         answers={submittedAnswers}
         onBack={() => setCurrentView('results')}
       />
@@ -175,7 +235,51 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
 
       {/* CTA */}
       <View style={styles.bottomBar}>
-        {isNotStarted && (
+        {/* Mid-test resume takes priority. Otherwise, once there's at least one
+            attempt (total_attempts > 0) the Start button is replaced by Retake
+            and View Results is shown; a never-attempted mock just shows Start. */}
+        {isInProgress ? (
+          <TouchableOpacity
+            style={styles.startBtn}
+            onPress={handleStart}
+            disabled={startLoading}
+            activeOpacity={0.85}
+          >
+            {startLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.startBtnText}>Resume mock</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+        ) : canRetake ? (
+          <View style={styles.completedRow}>
+            <TouchableOpacity
+              style={styles.startBtn}
+              onPress={handleRetake}
+              disabled={startLoading}
+              activeOpacity={0.85}
+            >
+              {startLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.startBtnText}>Retake mock</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.startBtn, styles.retakeBtn]}
+              onPress={() => setCurrentView('results')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.startBtnText, styles.retakeBtnText]}>View Results</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
           <TouchableOpacity
             style={styles.startBtn}
             onPress={handleStart}
@@ -191,29 +295,6 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
               </>
             )}
           </TouchableOpacity>
-        )}
-
-        {isInProgress && (
-          <TouchableOpacity
-            style={styles.startBtn}
-            onPress={() => setCurrentView('exam')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.startBtnText}>Resume mock</Text>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
-          </TouchableOpacity>
-        )}
-
-        {isCompleted && (
-          <View style={styles.completedRow}>
-            <TouchableOpacity
-              style={styles.startBtn}
-              onPress={() => setCurrentView('results')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.startBtnText}>View Results</Text>
-            </TouchableOpacity>
-          </View>
         )}
       </View>
     </SafeAreaView>

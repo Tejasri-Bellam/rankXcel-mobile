@@ -13,6 +13,7 @@ import {
   getAssessmentDetailedAnalysisService,
   getassessmentResultService,
 } from "@/src/libs/services/assessments-attempts";
+import { getSubjectColor } from "@/src/libs/constants";
 
 interface Props {
   attemptId: number;
@@ -21,27 +22,6 @@ interface Props {
 }
 
 type AnalysisTab = "subject" | "chapter" | "ai";
-
-const SUBJECT_COLORS: Record<string, string> = {
-  Physics: "#FF6B6B",
-  Chemistry: "#4ECDC4",
-  Mathematics: "#6C5CE7",
-  Mathemetics: "#6C5CE7",
-  Biology: "#22C55E",
-  General: "#9898B0",
-};
-
-const PALETTE = [
-  "#6C5CE7",
-  "#F97316",
-  "#22C55E",
-  "#0EA5E9",
-  "#EC4899",
-  "#F59E0B",
-];
-
-const getSubjectColor = (subject: string, idx: number): string =>
-  SUBJECT_COLORS[subject] ?? PALETTE[idx % PALETTE.length];
 
 function CircleProgress({
   percentage,

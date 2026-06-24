@@ -4,17 +4,11 @@ import { COLORS, getScoreColor } from "@/src/styles/styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DashboardData } from "@/src/libs/types/dashboard";
+import { subjectEmoji } from "@/src/libs/constants";
 
 interface StrengthBySubjectProps {
   dashboardData: DashboardData | null;
 }
-
-const subjectMeta: Record<string, { emoji: string; color: string }> = {
-  Physics: { emoji: "⚛️", color: COLORS.primary },
-  Chemistry: { emoji: "🧪", color: COLORS.green },
-  Mathematics: { emoji: "📐", color: COLORS.orange },
-  Mathemetics: { emoji: "📐", color: COLORS.orange },
-};
 
 const barColor = getScoreColor;
 
@@ -42,17 +36,13 @@ export default function StrengthBySubject({
       <View style={styles.card}>
         {subjects.map((item, index) => {
           const pct = Math.round(item.accuracy ?? 0);
-          const meta = subjectMeta[item.subject_name] ?? {
-            emoji: "📘",
-            color: COLORS.primary,
-          };
           const color = barColor(pct);
           return (
             <View
               key={item.subject_name}
               style={[styles.row, index === subjects.length - 1 && { marginBottom: 0 }]}
             >
-              <Text style={styles.emoji}>{meta.emoji}</Text>
+              <Text style={styles.emoji}>{subjectEmoji(item.subject_name)}</Text>
               <View style={styles.rowBody}>
                 <View style={styles.rowTop}>
                   <Text style={styles.subjectName}>{item.subject_name}</Text>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Platform,
   ScrollView,
@@ -21,7 +22,7 @@ import {
   getMockQuestionConversationService,
   sendConversationMessageService,
   startMockQuestionConversationService,
-  submitMockResponseService,
+  submitMockAttemptResponseService,
 } from "@/src/libs/services/mock-library";
 import { stripHtml } from "@/src/libs/utils/html";
 import TutorModal, { ConversationApi } from "@/src/components/common/TutorModal";
@@ -94,6 +95,9 @@ const parseExplanation = (raw: any): StructuredExplanation | null => {
 
 interface Props {
   mockId: number | string;
+  // Attempt the answers are saved against (response PUTs are attempt-based);
+  // mockId is still used for the per-question tutor/conversation endpoints.
+  attemptId: number | string;
   questions: PracticeApiQuestion[];
   chapterName: string;
   timerMinutes: number;
@@ -179,6 +183,7 @@ const ProgressBar = ({
 
 export default function PracticeQuestions({
   mockId,
+  attemptId,
   questions,
   chapterName,
   timerMinutes,
@@ -212,7 +217,8 @@ export default function PracticeQuestions({
   }, []);
 
   useEffect(() => {
-    if (timerMinutes > 0 && totalSeconds >= timerMinutes * 60) handleEndPractice();
+    // Time's up — auto-submit directly (no confirmation prompt).
+    if (timerMinutes > 0 && totalSeconds >= timerMinutes * 60) finishPractice();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalSeconds, timerMinutes]);
 
@@ -265,7 +271,7 @@ export default function PracticeQuestions({
           is_marked_for_review: markedForReview,
           time_spent_seconds: elapsed,
         };
-    const promise = submitMockResponseService(mockId, qId, payload).catch((e) => {
+    const promise = submitMockAttemptResponseService(attemptId, qId, payload).catch((e) => {
       console.log("PRACTICE SAVE ERROR:", e);
       return null;
     });
@@ -396,7 +402,22 @@ export default function PracticeQuestions({
     onEnd(answers, totalSeconds, questionList);
   };
 
-  const handleEndPractice = () => finishPractice();
+  // X (close) in the header: confirm, then submit the attempt — mirrors the
+  // mock exam screen. Once submitted, answers can't be changed.
+  const handleEndPractice = () => {
+    Alert.alert(
+      isTest ? "Exit test?" : "Exit practice?",
+      "Your answers will be submitted and you won't be able to change them.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Submit & Exit",
+          style: "destructive",
+          onPress: () => finishPractice(),
+        },
+      ],
+    );
+  };
 
   // Option styling
   const getOptStyle = (optId: string) => {

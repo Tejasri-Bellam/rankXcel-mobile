@@ -13,6 +13,7 @@ import {
   getConversationMessagesService,
   getMockQuestionConversationService,
   getMockTestReviewService,
+  getMockAttemptReviewService,
   getQuestionSolutionService,
   sendConversationMessageService,
   startMockQuestionConversationService,
@@ -22,6 +23,9 @@ import TutorModal, { ConversationApi } from '@/src/components/common/TutorModal'
 
 interface Props {
   mockId: number | string;
+  // When set, the attempt-based /review/ endpoint is used; otherwise it falls
+  // back to the mock-based one.
+  attemptId?: number | string | null;
   answers: Record<string, string[]>;
   onBack: () => void;
 }
@@ -64,7 +68,7 @@ const selectedIdsFor = (q: any): string[] => {
   return (Array.isArray(raw) ? raw : []).map((v: any) => String(v?.id ?? v));
 };
 
-export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
+export default function MockSolutionViewer({ mockId, attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -98,7 +102,10 @@ export default function MockSolutionViewer({ mockId, answers, onBack }: Props) {
   const loadReview = async () => {
     try {
       setLoading(true);
-      const res = await getMockTestReviewService(mockId);
+      const res =
+        attemptId != null
+          ? await getMockAttemptReviewService(attemptId)
+          : await getMockTestReviewService(mockId);
       const data: any = res?.data ?? null;
       setReviewData(data);
       if (data) {

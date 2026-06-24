@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { COLORS } from "@/src/styles/styles";
+import { CURRENCY_SYMBOLS } from "@/src/libs/constants";
 import { logoutService } from "@/src/libs/services/auth";
 import {
   getMeService,
@@ -75,15 +76,6 @@ const svgToDataUri = (svg?: string) => {
   } catch {
     return undefined;
   }
-};
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  INR: "₹",
-  GBP: "£",
-  USD: "$",
-  EUR: "€",
-  AUD: "A$",
-  CAD: "C$",
 };
 
 // Normalize the various field names the masters/countries endpoint may use.

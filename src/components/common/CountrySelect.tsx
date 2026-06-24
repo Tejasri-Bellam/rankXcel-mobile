@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getCountriesService } from "@/src/libs/services/countries";
+import { CURRENCY_SYMBOLS } from "@/src/libs/constants";
 import { countrySelectStyles as styles } from "@/src/styles/styles/common/countryselectstyles";
 
 export type CountryOption = {
@@ -21,15 +22,6 @@ export type CountryOption = {
   currency?: string;
   currencySymbol?: string;
   flagUrl?: string;
-};
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  INR: "₹",
-  GBP: "£",
-  USD: "$",
-  EUR: "€",
-  AUD: "A$",
-  CAD: "C$",
 };
 
 // The countries API returns each flag as a raw SVG string; expo-image renders

@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { stripHtml } from "@/src/libs/utils/html";
 import { tutorModalStyles as styles } from "@/src/styles/styles/common/tutormodalstyles";
+import { TUTOR_QUICK_PROMPTS as QUICK_PROMPTS } from "@/src/libs/constants";
 
 export interface TutorPayload {
   question_id?: number | string;
@@ -191,12 +192,6 @@ const prettyPdfName = (pdf: string): string =>
     .replace(/_www\.[^_]+$/i, "")
     .replace(/[_-]+/g, " ")
     .trim();
-
-const QUICK_PROMPTS = [
-  "Explain this question step by step",
-  "Why is my answer wrong?",
-  "Give me a hint",
-];
 
 export default function TutorModal({
   visible,
