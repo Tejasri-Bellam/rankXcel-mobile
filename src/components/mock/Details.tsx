@@ -91,6 +91,8 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
       setAttemptId(aId);
       setCurrentView('exam');
     } catch (error: any) {
+      console.log('err', error);
+      
       // Some backends return the in-progress attempt id in the error body.
       const aId = error?.body?.attempt_id ?? null;
       if (aId != null) {
@@ -106,18 +108,34 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
   };
 
   // Retake a submitted mock: reset it, then start a fresh attempt.
-  const handleRetake = async () => {
-    try {
-      setStartLoading(true);
-      await retakeMockTestService(String(mockData.id));
-    } catch (error: any) {
-      Alert.alert('Error', error?.body?.error ?? 'Failed to retake. Please try again.');
+const handleRetake = async () => {
+  try {
+    setStartLoading(true);
+
+    const res = await retakeMockTestService(String(mockData.id));
+    const data: any = res?.data ?? res;
+
+    const aId =
+      data?.attempt_id ??
+      data?.attempt?.id ??
+      null;
+
+    if (aId) {
+      setAttemptId(aId);
+      setCurrentView('exam');
       return;
-    } finally {
-      setStartLoading(false);
     }
-    await handleStart();
-  };
+
+    Alert.alert('Error', 'Unable to start retake.');
+  } catch (error: any) {
+    Alert.alert(
+      'Error',
+      error?.body?.error ?? 'Failed to retake. Please try again.'
+    );
+  } finally {
+    setStartLoading(false);
+  }
+};
 
   // Entering straight into the exam view (e.g. "Resume" from the library) has no
   // attempt id yet — kick off /start/ to obtain it.
