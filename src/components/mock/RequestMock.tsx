@@ -18,6 +18,12 @@ import {
   TestType,
 } from '../../libs/services/mock-library';
 import { requestMockStyles as styles } from '@/src/styles/styles/mock/requestmockstyles';
+import {
+  subjectEmoji,
+  MOCK_DIFFICULTY_OPTIONS as DIFFICULTY_OPTIONS,
+  MOCK_QUESTION_OPTIONS as QUESTION_OPTIONS,
+  MOCK_DURATION_OPTIONS as DURATION_OPTIONS,
+} from '@/src/libs/constants';
 
 const toOptionsArray = (raw: unknown): OptionItem[] => {
   if (Array.isArray(raw)) return raw as OptionItem[];
@@ -31,15 +37,6 @@ const toOptionsArray = (raw: unknown): OptionItem[] => {
   return [];
 };
 
-// Subject → emoji, mirroring StrengthBySubject. Falls back to a book.
-const SUBJECT_EMOJI: Record<string, string> = {
-  Physics: '⚛️',
-  Chemistry: '🧪',
-  Mathematics: '📐',
-  Mathemetics: '📐',
-};
-const subjectEmoji = (name: string) => SUBJECT_EMOJI[name] ?? '📘';
-
 interface Props {
   visible: boolean;
   onClose: () => void;
@@ -51,16 +48,6 @@ interface Props {
 
 type Scope = 'full' | 'subjects';
 type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
-
-const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
-  { value: 'easy', label: 'Easy' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'hard', label: 'Hard' },
-  { value: 'mixed', label: 'Mixed' },
-];
-
-const QUESTION_OPTIONS = [15, 30, 50, 75];
-const DURATION_OPTIONS = [30, 60, 90, 180];
 
 export default function RequestMockModal({
   visible,

@@ -20,8 +20,9 @@ import ExamResults from "./ExamResults";
 import SolutionViewer from "./SolutionViewer";
 import Leaderboard from "./Leaderboard";
 import { liveTestDetailStyles as s } from "@/src/styles/styles/assessments/livetestdetailstyles";
+import { LiveStatus, LIVE_STATUS_META } from "@/src/libs/constants";
 
-export type LiveStatus = "upcoming" | "live" | "results";
+export type { LiveStatus };
 
 interface Props {
   item: any;
@@ -30,15 +31,6 @@ interface Props {
 }
 
 type View_ = "detail" | "leaderboard" | "exam" | "results" | "solutions";
-
-const STATUS_META: Record<
-  LiveStatus,
-  { label: string; color: string; bg: string; live?: boolean }
-> = {
-  upcoming: { label: "Upcoming", color: "#3B82F6", bg: "#EAF1FF" },
-  live: { label: "Live now", color: "#EF4444", bg: "#FFECEC", live: true },
-  results: { label: "Results out", color: "#6B7280", bg: "#F1F2F5" },
-};
 
 // "2026-06-14T19:00:00Z" → "Sun 14 Jun, 7:00 PM"
 const formatWhen = (iso?: string | null): string => {
@@ -58,7 +50,7 @@ const formatWhen = (iso?: string | null): string => {
 const formatCount = (n: number) => n.toLocaleString("en-US");
 
 export default function LiveTestDetail({ item, status, onBack }: Props) {
-  const meta = STATUS_META[status];
+  const meta = LIVE_STATUS_META[status];
   const assessmentId: number = item?.id;
 
   // The scheduled test window: results — and the leaderboard — only become

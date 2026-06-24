@@ -13,6 +13,7 @@ import { AnswerState } from "./PracticeExamFlow";
 import { PracticeApiQuestion } from "./PracticeQuestions";
 import { getScoreColor } from "@/src/styles/styles";
 import { practiceResultsStyles as styles } from "@/src/styles/styles/practice/practiceresultsstyles";
+import { OPTION_LETTERS } from "@/src/libs/constants";
 
 interface Props {
   chapterName: string;
@@ -26,7 +27,6 @@ interface Props {
 }
 
 const SCREEN_BG = "#EEEFF5";
-const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 const accColor = getScoreColor;
 

@@ -15,6 +15,10 @@ import ExamResults from './ExamResults';
 import SolutionViewer from './SolutionViewer';
 import { assessmentStartService, AssessmentResult } from '@/src/libs/services/assessments-attempts';
 import { examDetailsStyles as styles } from '@/src/styles/styles/assessments/examdetailsstyles';
+import {
+  EXAM_STATUS_CONFIG,
+  ASSESSMENT_INSTRUCTIONS as INSTRUCTIONS,
+} from '@/src/libs/constants';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
@@ -23,25 +27,6 @@ interface Props {
 }
 
 type ExamView = 'detail' | 'exam' | 'results' | 'solutions';
-
-const STATUS_CONFIG = {
-  live:      { label: 'Live Now',  color: '#22C55E', bg: '#F0FDF4' },
-  upcoming:  { label: 'Upcoming',  color: '#F59E0B', bg: '#FFFBEB' },
-  completed: { label: 'Completed', color: '#9898B0', bg: '#F5F5F8' },
-  missed:    { label: 'Missed',    color: '#EF4444', bg: '#FEF2F2' },
-} as const;
-
-const INSTRUCTIONS = [
-  'This is a live assessment. All students take the exam within the same time window.',
-  'Your timer starts when you click "Start Assessment". You must finish within the exam duration.',
-  'You must complete the exam before the assessment window closes.',
-  'Marking scheme: +4 for correct, -1 for incorrect MCQ, 0 for unattended.',
-  'You may switch between sections at any time during the exam.',
-  'Answers are saved automatically when you click "Save & Next".',
-  'Once you submit, the exam cannot be resumed.',
-  'Switching tabs will be recorded and may be flagged.',
-  'Results and rankings will be available after the assessment window closes.',
-];
 
 export default function ExamDetails({ item, onBack }: Props) {
   const assessmentId: number = item?.id;
@@ -185,7 +170,7 @@ export default function ExamDetails({ item, onBack }: Props) {
   }
 
   // Detail screen
-  const sc = STATUS_CONFIG[getStatus()];
+  const sc = EXAM_STATUS_CONFIG[getStatus()];
   const schedule = formatSchedule();
 
   return (

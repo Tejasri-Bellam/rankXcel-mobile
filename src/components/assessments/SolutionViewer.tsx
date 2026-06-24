@@ -155,11 +155,11 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
 
           const numericUser = isNumericQ
             ? String(
-                (qid != null && answers[String(qid)]?.[0]) ??
-                  q?.your_answer?.numeric_answer ??
-                  q?.numeric_answer ??
-                  '',
-              ).trim()
+              (qid != null && answers[String(qid)]?.[0]) ??
+              q?.your_answer?.numeric_answer ??
+              q?.numeric_answer ??
+              '',
+            ).trim()
             : '';
           const numericCorrect = isNumericQ
             ? String(q?.correct_answer ?? q?.correct_numeric_answer ?? '').trim()
@@ -173,8 +173,8 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               (isNumericQ
                 ? attempted && numericCorrect !== '' && numericUser === numericCorrect
                 : userAnswer.length > 0 &&
-                  correctAnswers.length === userAnswer.length &&
-                  correctAnswers.every((a: string) => userAnswer.includes(a))));
+                correctAnswers.length === userAnswer.length &&
+                correctAnswers.every((a: string) => userAnswer.includes(a))));
 
           const isSkipped =
             q?.outcome === 'skipped' ||
@@ -302,8 +302,8 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                     {typeof explanation === 'string'
                       ? stripHtml(explanation)
                       : explanation?.summary
-                      ? stripHtml(explanation.summary)
-                      : 'See explanation above.'}
+                        ? stripHtml(explanation.summary)
+                        : 'See explanation above.'}
                   </Text>
                 </View>
               )}

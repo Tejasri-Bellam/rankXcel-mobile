@@ -16,6 +16,7 @@ import {
   MockTopicBreakdown,
 } from '../../libs/services/mock-library';
 import { getScoreColor } from '@/src/styles/styles';
+import { SUBJECT_ACCENTS } from '@/src/libs/constants';
 import { resultsStyles as styles } from '@/src/styles/styles/mock/resultsstyles';
 
 interface Props {
@@ -53,7 +54,6 @@ const num = (v: any): number => (v != null && !Number.isNaN(Number(v)) ? Number(
 const strengthColor = getScoreColor;
 
 // Stable accent colour per subject name (no design tokens for this on the API).
-const SUBJECT_ACCENTS = ['#3B7DF8', '#F59E0B', '#22C55E', '#A855F7', '#EC4899', '#14B8A6'];
 const subjectAccent = (name: string): string => {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;

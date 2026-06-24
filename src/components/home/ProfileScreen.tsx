@@ -28,6 +28,7 @@ import {
 import { storageSetAccessToken } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NotifKey, NOTIFICATION_ITEMS } from '@/src/libs/constants';
 
 // Types
 // `id` is the exam id (used to dedupe the dropdown); `recordId` is the
@@ -39,15 +40,6 @@ type ExamEntry = {
   percentage?: string;
   recordId?: number | string;
 };
-type NotifKey = 'mockResults' | 'weeklyTips' | 'mockNotif' | 'practiceReminders' | 'productUpdates';
-
-const NOTIFICATION_ITEMS: { key: NotifKey; label: string; channel: string }[] = [
-  { key: 'mockResults', label: 'Mock results and analysis ready', channel: 'Email' },
-  { key: 'weeklyTips', label: 'Weekly study tips and performance insights', channel: 'Email' },
-  { key: 'mockNotif', label: 'Mock results notification', channel: 'In-App' },
-  { key: 'practiceReminders', label: 'Practice reminders and streaks', channel: 'In-App' },
-  { key: 'productUpdates', label: 'Product updates and announcements', channel: 'In-App' },
-];
 
 // Section Header
 const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (

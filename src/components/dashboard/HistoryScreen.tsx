@@ -16,15 +16,7 @@ import {
   RecentActivityItem,
 } from "@/src/libs/types/dashboard";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
-
-// Filter chips → `type` query value (null = all types).
-const FILTERS: { label: string; value: string | null }[] = [
-  { label: "All", value: null },
-  { label: "Mock", value: "mock" },
-  { label: "Practice", value: "practice" },
-  { label: "Test", value: "test" },
-  { label: "Assessment", value: "assessment" },
-];
+import { HISTORY_FILTERS as FILTERS } from "@/src/libs/constants";
 
 const scoreColor = getScoreColor;
 

@@ -15,8 +15,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { getassessmentsService } from "@/src/libs/services/assessments";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
-import LiveTestDetail, { LiveStatus } from "./LiveTestDetail";
+import LiveTestDetail from "./LiveTestDetail";
 import { liveTestsStyles as styles } from "@/src/styles/styles/assessments/assessmentsscreenstyles";
+import {
+  LiveStatus,
+  SUBMITTED_STATUSES,
+  mapStudentStatus,
+  studentStatusMeta,
+} from "@/src/libs/constants";
 
 type FilterValue = "all" | "live" | "upcoming" | "completed";
 
@@ -36,60 +42,6 @@ const FILTER_STATUS: Record<Exclude<FilterValue, "all">, LiveStatus> = {
   live: "live",
   upcoming: "upcoming",
   completed: "results",
-};
-
-// Map the backend's student_status to one of the three card states.
-const mapStudentStatus = (s?: string): LiveStatus | null => {
-  switch ((s ?? "").toLowerCase()) {
-    case "live":
-    case "active":
-    case "ongoing":
-    case "in_progress":
-      return "live";
-    case "upcoming":
-    case "scheduled":
-      return "upcoming";
-    case "completed":
-    case "submitted":
-    case "missed":
-    case "expired":
-    case "closed":
-      return "results";
-    default:
-      return null;
-  }
-};
-
-// The raw student_status straight from the backend, styled for a small pill.
-// (Distinct from the live/upcoming/results card state — this is the student's
-// own standing: registered, completed, missed, etc.)
-const STUDENT_STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  live: { label: "Live", color: "#EF4444", bg: "#FFECEC" },
-  active: { label: "Active", color: "#EF4444", bg: "#FFECEC" },
-  ongoing: { label: "Ongoing", color: "#EF4444", bg: "#FFECEC" },
-  in_progress: { label: "In progress", color: "#EF4444", bg: "#FFECEC" },
-  upcoming: { label: "Upcoming", color: "#3B82F6", bg: "#EAF1FF" },
-  scheduled: { label: "Scheduled", color: "#3B82F6", bg: "#EAF1FF" },
-  registered: { label: "Registered", color: "#2563EB", bg: "#EAF1FF" },
-  completed: { label: "Results Out", color: "#059669", bg: "#E7F6EF" },
-  submitted: { label: "Submitted", color: "#059669", bg: "#E7F6EF" },
-  missed: { label: "Missed", color: "#6B7280", bg: "#F1F2F5" },
-  expired: { label: "Expired", color: "#6B7280", bg: "#F1F2F5" },
-  closed: { label: "Closed", color: "#6B7280", bg: "#F1F2F5" },
-};
-
-// Format any student_status value into a display pill, falling back to a
-// title-cased version of the raw string for statuses we haven't styled.
-const studentStatusMeta = (
-  s?: string
-): { label: string; color: string; bg: string } | null => {
-  const key = (s ?? "").toLowerCase();
-  if (!key) return null;
-  if (STUDENT_STATUS_META[key]) return STUDENT_STATUS_META[key];
-  const label = key
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-  return { label, color: "#6B7280", bg: "#F1F2F5" };
 };
 
 const deriveStatus = (item: any): LiveStatus => {
@@ -118,9 +70,6 @@ const examHasEnded = (item: any): boolean => {
   const end = assessmentEndTime(item);
   return end ? Date.now() >= end.getTime() : false;
 };
-
-// Backend statuses that mean the student has finished their attempt.
-const SUBMITTED_STATUSES = new Set(["completed", "submitted"]);
 
 // The student-status pill, with one timing rule on top of STUDENT_STATUS_META:
 // a submitted/completed attempt reads "Completed" while the test window is
