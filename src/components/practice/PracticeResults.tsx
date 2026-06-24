@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -12,11 +12,20 @@ import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import { AnswerState } from "./PracticeExamFlow";
 import { PracticeApiQuestion } from "./PracticeQuestions";
 import { getScoreColor } from "@/src/styles/styles";
+import {
+  getMockAttemptResultService,
+  getMockAttemptReviewService,
+  MockTestResult,
+} from "@/src/libs/services/mock-library";
 import { practiceResultsStyles as styles } from "@/src/styles/styles/practice/practiceresultsstyles";
 import { OPTION_LETTERS } from "@/src/libs/constants";
 
 interface Props {
   chapterName: string;
+  // Attempt to pull the authoritative result + review from. When set, the
+  // /result/ and /review/ endpoints drive the screen; otherwise it falls back
+  // to the questions/answers computed locally during the session.
+  attemptId?: number | string | null;
   questions: PracticeApiQuestion[];
   answers: AnswerState[];
   totalSeconds: number;
@@ -25,6 +34,111 @@ interface Props {
   onTryAgain: () => void;
   onBackToHub: () => void;
 }
+
+const unwrap = (res: any): any =>
+  res && typeof res === "object" && "data" in res ? (res as any).data : res;
+
+// First id from an array (of ids or {id} objects) or a scalar.
+const firstId = (raw: any): string | null => {
+  const arr = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+  if (!arr.length) return null;
+  const v = arr[0];
+  return v == null ? null : String(v?.id ?? v);
+};
+
+// Parse the /review/ response into the screen's existing view models so the
+// render code below works unchanged. Returns null if no questions are found.
+const parseReview = (
+  raw: any,
+): { questions: PracticeApiQuestion[]; answers: AnswerState[] } | null => {
+  const list: any[] = Array.isArray(raw?.questions)
+    ? raw.questions
+    : Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.data?.questions)
+    ? raw.data.questions
+    : [];
+  if (!list.length) return null;
+
+  const questions: PracticeApiQuestion[] = [];
+  const answers: AnswerState[] = [];
+
+  for (const q of list) {
+    const id = q.question_id ?? q.id ?? q.question?.id;
+    if (id == null) continue;
+
+    const choicesRaw =
+      q.choices ?? q.options ?? q.question?.choices ?? q.question?.options ?? [];
+    const options = (Array.isArray(choicesRaw) ? choicesRaw : []).map((c: any) => ({
+      id: String(c?.id ?? c?.value ?? ""),
+      text: c?.text ?? c?.label ?? String(c ?? ""),
+    }));
+
+    const type = q.question_type ?? q.type ?? q.question?.question_type ?? "MCQ";
+    const numeric = !!type && String(type).toUpperCase().includes("NUMERIC");
+
+    // Correct answer — top-level arrays/flags or per-choice is_correct.
+    let correctChoiceId =
+      firstId(
+        q.correct_answers ??
+          q.correct_options ??
+          q.correct_choice_ids ??
+          q.correct_choice_id,
+      ) ?? null;
+    if (!correctChoiceId) {
+      const flagged = (Array.isArray(choicesRaw) ? choicesRaw : []).find(
+        (c: any) => c?.is_correct === true || c?.correct === true,
+      );
+      if (flagged) correctChoiceId = String(flagged.id);
+    }
+    const correctAnswer =
+      q.correct_answer ?? q.correct_numeric_answer ?? q.question?.correct_answer ?? null;
+
+    // Student's answer.
+    const ya = q.your_answer ?? q.response ?? q;
+    const selectedId = firstId(ya?.selected_choice_ids ?? ya?.selected_options);
+    const numericAns = ya?.numeric_answer ?? q.numeric_answer ?? null;
+    const selected = numeric
+      ? numericAns != null
+        ? String(numericAns)
+        : null
+      : selectedId;
+    const answered = selected != null && String(selected).trim() !== "";
+
+    // Correctness — prefer the server's flag, else derive from the key.
+    let correct: boolean | null =
+      typeof (q.is_correct ?? ya?.is_correct) === "boolean"
+        ? (q.is_correct ?? ya?.is_correct)
+        : null;
+    if (correct == null && answered) {
+      if (numeric && correctAnswer != null)
+        correct = String(selected).trim() === String(correctAnswer).trim();
+      else if (!numeric && correctChoiceId != null)
+        correct = String(selected) === String(correctChoiceId);
+    }
+
+    questions.push({
+      id,
+      text: q.question_text ?? q.text ?? q.question?.question_text ?? "",
+      type,
+      options,
+      correctChoiceId,
+      correctAnswer: correctAnswer != null ? String(correctAnswer) : null,
+      explanation:
+        q.explanation ?? q.solution ?? q.solution_text ?? q.question?.explanation ?? "",
+      marksCorrect: Number(q.marks_correct ?? q.question?.marks_correct ?? 4),
+      marksIncorrect: Number(q.marks_incorrect ?? q.question?.marks_incorrect ?? -1),
+    });
+    answers.push({
+      selected: answered ? String(selected) : null,
+      markedForReview: !!(q.is_marked_for_review ?? ya?.is_marked_for_review),
+      answered,
+      correct,
+    });
+  }
+
+  return questions.length ? { questions, answers } : null;
+};
 
 const SCREEN_BG = "#EEEFF5";
 
@@ -68,6 +182,7 @@ const computeStatus = (q: PracticeApiQuestion, a?: AnswerState): QStatus => {
 
 export default function PracticeResults({
   chapterName,
+  attemptId,
   questions,
   answers,
   totalSeconds,
@@ -78,10 +193,50 @@ export default function PracticeResults({
 }: Props) {
   const [view, setView] = useState<"results" | "review">("results");
 
-  const statuses = questions.map((q, i) => computeStatus(q, answers[i]));
+  // Server-authoritative result + review, fetched once the attempt is submitted.
+  const [apiResult, setApiResult] = useState<MockTestResult | null>(null);
+  const [apiQuestions, setApiQuestions] = useState<PracticeApiQuestion[] | null>(null);
+  const [apiAnswers, setApiAnswers] = useState<AnswerState[] | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    // The /result/ and /review/ endpoints are only valid after submit, so wait
+    // for `submitting` to clear; fetch once.
+    if (attemptId == null || submitting || fetchedRef.current) return;
+    fetchedRef.current = true;
+    (async () => {
+      setApiLoading(true);
+      try {
+        const [rRes, vRes] = await Promise.allSettled([
+          getMockAttemptResultService(attemptId),
+          getMockAttemptReviewService(attemptId),
+        ]);
+        if (rRes.status === "fulfilled") setApiResult(unwrap(rRes.value) ?? null);
+        if (vRes.status === "fulfilled") {
+          const parsed = parseReview(unwrap(vRes.value));
+          if (parsed) {
+            setApiQuestions(parsed.questions);
+            setApiAnswers(parsed.answers);
+          }
+        }
+      } catch (e) {
+        console.log("Practice result/review fetch error:", e);
+      } finally {
+        setApiLoading(false);
+      }
+    })();
+  }, [attemptId, submitting]);
+
+  // Prefer the server's review/result; fall back to the locally-played data.
+  const effQuestions = apiQuestions ?? questions;
+  const effAnswers = apiAnswers ?? answers;
+  const timeSeconds = apiResult?.time_taken_seconds ?? totalSeconds;
+
+  const statuses = effQuestions.map((q, i) => computeStatus(q, effAnswers[i]));
   const correct = statuses.filter((s) => s === "correct").length;
   const wrong = statuses.filter((s) => s === "wrong").length;
-  const total = questions.length;
+  const total = effQuestions.length;
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
   const color = accColor(accuracy);
 
@@ -108,8 +263,8 @@ export default function PracticeResults({
           contentContainerStyle={styles.reviewContent}
           showsVerticalScrollIndicator={false}
         >
-          {questions.map((q, i) => {
-            const ans = answers[i];
+          {effQuestions.map((q, i) => {
+            const ans = effAnswers[i];
             const userSel = ans?.selected ?? null;
             const qStatus = statuses[i];
             const status =
@@ -257,7 +412,7 @@ export default function PracticeResults({
           </View>
           <View style={styles.statCard}>
             <Ionicons name="time-outline" size={18} color="#3B82F6" />
-            <Text style={styles.statValue}>{formatTime(totalSeconds)}</Text>
+            <Text style={styles.statValue}>{formatTime(timeSeconds)}</Text>
             <Text style={styles.statLabel}>Time</Text>
           </View>
         </View>
@@ -270,10 +425,12 @@ export default function PracticeResults({
           </View>
         </View>
 
-        {submitting ? (
+        {submitting || apiLoading ? (
           <View style={styles.submittingRow}>
             <ActivityIndicator size="small" color="#3B82F6" />
-            <Text style={styles.submittingText}>Saving your session…</Text>
+            <Text style={styles.submittingText}>
+              {submitting ? "Saving your session…" : "Loading your results…"}
+            </Text>
           </View>
         ) : null}
 

@@ -2,7 +2,7 @@
 import { genericGet, genericPost, genericPut } from "./genericService";
 
 // API Response
-export type MockStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED';
+export type MockStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED' | 'PUBLISHED';
  
 // Difficulty as returned by API (lowercase) — also accept normalized form
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'Easy' | 'Medium' | 'Hard';
@@ -45,6 +45,14 @@ export interface MockTest {
   started_at: string | null;
   submitted_at: string | null;
   percentile?: number | null;
+  // Number of attempts the student has made; retake is offered once > 0.
+  total_attempts?: number;
+  // Most recent attempt — used to view its result / review / analysis.
+  latest_attempt_id?: number | null;
+  // Scope: full-syllabus vs. subject-picked. Drives the card's scope label.
+  is_full_syllabus?: boolean;
+  // Admin-authored ("official") mock — shown with an Admin badge on the card.
+  is_official?: boolean;
 }
  
 // API list response
@@ -187,6 +195,14 @@ export async function getMockTestQuestionsService(
   return await genericGet(`/v1/mock-tests/${id}/questions/`,true);
 }
 
+// Questions + already-saved answers for an in-progress attempt (resume flow).
+// GET /v1/mock-test-attempts/{attemptId}/questions/
+export async function getMockAttemptQuestionsService(
+  attemptId: number | string
+) {
+  return await genericGet(`/v1/mock-test-attempts/${attemptId}/questions/`, true);
+}
+
 // Mock detail — returns the test with its questions AND the user's already
 // saved answers (existing_answers), so an in-progress mock can be resumed.
 // GET /v1/mock-tests/{id}/
@@ -243,6 +259,23 @@ export async function getMockTestDetailedAnalysisService(
   id: number | string
 ) {
   return await genericGet(`/v1/mock-tests/${id}/detailed-analysis/`, true);
+}
+
+// Attempt-based result / review / detailed-analysis. Keyed on the attempt_id
+// returned by /start/ (the current attempt-based exam flow).
+// GET /v1/mock-test-attempts/{attemptId}/result/
+export async function getMockAttemptResultService(attemptId: number | string) {
+  return await genericGet(`/v1/mock-test-attempts/${attemptId}/result/`, true);
+}
+
+// GET /v1/mock-test-attempts/{attemptId}/review/
+export async function getMockAttemptReviewService(attemptId: number | string) {
+  return await genericGet(`/v1/mock-test-attempts/${attemptId}/review/`, true);
+}
+
+// GET /v1/mock-test-attempts/{attemptId}/detailed-analysis/
+export async function getMockAttemptDetailedAnalysisService(attemptId: number | string) {
+  return await genericGet(`/v1/mock-test-attempts/${attemptId}/detailed-analysis/`, true);
 }
 
 // Per-question solution (AI-generated)
@@ -336,6 +369,24 @@ export async function submitMockTestService(id: number | string) {
 );
 }
 
+// Submit an attempt — finalizes the in-progress attempt returned by /start/.
+// POST /v1/mock-test-attempts/{attemptId}/submit/
+export async function submitMockAttemptService(attemptId: number | string) {
+  return await genericPost(`/v1/mock-test-attempts/${attemptId}/submit/`, {}, {
+    isMultipart: false,
+    useAccessToken: true,
+  });
+}
+
+// Retake a submitted mock — resets it so a fresh attempt can be started.
+// POST /v1/mock-tests/{mockTestId}/retake/
+export async function retakeMockTestService(mockTestId: number | string) {
+  return await genericPost(`/v1/mock-tests/${mockTestId}/retake/`, {}, {
+    isMultipart: false,
+    useAccessToken: true,
+  });
+}
+
 // Submit Response
 export interface MockResponsePayload {
   selected_choice_ids: number[];
@@ -353,6 +404,20 @@ export async function submitMockResponseService(
 ) {
   return await genericPut(
     `/v1/mock-tests/${mockId}/responses/${questionId}/`,
+    payload,
+    { isMultipart: false, useAccessToken: true },
+  );
+}
+
+// Save a single answer against an attempt (attempt-based exam flow).
+// PUT /v1/mock-test-attempts/{attemptId}/responses/{questionId}/
+export async function submitMockAttemptResponseService(
+  attemptId: number | string,
+  questionId: number | string,
+  payload: MockResponsePayload,
+) {
+  return await genericPut(
+    `/v1/mock-test-attempts/${attemptId}/responses/${questionId}/`,
     payload,
     { isMultipart: false, useAccessToken: true },
   );

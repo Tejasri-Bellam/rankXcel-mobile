@@ -12,6 +12,8 @@ import { mockAnalysisStyles as styles } from '@/src/styles/styles/mock/detaileda
 import {
   getMockTestDetailedAnalysisService,
   getMockTestResultService,
+  getMockAttemptDetailedAnalysisService,
+  getMockAttemptResultService,
   MockTest,
 } from '../../libs/services/mock-library';
 import { getScoreColor, getScoreBgColor } from '@/src/styles/styles';
@@ -19,6 +21,9 @@ import { getSubjectColor } from '@/src/libs/constants';
 
 interface Props {
   mockId: number | string;
+  // When set, the attempt-based detailed-analysis / result endpoints are used;
+  // otherwise it falls back to the mock-based ones.
+  attemptId?: number | string | null;
   mock: MockTest;
   answers: Record<string, string[]>;
   onBack: () => void;
@@ -60,7 +65,7 @@ function CircleProgress({ percentage, size = 72, color = '#6C5CE7' }: {
   );
 }
 
-export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
+export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }: Props) {
   const [analysis, setAnalysis] = useState<any>(null);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -73,8 +78,12 @@ export default function MockDetailedAnalysis({ mockId, mock, onBack }: Props) {
     try {
       setLoading(true);
       const [analysisRes, resultRes] = await Promise.allSettled([
-        getMockTestDetailedAnalysisService(mockId),
-        getMockTestResultService(mockId),
+        attemptId != null
+          ? getMockAttemptDetailedAnalysisService(attemptId)
+          : getMockTestDetailedAnalysisService(mockId),
+        attemptId != null
+          ? getMockAttemptResultService(attemptId)
+          : getMockTestResultService(mockId),
       ]);
       if (analysisRes.status === 'fulfilled') {
         console.log('MOCK ANALYSIS API:', JSON.stringify((analysisRes.value as any)?.data, null, 2));

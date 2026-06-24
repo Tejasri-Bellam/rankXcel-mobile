@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import {
   getMockTestResultService,
+  getMockAttemptResultService,
   MockTest,
   MockTestResult,
   MockTopicBreakdown,
@@ -21,6 +22,9 @@ import { resultsStyles as styles } from '@/src/styles/styles/mock/resultsstyles'
 
 interface Props {
   mockId: number | string;
+  // Attempt to read the result from; when set, the attempt-based /result/
+  // endpoint is used, otherwise it falls back to the mock-based one.
+  attemptId?: number | string | null;
   mock: MockTest;
   answers: Record<string, string[]>;
   timeTakenSeconds: number;
@@ -62,6 +66,7 @@ const subjectAccent = (name: string): string => {
 
 export default function MockExamResults({
   mockId,
+  attemptId,
   mock,
   timeTakenSeconds,
   initialResult,
@@ -83,7 +88,10 @@ export default function MockExamResults({
     try {
       setLoading(true);
       setError(null);
-      const res = await getMockTestResultService(mockId);
+      const res =
+        attemptId != null
+          ? await getMockAttemptResultService(attemptId)
+          : await getMockTestResultService(mockId);
       const data = ((res as any)?.data ?? (res as any)) as MockTestResult | null;
       if (!data) {
         setError('Failed to load results.');

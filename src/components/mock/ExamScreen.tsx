@@ -10,13 +10,14 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { submitMockTestService, submitMockResponseService, MockTestResult } from '../../libs/services/mock-library';
+import { submitMockAttemptService, submitMockAttemptResponseService, MockTestResult } from '../../libs/services/mock-library';
 import { stripHtml } from '../../libs/utils/html';
 import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
 import { examScreenStyles as styles } from '@/src/styles/styles/mock/examscreenstyles';
 
 interface Props {
   mockId: number | string;
+  attemptId: number | string;
   durationMinutes: number;
   exam: any;
   initialAnswers?: Record<string, string[]>;
@@ -48,6 +49,7 @@ const formatTime = (seconds: number) => {
 
 export default function MockExamScreen({
   mockId,
+  attemptId,
   durationMinutes,
   exam,
   initialAnswers,
@@ -123,7 +125,7 @@ export default function MockExamScreen({
     timeSpent = 0,
   ) => {
     const ids = selectedOpts.map((v) => Number(v)).filter((n) => Number.isFinite(n));
-    const promise = submitMockResponseService(mockId, qId, {
+    const promise = submitMockAttemptResponseService(attemptId, qId, {
       selected_choice_ids: ids,
       numeric_answer: null,
       is_marked_for_review: markedForReview,
@@ -222,7 +224,7 @@ export default function MockExamScreen({
     if (pendingSaves.current.size > 0) {
       await Promise.all(Array.from(pendingSaves.current));
     }
-    return submitMockTestService(mockId);
+    return submitMockAttemptService(attemptId);
   };
 
   const handleFinalSubmit = async () => {

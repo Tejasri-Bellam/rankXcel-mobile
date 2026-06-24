@@ -102,12 +102,24 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
 
       {/* Content */}
       <View style={styles.mockCardBody}>
-        <Text style={styles.mockCardTitle} numberOfLines={1}>
-          {mock.name}
-        </Text>
+        <View style={styles.mockCardTitleRow}>
+          <Text style={styles.mockCardTitle} numberOfLines={1}>
+            {mock.name}
+          </Text>
+          {mock.is_official && (
+            <View style={styles.adminBadge}>
+              <Text style={styles.adminBadgeText}>Official Mock</Text>
+            </View>
+          )}
+        </View>
 
         {/* Tag + meta */}
         <View style={styles.mockCardMeta}>
+          <View style={[styles.mockTag, { backgroundColor: '#3B7DF818' }]}>
+            <Text style={[styles.mockTagText, { color: '#3B7DF8' }]}>
+              {mock.is_full_syllabus ? 'Full syllabus' : 'Pick by subject'}
+            </Text>
+          </View>
           {tagLabel && (
             <View style={[styles.mockTag, { backgroundColor: tagColor + '18' }]}>
               <Text style={[styles.mockTagText, { color: tagColor }]}>{tagLabel}</Text>

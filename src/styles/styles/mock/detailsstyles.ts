@@ -83,4 +83,10 @@ export const detailsStyles = StyleSheet.create({
   },
   startBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   completedRow: { gap: 10 },
+  retakeBtn: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#3B7DF8',
+  },
+  retakeBtnText: { color: '#3B7DF8' },
 });

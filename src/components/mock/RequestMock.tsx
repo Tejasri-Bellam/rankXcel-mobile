@@ -125,14 +125,15 @@ export default function RequestMockModal({
     try {
       const payload = isFullSyllabus
         ? {
-            // Time limit is set automatically by the backend for full-syllabus mocks.
+            // Question count and time limit are set automatically by the backend
+            // for full-syllabus mocks.
             test_type: testType as 'MOCK_TEST' | 'PRACTICE_TEST',
             is_full_syllabus: true as const,
-            question_count: questionCount,
             difficulty,
           }
         : {
             test_type: testType as 'MOCK_TEST' | 'PRACTICE_TEST',
+            is_full_syllabus: false as const,
             subject_ids: selectedSubjectIds,
             question_count: questionCount,
             difficulty,
@@ -145,6 +146,8 @@ export default function RequestMockModal({
       onCreated(String(newId));
       onClose();
     } catch (err) {
+      console.log('err', err);
+      
       // The axios interceptor rejects with a custom ApiError: { status, errors, body }
       const apiErr = err as { status?: number; errors?: Record<string, string[]>; body?: any };
       let message = 'Could not generate mock test.';
@@ -274,40 +277,46 @@ export default function RequestMockModal({
               </>
             )}
 
-            <Text style={styles.sectionLabel}>NUMBER OF QUESTIONS</Text>
-            {renderChipRow(
-              QUESTION_OPTIONS.map((n) => ({ value: n, label: String(n) })),
-              questionCount,
-              setQuestionCount,
-            )}
+            {/* Question count is set automatically by the backend for
+                full-syllabus mocks, so hide the selector there. */}
+            {!isFullSyllabus && (
+              <>
+                <Text style={styles.sectionLabel}>NUMBER OF QUESTIONS</Text>
+                {renderChipRow(
+                  QUESTION_OPTIONS.map((n) => ({ value: n, label: String(n) })),
+                  questionCount,
+                  setQuestionCount,
+                )}
 
-            {/* Custom count — typing here overrides the preset chips above. */}
-            <View style={styles.customCountRow}>
-              <TextInput
-                style={styles.customCountInput}
-                placeholder="Custom count"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="number-pad"
-                value={customCountValue}
-                onChangeText={handleCustomCount}
-              />
-              <View style={styles.stepper}>
-                <TouchableOpacity
-                  style={styles.stepBtn}
-                  onPress={() => adjustCount(1)}
-                  hitSlop={{ top: 6, bottom: 2, left: 6, right: 6 }}
-                >
-                  <Ionicons name="chevron-up" size={14} color="#6B7280" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.stepBtn}
-                  onPress={() => adjustCount(-1)}
-                  hitSlop={{ top: 2, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Ionicons name="chevron-down" size={14} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
-            </View>
+                {/* Custom count — typing here overrides the preset chips above. */}
+                <View style={styles.customCountRow}>
+                  <TextInput
+                    style={styles.customCountInput}
+                    placeholder="Custom count"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="number-pad"
+                    value={customCountValue}
+                    onChangeText={handleCustomCount}
+                  />
+                  <View style={styles.stepper}>
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => adjustCount(1)}
+                      hitSlop={{ top: 6, bottom: 2, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="chevron-up" size={14} color="#6B7280" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => adjustCount(-1)}
+                      hitSlop={{ top: 2, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="chevron-down" size={14} color="#6B7280" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </>
+            )}
 
             <Text style={styles.sectionLabel}>DIFFICULTY</Text>
             <View style={styles.segment}>

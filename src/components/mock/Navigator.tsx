@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MockExamScreen from './ExamScreen';
-import { getMockTestService, MockTestResult } from '../../libs/services/mock-library';
+import { getMockAttemptQuestionsService, MockTestResult } from '../../libs/services/mock-library';
 import { navigatorStyles } from '@/src/styles/styles/mock/navigatorstyles';
 
 interface Props {
   mockId: number | string;
+  attemptId: number | string;
   durationMinutes: number;
   onSubmit: (
     answers: Record<string, string[]>,
@@ -20,6 +21,7 @@ type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
 
 export default function MockExamNavigator({
   mockId,
+  attemptId,
   durationMinutes,
   onSubmit,
   onBackToMocks,
@@ -94,7 +96,7 @@ export default function MockExamNavigator({
     try {
       setLoading(true);
       setError(null);
-      const res = await getMockTestService(mockId);
+      const res = await getMockAttemptQuestionsService(attemptId);
       const raw: any = res?.data ?? res;
       let examData: any = null;
 
@@ -191,6 +193,7 @@ export default function MockExamNavigator({
   return (
     <MockExamScreen
       mockId={mockId}
+      attemptId={attemptId}
       durationMinutes={durationMinutes}
       exam={exam}
       initialAnswers={initialAnswers}

@@ -1,7 +1,7 @@
 import {
-  getMockTestQuestionsService,
+  getMockAttemptQuestionsService,
   startMockTestService,
-  submitMockTestService
+  submitMockAttemptService,
 } from "@/src/libs/services/mock-library";
 import {
   getOptionsSubjectsService,
@@ -184,6 +184,8 @@ export const PracticeExamFlow = ({
   const [questions, setQuestions] = useState<PracticeApiQuestion[]>([]);
   const [finalQuestions, setFinalQuestions] = useState<PracticeApiQuestion[]>([]);
   const [mockId, setMockId] = useState<number | string | null>(null);
+  // Attempt id from /start/ — keys the questions / responses / submit endpoints.
+  const [attemptId, setAttemptId] = useState<number | string | null>(null);
   const [finalAnswers, setFinalAnswers] = useState<AnswerState[]>([]);
   const [finalSeconds, setFinalSeconds] = useState(0);
   const [timerMinutes, setTimerMinutes] = useState<number>(0);
@@ -197,6 +199,7 @@ export const PracticeExamFlow = ({
       setQuestions([]);
       setFinalQuestions([]);
       setMockId(null);
+      setAttemptId(null);
       setFinalAnswers([]);
       setFinalSeconds(0);
       setLoadError(null);
@@ -242,14 +245,16 @@ export const PracticeExamFlow = ({
 
       const payload = {
         exam: examId,
-        subject_ids: [subjectId],
+        is_full_syllabus: false,
+        subject_id: subjectId,
         topic_ids: topicIds,
         question_count: count,
-        total_duration_minutes: timer > 0 ? timer : 0,
         difficulty,
-        // Both practice and test use PRACTICE_TEST — test mode differs only in
-        // deferring answer feedback to the end, not in the backend test_type.
-        test_type: "PRACTICE_TEST" as const,
+        // Test mode sends test_type "TEST" (answers revealed only at the end);
+        // practice mode sends "PRACTICE_TEST" with per-question feedback.
+        test_type: isTest ? ("TEST" as const) : ("PRACTICE_TEST" as const),
+        // Backend requires duration >= 1; omit it for untimed sessions.
+        ...(timer > 0 ? { total_duration_minutes: timer } : {}),
       };
 
       const createRes = await requestMockTestService(examId, payload);
@@ -265,14 +270,16 @@ export const PracticeExamFlow = ({
         throw new Error("Practice session created but no ID returned.");
       setMockId(newId);
 
-      try {
-        await startMockTestService(newId);
-      } catch (e: any) {
-        const code = e?.body?.code ?? e?.errors?.code?.[0];
-        if (code !== "INVALID_STATE") throw e;
-      }
+      // Start the attempt and capture its id — questions, response saves and
+      // submit are all keyed on the attempt, not the mock.
+      const startRes = await startMockTestService(newId);
+      const startBody = unwrap(startRes);
+      const aId = startBody?.attempt_id ?? startBody?.attempt?.id ?? null;
+      if (aId == null)
+        throw new Error("Could not start the practice attempt.");
+      setAttemptId(aId);
 
-      const qRes = await getMockTestQuestionsService(newId);
+      const qRes = await getMockAttemptQuestionsService(aId);
       const raw = unwrap(qRes);
       const arr =
         (Array.isArray(raw?.questions) && raw.questions) ||
@@ -305,10 +312,10 @@ export const PracticeExamFlow = ({
     setFinalSeconds(seconds);
     setFinalQuestions(finished);
     setScreen("results");
-    if (mockId != null) {
+    if (attemptId != null) {
       try {
         setSubmittingMock(true);
-        await submitMockTestService(mockId);
+        await submitMockAttemptService(attemptId);
         // In test mode no per-question answer key was fetched during play
         // (feedback is deferred to the end), so pull it once after submission
         // and merge it in — the results/review screens compute outcomes from
@@ -316,7 +323,7 @@ export const PracticeExamFlow = ({
         // API returns no key, the played questions are kept as-is.
         if (isTest) {
           try {
-            const qRes = await getMockTestQuestionsService(mockId);
+            const qRes = await getMockAttemptQuestionsService(attemptId);
             const raw = unwrap(qRes);
             const arr =
               (Array.isArray(raw?.questions) && raw.questions) ||
@@ -357,6 +364,7 @@ export const PracticeExamFlow = ({
     setScreen("settings");
     setQuestions([]);
     setMockId(null);
+    setAttemptId(null);
     setFinalAnswers([]);
     setFinalSeconds(0);
   };
@@ -386,9 +394,10 @@ export const PracticeExamFlow = ({
         </View>
       )}
 
-      {screen === "questions" && questions.length > 0 && mockId != null && (
+      {screen === "questions" && questions.length > 0 && mockId != null && attemptId != null && (
         <PracticeQuestions
           mockId={mockId}
+          attemptId={attemptId}
           questions={questions}
           chapterName={chapter.name}
           timerMinutes={timerMinutes}
@@ -400,6 +409,7 @@ export const PracticeExamFlow = ({
       {screen === "results" && (
         <PracticeResults
           chapterName={chapter.name}
+          attemptId={attemptId}
           questions={finalQuestions.length > 0 ? finalQuestions : questions}
           answers={finalAnswers}
           totalSeconds={finalSeconds}
