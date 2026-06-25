@@ -43,6 +43,8 @@ export interface MockTest {
   exam: ExamObject | string;
   name: string;
   subject: SubjectObject | string;
+  // Subjects covered by the mock, as returned by the API list/detail endpoints.
+  subjects?: SubjectObject[];
   chapters: number[];
   difficulty: Difficulty;
   status: MockStatus;
@@ -54,12 +56,15 @@ export interface MockTest {
   started_at: string | null;
   submitted_at: string | null;
   percentile?: number | null;
+  percentage?: number | null;
+  accuracy?: number | null;
   total_attempts?: number;
   latest_attempt_id?: number | null;
   // Scope: full-syllabus vs. subject-picked. Drives the card's scope label.
   is_full_syllabus?: boolean;
   // Admin-authored ("official") mock — shown with an Admin badge on the card.
   is_official?: boolean;
+  latest_attempt_status?:string
 }
  
 // Generic API list response wrapper

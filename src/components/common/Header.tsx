@@ -10,8 +10,21 @@ type HeaderProps = {
   onProfilePress: () => void;
 };
 
+const getInitials = (name: string) => {
+  if (!name) return "AB";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+};
+
+// Last resolved initials, kept at module scope so they survive the Header
+// unmounting/remounting as the user navigates into detail/exam screens (the
+// header is hidden there). Without this the avatar would briefly flash the
+// "AB" placeholder on every return to a list screen.
+let cachedAvatarText = "";
+
 export default function Header({ onProfilePress }: HeaderProps) {
-  const [avatarText, setAvatarText] = useState("AB");
+  const [avatarText, setAvatarText] = useState(cachedAvatarText);
   // Transparent over the page at the top; turns into a solid bar once the
   // screen is scrolled (set by the active screen's onScroll).
   const { scrolled } = useHeaderScroll();
@@ -21,26 +34,30 @@ export default function Header({ onProfilePress }: HeaderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const applyInitials = (text: string) => {
+    cachedAvatarText = text;
+    setAvatarText(text);
+  };
+
   const fetchUser = async () => {
+    // Seed from the cached user first (fast) so the avatar shows the correct
+    // initials immediately instead of a placeholder while the network resolves.
+    if (!cachedAvatarText) {
+      try {
+        const savedUser = await AsyncStorage.getItem("user");
+        if (savedUser) applyInitials(getInitials(JSON.parse(savedUser)?.name || ""));
+      } catch {
+        // ignore — fall through to the network fetch below
+      }
+    }
     try {
       const res: any = await getMeService();
       const name = res?.data?.name || "";
-      setAvatarText(getInitials(name));
+      applyInitials(getInitials(name));
       await AsyncStorage.setItem("user", JSON.stringify(res?.data));
     } catch {
-      const savedUser = await AsyncStorage.getItem("user");
-      if (savedUser) {
-        const parsed = JSON.parse(savedUser);
-        setAvatarText(getInitials(parsed?.name || ""));
-      }
+      // Keep whatever initials we already have (cached/seeded).
     }
-  };
-
-  const getInitials = (name: string) => {
-    if (!name) return "AB";
-    const parts = name.trim().split(" ");
-    if (parts.length === 1) return parts[0][0].toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
   };
 
   return (
