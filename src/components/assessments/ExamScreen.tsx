@@ -10,6 +10,7 @@ import {
   Alert,
   AppState,
   AppStateStatus,
+  BackHandler,
   Image,
   Modal,
   Platform,
@@ -23,6 +24,11 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getassessmentsQuestionsService } from "../../libs/services/assessments";
+import {
+  EXAM_BACKGROUND_GRACE_MS,
+  clearActiveAttempt,
+  saveActiveAttempt,
+} from "../../libs/utils/examSession";
 import QuestionPalette, { PaletteStatus } from "../common/QuestionPalette";
 import { examScreenStyles as styles } from "@/src/styles/styles/assessments/examscreenstyles";
 
@@ -83,6 +89,17 @@ export default function ExamScreen({
   // Timer state — initialised after exam data loads
   const [timeLeft, setTimeLeft] = useState(0);
   const [timeTaken, setTimeTaken] = useState(0);
+  // Absolute epoch-ms the attempt ends. The countdown is derived from this on
+  // every tick / resume, so a suspended JS timer (app-switch, screen-lock)
+  // can't desync it from real elapsed time.
+  const [deadline, setDeadline] = useState<number | null>(null);
+  // Timestamp the app was backgrounded at, used to measure the grace window.
+  const backgroundedAtRef = useRef<number | null>(null);
+  // Pending submit fired while the app stays in the background past the grace
+  // window (best-effort — JS may be suspended; the on-return check is fallback).
+  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Calls the freshest handleFinalSubmit from inside long-lived effects.
+  const finalSubmitRef = useRef<() => void>(() => {});
 
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [activeQIdx, setActiveQIdx] = useState(0);
@@ -224,7 +241,13 @@ export default function ExamScreen({
       }
 
       setExam(examData);
-      setTimeLeft((examData.duration_minutes ?? 60) * 60);
+      const total = (examData.duration_minutes ?? 60) * 60;
+      setTimeLeft(total);
+      // Anchor the countdown to a wall-clock deadline and register the attempt
+      // so a killed app can be auto-submitted on next launch.
+      const dl = Date.now() + total * 1000;
+      setDeadline(dl);
+      saveActiveAttempt({ kind: "assessment", attemptId, deadline: dl });
     } catch (error) {
       console.log("QUESTIONS ERROR:", error);
       Alert.alert(
@@ -236,23 +259,26 @@ export default function ExamScreen({
     }
   };
 
-  // ── Countdown timer ──
+  // ── Wall-clock countdown ──
+  // Recompute time left from the deadline each tick (and immediately on
+  // mount/resume) so suspended JS timers can't drift the clock.
   useEffect(() => {
-    if (!exam) return;
+    if (deadline == null) return;
+    const total = (exam?.duration_minutes ?? durationMinutes ?? 60) * 60;
+    const sync = () => {
+      const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      setTimeLeft(left);
+      setTimeTaken(total - left);
+      if (left <= 0) finalSubmitRef.current();
+      return left;
+    };
+    sync();
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleFinalSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
-      setTimeTaken((prev) => prev + 1);
+      if (sync() <= 0) clearInterval(interval);
     }, 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exam]);
+  }, [deadline]);
 
   // ── AppState / tab-switch detection ──
   useEffect(() => {
@@ -263,6 +289,14 @@ export default function ExamScreen({
           appStateRef.current === "active" &&
           (nextState === "background" || nextState === "inactive")
         ) {
+          // Start the grace clock — leaving past the window auto-submits.
+          backgroundedAtRef.current = Date.now();
+          // Submit once the grace window elapses even while still away.
+          if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
+          graceTimerRef.current = setTimeout(
+            () => finalSubmitRef.current(),
+            EXAM_BACKGROUND_GRACE_MS,
+          );
           setTabSwitchCount((prev) => {
             const newCount = prev + 1;
             setShowTabWarning(true);
@@ -274,6 +308,18 @@ export default function ExamScreen({
             );
             return newCount;
           });
+        } else if (nextState === "active") {
+          // Returned to the app: the wall-clock timer self-corrects on resume.
+          if (graceTimerRef.current) {
+            clearTimeout(graceTimerRef.current);
+            graceTimerRef.current = null;
+          }
+          // Fallback: if JS was suspended and the timer never fired, submit now.
+          if (backgroundedAtRef.current != null) {
+            const away = Date.now() - backgroundedAtRef.current;
+            backgroundedAtRef.current = null;
+            if (away >= EXAM_BACKGROUND_GRACE_MS) finalSubmitRef.current();
+          }
         }
         appStateRef.current = nextState;
       },
@@ -281,8 +327,24 @@ export default function ExamScreen({
     return () => {
       subscription.remove();
       if (tabWarningTimeout.current) clearTimeout(tabWarningTimeout.current);
+      if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
     };
   }, []);
+
+  // ── Android hardware back ──
+  // An ongoing attempt can't be abandoned — close any open sheet first,
+  // otherwise route to the submit confirmation rather than navigating back.
+  useEffect(() => {
+    const onBackPress = () => {
+      if (isSubmitting) return true;
+      if (showPalette) { setShowPalette(false); return true; }
+      if (showSubmitModal) { setShowSubmitModal(false); return true; }
+      setShowSubmitModal(true);
+      return true;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => sub.remove();
+  }, [showPalette, showSubmitModal, isSubmitting]);
 
   // ── Loading / empty guard ──
   if (loading || !exam) {
@@ -560,6 +622,7 @@ export default function ExamScreen({
       console.log("Submitting attempt:", attemptId);
 
       const response = await assessmentSubmitService(attemptId);
+      await clearActiveAttempt();
 
       console.log("SUBMIT RESPONSE:", JSON.stringify(response, null, 2));
 
@@ -582,6 +645,8 @@ export default function ExamScreen({
       setIsSubmitting(false);
     }
   };
+  // Keep the ref pointed at the freshest closure for the timer / AppState hooks.
+  finalSubmitRef.current = handleFinalSubmit;
 
   const selectedOptions = answers[getCurrentQuestionId()] || [];
   const summary = getSubmitSummary();

@@ -34,6 +34,8 @@ export interface MockTest {
   name:string;
   exam: ExamObject | string;
   subject: SubjectObject | string;
+  // Subjects covered by the mock, as returned by the API list/detail endpoints.
+  subjects?: SubjectObject[];
   chapters: number[];
   difficulty: Difficulty;
   status: MockStatus;

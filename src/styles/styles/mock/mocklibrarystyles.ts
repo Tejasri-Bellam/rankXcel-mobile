@@ -18,7 +18,48 @@ export const mockLibraryStyles = StyleSheet.create({
   pageTitle: { fontSize: 28, fontWeight: '800', color: '#1A1A2E', marginBottom: 4 },
   pageSubtitle: { fontSize: 13, color: '#9CA3AF', lineHeight: 18 },
 
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#ECECF2',
+    borderRadius: 10,
+    padding: 3,
+    gap: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tabText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  tabTextActive: { color: '#1A1A2E', fontWeight: '700' },
+
   cardList: { paddingHorizontal: 16, gap: 12 },
+
+  loadMoreBtn: {
+    marginTop: 8,
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#3B7DF8',
+  },
+  loadMoreText: { fontSize: 13, fontWeight: '700', color: '#3B7DF8' },
 
   mockCard: {
     backgroundColor: '#FFFFFF',
@@ -70,6 +111,8 @@ export const mockLibraryStyles = StyleSheet.create({
     borderRadius: 6,
   },
   mockTagText: { fontSize: 10, fontWeight: '700' },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  metaItemText: { fontSize: 11, fontWeight: '600', color: '#6B7280' },
   mockMetaText: { fontSize: 10, color: '#9CA3AF' },
   mockCardScore: {
     fontSize: 16,

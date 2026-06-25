@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  BackHandler,
   Platform,
   ScrollView,
   Text,
@@ -230,6 +231,19 @@ export default function PracticeQuestions({
   // to the results screen, so it never reveals mid-session.
   const reveal = !isTest && current.answered;
   const [tutorVisible, setTutorVisible] = useState(false);
+
+  // Android hardware back: close the tutor if open, otherwise surface the
+  // submit/exit confirmation instead of silently leaving the session.
+  useEffect(() => {
+    const onBackPress = () => {
+      if (tutorVisible) { setTutorVisible(false); return true; }
+      handleEndPractice();
+      return true;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutorVisible]);
 
   // Conversation-based tutor for the current question. Memoized per question so
   // the modal's init effect doesn't re-run on every render.
@@ -477,18 +491,6 @@ export default function PracticeQuestions({
             isTest={isTest}
           />
         </View>
-        {/* No AI tutor during a test — feedback (and the tutor) are deferred to
-            the review after the whole test. */}
-        {!isTest && (
-          <TouchableOpacity
-            style={styles.tutorBtn}
-            activeOpacity={0.8}
-            onPress={() => setTutorVisible(true)}
-          >
-            <Ionicons name="sparkles" size={13} color="#fff" />
-            <Text style={styles.tutorText}>Tutor</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Body */}
@@ -498,10 +500,26 @@ export default function PracticeQuestions({
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Question label */}
-        <Text style={styles.qLabel}>
-          QUESTION {currentIdx + 1} / {questionList.length}
-        </Text>
+        {/* Question label + marks */}
+        <View style={styles.qMetaRow}>
+          <Text style={styles.qLabel}>
+            QUESTION {currentIdx + 1} / {questionList.length}
+          </Text>
+          <View style={styles.marksRow}>
+            <View style={[styles.marksChip, styles.marksChipPositive]}>
+              <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
+                +{question.marksCorrect ?? 4}
+              </Text>
+            </View>
+            <View style={[styles.marksChip, styles.marksChipNegative]}>
+              <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
+                {Number(question.marksIncorrect ?? -1) > 0
+                  ? `-${question.marksIncorrect}`
+                  : (question.marksIncorrect ?? -1)}
+              </Text>
+            </View>
+          </View>
+        </View>
 
         <Animated.View style={{ opacity: fadeAnim }}>
           {/* Question text */}
@@ -645,7 +663,7 @@ export default function PracticeQuestions({
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={[styles.nextBtn, { flex: currentIdx > 0 ? 1 : undefined, width: currentIdx === 0 ? "100%" : undefined }]}
+              style={styles.nextBtn}
               onPress={handleTestNext}
               disabled={savingIdx === currentIdx}
               activeOpacity={0.85}
@@ -654,7 +672,7 @@ export default function PracticeQuestions({
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Text style={styles.nextBtnText}>
+                  <Text style={styles.nextBtnText} numberOfLines={1}>
                     {isLast ? "Submit test" : "Next question"}
                   </Text>
                   <Ionicons name="arrow-forward" size={16} color="#fff" />
@@ -688,11 +706,11 @@ export default function PracticeQuestions({
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={[styles.nextBtn, { flex: currentIdx > 0 ? 1 : undefined, width: currentIdx === 0 ? "100%" : undefined }]}
+              style={styles.nextBtn}
               onPress={handleNextQuestion}
               activeOpacity={0.85}
             >
-              <Text style={styles.nextBtnText}>
+              <Text style={styles.nextBtnText} numberOfLines={1}>
                 {isLast ? "View Results" : "Next question"}
               </Text>
               <Ionicons name="arrow-forward" size={16} color="#fff" />

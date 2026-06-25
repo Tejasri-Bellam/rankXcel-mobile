@@ -167,13 +167,22 @@ const EMPTY_STATS: ExamStats = {
 
 const normalizeExamStats = (raw: any): ExamStats => {
   const d = raw?.data ?? raw ?? {};
-  // exam_readiness is a nested object { readiness_percentage, readiness_label };
-  // tolerate a legacy flat number too.
+  // Readiness may arrive in several shapes:
+  //   • flat top-level keys  { readiness_percentage, readiness_label }  (current)
+  //   • a nested object      { exam_readiness: { readiness_percentage, readiness_label } }
+  //   • a legacy flat number { exam_readiness: 63.1 }
   const readiness = d?.exam_readiness;
   const isObj = readiness != null && typeof readiness === "object";
   return {
-    examReadiness: Number(isObj ? readiness?.readiness_percentage : readiness ?? 0) || 0,
-    readinessLabel: isObj ? String(readiness?.readiness_label ?? "") : "",
+    examReadiness:
+      Number(
+        d?.readiness_percentage ??
+          (isObj ? readiness?.readiness_percentage : readiness) ??
+          0
+      ) || 0,
+    readinessLabel: String(
+      d?.readiness_label ?? (isObj ? readiness?.readiness_label : "") ?? ""
+    ),
     avgAccuracy: Number(d?.avg_accuracy ?? 0) || 0,
     totalAttempts: Number(d?.total_attempts ?? 0) || 0,
     currentStreak: Number(d?.streak?.current_streak ?? 0) || 0,
@@ -434,16 +443,28 @@ export default function AnalyticsScreen() {
   }, [refresh, loadConsistency, loadExamStats, loadTrends, loadWeakestNodes]);
 
   // ── Derived (real) values ──────────────────────────────────────────────────
-  // Headline numbers come from GET /v1/exams/{id}/stats/.
-  const readiness = Math.round(examStats.examReadiness);
-  const avgAccuracy = Math.round(examStats.avgAccuracy);
+  // Headline numbers come from GET /v1/exams/{id}/stats/, falling back to the
+  // dashboard payload which now also carries readiness_percentage/label.
+  const readiness = Math.round(
+    examStats.examReadiness || dashboardData?.readiness_percentage || 0
+  );
   const totalAttempts = examStats.totalAttempts;
   const subjects = dashboardData?.strength_by_subject ?? [];
+  // Avg accuracy is the mean of the dashboard's per-subject accuracies; fall
+  // back to the stats endpoint's avg_accuracy when no subjects are present.
+  const avgAccuracy = Math.round(
+    subjects.length
+      ? subjects.reduce((sum, s) => sum + (s.accuracy ?? 0), 0) / subjects.length
+      : examStats.avgAccuracy
+  );
   // Streak now comes from the stats endpoint; fall back to the dashboard payload.
   const streakDays =
     examStats.currentStreak || dashboardData?.streak?.current_streak || 0;
   // Prefer the API-provided readiness label, else derive from the percentage.
-  const readinessText = examStats.readinessLabel || readinessLabel(readiness);
+  const readinessText =
+    examStats.readinessLabel ||
+    dashboardData?.readiness_label ||
+    readinessLabel(readiness);
 
   const activeExam = targetExams.find(
     (e) => String(e.id) === String(activeExamId)

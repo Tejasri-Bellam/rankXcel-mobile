@@ -229,6 +229,20 @@ const handleRetake = async () => {
           breakdown come after you submit.
         </Text>
 
+        {/* Subjects covered by this mock */}
+        {mockData.subjects && mockData.subjects.length > 0 && (
+          <View style={styles.subjectsSection}>
+            <Text style={styles.subjectsTitle}>Subjects</Text>
+            <View style={styles.subjectsRow}>
+              {mockData.subjects.map((subject) => (
+                <View key={subject.id} style={styles.subjectChip}>
+                  <Text style={styles.subjectChipText}>{subject.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
@@ -275,7 +289,14 @@ const handleRetake = async () => {
         ) : canRetake ? (
           <View style={styles.completedRow}>
             <TouchableOpacity
-              style={styles.startBtn}
+              style={[styles.startBtn, styles.completedBtn, styles.retakeBtn]}
+              onPress={() => setCurrentView('results')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.startBtnText, styles.retakeBtnText]}>View Results</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.startBtn, styles.completedBtn]}
               onPress={handleRetake}
               disabled={startLoading}
               activeOpacity={0.85}
@@ -288,13 +309,6 @@ const handleRetake = async () => {
                   <Ionicons name="arrow-forward" size={18} color="#fff" />
                 </>
               )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.startBtn, styles.retakeBtn]}
-              onPress={() => setCurrentView('results')}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.startBtnText, styles.retakeBtnText]}>View Results</Text>
             </TouchableOpacity>
           </View>
         ) : (

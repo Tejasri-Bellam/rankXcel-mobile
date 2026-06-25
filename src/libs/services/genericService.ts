@@ -22,14 +22,20 @@ export async function genericService<T = unknown>(
   const authToken = useAccessToken ? await storageGetAccessToken() : null;
   const headers = getHeaders(authToken, isMultipart);
   console.log(`Making ${method.toUpperCase()} request to ${apiPath} with data:`, data, "and headers:", headers, "Options:", options, authToken);
-  const response = await axiosInstance.request<T>({
-    method,
-    url: apiPath,
-    headers,
-    ...(timeout != null ? { timeout } : {}),
-    ...(method !== "get" && method !== "delete" && data ? { data } : {}),
-  });
-  return { data: response.data, status: response.status };
+  try {
+    const response = await axiosInstance.request<T>({
+      method,
+      url: apiPath,
+      headers,
+      ...(timeout != null ? { timeout } : {}),
+      ...(method !== "get" && method !== "delete" && data ? { data } : {}),
+    });
+    console.log(`Response ${method.toUpperCase()} ${apiPath} -> status ${response.status}`, response.data);
+    return { data: response.data, status: response.status };
+  } catch (err) {
+    console.log(`ERROR ${method.toUpperCase()} ${apiPath} ->`, JSON.stringify(err));
+    throw err;
+  }
 }
 
 export async function genericGet<T = unknown>(

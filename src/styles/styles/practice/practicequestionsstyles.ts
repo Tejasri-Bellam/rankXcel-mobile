@@ -44,13 +44,25 @@ export const practiceQuestionsStyles = StyleSheet.create({
   tutorText: { fontSize: 12, fontWeight: "700", color: "#fff" },
 
   // Question
+  qMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
   qLabel: {
     fontSize: 11,
     fontWeight: "700",
     color: "#AAAAAA",
     letterSpacing: 1,
-    marginBottom: 12,
   },
+  marksRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  marksChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
+  marksChipPositive: { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" },
+  marksChipNegative: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
+  marksChipText: { fontSize: 12, fontWeight: "700", fontVariant: ["tabular-nums"] as any },
+  marksChipTextPositive: { color: "#059669" },
+  marksChipTextNegative: { color: "#DC2626" },
   qText: {
     fontSize: 18,
     fontWeight: "700",
@@ -194,10 +206,12 @@ export const practiceQuestionsStyles = StyleSheet.create({
   prevBtnText: { fontSize: 14, fontWeight: "700", color: "#555" },
   nextBtn: {
     flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+    paddingHorizontal: 12,
     backgroundColor: "#22C55E",
     borderRadius: 16,
     paddingVertical: 15,

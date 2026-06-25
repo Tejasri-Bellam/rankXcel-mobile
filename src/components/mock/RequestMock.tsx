@@ -19,7 +19,6 @@ import {
 } from '../../libs/services/mock-library';
 import { requestMockStyles as styles } from '@/src/styles/styles/mock/requestmockstyles';
 import {
-  subjectEmoji,
   MOCK_DIFFICULTY_OPTIONS as DIFFICULTY_OPTIONS,
   MOCK_QUESTION_OPTIONS as QUESTION_OPTIONS,
   MOCK_DURATION_OPTIONS as DURATION_OPTIONS,
@@ -66,6 +65,7 @@ export default function RequestMockModal({
   const [scope, setScope] = useState<Scope>(isPractice ? 'subjects' : 'full');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<number[]>([]);
   const [questionCount, setQuestionCount] = useState<number>(30);
+  const [showCustomCount, setShowCustomCount] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('mixed');
   const [duration, setDuration] = useState<number>(60);
   const [submitting, setSubmitting] = useState(false);
@@ -74,6 +74,7 @@ export default function RequestMockModal({
   const resetForm = useCallback(() => {
     setScope(isPractice ? 'subjects' : 'full');
     setSelectedSubjectIds([]);
+    setShowCustomCount(false);
     setQuestionCount(30);
     setDifficulty('mixed');
     setDuration(60);
@@ -96,6 +97,11 @@ export default function RequestMockModal({
     );
   };
 
+  const allSubjectsSelected =
+    subjects.length > 0 && selectedSubjectIds.length === subjects.length;
+  const toggleSelectAll = () =>
+    setSelectedSubjectIds(allSubjectsSelected ? [] : subjects.map((s) => s.id));
+
   const isFullSyllabus = scope === 'full' && !isPractice;
   const isPresetCount = QUESTION_OPTIONS.includes(questionCount);
   const customCountValue = !isPresetCount && questionCount > 0 ? String(questionCount) : '';
@@ -108,6 +114,18 @@ export default function RequestMockModal({
     setQuestionCount((prev) => Math.max(1, Math.min(200, (prev || 0) + delta)));
 
   const needsSubjects = scope === 'subjects' || isPractice;
+
+  const difficultyLabel =
+    DIFFICULTY_OPTIONS.find((d) => d.value === difficulty)?.label ?? '';
+  const summaryParts = [
+    ...(isFullSyllabus ? [] : [`${questionCount} question${questionCount === 1 ? '' : 's'}`]),
+    ...(needsSubjects
+      ? [`${selectedSubjectIds.length} subject${selectedSubjectIds.length === 1 ? '' : 's'}`]
+      : []),
+    difficultyLabel,
+    ...(isFullSyllabus ? [] : [`${duration} min`]),
+  ].filter(Boolean);
+
   const canSubmit =
     defaultExamId != null &&
     !submitting &&
@@ -244,10 +262,22 @@ export default function RequestMockModal({
               </>
             )}
 
-            {/* Subject chips */}
+            {/* Subjects */}
             {needsSubjects && (
               <>
-                {isPractice && <Text style={[styles.sectionLabel, { marginTop: 4 }]}>SUBJECTS</Text>}
+                <View style={styles.subjectHeader}>
+                  <Text style={[styles.sectionLabel, styles.subjectHeaderLabel]}>SUBJECTS</Text>
+                  {subjects.length > 0 && (
+                    <TouchableOpacity
+                      onPress={toggleSelectAll}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={styles.selectAllText}>
+                        {allSubjectsSelected ? 'Clear all' : 'Select all'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 {loadingSubjects ? (
                   <ActivityIndicator color="#6366F1" style={{ marginVertical: 12 }} />
                 ) : subjects.length === 0 ? (
@@ -263,7 +293,9 @@ export default function RequestMockModal({
                           onPress={() => toggleSubject(subj.id)}
                           activeOpacity={0.8}
                         >
-                          <Text style={styles.subjectEmoji}>{subjectEmoji(subj.name)}</Text>
+                          {active && (
+                            <Ionicons name="checkmark" size={13} color="#fff" />
+                          )}
                           <Text
                             style={[styles.subjectText, active && styles.subjectTextActive]}
                           >
@@ -281,40 +313,70 @@ export default function RequestMockModal({
                 full-syllabus mocks, so hide the selector there. */}
             {!isFullSyllabus && (
               <>
-                <Text style={styles.sectionLabel}>NUMBER OF QUESTIONS</Text>
-                {renderChipRow(
-                  QUESTION_OPTIONS.map((n) => ({ value: n, label: String(n) })),
-                  questionCount,
-                  setQuestionCount,
-                )}
-
-                {/* Custom count — typing here overrides the preset chips above. */}
-                <View style={styles.customCountRow}>
-                  <TextInput
-                    style={styles.customCountInput}
-                    placeholder="Custom count"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="number-pad"
-                    value={customCountValue}
-                    onChangeText={handleCustomCount}
-                  />
-                  <View style={styles.stepper}>
-                    <TouchableOpacity
-                      style={styles.stepBtn}
-                      onPress={() => adjustCount(1)}
-                      hitSlop={{ top: 6, bottom: 2, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="chevron-up" size={14} color="#6B7280" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.stepBtn}
-                      onPress={() => adjustCount(-1)}
-                      hitSlop={{ top: 2, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="chevron-down" size={14} color="#6B7280" />
-                    </TouchableOpacity>
-                  </View>
+                <Text style={styles.sectionLabel}>QUESTIONS</Text>
+                <View style={styles.chipRow}>
+                  {QUESTION_OPTIONS.map((n) => {
+                    const active = !showCustomCount && questionCount === n;
+                    return (
+                      <TouchableOpacity
+                        key={n}
+                        style={[styles.optChip, active && styles.optChipActive]}
+                        onPress={() => {
+                          setShowCustomCount(false);
+                          setQuestionCount(n);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.optChipText, active && styles.optChipTextActive]}>
+                          {n}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {/* Edit — reveals a custom count input. */}
+                  <TouchableOpacity
+                    style={[styles.editChip, showCustomCount && styles.optChipActive]}
+                    onPress={() => setShowCustomCount((v) => !v)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="pencil"
+                      size={15}
+                      color={showCustomCount ? '#4338CA' : '#6B7280'}
+                    />
+                  </TouchableOpacity>
                 </View>
+
+                {/* Custom count — shown on demand via the edit icon. */}
+                {showCustomCount && (
+                  <View style={styles.customCountRow}>
+                    <TextInput
+                      style={styles.customCountInput}
+                      placeholder="Custom count"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="number-pad"
+                      value={customCountValue}
+                      onChangeText={handleCustomCount}
+                      autoFocus
+                    />
+                    <View style={styles.stepper}>
+                      <TouchableOpacity
+                        style={styles.stepBtn}
+                        onPress={() => adjustCount(1)}
+                        hitSlop={{ top: 6, bottom: 2, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="chevron-up" size={14} color="#6B7280" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.stepBtn}
+                        onPress={() => adjustCount(-1)}
+                        hitSlop={{ top: 2, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="chevron-down" size={14} color="#6B7280" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </>
             )}
 
@@ -352,6 +414,10 @@ export default function RequestMockModal({
                   setDuration,
                 )}
               </>
+            )}
+
+            {summaryParts.length > 0 && (
+              <Text style={styles.summaryText}>{summaryParts.join('  ·  ')}</Text>
             )}
 
             <TouchableOpacity

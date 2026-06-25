@@ -1,7 +1,12 @@
+import { examScreenStyles as styles } from '@/src/styles/styles/mock/examscreenstyles';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
+  AppStateStatus,
+  BackHandler,
   Modal,
   ScrollView,
   Text,
@@ -9,11 +14,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { submitMockAttemptService, submitMockAttemptResponseService, MockTestResult } from '../../libs/services/mock-library';
+import { MockTestResult, submitMockAttemptResponseService, submitMockAttemptService } from '../../libs/services/mock-library';
 import { stripHtml } from '../../libs/utils/html';
+import {
+  EXAM_BACKGROUND_GRACE_MS,
+  clearActiveAttempt,
+  saveActiveAttempt,
+} from '../../libs/utils/examSession';
 import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
-import { examScreenStyles as styles } from '@/src/styles/styles/mock/examscreenstyles';
 
 interface Props {
   mockId: number | string;
@@ -58,8 +66,19 @@ export default function MockExamScreen({
   onBackToMocks,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const [timeLeft, setTimeLeft] = useState((exam?.duration_minutes ?? durationMinutes) * 60);
+  const totalSeconds = (exam?.duration_minutes ?? durationMinutes) * 60;
+  const [timeLeft, setTimeLeft] = useState(totalSeconds);
   const [timeTaken, setTimeTaken] = useState(0);
+  // Absolute epoch-ms the attempt ends. The countdown is derived from this on
+  // every tick / resume, so a suspended JS timer (app-switch, screen-lock)
+  // can't desync it from real elapsed time.
+  const [deadline, setDeadline] = useState<number | null>(null);
+  // Timestamp the app was backgrounded at, used to measure the grace window.
+  const backgroundedAtRef = useRef<number | null>(null);
+  // Pending submit fired while the app stays in the background past the grace
+  // window (best-effort — JS may be suspended; the on-return check is fallback).
+  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [activeQIdx, setActiveQIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>(initialAnswers ?? {});
@@ -72,18 +91,86 @@ export default function MockExamScreen({
   // response carries the seconds spent on that question (see commitCurrentAnswer).
   const qEnterRef = useRef<number>(0);
 
-  // Timer
+  // Always call the latest handleFinalSubmit from inside long-lived effects
+  // (timer / AppState) without re-subscribing them on every render.
+  const finalSubmitRef = useRef<() => void>(() => {});
+
+  // Establish the wall-clock deadline once the exam is ready, and register the
+  // attempt so a killed app can be auto-submitted on next launch.
   useEffect(() => {
+    if (!exam?.sections?.length || deadline != null) return;
+    const dl = Date.now() + totalSeconds * 1000;
+    setDeadline(dl);
+    saveActiveAttempt({ kind: 'mock', attemptId, deadline: dl });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exam]);
+
+  // Wall-clock countdown: recompute time left from the deadline each tick (and
+  // immediately on mount/resume) so suspended JS timers can't drift the clock.
+  useEffect(() => {
+    if (deadline == null) return;
+    const sync = () => {
+      const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      setTimeLeft(left);
+      setTimeTaken(totalSeconds - left);
+      if (left <= 0) finalSubmitRef.current();
+      return left;
+    };
+    sync();
     const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) { clearInterval(interval); handleFinalSubmit(); return 0; }
-        return prev - 1;
-      });
-      setTimeTaken((prev) => prev + 1);
+      if (sync() <= 0) clearInterval(interval);
     }, 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadline]);
+
+  // Leaving the app (app-switch / screen-lock / kill all look the same to JS):
+  // start a grace clock on background; on return, recompute the timer and, if
+  // the app stayed away past the grace window, auto-submit the attempt.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      if (prev === 'active' && (next === 'background' || next === 'inactive')) {
+        backgroundedAtRef.current = Date.now();
+        // Submit once the grace window elapses even while still away.
+        if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
+        graceTimerRef.current = setTimeout(
+          () => finalSubmitRef.current(),
+          EXAM_BACKGROUND_GRACE_MS,
+        );
+      } else if (next === 'active') {
+        if (graceTimerRef.current) {
+          clearTimeout(graceTimerRef.current);
+          graceTimerRef.current = null;
+        }
+        // Fallback: if JS was suspended and the timer never fired, submit now.
+        if (backgroundedAtRef.current != null) {
+          const away = Date.now() - backgroundedAtRef.current;
+          backgroundedAtRef.current = null;
+          if (away >= EXAM_BACKGROUND_GRACE_MS) finalSubmitRef.current();
+        }
+      }
+    });
+    return () => {
+      sub.remove();
+      if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
+    };
   }, []);
+
+  // Android hardware back: an in-progress attempt can't simply be abandoned —
+  // close any open sheet first, otherwise surface the submit confirmation.
+  useEffect(() => {
+    const onBackPress = () => {
+      if (submitting) return true;
+      if (showPalette) { setShowPalette(false); return true; }
+      if (showSubmitSheet) { setShowSubmitSheet(false); return true; }
+      setShowSubmitSheet(true);
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [showPalette, showSubmitSheet, submitting]);
 
   if (!exam?.sections?.length) {
     return (
@@ -234,14 +321,19 @@ export default function MockExamScreen({
       setShowSubmitSheet(false);
       setShowPalette(false);
       const submitRes = await flushAndSubmit();
+      await clearActiveAttempt();
       const result = (submitRes as any)?.data ?? (submitRes as any) ?? null;
       onSubmit(answers, timeTaken, result);
+      console.log('ressss', answers, timeTaken, result);
+
     } catch (err) {
       console.log('SUBMIT ERROR:', err);
       Alert.alert('Error', 'Submission failed. Please try again.');
       setSubmitting(false);
     }
   };
+  // Keep the ref pointed at the freshest closure for the timer / AppState hooks.
+  finalSubmitRef.current = handleFinalSubmit;
 
   // X (close) in the header: confirm, submit the attempt, then leave to the
   // mock list. Submitting here means the mock can't be restarted from scratch.
@@ -262,6 +354,7 @@ export default function MockExamScreen({
               setShowSubmitSheet(false);
               setShowPalette(false);
               await flushAndSubmit();
+              await clearActiveAttempt();
               onBackToMocks?.();
             } catch (err) {
               console.log('SUBMIT ERROR:', err);
@@ -359,6 +452,20 @@ export default function MockExamScreen({
           <Text style={styles.qLabel}>
             QUESTION {currentFlatIdx + 1} / {totalQ}
           </Text>
+          <View style={styles.marksRow}>
+            <View style={[styles.marksChip, styles.marksChipPositive]}>
+              <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
+                +{activeQuestion?.marks_correct ?? 4}
+              </Text>
+            </View>
+            <View style={[styles.marksChip, styles.marksChipNegative]}>
+              <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
+                {Number(activeQuestion?.marks_incorrect ?? -1) > 0
+                  ? `-${activeQuestion?.marks_incorrect}`
+                  : (activeQuestion?.marks_incorrect ?? -1)}
+              </Text>
+            </View>
+          </View>
           <TouchableOpacity
             style={[styles.markBtn, isMarked && styles.markBtnActive]}
             onPress={handleMarkForReview}

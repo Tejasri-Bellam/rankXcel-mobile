@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -7,8 +7,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -85,11 +83,9 @@ interface MockCardProps {
 }
 
 const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
-  const isCompleted = mock.status === 'SUBMITTED';
-  const score = mock.score ?? 0;
-  const maxScore = mock.max_score ?? mock.question_count ?? 0;
-  const lastPct = maxScore > 0 ? Math.round((score / maxScore) * 100) : null;
-
+  const isCompleted = mock.latest_attempt_status === 'SUBMITTED';
+  const lastPct = mock?.percentage;
+  const lastAccuracy = mock?.accuracy;
   const tagLabel = getTagLabel(mock);
   const tagColor = getTagColor(tagLabel);
 
@@ -115,25 +111,30 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
 
         {/* Tag + meta */}
         <View style={styles.mockCardMeta}>
-          <View style={[styles.mockTag, { backgroundColor: '#3B7DF818' }]}>
-            <Text style={[styles.mockTagText, { color: '#3B7DF8' }]}>
-              {mock.is_full_syllabus ? 'Full syllabus' : 'Pick by subject'}
-            </Text>
-          </View>
           {tagLabel && (
             <View style={[styles.mockTag, { backgroundColor: tagColor + '18' }]}>
               <Text style={[styles.mockTagText, { color: tagColor }]}>{tagLabel}</Text>
             </View>
           )}
-          <Text style={styles.mockMetaText}>
-            {mock.question_count ?? 0} questions · {formatDuration(mock.total_duration_minutes)}
-            {isCompleted && lastPct !== null ? ` · last ${lastPct}%` : ''}
-          </Text>
+          <View style={styles.metaItem}>
+            <Ionicons name="document-text-outline" size={12} color="#6B7280" />
+            <Text style={styles.metaItemText}>{mock.question_count ?? 0} Qs</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="time-outline" size={12} color="#6B7280" />
+            <Text style={styles.metaItemText}>{formatDuration(mock.total_duration_minutes)}</Text>
+          </View>
+          {lastAccuracy ? (
+            <Text style={styles.metaItemText}>Accuracy: {lastAccuracy}%</Text>
+          ) : null}
+          {isCompleted && lastPct != null ? (
+            <Text style={styles.metaItemText}>last {lastPct}%</Text>
+          ) : null}
         </View>
       </View>
 
       {/* Right: score % or chevron */}
-      {isCompleted && lastPct !== null ? (
+      {isCompleted && lastPct != null ? (
         <Text style={[styles.mockCardScore, { color: getScoreColor(lastPct) }]}>
           {lastPct}%
         </Text>
@@ -171,11 +172,14 @@ export default function MockLibrary({
   const [resumeMock, setResumeMock] = useState<MockTest | null>(null);
   const [requestVisible, setRequestVisible] = useState(false);
 
-  // Pagination — the list endpoint is paginated; pull pages as the user scrolls.
+  // Tabs — split mocks into student-generated vs official.
+  const [activeTab, setActiveTab] = useState<'student' | 'official'>('student');
+
+  // Pagination — the list endpoint is paginated; pull the next page when the
+  // user taps "Load more".
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const loadingMoreRef = useRef(false);
 
   const loadMocks = useCallback(async (isRefresh = false) => {
     try {
@@ -196,8 +200,7 @@ export default function MockLibrary({
   }, [activeExamId, testType]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMoreRef.current || loading || refreshing || !hasMore) return;
-    loadingMoreRef.current = true;
+    if (loadingMore || loading || refreshing || !hasMore) return;
     const nextPage = page + 1;
     try {
       setLoadingMore(true);
@@ -213,16 +216,8 @@ export default function MockLibrary({
       setHasMore(false);
     } finally {
       setLoadingMore(false);
-      loadingMoreRef.current = false;
     }
-  }, [activeExamId, testType, page, hasMore, loading, refreshing]);
-
-  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    const distanceFromBottom =
-      contentSize.height - (contentOffset.y + layoutMeasurement.height);
-    if (distanceFromBottom < 400) loadMore();
-  }, [loadMore]);
+  }, [activeExamId, testType, page, hasMore, loading, refreshing, loadingMore]);
 
   useEffect(() => { loadMocks(); }, [loadMocks]);
 
@@ -236,7 +231,7 @@ export default function MockLibrary({
     return () => sub.remove();
   }, [requestVisible, resumeMock, selectedMock]);
 
-  const mocks = allMocks
+  const visibleMocks = allMocks
     // Only show the requested test type — the API sometimes ignores the
     // test_type query param and returns both PRACTICE_TEST and MOCK_TEST.
     .filter((m) => !m.test_type || m.test_type === testType)
@@ -245,6 +240,18 @@ export default function MockLibrary({
       const eid = getExamId(m.exam);
       return eid == null || String(eid) === String(activeExamId);
     });
+
+  const studentMocks = visibleMocks.filter((m) => !m.is_official);
+  const officialMocks = visibleMocks.filter((m) => m.is_official);
+  const mocks = activeTab === 'official' ? officialMocks : studentMocks;
+
+  // Keep pulling pages until the active tab shows at least 10 mocks (or the
+  // API runs out). A page mixes both categories, so one tab can lag behind.
+  useEffect(() => {
+    if (!loading && !refreshing && !loadingMore && hasMore && mocks.length < 10) {
+      loadMore();
+    }
+  }, [mocks.length, hasMore, loading, refreshing, loadingMore, loadMore]);
 
   if (resumeMock) {
     return (
@@ -271,10 +278,7 @@ export default function MockLibrary({
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        onScroll={(e) => {
-          handleScroll(e);
-          onHeaderScroll(e);
-        }}
+        onScroll={onHeaderScroll}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
@@ -301,6 +305,28 @@ export default function MockLibrary({
               <Text style={styles.buildBtnText}>Build mock</Text>
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'student' && styles.tabActive]}
+            onPress={() => setActiveTab('student')}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.tabText, activeTab === 'student' && styles.tabTextActive]}>
+              My Mocks
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'official' && styles.tabActive]}
+            onPress={() => setActiveTab('official')}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.tabText, activeTab === 'official' && styles.tabTextActive]}>
+              Official Mocks
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Content */}
@@ -335,8 +361,21 @@ export default function MockLibrary({
                 <Text style={styles.emptyText}>No mock tests found</Text>
               </View>
             )}
-            {loadingMore && (
-              <ActivityIndicator size="small" color="#3B7DF8" style={{ marginVertical: 16 }} />
+
+            {/* Load more */}
+            {hasMore && mocks.length > 0 && (
+              <TouchableOpacity
+                style={styles.loadMoreBtn}
+                onPress={loadMore}
+                disabled={loadingMore}
+                activeOpacity={0.75}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color="#3B7DF8" />
+                ) : (
+                  <Text style={styles.loadMoreText}>Load more</Text>
+                )}
+              </TouchableOpacity>
             )}
           </View>
         )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,7 @@ import {
 } from '@/src/libs/services/countries';
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
-import CountrySelect from '@/src/components/common/CountrySelect';
+import { countrySelectStyles } from '@/src/styles/styles/common/countryselectstyles';
 import InputField from '@/src/components/common/InputField';
 import Toast, { useToast } from '@/src/components/common/Toast';
 import {
@@ -136,6 +136,35 @@ const LoginScreen = () => {
     number | string | null
   >(null);
 
+  // Device-location country shown in the top-right chip. Resolved from
+  // GET /v1/get_country/ (no countries-options catalogue involved).
+  const [country, setCountry] = useState<{
+    id: number | string;
+    name: string;
+    isoCode2?: string;
+  } | null>(null);
+
+  // Detect the user's country from the device location once on mount so the
+  // header reflects it and the post-login data fetch can be scoped to it.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res: any = await getCountryService();
+        const detected = normalizeUserCountry(res?.data);
+        if (active && detected) {
+          setCountry(detected);
+          setSelectedCountryId(detected.id);
+        }
+      } catch {
+        // Non-fatal — login still works without a pre-detected country.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -178,6 +207,8 @@ const LoginScreen = () => {
     let countryId: number | string | null = null;
     try {
       const countryRes: any = await getCountryService();
+      console.log('countryRes', countryRes);
+      
       const userCountry = normalizeUserCountry(countryRes?.data);
       if (userCountry) {
         countryId = userCountry.id;
@@ -221,6 +252,13 @@ const LoginScreen = () => {
     // in-flight guard synchronously, so the dashboard's own initial load is
     // deduped against this one.
     refreshExams(countryId ?? undefined);
+
+    // New students who haven't picked a target exam yet are sent to the
+    // set-goal screen first; everyone else lands on the dashboard.
+    if (data?.user && data.user.is_onboarded === false) {
+      router.replace('/set-goal');
+      return;
+    }
 
     router.replace('/dashboard');
   };
@@ -372,7 +410,12 @@ const LoginScreen = () => {
             >
               <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
             </TouchableOpacity>
-            <CountrySelect onChange={(c) => setSelectedCountryId(c.id)} />
+            <View style={countrySelectStyles.chip}>
+              <Ionicons name="location-outline" size={16} color="#475569" />
+              <Text style={countrySelectStyles.chipText}>
+                {country?.name ?? 'Region'}
+              </Text>
+            </View>
           </View>
 
           {/* Brand */}
