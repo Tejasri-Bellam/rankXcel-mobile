@@ -11,6 +11,7 @@ import BottomNav from "@/src/components/common/BottomNav";
 import { TargetExamProvider } from "../libs/context/TagretExamContext";
 import { HeaderScrollProvider } from "../libs/context/HeaderScrollContext";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { submitAbandonedAttempt } from "../libs/utils/examSession";
 
 const HEADER_ROUTES = [
   "/dashboard",
@@ -54,6 +55,13 @@ function AppShell() {
   const client_id = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
   const ios_client_id = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
   const googleSigninConfigured = useRef(false);
+
+  // On cold launch, submit any exam attempt left in progress by a previous run
+  // that was killed / swiped out of recents mid-exam (it never got to submit).
+  useEffect(() => {
+    submitAbandonedAttempt();
+  }, []);
+
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (profileOpen) {

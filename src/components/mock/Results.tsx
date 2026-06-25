@@ -151,6 +151,10 @@ export default function MockExamResults({
       ? Math.round((num(result.total_score) / num(result.max_score)) * 100)
       : accuracyPct;
 
+  // Raw marks scored out of the maximum — surfaced on the hero banner.
+  const totalScore = num(result.total_score);
+  const maxScore = num(result.max_score);
+
   const timeTaken = num(result.time_taken_seconds) || num(timeTakenSeconds);
   const xp = 100 + correct * 10;
   const percentile = mock.percentile != null ? Math.round(num(mock.percentile)) : null;
@@ -207,6 +211,10 @@ export default function MockExamResults({
             <Text style={styles.bannerScore}>{percentagePct}</Text>
             <Text style={styles.bannerScorePct}>%</Text>
           </View>
+
+          <Text style={styles.bannerScoreMarks}>
+            {totalScore} / {maxScore} marks
+          </Text>
 
           <Text style={styles.bannerSub}>
             {correct} of {totalQ} correct · {verdict}

@@ -115,11 +115,6 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
 
         {/* Tag + meta */}
         <View style={styles.mockCardMeta}>
-          <View style={[styles.mockTag, { backgroundColor: '#3B7DF818' }]}>
-            <Text style={[styles.mockTagText, { color: '#3B7DF8' }]}>
-              {mock.is_full_syllabus ? 'Full syllabus' : 'Pick by subject'}
-            </Text>
-          </View>
           {tagLabel && (
             <View style={[styles.mockTag, { backgroundColor: tagColor + '18' }]}>
               <Text style={[styles.mockTagText, { color: tagColor }]}>{tagLabel}</Text>
@@ -170,6 +165,9 @@ export default function MockLibrary({
   const [selectedMock, setSelectedMock] = useState<MockTest | null>(null);
   const [resumeMock, setResumeMock] = useState<MockTest | null>(null);
   const [requestVisible, setRequestVisible] = useState(false);
+
+  // Tabs — split mocks into student-generated vs official.
+  const [activeTab, setActiveTab] = useState<'student' | 'official'>('student');
 
   // Pagination — the list endpoint is paginated; pull pages as the user scrolls.
   const [page, setPage] = useState(1);
@@ -236,7 +234,7 @@ export default function MockLibrary({
     return () => sub.remove();
   }, [requestVisible, resumeMock, selectedMock]);
 
-  const mocks = allMocks
+  const visibleMocks = allMocks
     // Only show the requested test type — the API sometimes ignores the
     // test_type query param and returns both PRACTICE_TEST and MOCK_TEST.
     .filter((m) => !m.test_type || m.test_type === testType)
@@ -245,6 +243,10 @@ export default function MockLibrary({
       const eid = getExamId(m.exam);
       return eid == null || String(eid) === String(activeExamId);
     });
+
+  const studentMocks = visibleMocks.filter((m) => !m.is_official);
+  const officialMocks = visibleMocks.filter((m) => m.is_official);
+  const mocks = activeTab === 'official' ? officialMocks : studentMocks;
 
   if (resumeMock) {
     return (
@@ -301,6 +303,28 @@ export default function MockLibrary({
               <Text style={styles.buildBtnText}>Build mock</Text>
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'student' && styles.tabActive]}
+            onPress={() => setActiveTab('student')}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.tabText, activeTab === 'student' && styles.tabTextActive]}>
+              My Mocks
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'official' && styles.tabActive]}
+            onPress={() => setActiveTab('official')}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.tabText, activeTab === 'official' && styles.tabTextActive]}>
+              Official Mocks
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Content */}
