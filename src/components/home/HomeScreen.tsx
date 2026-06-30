@@ -10,7 +10,7 @@ import { homeData } from '../json/home';
 import { homeStyles } from '@/src/styles/styles/home/homescreenstyles';
 
 
-const HomeScreen = () => {
+export default function HomeScreen() {
   const router = useRouter();
 
   return (
@@ -362,5 +362,3 @@ const HomeScreen = () => {
     </View>
   );
 };
-
-export default HomeScreen;

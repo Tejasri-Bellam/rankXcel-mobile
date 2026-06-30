@@ -23,7 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ExamOption = { id: number; name: string };
 
-const SetGoalScreen = () => {
+export default function SetGoalScreen() {
   const data = OnboardingJson();
   const { refreshExams } = useTargetExam();
 
@@ -251,5 +251,3 @@ const SetGoalScreen = () => {
     </View>
   );
 };
-
-export default SetGoalScreen;

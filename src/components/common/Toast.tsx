@@ -53,13 +53,13 @@ const CONFIG: Record<
   info: { bg: '#2F8AF4', icon: 'information-circle' },
 };
 
-const Toast = ({
+export default function Toast({
   visible,
   message,
   type = 'info',
   duration = 3000,
   onHide,
-}: ToastProps) => {
+}: ToastProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-24)).current;
 
@@ -120,6 +120,4 @@ const Toast = ({
       </View>
     </Animated.View>
   );
-};
-
-export default Toast;
+}
