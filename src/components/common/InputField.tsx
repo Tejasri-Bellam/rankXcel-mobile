@@ -30,7 +30,7 @@ interface InputFieldProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-const InputField = ({
+export default function InputField({
   label,
   required = false,
   icon,
@@ -42,7 +42,7 @@ const InputField = ({
   secureTextEntry,
   placeholderTextColor = '#9CA3AF',
   ...rest
-}: InputFieldProps) => {
+}: InputFieldProps) {
   const [hidden, setHidden] = useState(true);
 
   // A password field starts hidden and is toggled via the eye icon; otherwise
@@ -95,6 +95,4 @@ const InputField = ({
       ) : null}
     </View>
   );
-};
-
-export default InputField;
+}

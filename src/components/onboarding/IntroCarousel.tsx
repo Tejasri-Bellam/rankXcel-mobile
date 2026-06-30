@@ -18,7 +18,7 @@ import { INTRO, introStyles as s } from '@/src/styles/styles/onboarding/introcar
 const tap = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) =>
   Haptics.impactAsync(style).catch(() => {});
 
-const IntroCarousel = () => {
+export default function IntroCarousel() {
   const data = IntroJson();
   const slides = data.slides;
   const last = slides.length - 1;
@@ -147,5 +147,3 @@ const IntroCarousel = () => {
     </SafeAreaView>
   );
 };
-
-export default IntroCarousel;

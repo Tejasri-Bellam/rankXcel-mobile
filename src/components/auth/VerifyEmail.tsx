@@ -15,7 +15,7 @@ import { verifyEmailStyles as styles } from '@/src/styles/styles/auth/verifyemai
 
 const OTP_LENGTH = 6;
 
-const VerifyEmailScreen = () => {
+export default function VerifyEmailScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
@@ -237,5 +237,3 @@ const VerifyEmailScreen = () => {
     </View>
   );
 };
-
-export default VerifyEmailScreen;

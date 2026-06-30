@@ -123,7 +123,7 @@ const enrichRegionFromCatalogue = async (
   }
 };
 
-const SignupScreen = () => {
+export default function SignupScreen() {
   // Used to drop any leftover in-memory exam state from a previous session, and
   // to load this user's country-scoped target exams right after Google sign-in.
   const { reset: resetTargetExam, refreshExams } = useTargetExam();
@@ -586,5 +586,3 @@ const SignupScreen = () => {
     </View>
   );
 };
-
-export default SignupScreen;

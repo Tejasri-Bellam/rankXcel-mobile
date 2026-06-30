@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import { WelcomeJson } from '../json/welcome';
 import { welcomeStyles } from '@/src/styles/styles/home/welcomescreenstyles';
 
-const WelcomeScreen = () => {
+export default function WelcomeScreen() {
   const data = WelcomeJson();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -116,5 +116,3 @@ const WelcomeScreen = () => {
     </View>
   );
 };
-
-export default WelcomeScreen;

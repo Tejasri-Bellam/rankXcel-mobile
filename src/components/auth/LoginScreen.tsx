@@ -124,7 +124,7 @@ const enrichRegionFromCatalogue = async (
   }
 };
 
-const LoginScreen = () => {
+export default function LoginScreen() {
   // Used to drop any leftover in-memory exam state from a previous session, and
   // to load this user's country-scoped target exams right after login.
   const { reset: resetTargetExam, refreshExams } = useTargetExam();
@@ -544,5 +544,3 @@ const LoginScreen = () => {
     </View>
   );
 };
-
-export default LoginScreen;
