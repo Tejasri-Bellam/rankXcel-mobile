@@ -5,10 +5,8 @@ import {
   getExamsListService,
   getMeService,
   getMyTargetExamsService,
-  getNotificationsService,
   getTargetExamsService,
   updateMeService,
-  updateNotificationsService,
 } from '@/src/libs/services/profile';
 import { profileStyles } from '@/src/styles/styles/home/profilescreenstyles';
 import { COLORS } from '@/src/styles/styles';
@@ -23,12 +21,10 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
-  Switch,
 } from 'react-native';
 import { storageSetAccessToken } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NotifKey, NOTIFICATION_ITEMS } from '@/src/libs/constants';
 
 // Types
 // `id` is the exam id (used to dedupe the dropdown); `recordId` is the
@@ -107,9 +103,6 @@ export default function ProfileScreen() {
   const [targetPercentage, setTargetPercentage] = useState('');
   const [examDropdownOpen, setExamDropdownOpen] = useState(false);
   const [examOptions, setExamOptions] = useState<{ id: number; name: string }[]>([]);
-
-  // Notifications
-  const [notifs, setNotifs] = useState<any>({});
 
   // Fetch profile
   const fetchProfile = async () => {
@@ -199,29 +192,9 @@ export default function ProfileScreen() {
     }
   };
 
-  //  Fetch notifications
-  const fetchNotifications = async () => {
-    try {
-      const res = await getNotificationsService();
-      if (res?.status === 200) {
-        const data: any = res?.data || {};
-        setNotifs({
-          mockResults: !!data.mockResults,
-          weeklyTips: !!data.weeklyTips,
-          mockNotif: !!data.mockNotif,
-          practiceReminders: !!data.practiceReminders,
-          productUpdates: !!data.productUpdates,
-        });
-      }
-    } catch (error) {
-      console.log('Notifications Error:', error);
-    }
-  };
-
   useEffect(() => {
     fetchProfile();
     fetchExamsList();
-    fetchNotifications();
   }, []);
 
   // Re-pull the assigned-exam list every time the screen regains focus so a
@@ -378,26 +351,7 @@ export default function ProfileScreen() {
     );
   };
 
-  //  Notifications
-  const toggleNotif = async (key: NotifKey) => {
-  const prev = notifs;
-  const next = { ...notifs, [key]: !notifs[key] };
-
-      setNotifs(next);
-
-      try {
-        await updateNotificationsService({
-          [key]: next[key],
-        });
-
-        Alert.alert('Success', 'Notification preference updated');
-      } catch {
-        setNotifs(prev);
-        Alert.alert('Un-success', 'Failed to update notification preference');
-      }
-    };
-
-  // Delete account 
+  // Delete account
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
@@ -641,26 +595,6 @@ export default function ProfileScreen() {
               </View>
             </View>
           )}
-        </View>
-
-        {/* ── Notification Preferences ── */}
-        <View style={profileStyles.card}>
-          <SectionHeader title="Notification Preferences" subtitle="Choose what updates you'd like to receive." />
-          {NOTIFICATION_ITEMS.map((item, idx, arr) => (
-            <View key={item.key} style={[profileStyles.notifRow, idx < arr.length - 1 && profileStyles.notifRowBorder]}>
-              <View style={profileStyles.notifInfo}>
-                <Text style={profileStyles.notifLabel}>{item.label}</Text>
-                <Text style={profileStyles.notifChannel}>{item.channel}</Text>
-              </View>
-              <Switch
-                value={!!notifs[item.key]}
-                onValueChange={() => toggleNotif(item.key)}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                thumbColor={COLORS.white}
-                ios_backgroundColor={COLORS.border}
-              />
-            </View>
-          ))}
         </View>
 
         {/* ── Danger Zone ── */}
