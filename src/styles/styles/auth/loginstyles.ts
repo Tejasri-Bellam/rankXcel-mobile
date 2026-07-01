@@ -40,11 +40,11 @@ export const loginStyles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 10,
   },
   brandIcon: {
-    width: 40,
-    height: 40,
+    width: 30,
+    height: 30,
     borderRadius: 12,
     backgroundColor: '#2F8AF4',
     alignItems: 'center',
@@ -62,7 +62,7 @@ export const loginStyles = StyleSheet.create({
     fontSize: 23,
     fontWeight: '800',
     color: '#0F172A',
-    marginTop: 14,
+    marginTop: 0,
   },
   subtitle: {
     fontSize: 13,

@@ -3,12 +3,12 @@ import { StyleSheet } from 'react-native';
 export const solutionViewerStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#EEEFF5' },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
     backgroundColor: '#EEEFF5',
+    paddingLeft: 18,
     gap: 10,
   },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },

@@ -47,6 +47,7 @@ type Props = {
 type RegionInfo = {
   id?: number | string;
   name: string;
+  code?: string;
   currency?: string;
   flagUrl?: string;
 };
@@ -214,6 +215,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
             ...current,
             id: userCountry.id,
             name: userCountry.name || current.name,
+            code: userCountry.isoCode2 || current.code,
           };
           setRegion(current);
           await AsyncStorage.setItem("regionCountryId", String(userCountry.id));
@@ -236,8 +238,15 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
           : payload?.results ?? payload?.data ?? payload?.countries ?? [];
         const catalogue = list.map(normalizeCountry);
         // The catalogue (/v1/masters/options/countries/) and /v1/get_country/
-        // don't share an id space, so try id first and fall back to name match.
+        // don't share an id space, so prefer the ISO code (the one key both
+        // endpoints agree on), then fall back to id, then a name match.
         const match =
+          (current.code
+            ? catalogue.find(
+                (c) =>
+                  c.code?.toUpperCase() === current.code!.toUpperCase()
+              )
+            : undefined) ??
           (current.id != null
             ? catalogue.find((c) => String(c.id) === String(current.id))
             : undefined) ??
@@ -269,6 +278,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
     const next: RegionInfo = {
       id: country.id,
       name: country.name,
+      code: country.code,
       currency: country.currency,
       flagUrl: country.flagUrl,
     };
@@ -409,7 +419,11 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
           contentContainerStyle={{ paddingBottom: 28 }}
         >
           {/* Hero */}
-          <View style={styles.hero}>
+          <TouchableOpacity
+            style={styles.hero}
+            activeOpacity={0.8}
+            onPress={() => go("/profile")}
+          >
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
                 {getInitials(user?.name, user?.email)}
@@ -445,7 +459,13 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
                 )}
               </View>
             </View>
-          </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={COLORS.textLight}
+              style={{ alignSelf: "center" }}
+            />
+          </TouchableOpacity>
 
           {/* CURRENT COURSE */}
           <Text style={styles.sectionLabel}>CURRENT COURSE</Text>
@@ -453,17 +473,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
             <Row
               icon={<Flag url={region.flagUrl} size={18} />}
               iconBg={COLORS.primaryLight}
-              title="Region"
-              right={
-                <View style={styles.rowRight}>
-                  <Text style={styles.rowRightText}>{region.name}</Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={COLORS.textLight}
-                  />
-                </View>
-              }
+              title={region.name || "Select country"}
               onPress={() => setRegionOpen(true)}
             />
             <Row

@@ -261,7 +261,7 @@ export default function MockExamResults({
         {onViewSolutions && (
           <TouchableOpacity style={styles.reviewCard} onPress={onViewSolutions} activeOpacity={0.85}>
             <Ionicons name="eye-outline" size={18} color="#3B7DF8" />
-            <Text style={styles.reviewCardText}>Review all {totalQ} questions</Text>
+            <Text style={styles.reviewCardText}>Review all questions</Text>
           </TouchableOpacity>
         )}
 
@@ -270,7 +270,7 @@ export default function MockExamResults({
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="locate" size={16} color="#3B7DF8" />
-              <Text style={styles.sectionTitle}>Practice next</Text>
+              <Text style={styles.sectionTitle}>Practice Next</Text>
             </View>
             {weakTopics.map((t, i) => (
               <TouchableOpacity
@@ -298,7 +298,7 @@ export default function MockExamResults({
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="bar-chart-outline" size={16} color="#3B7DF8" />
-              <Text style={styles.sectionTitle}>Strength by subject</Text>
+              <Text style={styles.sectionTitle}>Strength by Subject</Text>
             </View>
             {subjects.map((s, i) => (
               <View key={`${s.name}-${i}`} style={styles.subjectRow}>
@@ -346,7 +346,7 @@ export default function MockExamResults({
             activeOpacity={0.85}
           >
             <Ionicons name="refresh" size={16} color="#fff" />
-            <Text style={styles.keepGoingText}>Keep going</Text>
+            <Text style={styles.keepGoingText}>Keep Going</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
