@@ -7,7 +7,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -141,7 +140,6 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
     name: "India",
     currency: "INR",
   });
-  const [darkMode, setDarkMode] = useState(false);
   const [coursesOpen, setCoursesOpen] = useState(false);
   const [regionOpen, setRegionOpen] = useState(false);
 
@@ -490,16 +488,6 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
                   : "Tap to choose your target exam"
               }
               onPress={() => setCoursesOpen(true)}
-            />
-            <Row
-              icon={
-                <Ionicons name="card-outline" size={18} color={COLORS.green} />
-              }
-              iconBg={COLORS.greenLight}
-              title="Subscription & billing"
-              onPress={() =>
-                Alert.alert("Coming soon", "Subscription & billing is not available yet.")
-              }
               isLast
             />
           </View>
@@ -524,32 +512,6 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
               iconBg={COLORS.orangeLight}
               title="Notifications"
               onPress={() => go("/profile")}
-              isLast
-            />
-          </View>
-
-          {/* APP */}
-          <Text style={styles.sectionLabel}>APP</Text>
-          <View style={styles.card}>
-            <Row
-              icon={<Ionicons name="settings-outline" size={18} color={COLORS.textMedium} />}
-              iconBg={COLORS.grayBg}
-              title="Settings"
-              subtitle="Appearance, text size, accessibility"
-              onPress={() => go("/profile")}
-            />
-            <Row
-              icon={<Ionicons name="moon-outline" size={18} color={COLORS.textDark} />}
-              iconBg={COLORS.grayBg}
-              title="Dark mode"
-              right={
-                <Switch
-                  value={darkMode}
-                  onValueChange={setDarkMode}
-                  trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                  thumbColor={COLORS.white}
-                />
-              }
               isLast
             />
           </View>

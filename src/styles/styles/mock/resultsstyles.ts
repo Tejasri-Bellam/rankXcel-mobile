@@ -23,7 +23,7 @@ export const resultsStyles = StyleSheet.create({
 
   // Hero banner
   banner: {
-    backgroundColor: '#C0395C',
+    backgroundColor: '#4F46E5',
     borderRadius: 22,
     paddingVertical: 26,
     paddingHorizontal: 20,
