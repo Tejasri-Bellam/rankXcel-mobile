@@ -345,7 +345,7 @@ export default function LoginScreen() {
   };
 
   // Sign in with Apple (iOS only). The native sheet returns a signed identity
-  // token (JWT) we forward to the backend as `access_token`, mirroring Google.
+  // token (JWT) we forward to the backend as `identity_token` (the field apple_sso requires).
   const handleAppleSignIn = async () => {
     setFieldErrors({});
     setLoading(true);
@@ -366,7 +366,7 @@ export default function LoginScreen() {
       // Apple only returns the name/email on the FIRST authorization for an
       // Apple ID; forward them when present so the backend can capture them on
       // first sign-up. Subsequent logins rely on the token alone.
-      const payload: Record<string, any> = { access_token: identityToken };
+      const payload: Record<string, any> = { identity_token: identityToken };
       if (credential.fullName?.givenName)
         payload.first_name = credential.fullName.givenName;
       if (credential.fullName?.familyName)
