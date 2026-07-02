@@ -24,6 +24,7 @@ import {
   getCountriesService,
   getCountryService,
   normalizeUserCountry,
+  svgToDataUri,
 } from '@/src/libs/services/countries';
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
@@ -112,12 +113,12 @@ const enrichRegionFromCatalogue = async (
       ...region,
       currency:
         region.currency ?? match.currency ?? match.currency_code ?? undefined,
+      // The master's `flag` is raw SVG markup — convert it to a data URI so
+      // the sidebar can render it (a raw <svg> string is not a usable image
+      // source). Real flag URLs, if the API ever returns them, pass through.
       flagUrl:
         region.flagUrl ??
-        match.flag_url ??
-        match.flagUrl ??
-        match.flag ??
-        undefined,
+        svgToDataUri(match.flag_url ?? match.flagUrl ?? match.flag),
     };
   } catch {
     return region;
@@ -207,7 +208,6 @@ export default function LoginScreen() {
     let countryId: number | string | null = null;
     try {
       const countryRes: any = await getCountryService();
-      console.log('countryRes', countryRes);
       
       const userCountry = normalizeUserCountry(countryRes?.data);
       if (userCountry) {
@@ -277,12 +277,10 @@ export default function LoginScreen() {
       };
 
       const { data } = (await loginService(payload)) as { data: any };
-      console.log('LOGIN RESPONSE:', JSON.stringify(data, null, 2));
 
       showToast('Logged in successfully', 'success');
       await completeLogin(data);
     } catch (error: any) {
-      console.log('LOGIN ERROR:', JSON.stringify(error, null, 2));
       setFieldErrors(getApiFieldErrors(error));
       showToast(getApiErrorMessage(error), 'error');
     } finally {
@@ -325,7 +323,6 @@ export default function LoginScreen() {
       const { data } = (await googleLoginService({
         access_token: idToken,
       })) as { data: any };
-      console.log('GOOGLE LOGIN RESPONSE:', JSON.stringify(data, null, 2));
 
       showToast('Logged in successfully', 'success');
       await completeLogin(data);
@@ -337,7 +334,6 @@ export default function LoginScreen() {
       ) {
         return;
       }
-      console.log('GOOGLE LOGIN ERROR:', JSON.stringify(error, null, 2));
       showToast(getApiErrorMessage(error) || 'Google sign-in failed', 'error');
     } finally {
       setLoading(false);
@@ -374,7 +370,6 @@ export default function LoginScreen() {
       if (credential.email) payload.email = credential.email;
 
       const { data } = (await appleLoginService(payload)) as { data: any };
-      console.log('APPLE LOGIN RESPONSE:', JSON.stringify(data, null, 2));
 
       showToast('Logged in successfully', 'success');
       await completeLogin(data);
@@ -383,7 +378,6 @@ export default function LoginScreen() {
       if (error?.code === 'ERR_REQUEST_CANCELED') {
         return;
       }
-      console.log('APPLE LOGIN ERROR:', JSON.stringify(error, null, 2));
       showToast(getApiErrorMessage(error) || 'Apple sign-in failed', 'error');
     } finally {
       setLoading(false);

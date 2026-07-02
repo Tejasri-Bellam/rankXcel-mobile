@@ -11,7 +11,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getCountriesService } from "@/src/libs/services/countries";
+import {
+  getCountriesService,
+  svgToDataUri,
+} from "@/src/libs/services/countries";
 import { CURRENCY_SYMBOLS } from "@/src/libs/constants";
 import { countrySelectStyles as styles } from "@/src/styles/styles/common/countryselectstyles";
 
@@ -22,21 +25,6 @@ export type CountryOption = {
   currency?: string;
   currencySymbol?: string;
   flagUrl?: string;
-};
-
-// The countries API returns each flag as a raw SVG string; expo-image renders
-// SVG from a base64 data URI, so convert the markup into one.
-const svgToDataUri = (svg?: string) => {
-  const s = svg?.trim();
-  if (!s || !s.startsWith("<svg")) return undefined;
-  try {
-    const bytes = encodeURIComponent(s).replace(/%([0-9A-F]{2})/g, (_, h) =>
-      String.fromCharCode(parseInt(h, 16))
-    );
-    return `data:image/svg+xml;base64,${btoa(bytes)}`;
-  } catch {
-    return undefined;
-  }
 };
 
 const normalizeCountry = (raw: any, idx: number): CountryOption => {

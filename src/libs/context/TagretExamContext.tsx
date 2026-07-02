@@ -19,6 +19,24 @@ export interface TargetExam {
   description: string;
   total_duration_minutes: number;
   is_active: boolean;
+  target_year?: number | null;
+}
+
+// my-target-exams returns each row as { id (record id), exam: { id, name, code },
+// target_year, ... }. Flatten it to a TargetExam keyed on the exam id (what the
+// dashboard/selection use), while tolerating an already-flat shape.
+function normalizeTargetExam(item: any): TargetExam {
+  const exam = item?.exam ?? item;
+  return {
+    id: exam?.id ?? item?.id,
+    name: exam?.name ?? item?.name ?? "",
+    code: exam?.code ?? item?.code ?? "",
+    description: exam?.description ?? item?.description ?? "",
+    total_duration_minutes:
+      exam?.total_duration_minutes ?? item?.total_duration_minutes ?? 0,
+    is_active: item?.is_active ?? exam?.is_active ?? true,
+    target_year: item?.target_year ?? exam?.target_year ?? null,
+  };
 }
 
 interface TargetExamState {
@@ -83,8 +101,10 @@ export function TargetExamProvider({
       }
 
       const res = await getMyTargetExamsService(activeCountryId);
-      const data = res?.data as TargetExam[];
-      const targetExams: TargetExam[] = Array.isArray(data) ? data : [];
+      const data = res?.data;
+      const targetExams: TargetExam[] = Array.isArray(data)
+        ? data.map(normalizeTargetExam)
+        : [];
 
       const savedId = await AsyncStorage.getItem(ACTIVE_EXAM_KEY);
       const savedExists =

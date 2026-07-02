@@ -24,6 +24,7 @@ import {
   getCountriesService,
   getCountryService,
   normalizeUserCountry,
+  svgToDataUri,
 } from '@/src/libs/services/countries';
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
@@ -111,12 +112,12 @@ const enrichRegionFromCatalogue = async (
       ...region,
       currency:
         region.currency ?? match.currency ?? match.currency_code ?? undefined,
+      // The master's `flag` is raw SVG markup — convert it to a data URI so
+      // the sidebar can render it (a raw <svg> string is not a usable image
+      // source). Real flag URLs, if the API ever returns them, pass through.
       flagUrl:
         region.flagUrl ??
-        match.flag_url ??
-        match.flagUrl ??
-        match.flag ??
-        undefined,
+        svgToDataUri(match.flag_url ?? match.flagUrl ?? match.flag),
     };
   } catch {
     return region;

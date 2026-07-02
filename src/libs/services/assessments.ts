@@ -21,7 +21,6 @@ export async function getassessmentsIdService(id: number) {
 
 // Get Questions
 export async function getassessmentsQuestionsService(id: number) {
-  console.log("Getting questions for assessment id:", id);
   return await genericGet(`/v1/student/assessments/${id}/questions/`,true);
 }
 
@@ -43,7 +42,6 @@ export async function getAssessmentLeaderboardService(
 
 // Reattempt
 export async function reattemptAssessmentService(assessment_id: number) {
-  console.log("Reattempting assessment with id:", assessment_id);
   return await genericPost(`/v1/student/assessments/${assessment_id}/reattempt/`,{},
     { isMultipart: false, useAccessToken: true }
   );
