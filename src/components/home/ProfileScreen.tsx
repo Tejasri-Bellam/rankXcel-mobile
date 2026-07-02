@@ -1,18 +1,12 @@
 import {
-  addTargetExamService,
-  deleteAccountService,
-  deleteTargetExamService,
-  getExamsListService,
   getMeService,
-  getMyTargetExamsService,
-  getTargetExamsService,
   updateMeService,
 } from '@/src/libs/services/profile';
 import { profileStyles } from '@/src/styles/styles/home/profilescreenstyles';
 import { COLORS } from '@/src/styles/styles';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,21 +15,10 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { storageSetAccessToken } from '@/src/libs/storage';
-import { useTargetExam } from '@/src/libs/context/TagretExamContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Types
-// `id` is the exam id (used to dedupe the dropdown); `recordId` is the
-// target-exam preference id needed to DELETE it.
-type ExamEntry = {
-  id: number;
-  name: string;
-  year: string;
-  percentage?: string;
-  recordId?: number | string;
-};
 
 // Section Header
 const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -74,7 +57,6 @@ const LabeledInput = ({
 // Main Screen
 export default function ProfileScreen() {
   const router = useRouter();
-  const { refreshExams } = useTargetExam();
 
   const [loading, setLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -94,15 +76,6 @@ export default function ProfileScreen() {
   const [pwdError, setPwdError] = useState('');
   const [pwdLoading, setPwdLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
-
-  // Exam preferences
-  const [exams, setExams] = useState<ExamEntry[]>([]);
-  const [selectedExamId, setSelectedExamId] = useState<number | ''>('');
-  const [selectedExamName, setSelectedExamName] = useState('');
-  const [targetYear, setTargetYear] = useState('');
-  const [targetPercentage, setTargetPercentage] = useState('');
-  const [examDropdownOpen, setExamDropdownOpen] = useState(false);
-  const [examOptions, setExamOptions] = useState<{ id: number; name: string }[]>([]);
 
   // Fetch profile
   const fetchProfile = async () => {
@@ -127,85 +100,9 @@ export default function ProfileScreen() {
     }
   };
 
-  // Fetch the user's assigned exams (GET /v1/exams/my-target-exams/).
-  // We also pull /v1/exams/target-exams/ to map each exam -> its preference
-  // record id, which is what the DELETE endpoint expects.
-  const fetchPreferences = async () => {
-  try {
-    const [myRes, prefRes] = await Promise.all([
-      getMyTargetExamsService(),
-      getTargetExamsService().catch(() => null),
-    ]);
-
-    // exam id -> target-exam record id
-    const recordMap = new Map<number | string, number | string>();
-    const prefRaw: any = prefRes?.data;
-    const prefList: any[] = Array.isArray(prefRaw)
-      ? prefRaw
-      : prefRaw?.results || [];
-    prefList.forEach((item: any) => {
-      const examId = item.exam?.id ?? item.exam_id;
-      const recordId = item.id ?? item.target_exam_id;
-      if (examId != null && recordId != null) recordMap.set(examId, recordId);
-    });
-
-    if (myRes.status === 200) {
-      const raw: any = myRes.data;
-      const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
-      // my-target-exams returns exam objects directly ({ id, name, code, ... });
-      // still tolerate the older { exam: {...}, target_year } shape.
-      const mappedExams = list.map((item: any) => {
-        const examId = item.exam?.id ?? item.id ?? item.exam_id;
-        return {
-          id: examId,
-          name: item.exam?.name ?? item.name ?? item.exam_name,
-          year: String(item.target_year ?? item.year ?? ''),
-          // Prefer an explicit record id; fall back to the mapped one, then
-          // the exam id so delete still has something to send.
-          recordId:
-            item.target_exam_id ?? recordMap.get(examId) ?? examId,
-        };
-      });
-
-      setExams(mappedExams);
-    }
-  } catch (error) {
-    console.log("My target exams error:", error);
-  }
-};
-
-  // Fetch list of available exams for dropdown, scoped to the country selected
-  // in the profile sidebar (persisted as regionCountryId).
-  const fetchExamsList = async () => {
-    try {
-      const countryId = await AsyncStorage.getItem('regionCountryId');
-      const res = await getExamsListService(countryId);
-      if (res.status === 200) {
-        const raw: any = res.data;
-        const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
-        setExamOptions(
-          list.map((item: any) => ({ id: item.id, name: item.name }))
-        );
-      }
-    } catch (error) {
-      console.log('Exams list error:', error);
-    }
-  };
-
   useEffect(() => {
     fetchProfile();
-    fetchExamsList();
   }, []);
-
-  // Re-pull the assigned-exam list every time the screen regains focus so a
-  // newly assigned exam (e.g. via the Set Goal flow) shows up without a reload.
-  useFocusEffect(
-    useCallback(() => {
-      fetchPreferences();
-      // Country may have changed in the sidebar; re-scope the exam dropdown.
-      fetchExamsList();
-    }, [])
-  );
 
   // Save personal info
   const handleSavePersonal = async () => {
@@ -228,7 +125,17 @@ export default function ProfileScreen() {
     }
   };
 
-  
+  const closePasswordModal = () => {
+    setPasswordOpen(false);
+    setCurrentPwd('');
+    setNewPwd('');
+    setConfirmPwd('');
+    setPwdError('');
+    setShowCurrentPwd(false);
+    setShowNewPwd(false);
+    setShowConfirmPwd(false);
+  };
+
   const handleUpdatePassword = async () => {
     setPwdError('');
     if (!currentPwd) { setPwdError('Please enter your current password.'); return; }
@@ -243,139 +150,8 @@ export default function ProfileScreen() {
       );
     } finally {
       setPwdLoading(false);
-      setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
-      setPasswordOpen(false);
+      closePasswordModal();
     }
-  };
-
-
-  // Exam preferences
-  const handleAddExam = async () => {
-  if (!selectedExamId || !targetYear) {
-    Alert.alert(
-      "Required",
-      "Please select an exam and enter a target year."
-    );
-    return;
-  }
-
-  if (exams.some((ex) => ex.id === selectedExamId)) {
-    Alert.alert(
-      "Already added",
-      `${selectedExamName} is already in your target exams.`
-    );
-    return;
-  }
-
-  try {
-    const payload: {
-      exam: number | string;
-      target_year: number;
-      target_percentage?: number;
-    } = {
-      exam: selectedExamId,
-      target_year: Number(targetYear),
-      ...(targetPercentage ? { target_percentage: Number(targetPercentage) } : {}),
-    };
-    console.log('payload', payload);
-
-    const res = await addTargetExamService(payload);
-    console.log('res', res);
-
-      if (res.status === 200 || res.status === 201) {
-        Alert.alert("Success", "Target exam added");
-
-        setSelectedExamId('');
-        setSelectedExamName('');
-        setTargetYear("");
-        setTargetPercentage('');
-
-        fetchPreferences();
-        // Keep the sidebar "Your courses" / dashboard list in sync.
-        refreshExams();
-      }
-    } catch (error: any) {
-      console.log(
-        "Add target exam error — status:",
-        error?.status,
-        "errors:",
-        JSON.stringify(error?.errors),
-        "body:",
-        JSON.stringify(error?.body)
-      );
-      const apiErrors = error?.errors || {};
-      const body = error?.body || {};
-      const firstMessage =
-        apiErrors.nonFieldErrors?.[0] ||
-        apiErrors.exam?.[0] ||
-        apiErrors.target_year?.[0] ||
-        Object.values(apiErrors).flat()[0] ||
-        (typeof body.detail === "string" ? body.detail : null) ||
-        JSON.stringify(body) ||
-        "Failed to add target exam";
-      Alert.alert("Error", String(firstMessage));
-    }
-  };
-
-  // Remove an assigned target exam (DELETE /v1/exams/target-exams/{id}/)
-  const handleDeleteExam = (exam: ExamEntry) => {
-    const deleteId = exam.recordId ?? exam.id;
-    Alert.alert(
-      "Remove exam",
-      `Remove ${exam.name} from your target exams?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            // Optimistically drop it; restore on failure.
-            const prev = exams;
-            setExams((list) => list.filter((e) => e.id !== exam.id));
-            try {
-              await deleteTargetExamService(deleteId);
-              // Keep the sidebar "Your courses" / dashboard list in sync.
-              refreshExams();
-            } catch (error: any) {
-              setExams(prev);
-              const body = error?.body || {};
-              const message =
-                Object.values(error?.errors || {}).flat()[0] ||
-                (typeof body.detail === "string" ? body.detail : null) ||
-                "Failed to remove target exam";
-              Alert.alert("Error", String(message));
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  // Delete account
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure? This action is permanent and cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccountService();
-
-              await storageSetAccessToken('');
-
-              Alert.alert('Success', 'Account Deleted Successfully');
-              router.replace('/auth/login');
-            } catch {
-              Alert.alert('Un-success', 'Failed to Delete Account');
-            }
-          },
-        },
-      ]
-    );
   };
 
   if (loading) {
@@ -424,15 +200,15 @@ export default function ProfileScreen() {
                 .toUpperCase()}
             </Text>
           </View>
-          {name ? <Text style={profileStyles.heroName}>{name}</Text> : null}
-          {email ? <Text style={profileStyles.heroEmail}>{email}</Text> : null}
-          {user?.role ? (
-            <View style={profileStyles.heroBadges}>
+          <View style={profileStyles.heroInfo}>
+            {name ? <Text style={profileStyles.heroName} numberOfLines={1}>{name}</Text> : null}
+            {email ? <Text style={profileStyles.heroEmail} numberOfLines={1}>{email}</Text> : null}
+            {user?.role ? (
               <View style={profileStyles.heroBadgeChip}>
                 <Text style={profileStyles.heroBadgeText}>{user.role}</Text>
               </View>
-            </View>
-          ) : null}
+            ) : null}
+          </View>
         </View>
 
         {/* ── Personal Information ── */}
@@ -450,111 +226,56 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Exam Preferences ── */}
-        <View style={profileStyles.card}>
-          <SectionHeader title="Exam Preferences" subtitle="Add your target exams with year and percentage goals." />
-
-          {exams.map((ex) => (
-            <View key={ex.id} style={profileStyles.examRow}>
-              <View style={profileStyles.examRowInfo}>
-                <Text style={profileStyles.examRowName}>{ex.name}</Text>
-                {ex.year ? (
-                  <Text style={profileStyles.examRowYear}>Year: {ex.year}</Text>
-                ) : null}
-              </View>
-              <TouchableOpacity
-                style={profileStyles.examRowDelete}
-                onPress={() => handleDeleteExam(ex)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="trash-outline" size={18} color={COLORS.red} />
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          <View style={profileStyles.addExamForm}>
-            <Text style={profileStyles.inputLabel}>Target Exam *</Text>
-            <TouchableOpacity style={profileStyles.dropdown} onPress={() => setExamDropdownOpen(!examDropdownOpen)}>
-              <Text style={[profileStyles.dropdownText, !selectedExamName && { color: COLORS.textLight }]}>
-                {selectedExamName || 'Select exam'}
-              </Text>
-              <Ionicons name={examDropdownOpen ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.textLight} />
-            </TouchableOpacity>
-
-            {examDropdownOpen && (
-              <View style={profileStyles.dropdownOptions}>
-                {examOptions.length === 0 ? (
-                  <View style={profileStyles.dropdownOption}>
-                    <Text style={[profileStyles.dropdownOptionText, { color: COLORS.textLight }]}>No exams available</Text>
-                  </View>
-                ) : (
-                  examOptions.map((opt) => {
-                    const assigned = exams.some((ex) => ex.id === opt.id);
-                    return (
-                      <TouchableOpacity
-                        key={opt.id}
-                        style={[
-                          profileStyles.dropdownOption,
-                          assigned && { opacity: 0.45 },
-                        ]}
-                        disabled={assigned}
-                        onPress={() => {
-                          setSelectedExamId(opt.id);
-                          setSelectedExamName(opt.name);
-                          setExamDropdownOpen(false);
-                        }}
-                      >
-                        <Text style={profileStyles.dropdownOptionText}>
-                          {opt.name}
-                        </Text>
-                        {assigned ? (
-                          <Text style={profileStyles.dropdownOptionAssigned}>
-                            Assigned
-                          </Text>
-                        ) : null}
-                      </TouchableOpacity>
-                    );
-                  })
-                )}
-              </View>
-            )}
-
-            <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Target Year *</Text>
-            <TextInput style={profileStyles.textInput} value={targetYear} onChangeText={setTargetYear} placeholder="e.g. 2026" placeholderTextColor={COLORS.textLight} keyboardType="numeric" />
-            <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Target Percentage</Text>
-            <TextInput
-              style={profileStyles.textInput}
-              value={targetPercentage}
-              onChangeText={setTargetPercentage}
-              placeholder="e.g. 95"
-              placeholderTextColor={COLORS.textLight}
-              keyboardType="numeric"
-            />
-
-            <TouchableOpacity style={profileStyles.addExamBtn} onPress={handleAddExam}>
-              <Ionicons name="add" size={16} color={COLORS.white} />
-              <Text style={profileStyles.addExamBtnText}>Add Target Exam</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* ── Account Security ── */}
         <View style={profileStyles.card}>
-          <SectionHeader title="Account Security" subtitle="" />
+          <SectionHeader title="Account Security" subtitle="Manage your password and login credentials." />
 
-          <TouchableOpacity style={profileStyles.securityRow} onPress={() => setPasswordOpen(!passwordOpen)} activeOpacity={0.7}>
+          <TouchableOpacity style={profileStyles.securityRow} onPress={() => setPasswordOpen(true)} activeOpacity={0.7}>
             <View style={profileStyles.securityIconWrap}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMedium} />
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.primary} />
             </View>
             <View style={profileStyles.securityInfo}>
               <Text style={profileStyles.securityTitle}>Change Password</Text>
               <Text style={profileStyles.securitySub}>Update your login password</Text>
             </View>
-            <Ionicons name={passwordOpen ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
           </TouchableOpacity>
+        </View>
+      </ScrollView>
 
-          {passwordOpen && (
-            <View style={profileStyles.pwdForm}>
+      {/* ── Change Password Modal ── */}
+      <Modal
+        visible={passwordOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closePasswordModal}
+        statusBarTranslucent
+      >
+        <KeyboardAvoidingView
+          style={profileStyles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={profileStyles.modalCard}>
+            <View style={profileStyles.modalHeader}>
+              <View style={profileStyles.modalTitleWrap}>
+                <View style={profileStyles.securityIconWrap}>
+                  <Ionicons name="lock-closed-outline" size={20} color={COLORS.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={profileStyles.modalTitle}>Change Password</Text>
+                  <Text style={profileStyles.modalSubtitle}>Update your login password</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={closePasswordModal} style={profileStyles.modalCloseBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={20} color={COLORS.textMedium} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={profileStyles.modalBody}
+            >
               <Text style={profileStyles.inputLabel}>Current Password</Text>
               <View style={profileStyles.pwdInputRow}>
                 <TextInput style={profileStyles.pwdInput} value={currentPwd} onChangeText={setCurrentPwd} placeholder="Enter current password" placeholderTextColor={COLORS.textLight} secureTextEntry={!showCurrentPwd} />
@@ -582,6 +303,9 @@ export default function ProfileScreen() {
               {pwdError !== '' && <Text style={profileStyles.pwdError}>{pwdError}</Text>}
 
               <View style={profileStyles.pwdActions}>
+                <TouchableOpacity style={profileStyles.cancelPwdBtn} onPress={closePasswordModal}>
+                  <Text style={profileStyles.cancelPwdBtnText}>Cancel</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={profileStyles.updatePwdBtn} onPress={handleUpdatePassword} disabled={pwdLoading}>
                   {pwdLoading
                     ? <ActivityIndicator size="small" color={COLORS.white} />
@@ -589,33 +313,11 @@ export default function ProfileScreen() {
                   }
                   <Text style={profileStyles.updatePwdBtnText}>Update Password</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={profileStyles.cancelPwdBtn} onPress={() => { setPasswordOpen(false); setCurrentPwd(''); setNewPwd(''); setConfirmPwd(''); setPwdError(''); }}>
-                  <Text style={profileStyles.cancelPwdBtnText}>Cancel</Text>
-                </TouchableOpacity>
               </View>
-            </View>
-          )}
-        </View>
-
-        {/* ── Danger Zone ── */}
-        <View style={profileStyles.dangerCard}>
-          <View style={profileStyles.dangerHeader}>
-            <Ionicons name="warning-outline" size={18} color={COLORS.red} />
-            <Text style={profileStyles.dangerTitle}>Danger Zone</Text>
+            </ScrollView>
           </View>
-          <Text style={profileStyles.dangerDesc}>
-            Permanently delete your account and all associated data. This cannot be undone.
-          </Text>
-          <TouchableOpacity style={profileStyles.deleteBtn} onPress={handleDeleteAccount}>
-            <Ionicons name="trash-outline" size={15} color={COLORS.red} />
-            <Text style={profileStyles.deleteBtnText}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ height: 32 }} />
-      </ScrollView>
-
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
- 

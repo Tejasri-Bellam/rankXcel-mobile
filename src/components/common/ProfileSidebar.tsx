@@ -28,6 +28,7 @@ import {
   getCountriesService,
   getCountryService,
   normalizeUserCountry,
+  svgToDataUri,
 } from "@/src/libs/services/countries";
 import { storageGetAccessToken, clearUserSession } from "@/src/libs/storage";
 import { useTargetExam, TargetExam } from "@/src/libs/context/TagretExamContext";
@@ -59,23 +60,6 @@ type Country = {
   currencySymbol?: string;
   flagUrl?: string;
   flagship?: string;
-};
-
-// The countries API returns each flag as a raw SVG string. expo-image can
-// render SVG from a base64 data URI, so turn the markup into one (no extra
-// package needed). Returns undefined for empty/non-SVG values.
-const svgToDataUri = (svg?: string) => {
-  const s = svg?.trim();
-  if (!s || !s.startsWith("<svg")) return undefined;
-  try {
-    // UTF-8-safe base64 (flags are ASCII, but this keeps any glyphs intact).
-    const bytes = encodeURIComponent(s).replace(/%([0-9A-F]{2})/g, (_, h) =>
-      String.fromCharCode(parseInt(h, 16))
-    );
-    return `data:image/svg+xml;base64,${btoa(bytes)}`;
-  } catch {
-    return undefined;
-  }
 };
 
 // Normalize the various field names the masters/countries endpoint may use.
@@ -193,7 +177,12 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
       const saved = await AsyncStorage.getItem("region");
       if (saved) {
         const parsed = JSON.parse(saved);
-        current = { ...region, ...parsed };
+        // Older sessions persisted the flag as raw SVG markup, which isn't a
+        // usable image source. Normalize it (a valid data:/http URL passes
+        // through); if it can't be normalized, drop it so the catalogue
+        // lookup below re-resolves a proper data URI.
+        const flagUrl = svgToDataUri(parsed?.flagUrl);
+        current = { ...region, ...parsed, flagUrl };
         setRegion(current);
         if (parsed?.id != null) haveSelectedCountry = true;
       }
@@ -598,18 +587,16 @@ function CoursesSheet({
           showsVerticalScrollIndicator={false}
           style={{ maxHeight: SHEET_LIST_MAX_H }}
         >
-          {/* Region */}
-          <TouchableOpacity style={styles.regionRow} activeOpacity={0.8}>
+          {/* Region (display only — country is changed from the main sidebar) */}
+          <View style={styles.regionRow}>
             <Flag url={region.flagUrl} size={26} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.regionName}>{region.name}</Text>
-              <Text style={styles.regionSub}>
-                Tap to change region
-                {region.currency ? ` · ${region.currency}` : ""}
-              </Text>
+              {region.currency ? (
+                <Text style={styles.regionSub}>{region.currency}</Text>
+              ) : null}
             </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-          </TouchableOpacity>
+          </View>
 
           {/* Exams */}
           {exams.length === 0 ? (
@@ -639,8 +626,10 @@ function CoursesSheet({
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.examName}>{exam.name}</Text>
-                    {exam.code ? (
-                      <Text style={styles.examSub}>{exam.code}</Text>
+                    {exam.target_year ? (
+                      <Text style={styles.examSub}>
+                        Target year {exam.target_year}
+                      </Text>
                     ) : null}
                   </View>
                   {expired ? (
@@ -673,9 +662,9 @@ function CoursesSheet({
             onPress={onAssignExam}
           >
             <View style={styles.assignIcon}>
-              <Ionicons name="add" size={20} color={COLORS.primary} />
+              <Ionicons name="add" size={18} color={COLORS.primary} />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={styles.assignTitle}>Assign target exam</Text>
               <Text style={styles.assignSub}>Add another exam to your courses</Text>
             </View>
@@ -1004,6 +993,8 @@ const styles: any = {
   regionRow: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "stretch",
+    width: "100%",
     backgroundColor: COLORS.background,
     borderRadius: 14,
     padding: 14,
@@ -1058,21 +1049,21 @@ const styles: any = {
     borderWidth: 1.5,
     borderStyle: "dashed",
     borderColor: COLORS.primary,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 12,
+    padding: 10,
     marginBottom: 10,
     backgroundColor: COLORS.primaryLight,
   },
   assignIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     backgroundColor: COLORS.white,
     alignItems: "center",
     justifyContent: "center",
   },
-  assignTitle: { fontSize: 15, fontWeight: "700", color: COLORS.primary },
-  assignSub: { fontSize: 12, color: COLORS.textMedium, marginTop: 2 },
+  assignTitle: { fontSize: 14, fontWeight: "700", color: COLORS.primary },
+  assignSub: { fontSize: 11, color: COLORS.textMedium, marginTop: 1 },
 };
 
 function StyleSheetAbsolute() {
