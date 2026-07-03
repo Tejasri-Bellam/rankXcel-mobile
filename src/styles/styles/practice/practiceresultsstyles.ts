@@ -6,7 +6,7 @@ export const practiceResultsStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: SCREEN_BG },
   topBar: { paddingHorizontal: 16, paddingTop: 12 },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 2, alignSelf: "flex-start" },
-  backText: { fontSize: 16, fontWeight: "600", color: "#3B82F6" },
+  backText: { fontSize: 16, fontWeight: "600", color: '#6C63FF' },
 
   scroll: { flex: 1 },
 
@@ -58,11 +58,11 @@ export const practiceResultsStyles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     alignSelf: "stretch",
-    backgroundColor: "#2F86FF",
+    backgroundColor: '#6C63FF',
     borderRadius: 14,
     paddingVertical: 16,
     marginBottom: 12,
-    shadowColor: "#2F86FF",
+    shadowColor: "#6C63FF",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -158,6 +158,6 @@ export const practiceResultsStyles = StyleSheet.create({
     padding: 12,
     marginTop: 4,
   },
-  whyLabel: { fontWeight: "800", color: "#3B82F6" },
+  whyLabel: { fontWeight: "800", color: '#6C63FF' },
   whyText: { fontSize: 13, color: "#6B7280", lineHeight: 19 },
 });

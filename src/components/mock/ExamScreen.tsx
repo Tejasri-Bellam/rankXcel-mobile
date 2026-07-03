@@ -179,7 +179,7 @@ export default function MockExamScreen({
         <Text style={{ color: '#9CA3AF' }}>No questions found for this mock test.</Text>
         {onBackToMocks && (
           <TouchableOpacity onPress={onBackToMocks} style={{ marginTop: 16 }}>
-            <Text style={{ color: '#3B7DF8', fontWeight: '600' }}>← Go Back</Text>
+            <Text style={{ color: '#6C63FF', fontWeight: '600' }}>← Go Back</Text>
           </TouchableOpacity>
         )}
       </SafeAreaView>
@@ -380,8 +380,8 @@ export default function MockExamScreen({
     const qid = q?.id;
     const isCurrent = si === activeSectionIdx && qi === activeQIdx;
     const status = qStatuses[qid];
-    if (isCurrent) return '#3B7DF8';
-    if (status === 'answered') return '#3B7DF8';
+    if (isCurrent) return '#6C63FF';
+    if (status === 'answered') return '#6C63FF';
     if (status === 'marked') return '#F59E0B';
     return '#E5E7EB';
   });

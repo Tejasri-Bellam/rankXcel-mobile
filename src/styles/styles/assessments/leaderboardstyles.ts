@@ -6,7 +6,7 @@ export const leaderboardStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BG },
   header: { paddingHorizontal: 16, paddingTop: 12 },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 2, alignSelf: "flex-start" },
-  backText: { fontSize: 16, fontWeight: "600", color: "#3B82F6" },
+  backText: { fontSize: 16, fontWeight: "600", color: "#6C63FF" },
 
   title: {
     fontSize: 28,
@@ -36,7 +36,7 @@ export const leaderboardStyles = StyleSheet.create({
   },
   rowYou: {
     borderWidth: 1.5,
-    borderColor: "#3B82F6",
+    borderColor: '#6C63FF',
     backgroundColor: "#F4F9FF",
   },
 
@@ -47,7 +47,7 @@ export const leaderboardStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#6C63FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -71,6 +71,6 @@ export const leaderboardExtraStyles = StyleSheet.create({
   yourLabel: { fontSize: 12, color: "#6B7280" },
   yourRank: { fontSize: 20, fontWeight: "800", color: "#1A1A2E", marginTop: 2 },
   yourRight: { alignItems: "flex-end" },
-  yourPct: { fontSize: 18, fontWeight: "800", color: "#3B82F6" },
+  yourPct: { fontSize: 18, fontWeight: "800", color: "#6C63FF" },
   yourTop: { fontSize: 12, color: "#6B7280", marginTop: 2 },
 });

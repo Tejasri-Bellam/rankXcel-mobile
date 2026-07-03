@@ -69,8 +69,8 @@ const getTagLabel = (mock: MockTest): string | null => {
 };
 
 const getTagColor = (label: string | null): string => {
-  if (!label) return '#3B7DF8';
-  if (label === 'Recommended') return '#3B7DF8';
+  if (!label) return '#6C63FF';
+  if (label === 'Recommended') return '#6C63FF';
   if (label === 'Advanced') return '#8B5CF6';
   return '#9CA3AF';
 };
@@ -93,7 +93,7 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
     <TouchableOpacity style={styles.mockCard} onPress={onPress} activeOpacity={0.75}>
       {/* Icon */}
       <View style={styles.mockCardIcon}>
-        <Ionicons name="document-text-outline" size={22} color="#3B7DF8" />
+        <Ionicons name="document-text-outline" size={22} color="#6C63FF" />
       </View>
 
       {/* Content */}
@@ -284,8 +284,8 @@ export default function MockLibrary({
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => loadMocks(true)}
-            colors={['#3B7DF8']}
-            tintColor="#3B7DF8"
+            colors={['#6C63FF']}
+            tintColor="#6C63FF"
           />
         }
       >
@@ -301,7 +301,7 @@ export default function MockLibrary({
               onPress={() => setRequestVisible(true)}
               activeOpacity={0.75}
             >
-              <Ionicons name="add" size={15} color="#3B7DF8" />
+              <Ionicons name="add" size={15} color="#6C63FF" />
               <Text style={styles.buildBtnText}>Build mock</Text>
             </TouchableOpacity>
           )}
@@ -332,7 +332,7 @@ export default function MockLibrary({
         {/* Content */}
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#3B7DF8" />
+            <ActivityIndicator size="large" color="#6C63FF" />
             <Text style={styles.loadingText}>Loading mock tests...</Text>
           </View>
         ) : error ? (
@@ -371,7 +371,7 @@ export default function MockLibrary({
                 activeOpacity={0.75}
               >
                 {loadingMore ? (
-                  <ActivityIndicator size="small" color="#3B7DF8" />
+                  <ActivityIndicator size="small" color="#6C63FF" />
                 ) : (
                   <Text style={styles.loadMoreText}>Load more</Text>
                 )}

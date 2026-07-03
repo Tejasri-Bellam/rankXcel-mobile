@@ -1,6 +1,5 @@
 import { StyleSheet } from 'react-native';
 
-const BRAND_BLUE = '#3B7DF8';
 const TEXT_DARK = '#161A2B';
 const TEXT_GRAY = '#9098B1';
 
@@ -39,7 +38,7 @@ export const forgotPasswordStyles = StyleSheet.create({
   },
   backButtonIcon: {
     fontSize: 22,
-    color: BRAND_BLUE,
+    color: '#6C63FF',
     fontWeight: '700',
   },
 
@@ -54,7 +53,7 @@ export const forgotPasswordStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: BRAND_BLUE,
+    backgroundColor: '#6C63FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -114,7 +113,7 @@ export const forgotPasswordStyles = StyleSheet.create({
     elevation: 1,
   },
   inputWrapperFocused: {
-    borderColor: BRAND_BLUE,
+    borderColor: '#6C63FF',
   },
   inputIcon: {
     fontSize: 15,
@@ -129,12 +128,12 @@ export const forgotPasswordStyles = StyleSheet.create({
 
   // ── Primary button ───────────────────────────────────────────────────────
   primaryBtn: {
-    backgroundColor: BRAND_BLUE,
+    backgroundColor: '#6C63FF',
     borderRadius: 14,
     height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: BRAND_BLUE,
+    shadowColor: '#6C63FF',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 12,

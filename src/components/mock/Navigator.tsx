@@ -163,7 +163,7 @@ export default function MockExamNavigator({
   if (loading) {
     return (
       <SafeAreaView style={navigatorStyles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B7DF8" />
+        <ActivityIndicator size="large" color='#6C63FF' />
         <Text style={navigatorStyles.loadingText}>Loading mock test…</Text>
       </SafeAreaView>
     );

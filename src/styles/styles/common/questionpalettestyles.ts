@@ -60,7 +60,7 @@ export const questionPaletteStyles = StyleSheet.create({
   cellCurrent: { borderColor: '#1A1A2E', borderWidth: 2 },
 
   cellText: { fontSize: 16, fontWeight: '700', color: '#6B7280' },
-  cellTextAnswered: { color: '#3B7DF8' },
+  cellTextAnswered: { color: '#6C63FF' },
   cellTextMarked: { color: '#B45309' },
   cellTextCurrent: { color: '#1A1A2E' },
   cellMark: { position: 'absolute', top: 5, right: 5 },
@@ -80,7 +80,7 @@ export const questionPaletteStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#1A1A2E',
+    backgroundColor: '#6C63FF',
     borderRadius: 16,
     paddingVertical: 16,
   },

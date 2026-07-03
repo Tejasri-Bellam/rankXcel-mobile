@@ -1,7 +1,6 @@
 import { StyleSheet } from "react-native";
 import { COLORS } from "@/src/styles/styles";
 
-const ACCENT = "#3B7DF8";
 
 export const practiceScreenStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F7F8FC" },
@@ -61,7 +60,7 @@ export const practiceScreenStyles = StyleSheet.create({
     gap: 2,
     alignSelf: "flex-start",
   },
-  backText: { fontSize: 15, fontWeight: "600", color: ACCENT },
+  backText: { fontSize: 15, fontWeight: "600", color: '#6C63FF' },
   bigTitle: {
     fontSize: 28,
     fontWeight: "800",
@@ -153,7 +152,7 @@ export const practiceScreenStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: ACCENT,
+    backgroundColor: '#6C63FF',
     borderRadius: 16,
     paddingHorizontal: 18,
     paddingVertical: 15,

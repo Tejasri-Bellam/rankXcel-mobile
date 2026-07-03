@@ -313,7 +313,7 @@ export default function TutorModal({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTitleRow}>
-            <Ionicons name="sparkles" size={16} color="#3B7DF8" />
+            <Ionicons name="sparkles" size={16} color='#6C63FF' />
             <Text style={styles.headerTitle}>AI Tutor</Text>
           </View>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
@@ -342,7 +342,7 @@ export default function TutorModal({
 
             {initializing && (
               <View style={styles.initRow}>
-                <ActivityIndicator size="small" color="#3B7DF8" />
+                <ActivityIndicator size="small" color='#6C63FF' />
                 <Text style={styles.emptyText}>Loading conversation…</Text>
               </View>
             )}
@@ -404,7 +404,7 @@ export default function TutorModal({
 
             {loading && (
               <View style={[styles.bubble, styles.bubbleTutor]}>
-                <ActivityIndicator size="small" color="#3B7DF8" />
+                <ActivityIndicator size="small" color='#6C63FF' />
               </View>
             )}
           </ScrollView>
