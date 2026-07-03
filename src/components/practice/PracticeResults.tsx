@@ -255,7 +255,7 @@ export default function PracticeResults({
             onPress={() => setView("results")}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={20} color="#3B82F6" />
+            <Ionicons name="chevron-back" size={20} color="#6C63FF" />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         </View>
@@ -382,7 +382,7 @@ export default function PracticeResults({
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={onBackToHub} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color="#3B82F6" />
+          <Ionicons name="chevron-back" size={20} color="#6C63FF" />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
       </View>
@@ -425,7 +425,7 @@ export default function PracticeResults({
             <Text style={styles.statLabel}>Wrong</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="time-outline" size={18} color="#3B82F6" />
+            <Ionicons name="time-outline" size={18} color="#6C63FF" />
             <Text style={styles.statValue}>{formatTime(timeSeconds)}</Text>
             <Text style={styles.statLabel}>Time</Text>
           </View>
@@ -441,7 +441,7 @@ export default function PracticeResults({
 
         {submitting || apiLoading ? (
           <View style={styles.submittingRow}>
-            <ActivityIndicator size="small" color="#3B82F6" />
+            <ActivityIndicator size="small" color="#6C63FF" />
             <Text style={styles.submittingText}>
               {submitting ? "Saving your session…" : "Loading your results…"}
             </Text>
@@ -454,7 +454,7 @@ export default function PracticeResults({
           activeOpacity={0.85}
         >
           <Ionicons name="eye-outline" size={17} color="#fff" />
-          <Text style={styles.reviewBtnText}>Review answers</Text>
+          <Text style={styles.reviewBtnText}>Review Answers</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

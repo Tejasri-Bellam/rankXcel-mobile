@@ -685,8 +685,8 @@ export default function ExamScreen({
     const isCurrent = si === activeSectionIdx && qi === activeQIdx;
     const status = qStatuses[q.id];
     const hasAnswer = (answers[q.id] || []).length > 0;
-    if (isCurrent) return "#3B7DF8";
-    if (status === "answered" && hasAnswer) return "#3B7DF8";
+    if (isCurrent) return '#6C63FF'
+    if (status === "answered" && hasAnswer) return '#6C63FF';
     if (status === "marked") return "#F59E0B";
     return "#E5E7EB";
   });

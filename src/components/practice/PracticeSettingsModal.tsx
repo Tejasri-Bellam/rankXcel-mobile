@@ -59,7 +59,7 @@ export default function PracticeSettingsModal({
       {/* Back button */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={onCancel} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
+          <Ionicons name="chevron-back" size={18} color='#6C63FF' />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
       </View>
@@ -78,7 +78,7 @@ export default function PracticeSettingsModal({
           <Ionicons
             name={isTest ? "document-text-outline" : "play"}
             size={22}
-            color="#3B7DF8"
+            color="#6C63FF"
           />
         </View>
 
@@ -161,7 +161,7 @@ export default function PracticeSettingsModal({
           disabled={loading}
           activeOpacity={0.75}
         >
-          <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
+          <Ionicons name="chevron-back" size={18} color="#6C63FF" />
           <Text style={styles.prevBtnText}>Previous</Text>
         </TouchableOpacity>
 

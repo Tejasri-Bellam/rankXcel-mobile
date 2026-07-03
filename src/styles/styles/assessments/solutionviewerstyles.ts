@@ -12,7 +12,7 @@ export const solutionViewerStyles = StyleSheet.create({
     gap: 10,
   },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  backText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
+  backText: { fontSize: 15, fontWeight: '600', color: '#6C63FF' },
   headerTitle: { fontSize: 26, fontWeight: '800', color: '#1A1A2E' },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 40, gap: 16 },
 
@@ -137,7 +137,7 @@ export const solutionViewerStyles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#3B7DF8',
+    borderLeftColor: '#6C63FF',
   },
   whyLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   whyText: { fontSize: 13, color: '#6B7280', lineHeight: 20 },
@@ -152,5 +152,5 @@ export const solutionViewerStyles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#EEF4FF',
   },
-  askTutorText: { fontSize: 12, fontWeight: '700', color: '#3B7DF8' },
+  askTutorText: { fontSize: 12, fontWeight: '700', color: '#6C63FF' },
 });

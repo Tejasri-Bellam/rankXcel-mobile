@@ -141,7 +141,7 @@ export const examScreenStyles = StyleSheet.create({
     color: "#1A1A2E",
     backgroundColor: "#fff",
   },
-  numericInputFilled: { borderColor: "#3B7DF8", backgroundColor: "#F0F6FF" },
+  numericInputFilled: { borderColor: '#6C63FF', backgroundColor: "#F0F6FF" },
   numericHint: { fontSize: 12, color: "#9CA3AF", marginTop: 8 },
 
   // Options
@@ -156,7 +156,7 @@ export const examScreenStyles = StyleSheet.create({
     borderColor: "#E5E7EB",
     backgroundColor: "#fff",
   },
-  optRowSelected: { borderColor: "#3B7DF8", backgroundColor: "#F0F6FF" },
+  optRowSelected: { borderColor: "#6C63FF", backgroundColor: "#F0F6FF" },
   optLetter: {
     width: 32,
     height: 32,
@@ -168,11 +168,11 @@ export const examScreenStyles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  optLetterSelected: { backgroundColor: "#3B7DF8", borderColor: "#3B7DF8" },
+  optLetterSelected: { backgroundColor: "#6C63FF", borderColor: "#6C63FF" },
   optLetterText: { fontSize: 13, fontWeight: "700", color: "#6B7280" },
   optLetterTextSelected: { color: "#fff" },
   optText: { fontSize: 15, color: "#1A1A2E", fontWeight: "500" },
-  optTextSelected: { color: "#3B7DF8", fontWeight: "600" },
+  optTextSelected: { color: "#6C63FF", fontWeight: "600" },
   optImage: { width: "100%", height: 120, resizeMode: "contain", marginTop: 8 },
 
   swipeHint: { textAlign: "center", fontSize: 12, color: "#D1D5DB", marginTop: 20 },
@@ -192,7 +192,7 @@ export const examScreenStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#3B7DF8",
+    backgroundColor: "#6C63FF",
     borderRadius: 16,
     paddingVertical: 16,
   },

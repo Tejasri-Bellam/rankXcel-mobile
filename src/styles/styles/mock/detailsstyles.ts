@@ -14,7 +14,7 @@ export const detailsStyles = StyleSheet.create({
     gap: 10,
   },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  backText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
+  backText: { fontSize: 15, fontWeight: '600', color: '#6C63FF' },
   headerTitle: {
     flex: 1,
     fontSize: 14,
@@ -84,7 +84,7 @@ export const detailsStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DCE7FF',
   },
-  subjectChipText: { fontSize: 10, fontWeight: '600', color: '#3B7DF8' },
+  subjectChipText: { fontSize: 10, fontWeight: '600', color: '#6C63FF' },
 
   bottomBar: {
     paddingHorizontal: 20,
@@ -97,7 +97,7 @@ export const detailsStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#3B7DF8',
+    backgroundColor: '#6C63FF',
     borderRadius: 14,
     paddingVertical: 12,
   },
@@ -107,7 +107,7 @@ export const detailsStyles = StyleSheet.create({
   retakeBtn: {
     backgroundColor: '#fff',
     borderWidth: 1.5,
-    borderColor: '#3B7DF8',
+    borderColor: '#6C63FF',
   },
-  retakeBtnText: { color: '#3B7DF8' },
+  retakeBtnText: { color: '#6C63FF' },
 });

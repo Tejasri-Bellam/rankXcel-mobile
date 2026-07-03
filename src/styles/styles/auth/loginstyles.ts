@@ -46,7 +46,7 @@ export const loginStyles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 12,
-    backgroundColor: '#2F8AF4',
+    backgroundColor: '#6C63FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -182,7 +182,7 @@ export const loginStyles = StyleSheet.create({
   // Forgot password
   forgotPassword: {
     fontSize: 13,
-    color: '#2F8AF4',
+    color: '#6C63FF',
     fontWeight: '600',
     marginTop: -2,
     marginBottom: 14,
@@ -190,12 +190,12 @@ export const loginStyles = StyleSheet.create({
 
   // Primary button
   primaryButton: {
-    backgroundColor: '#2F8AF4',
+    backgroundColor: '#6C63FF',
     height: 48,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2F8AF4',
+    shadowColor: '#6C63FF',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -257,7 +257,7 @@ export const loginStyles = StyleSheet.create({
   googleG: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#4285F4',
+    color: '#6C63FF',
     marginRight: 10,
   },
 
@@ -279,8 +279,8 @@ export const loginStyles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   checkboxChecked: {
-    backgroundColor: '#2F8AF4',
-    borderColor: '#2F8AF4',
+    backgroundColor: '#6C63FF',
+    borderColor: '#6C63FF',
   },
   checkboxLabel: {
     flex: 1,

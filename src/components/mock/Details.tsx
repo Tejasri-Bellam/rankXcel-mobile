@@ -147,7 +147,7 @@ const handleRetake = async () => {
   if (currentView === 'exam' && attemptId == null) {
     return (
       <SafeAreaView style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center' }]} edges={[]}>
-        <ActivityIndicator size="large" color="#3B7DF8" />
+        <ActivityIndicator size="large" color='#6C63FF' />
       </SafeAreaView>
     );
   }
@@ -202,7 +202,7 @@ const handleRetake = async () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
+          <Ionicons name="chevron-back" size={18} color="#6C63FF" />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
@@ -217,7 +217,7 @@ const handleRetake = async () => {
       >
         {/* Icon */}
         <View style={styles.mockIcon}>
-          <Ionicons name="document-text-outline" size={28} color="#3B7DF8" />
+          <Ionicons name="document-text-outline" size={28} color="#6C63FF" />
         </View>
 
         {/* Title */}
@@ -246,19 +246,19 @@ const handleRetake = async () => {
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Ionicons name="document-text-outline" size={20} color="#3B7DF8" />
+            <Ionicons name="document-text-outline" size={20} color="#6C63FF" />
             <Text style={styles.statValue}>{mockData.question_count ?? 0}</Text>
             <Text style={styles.statLabel}>questions</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="time-outline" size={20} color="#3B7DF8" />
+            <Ionicons name="time-outline" size={20} color="#6C63FF" />
             <Text style={styles.statValue}>{formatDuration(mockData.total_duration_minutes)}</Text>
             <Text style={styles.statLabel}>minutes</Text>
           </View>
           {/* Last score — backend doesn't return this yet, so it's a static
               placeholder until the field is available. */}
           <View style={styles.statCard}>
-            <Ionicons name="disc-outline" size={20} color="#3B7DF8" />
+            <Ionicons name="disc-outline" size={20} color="#6C63FF" />
             <Text style={styles.statValue}>75%</Text>
             <Text style={styles.statLabel}>last score</Text>
           </View>

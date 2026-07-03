@@ -27,7 +27,7 @@ export const liveTestsStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E3E5EE",
   },
-  chipActive: { backgroundColor: "#2F86FF", borderColor: "#2F86FF" },
+  chipActive: { backgroundColor: "#6C63FF", borderColor: "#6C63FF" },
   chipText: { fontSize: 13, fontWeight: "700", color: "#6B7280" },
   chipTextActive: { color: "#FFFFFF" },
   chipBadge: {

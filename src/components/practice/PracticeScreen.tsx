@@ -18,8 +18,6 @@ import { PracticeExamFlow } from "./PracticeExamFlow";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import { practiceScreenStyles as styles } from "@/src/styles/styles/practice/practicescreenstyles";
 
-// Blue accent used across the syllabus drill-down screens (matches the mockups).
-const ACCENT = "#3B7DF8";
 
 export interface TopicItem {
   id: number;
@@ -247,7 +245,7 @@ const BackHeader = ({ title, onBack }: { title: string; onBack: () => void }) =>
   <>
     <View style={styles.topBar}>
       <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-        <Ionicons name="chevron-back" size={18} color={ACCENT} />
+        <Ionicons name="chevron-back" size={18} color="#6C63FF" />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
     </View>
@@ -280,7 +278,7 @@ const StatBanner = ({
 // default tap target — pressing the row starts untimed practice.
 const PlayButton = () => (
   <View style={styles.playBtn}>
-    <Ionicons name="play" size={15} color={ACCENT} />
+    <Ionicons name="play" size={15} color="#6C63FF" />
   </View>
 );
 
@@ -293,7 +291,7 @@ const TestButton = ({ onPress }: { onPress: () => void }) => (
     activeOpacity={0.7}
     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
   >
-    <Ionicons name="document-text-outline" size={16} color={ACCENT} />
+    <Ionicons name="document-text-outline" size={16} color="#6C63FF" />
   </TouchableOpacity>
 );
 

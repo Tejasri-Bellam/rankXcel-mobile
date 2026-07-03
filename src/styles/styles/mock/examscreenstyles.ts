@@ -114,7 +114,7 @@ export const examScreenStyles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   optRowSelected: {
-    borderColor: '#3B7DF8',
+    borderColor: "#6C63FF",
     backgroundColor: '#F0F6FF',
   },
   optLetter: {
@@ -129,13 +129,13 @@ export const examScreenStyles = StyleSheet.create({
     flexShrink: 0,
   },
   optLetterSelected: {
-    backgroundColor: '#3B7DF8',
-    borderColor: '#3B7DF8',
+    backgroundColor: '#6C63FF',
+    borderColor: '#6C63FF',
   },
   optLetterText: { fontSize: 13, fontWeight: '700', color: '#6B7280' },
   optLetterTextSelected: { color: '#fff' },
   optText: { flex: 1, fontSize: 15, color: '#1A1A2E', fontWeight: '500' },
-  optTextSelected: { color: '#3B7DF8', fontWeight: '600' },
+  optTextSelected: { color: '#6C63FF', fontWeight: '600' },
 
   swipeHint: { textAlign: 'center', fontSize: 12, color: '#D1D5DB', marginTop: 20 },
 
@@ -154,7 +154,7 @@ export const examScreenStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#3B7DF8',
+    backgroundColor: '#6C63FF',
     borderRadius: 16,
     paddingVertical: 16,
   },

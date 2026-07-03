@@ -19,7 +19,7 @@ export const practiceSettingsModalStyles = StyleSheet.create({
   backText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#3B7DF8",
+    color: '#6C63FF',
   },
 
   pageTitle: {
@@ -95,7 +95,7 @@ export const practiceSettingsModalStyles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   qBtnActive: {
-    borderColor: "#3B7DF8",
+    borderColor: "#6C63FF",
     backgroundColor: "#EEF4FF",
   },
   qBtnText: {
@@ -104,7 +104,7 @@ export const practiceSettingsModalStyles = StyleSheet.create({
     color: "#9CA3AF",
   },
   qBtnTextActive: {
-    color: "#3B7DF8",
+    color: "#6C63FF",
   },
 
   diffRow: {
@@ -166,7 +166,7 @@ export const practiceSettingsModalStyles = StyleSheet.create({
   prevBtnText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#3B7DF8",
+    color: '#6C63FF',
   },
   startBtn: {
     flex: 1,
@@ -174,7 +174,7 @@ export const practiceSettingsModalStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#3B7DF8",
+    backgroundColor: '#6C63FF',
     borderRadius: 16,
     paddingVertical: 16,
   },

@@ -151,7 +151,7 @@ export default function Leaderboard({ assessmentId, onBack }: Props) {
     <View style={s.safeArea}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color="#3B82F6" />
+          <Ionicons name="chevron-back" size={20} color='#6C63FF' />
           <Text style={s.backText}>Back</Text>
         </TouchableOpacity>
       </View>
@@ -186,7 +186,7 @@ export default function Leaderboard({ assessmentId, onBack }: Props) {
 
       {loading ? (
         <View style={{ paddingTop: 60, alignItems: "center" }}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color='#6C63FF' />
         </View>
       ) : error ? (
         <View style={{ paddingTop: 60, alignItems: "center", paddingHorizontal: 24 }}>
