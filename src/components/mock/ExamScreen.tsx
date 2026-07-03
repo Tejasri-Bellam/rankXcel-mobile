@@ -7,6 +7,7 @@ import {
   AppState,
   AppStateStatus,
   BackHandler,
+  Image,
   Modal,
   ScrollView,
   Text,
@@ -485,10 +486,20 @@ export default function MockExamScreen({
         {/* Question text */}
         <Text style={styles.questionText}>{stripHtml(activeQuestion?.text ?? '')}</Text>
 
+        {/* Question image */}
+        {activeQuestion?.image ? (
+          <Image
+            source={{ uri: activeQuestion.image }}
+            style={styles.questionImage}
+            resizeMode="contain"
+          />
+        ) : null}
+
         {/* Options */}
         <View style={styles.optionsList}>
           {(activeQuestion?.options ?? []).map((opt: any, idx: number) => {
             const isSelected = selectedOptions.includes(String(opt.id));
+            const optLabel = stripHtml(opt.text);
             return (
               <TouchableOpacity
                 key={String(opt.id)}
@@ -501,9 +512,20 @@ export default function MockExamScreen({
                     {String.fromCharCode(65 + idx)}
                   </Text>
                 </View>
-                <Text style={[styles.optText, isSelected && styles.optTextSelected]}>
-                  {stripHtml(opt.text)}
-                </Text>
+                <View style={styles.optBody}>
+                  {optLabel ? (
+                    <Text style={[styles.optText, isSelected && styles.optTextSelected]}>
+                      {optLabel}
+                    </Text>
+                  ) : null}
+                  {opt.image ? (
+                    <Image
+                      source={{ uri: opt.image }}
+                      style={styles.optImage}
+                      resizeMode="contain"
+                    />
+                  ) : null}
+                </View>
               </TouchableOpacity>
             );
           })}

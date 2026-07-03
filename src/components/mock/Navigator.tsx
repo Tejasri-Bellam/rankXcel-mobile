@@ -47,10 +47,12 @@ export default function MockExamNavigator({
       text:
         inner.question_text ?? inner.text ?? inner.statement ??
         q.question_text ?? q.text ?? q.statement ?? '',
+      image: inner.image ?? q.image ?? null,
       type: inner.question_type ?? inner.type ?? q.question_type ?? q.type ?? 'MCQ',
       options: (Array.isArray(choices) ? choices : []).map((c: any) => ({
         id: String(c?.id ?? c?.value ?? ''),
         text: c?.text ?? c?.label ?? String(c ?? ''),
+        image: c?.image ?? null,
       })),
       marks_correct: q.marks_correct ?? inner.marks_correct ?? 4,
       marks_incorrect: q.marks_incorrect ?? inner.marks_incorrect ?? -1,

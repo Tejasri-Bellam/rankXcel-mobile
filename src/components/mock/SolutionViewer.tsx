@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -229,11 +230,17 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               {/* Question text */}
               <Text style={styles.qCardText}>{stripHtml(questionText)}</Text>
 
+              {/* Question image */}
+              {q?.image ? (
+                <Image source={{ uri: q.image }} style={styles.qCardImage} resizeMode="contain" />
+              ) : null}
+
               {/* Options */}
               {sortedChoices.map((opt: any, idx: number) => {
                 const optId = String(opt?.id ?? opt?.value ?? idx);
                 const state = getOptState(optId);
                 const letter = String.fromCharCode(65 + idx);
+                const optLabel = stripHtml(opt?.text ?? opt?.label ?? '');
                 return (
                   <View
                     key={optId}
@@ -252,15 +259,22 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                     >
                       {letter}
                     </Text>
-                    <Text
-                      style={[
-                        styles.optText,
-                        state === 'correct' && { color: '#166534', fontWeight: '600' },
-                        state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
-                      ]}
-                    >
-                      {stripHtml(opt?.text ?? opt?.label ?? '')}
-                    </Text>
+                    <View style={styles.optBody}>
+                      {optLabel ? (
+                        <Text
+                          style={[
+                            styles.optText,
+                            state === 'correct' && { color: '#166534', fontWeight: '600' },
+                            state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
+                          ]}
+                        >
+                          {optLabel}
+                        </Text>
+                      ) : null}
+                      {opt?.image ? (
+                        <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
+                      ) : null}
+                    </View>
                     {state === 'correct' && (
                       <Ionicons name="checkmark" size={16} color="#22C55E" style={{ marginLeft: 'auto' }} />
                     )}

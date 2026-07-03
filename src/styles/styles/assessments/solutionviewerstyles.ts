@@ -53,6 +53,22 @@ export const solutionViewerStyles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  qCardImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    marginBottom: 16,
+  },
+  optImage: {
+    width: '100%',
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    marginTop: 4,
+  },
+  optBody: { flex: 1 },
+
   arCard: {
     backgroundColor: '#F9FAFB',
     borderRadius: 12,

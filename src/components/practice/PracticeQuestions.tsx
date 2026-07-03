@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   BackHandler,
+  Image,
   Platform,
   ScrollView,
   Text,
@@ -43,8 +44,9 @@ export interface StructuredExplanation {
 export interface PracticeApiQuestion {
   id: number | string;
   text: string;
+  image?: string | null;
   type: string;
-  options: { id: string; text: string }[];
+  options: { id: string; text: string; image?: string | null }[];
   correctChoiceId: string | null;
   // For NUMERICAL questions: the expected typed answer, shown in feedback.
   correctAnswer?: string | null;
@@ -379,13 +381,19 @@ export default function PracticeQuestions({
 
   const handleNextQuestion = () => {
     if (!isLast) navigateTo(currentIdx + 1);
-    else finishPractice();
+    else confirmFinish();
   };
 
   // Test mode: save the (optional) answer without revealing it and advance —
   // or finish the whole test on the last question. Re-answering a locked
   // question is skipped; an unanswered question can still be skipped past.
   const handleTestNext = async () => {
+    // The last question submits the whole test — confirm first (the save/lock
+    // happens only once the user confirms, in finalizeSubmit).
+    if (isLast) {
+      confirmFinish();
+      return;
+    }
     const hasAnswer = isNumeric
       ? !!current.selected && current.selected.trim() !== ""
       : !!current.selected;
@@ -404,8 +412,52 @@ export default function PracticeQuestions({
         return next;
       });
     }
-    if (!isLast) navigateTo(currentIdx + 1);
-    else finishPractice();
+    navigateTo(currentIdx + 1);
+  };
+
+  // Final submit needs an explicit confirmation — mirrors the mock exam's submit
+  // sheet. The timer-expiry path calls finishPractice() directly (no prompt).
+  const confirmFinish = () => {
+    const hasAnswer = isNumeric
+      ? !!current.selected && current.selected.trim() !== ""
+      : !!current.selected;
+    const answered =
+      answers.filter((a) => a.answered).length +
+      (hasAnswer && !current.answered ? 1 : 0);
+    Alert.alert(
+      isTest ? "Submit test?" : "Submit practice?",
+      `You've answered ${answered} of ${questionList.length}. You can't change answers after submitting.`,
+      [
+        { text: "Keep going", style: "cancel" },
+        {
+          text: isTest ? "Submit now" : "View results",
+          style: isTest ? "destructive" : "default",
+          onPress: () => finalizeSubmit(),
+        },
+      ],
+    );
+  };
+
+  // Persist the on-screen answer (test mode saves on submit, not per-question)
+  // then end the session.
+  const finalizeSubmit = async () => {
+    const hasAnswer = isNumeric
+      ? !!current.selected && current.selected.trim() !== ""
+      : !!current.selected;
+    if (isTest && !current.answered && hasAnswer) {
+      setSavingIdx(currentIdx);
+      try {
+        await saveResponse(
+          question.id,
+          current.selected as string,
+          current.markedForReview,
+          isNumeric,
+        );
+      } finally {
+        setSavingIdx(null);
+      }
+    }
+    finishPractice();
   };
 
   const finishPractice = async () => {
@@ -525,6 +577,15 @@ export default function PracticeQuestions({
           {/* Question text */}
           <Text style={styles.qText}>{stripHtml(question.text)}</Text>
 
+          {/* Question image */}
+          {question.image ? (
+            <Image
+              source={{ uri: question.image }}
+              style={styles.qImage}
+              resizeMode="contain"
+            />
+          ) : null}
+
           {/* Numerical answer — free-text numeric input */}
           {isNumeric ? (
             <View>
@@ -564,7 +625,18 @@ export default function PracticeQuestions({
                     {String.fromCharCode(65 + idx)}
                   </Text>
                 </View>
-                <Text style={getOptTextStyle(opt.id)}>{stripHtml(opt.text)}</Text>
+                <View style={styles.optBody}>
+                  {stripHtml(opt.text) ? (
+                    <Text style={getOptTextStyle(opt.id)}>{stripHtml(opt.text)}</Text>
+                  ) : null}
+                  {opt.image ? (
+                    <Image
+                      source={{ uri: opt.image }}
+                      style={styles.optImage}
+                      resizeMode="contain"
+                    />
+                  ) : null}
+                </View>
                 {reveal && opt.id === question.correctChoiceId && (
                   <Ionicons name="checkmark" size={18} color="#22C55E" style={{ marginLeft: "auto" }} />
                 )}
