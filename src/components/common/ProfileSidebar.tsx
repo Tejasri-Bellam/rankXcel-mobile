@@ -23,6 +23,7 @@ import {
   getMeService,
   getTargetExamsService,
   deleteTargetExamService,
+  getExamsListService,
 } from "@/src/libs/services/profile";
 import {
   getCountriesService,
@@ -126,6 +127,11 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
   });
   const [coursesOpen, setCoursesOpen] = useState(false);
   const [regionOpen, setRegionOpen] = useState(false);
+  // Available exam catalogue for the selected country. null = not yet loaded.
+  const [availableExamCount, setAvailableExamCount] = useState<number | null>(
+    null
+  );
+  const [availableExamsLoading, setAvailableExamsLoading] = useState(false);
 
   const slideX = useRef(new Animated.Value(PANEL_W)).current;
 
@@ -260,6 +266,30 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
   const activeExam = targetExams.find(
     (e) => String(e.id) === String(activeExamId)
   );
+
+  // Load the available exam catalogue for a country so the courses sheet can
+  // tell the user when a country simply has no target exams to assign.
+  const loadAvailableExams = async (countryId?: number | string | null) => {
+    setAvailableExamsLoading(true);
+    try {
+      const res: any = await getExamsListService(countryId);
+      const raw: any = res?.data;
+      const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
+      setAvailableExamCount(list.length);
+    } catch {
+      // On failure assume the catalogue is unknown; keep the assign action.
+      setAvailableExamCount(null);
+    } finally {
+      setAvailableExamsLoading(false);
+    }
+  };
+
+  // Refresh the catalogue whenever the courses sheet opens for the current
+  // region.
+  useEffect(() => {
+    if (coursesOpen) loadAvailableExams(region.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coursesOpen, region.id]);
 
   const handleSelectCountry = async (country: Country) => {
     const next: RegionInfo = {
@@ -529,6 +559,8 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
         onClose={() => setCoursesOpen(false)}
         region={region}
         exams={targetExams}
+        availableExamCount={availableExamCount}
+        availableExamsLoading={availableExamsLoading}
         activeExamId={activeExamId}
         onSelectExam={(id) => {
           setActiveExamId(id);
@@ -552,6 +584,8 @@ function CoursesSheet({
   onClose,
   region,
   exams,
+  availableExamCount,
+  availableExamsLoading,
   activeExamId,
   onSelectExam,
   onAssignExam,
@@ -561,11 +595,17 @@ function CoursesSheet({
   onClose: () => void;
   region: RegionInfo;
   exams: TargetExam[];
+  availableExamCount: number | null;
+  availableExamsLoading: boolean;
   activeExamId: number | string | null;
   onSelectExam: (id: number) => void;
   onAssignExam: () => void;
   onDeleteExam: (exam: TargetExam) => void;
 }) {
+  // Only hide the assign action when we've confirmed the country's catalogue is
+  // empty. `null` means unknown (not loaded / fetch failed) — keep the action.
+  const noExamsForCountry =
+    !availableExamsLoading && availableExamCount === 0;
   return (
     <Modal
       visible={visible}
@@ -655,21 +695,30 @@ function CoursesSheet({
             })
           )}
 
-          {/* Assign a new target exam */}
-          <TouchableOpacity
-            style={styles.assignRow}
-            activeOpacity={0.85}
-            onPress={onAssignExam}
-          >
-            <View style={styles.assignIcon}>
-              <Ionicons name="add" size={18} color={COLORS.primary} />
+          {/* Assign a new target exam — or explain that the selected country
+              has no exams to assign. */}
+          {noExamsForCountry ? (
+            <View style={styles.noExamsRow}>
+              <Text style={styles.noExamsText}>
+                No target exams are available for {region.name}.
+              </Text>
             </View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.assignTitle}>Assign target exam</Text>
-              <Text style={styles.assignSub}>Add another exam to your courses</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-          </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.assignRow}
+              activeOpacity={0.85}
+              onPress={onAssignExam}
+            >
+              <View style={styles.assignIcon}>
+                <Ionicons name="add" size={18} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.assignTitle}>Assign target exam</Text>
+                <Text style={styles.assignSub}>Add another exam to your courses</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+            </TouchableOpacity>
+          )}
 
           <View style={{ height: 12 }} />
         </ScrollView>
@@ -1064,6 +1113,20 @@ const styles: any = {
   },
   assignTitle: { fontSize: 14, fontWeight: "700", color: COLORS.primary },
   assignSub: { fontSize: 11, color: COLORS.textMedium, marginTop: 1 },
+  noExamsRow: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    backgroundColor: COLORS.inputBg,
+  },
+  noExamsText: {
+    fontSize: 13,
+    color: COLORS.textMedium,
+    textAlign: "center",
+    lineHeight: 18,
+  },
 };
 
 function StyleSheetAbsolute() {

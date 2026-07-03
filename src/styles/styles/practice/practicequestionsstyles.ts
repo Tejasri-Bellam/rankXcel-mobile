@@ -71,6 +71,23 @@ export const practiceQuestionsStyles = StyleSheet.create({
     marginBottom: 20,
   },
 
+  // Images
+  qImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    marginBottom: 20,
+  },
+  optImage: {
+    width: "100%",
+    height: 110,
+    borderRadius: 10,
+    backgroundColor: "#F3F4F6",
+    marginTop: 4,
+  },
+  optBody: { flex: 1 },
+
   // Options
   optionsList: { gap: 10 },
   optRow: {

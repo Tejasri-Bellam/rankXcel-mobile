@@ -215,7 +215,6 @@ export default function ProfileScreen() {
         <View style={profileStyles.card}>
           <SectionHeader title="Personal Information" subtitle="Update your name and contact details." />
           <LabeledInput label="Full Name" value={name} onChangeText={setname} placeholder="Your full name" />
-          <LabeledInput label="Email Address" value={email} onChangeText={setEmail} placeholder="you@gmail.com" keyboardType="email-address" disabled={true} />
           <LabeledInput label="Phone Number" value={phone} onChangeText={setPhone} placeholder="9876543210" keyboardType="phone-pad" />
           <TouchableOpacity style={profileStyles.saveBtn} onPress={handleSavePersonal} disabled={saveLoading}>
             {saveLoading

@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -237,6 +238,11 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               {/* Question text */}
               <Text style={styles.qCardText}>{stripHtml(questionText)}</Text>
 
+              {/* Question image */}
+              {q?.image ? (
+                <Image source={{ uri: q.image }} style={styles.qCardImage} resizeMode="contain" />
+              ) : null}
+
               {/* Numeric answer comparison */}
               {isNumericQ ? (
                 <View style={styles.numericRow}>
@@ -256,6 +262,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                   const optId = String(opt?.id ?? opt?.value ?? idx);
                   const state = getOptState(optId);
                   const letter = String.fromCharCode(65 + idx);
+                  const optLabel = stripHtml(opt?.text ?? opt?.label ?? '');
                   return (
                     <View
                       key={optId}
@@ -274,15 +281,22 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                       >
                         {letter}
                       </Text>
-                      <Text
-                        style={[
-                          styles.optText,
-                          state === 'correct' && { color: '#166534', fontWeight: '600' },
-                          state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
-                        ]}
-                      >
-                        {stripHtml(opt?.text ?? opt?.label ?? '')}
-                      </Text>
+                      <View style={styles.optBody}>
+                        {optLabel ? (
+                          <Text
+                            style={[
+                              styles.optText,
+                              state === 'correct' && { color: '#166534', fontWeight: '600' },
+                              state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
+                            ]}
+                          >
+                            {optLabel}
+                          </Text>
+                        ) : null}
+                        {opt?.image ? (
+                          <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
+                        ) : null}
+                      </View>
                       {state === 'correct' && (
                         <Ionicons name="checkmark" size={16} color="#22C55E" style={{ marginLeft: 'auto' }} />
                       )}

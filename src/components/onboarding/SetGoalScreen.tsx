@@ -30,6 +30,7 @@ export default function SetGoalScreen() {
   const [exams, setExams] = useState<ExamOption[]>([]);
   const [selectedExam, setSelectedExam] = useState<ExamOption | null>(null);
   const [examDropdownOpen, setExamDropdownOpen] = useState(false);
+  const [examSearch, setExamSearch] = useState('');
   const [loadingExams, setLoadingExams] = useState(true);
   const [targetYear, setTargetYear] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -116,6 +117,11 @@ export default function SetGoalScreen() {
 
   const canSubmit = Boolean(selectedExam && targetYear) && !submitting;
 
+  const query = examSearch.trim().toLowerCase();
+  const filteredExams = query
+    ? exams.filter((opt) => opt.name.toLowerCase().includes(query))
+    : exams;
+
   return (
     <View style={s.safeArea}>
       <ScrollView
@@ -152,14 +158,25 @@ export default function SetGoalScreen() {
                 color={COLORS.textLight}
                 style={{ marginRight: 10 }}
               />
-              <Text
-                style={[
-                  s.dropdownText,
-                  !selectedExam && s.dropdownPlaceholder,
-                ]}
-              >
-                {selectedExam?.name || data.goal.placeholders.exam}
-              </Text>
+              {examDropdownOpen ? (
+                <TextInput
+                  style={s.dropdownText}
+                  value={examSearch}
+                  onChangeText={setExamSearch}
+                  placeholder={String(data.goal.placeholders.exam)}
+                  placeholderTextColor={COLORS.textLight}
+                  autoFocus
+                />
+              ) : (
+                <Text
+                  style={[
+                    s.dropdownText,
+                    !selectedExam && s.dropdownPlaceholder,
+                  ]}
+                >
+                  {selectedExam?.name || data.goal.placeholders.exam}
+                </Text>
+              )}
               <Ionicons
                 name={examDropdownOpen ? 'chevron-up' : 'chevron-down'}
                 size={16}
@@ -173,13 +190,17 @@ export default function SetGoalScreen() {
                   <View style={s.optionEmpty}>
                     <ActivityIndicator color={COLORS.primary} />
                   </View>
-                ) : exams.length === 0 ? (
+                ) : filteredExams.length === 0 ? (
                   <View style={s.optionEmpty}>
-                    <Text style={s.optionEmptyText}>No exams available</Text>
+                    <Text style={s.optionEmptyText}>
+                      {exams.length === 0
+                        ? 'No exams available'
+                        : 'No matching exams'}
+                    </Text>
                   </View>
                 ) : (
-                  <ScrollView nestedScrollEnabled>
-                    {exams.map((opt) => {
+                  <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                    {filteredExams.map((opt) => {
                       const assigned = assignedIds.has(opt.id);
                       return (
                         <TouchableOpacity
@@ -189,6 +210,7 @@ export default function SetGoalScreen() {
                           onPress={() => {
                             setSelectedExam(opt);
                             setExamDropdownOpen(false);
+                            setExamSearch('');
                           }}
                         >
                           <Text style={s.optionText}>{opt.name}</Text>

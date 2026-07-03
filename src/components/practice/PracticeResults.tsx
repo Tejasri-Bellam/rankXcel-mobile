@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -72,6 +73,7 @@ const parseReview = (
     const options = (Array.isArray(choicesRaw) ? choicesRaw : []).map((c: any) => ({
       id: String(c?.id ?? c?.value ?? ""),
       text: c?.text ?? c?.label ?? String(c ?? ""),
+      image: c?.image ?? null,
     }));
 
     const type = q.question_type ?? q.type ?? q.question?.question_type ?? "MCQ";
@@ -120,6 +122,7 @@ const parseReview = (
     questions.push({
       id,
       text: q.question_text ?? q.text ?? q.question?.question_text ?? "",
+      image: q.image ?? q.question?.image ?? null,
       type,
       options,
       correctChoiceId,
@@ -289,6 +292,10 @@ export default function PracticeResults({
 
                 <Text style={styles.reviewQText}>{q.text}</Text>
 
+                {q.image ? (
+                  <Image source={{ uri: q.image }} style={styles.reviewQImage} resizeMode="contain" />
+                ) : null}
+
                 {numeric ? (
                   <View style={styles.numericReview}>
                     <Text style={styles.numericReviewRow}>
@@ -333,9 +340,16 @@ export default function PracticeResults({
                       <Text style={[styles.optLetter, textStyle]}>
                         {OPTION_LETTERS[oi] ?? oi + 1}
                       </Text>
-                      <Text style={[styles.optText, textStyle]} numberOfLines={3}>
-                        {opt.text}
-                      </Text>
+                      <View style={styles.optBody}>
+                        {opt.text ? (
+                          <Text style={[styles.optText, textStyle]} numberOfLines={3}>
+                            {opt.text}
+                          </Text>
+                        ) : null}
+                        {opt.image ? (
+                          <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
+                        ) : null}
+                      </View>
                       {isCorrect ? (
                         <Ionicons name="checkmark" size={16} color="#16A34A" />
                       ) : isUserWrong ? (

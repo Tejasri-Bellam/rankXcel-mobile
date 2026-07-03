@@ -117,6 +117,21 @@ export const practiceResultsStyles = StyleSheet.create({
   },
   statusPillText: { fontSize: 11, fontWeight: "700" },
   reviewQText: { fontSize: 15, fontWeight: "700", color: "#1A1A2E", marginBottom: 12 },
+  reviewQImage: {
+    width: "100%",
+    height: 170,
+    borderRadius: 10,
+    backgroundColor: "#F3F4F6",
+    marginBottom: 12,
+  },
+  optImage: {
+    width: "100%",
+    height: 90,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+    marginTop: 4,
+  },
+  optBody: { flex: 1 },
 
   optRow: {
     flexDirection: "row",

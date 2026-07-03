@@ -94,6 +94,7 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
     (c: any) => ({
       id: String(c?.id ?? c?.value ?? ""),
       text: c?.text ?? c?.label ?? String(c ?? ""),
+      image: c?.image ?? null,
     }),
   );
 
@@ -124,6 +125,7 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
       q.question?.question_text ??
       q.question?.text ??
       "",
+    image: q.image ?? q.question?.image ?? null,
     type: q.question_type ?? q.type ?? q.question?.question_type ?? "MCQ",
     options,
     correctChoiceId: correctId,

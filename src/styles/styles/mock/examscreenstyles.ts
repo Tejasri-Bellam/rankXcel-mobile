@@ -84,6 +84,23 @@ export const examScreenStyles = StyleSheet.create({
     marginBottom: 24,
   },
 
+  // Images
+  questionImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    marginBottom: 24,
+  },
+  optImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    marginTop: 4,
+  },
+  optBody: { flex: 1 },
+
   // Options
   optionsList: { gap: 10 },
   optRow: {
