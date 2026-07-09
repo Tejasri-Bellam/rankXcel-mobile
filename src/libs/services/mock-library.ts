@@ -334,10 +334,6 @@ export interface OptionItem {
   code: string;
 }
 
-export async function getMyTargetExamsOptionsService() {
-  return await genericGet(`/v1/exams/my-target-exams/`, true);
-}
-
 export async function getSubjectOptionsService(examId?: number) {
   const qs = examId ? `?exam_id=${examId}` : '';
   return await genericGet(`/v1/options/subjects/${qs}`, true);

@@ -58,7 +58,7 @@ const pickRegionSource = (data: any): any =>
   null;
 
 // Normalize the login response into a region object + the country id we need to
-// scope the target-exam catalogue (GET /my-target-exams/?country={id}).
+// scope the target-exam catalogue (GET /target-exams/?country={id}).
 const normalizeLoginRegion = (
   data: any
 ): { region: LoginRegion; countryId: number | string | null } => {

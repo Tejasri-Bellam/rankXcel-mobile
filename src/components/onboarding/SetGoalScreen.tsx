@@ -13,7 +13,7 @@ import {
 import {
   addTargetExamService,
   getExamsListService,
-  getMyTargetExamsService,
+  getTargetExamsService,
 } from '@/src/libs/services/profile';
 import { onboardingStyles as s } from '@/src/styles/styles/onboarding/setgoalscreenstyles';
 import { COLORS } from '@/src/styles/styles';
@@ -45,7 +45,7 @@ export default function SetGoalScreen() {
         const countryId = await AsyncStorage.getItem('regionCountryId');
         const [examsRes, assignedRes] = await Promise.all([
           getExamsListService(countryId),
-          getMyTargetExamsService().catch(() => null),
+          getTargetExamsService().catch(() => null),
         ]);
 
         const raw: any = examsRes?.data;
@@ -238,7 +238,7 @@ export default function SetGoalScreen() {
                 style={{ marginRight: 10 }}
               />
               <TextInput
-                style={s.dropdownText}
+                style={s.dropdownInput}
                 value={targetYear ? String(targetYear) : ''}
                 onChangeText={(text) => {
                   const digits = text.replace(/[^0-9]/g, '');

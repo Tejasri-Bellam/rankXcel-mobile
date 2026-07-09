@@ -8,7 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   GoogleSignin,
   statusCodes,
@@ -27,6 +27,7 @@ import {
   svgToDataUri,
 } from '@/src/libs/services/countries';
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
+import { armSessionExpiryGuard } from '@/src/libs/session';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import { countrySelectStyles } from '@/src/styles/styles/common/countryselectstyles';
 import InputField from '@/src/components/common/InputField';
@@ -58,7 +59,7 @@ const pickRegionSource = (data: any): any =>
   null;
 
 // Normalize the login response into a region object + the country id we need to
-// scope the target-exam catalogue (GET /my-target-exams/?country={id}).
+// scope the target-exam catalogue (GET /target-exams/?country={id}).
 const normalizeLoginRegion = (
   data: any
 ): { region: LoginRegion; countryId: number | string | null } => {
@@ -131,6 +132,19 @@ export default function LoginScreen() {
   const { reset: resetTargetExam, refreshExams } = useTargetExam();
   const { toast, showToast, hideToast } = useToast();
 
+  // Set when the app auto-logged the user out because their token was
+  // invalidated by a login on another device (single-user login). Surface it as
+  // a toast rather than blocking the screen with an alert.
+  const { sessionExpired } = useLocalSearchParams<{ sessionExpired?: string }>();
+  useEffect(() => {
+    if (sessionExpired) {
+      showToast(
+        'Your account was signed in on another device. Please log in again.',
+        'error'
+      );
+    }
+  }, [sessionExpired, showToast]);
+
   // Country chosen via the header selector — used as a fallback when the
   // authenticated /get_country/ lookup can't resolve a country after login.
   const [selectedCountryId, setSelectedCountryId] = useState<
@@ -199,6 +213,10 @@ export default function LoginScreen() {
     if (data?.token) {
       await storageSetAccessToken(data?.token);
     }
+
+    // New session — re-arm the token-expiry guard so a later invalidation of
+    // this token (e.g. logging in on yet another device) auto-logs-out again.
+    armSessionExpiryGuard();
 
     // The login response doesn't carry the country, so fetch it from
     // /v1/get_country/. The country id scopes the whole catalogue (target

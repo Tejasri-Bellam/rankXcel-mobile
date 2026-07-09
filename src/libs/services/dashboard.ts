@@ -5,17 +5,6 @@ export async function getDashboardUserService() {
   return await genericGet("/v1/auth/me/", true);
 }
 
-// GET /api/v1/exams/my-target-exams/?country={id}
-// Returns the logged-in user's assigned target exams, scoped by the auth token
-// AND filtered to the given country (the user's country from /get_country/).
-export async function getMyTargetExamsService(countryId?: number | string | null) {
-  const query =
-    countryId != null && countryId !== ""
-      ? `?country=${encodeURIComponent(countryId)}`
-      : "";
-  return await genericGet(`/v1/exams/my-target-exams/${query}`, true);
-}
-
 // GET /api/v1/dashboard/{exam_id}/
 export async function getDashboardDataService(examId: number | string) {
   return await genericGet(`/v1/dashboard/${examId}/`, true);
