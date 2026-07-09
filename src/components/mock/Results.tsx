@@ -108,7 +108,7 @@ export default function MockExamResults({
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B7DF8" />
+        <ActivityIndicator size="large" color='#6C63FF' />
         <Text style={styles.centeredText}>Loading results…</Text>
       </SafeAreaView>
     );
@@ -188,7 +188,7 @@ export default function MockExamResults({
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
+          <Ionicons name="chevron-back" size={18} color='#6C63FF' />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
       </View>
@@ -241,7 +241,7 @@ export default function MockExamResults({
         {/* ── Stat cards ── */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Ionicons name="locate-outline" size={18} color="#3B7DF8" />
+            <Ionicons name="locate-outline" size={18} color='#6C63FF' />
             <Text style={styles.statValue}>{accuracyPct}%</Text>
             <Text style={styles.statLabel}>Accuracy</Text>
           </View>
@@ -260,7 +260,7 @@ export default function MockExamResults({
         {/* ── Review all questions ── */}
         {onViewSolutions && (
           <TouchableOpacity style={styles.reviewCard} onPress={onViewSolutions} activeOpacity={0.85}>
-            <Ionicons name="eye-outline" size={18} color="#3B7DF8" />
+            <Ionicons name="eye-outline" size={18} color='#6C63FF' />
             <Text style={styles.reviewCardText}>Review all questions</Text>
           </TouchableOpacity>
         )}
@@ -269,7 +269,7 @@ export default function MockExamResults({
         {weakTopics.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="locate" size={16} color="#3B7DF8" />
+              <Ionicons name="locate" size={16} color='#6C63FF' />
               <Text style={styles.sectionTitle}>Practice Next</Text>
             </View>
             {weakTopics.map((t, i) => (
@@ -285,7 +285,7 @@ export default function MockExamResults({
                   <Text style={styles.practiceSub}>Weak · tap to practise</Text>
                 </View>
                 <View style={styles.practicePill}>
-                  <Ionicons name="play" size={11} color="#3B7DF8" />
+                  <Ionicons name="play" size={11} color="#6C63FF" />
                   <Text style={styles.practicePillText}>Practice</Text>
                 </View>
               </TouchableOpacity>
@@ -297,7 +297,7 @@ export default function MockExamResults({
         {subjects.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="bar-chart-outline" size={16} color="#3B7DF8" />
+              <Ionicons name="bar-chart-outline" size={16} color='#6C63FF' />
               <Text style={styles.sectionTitle}>Strength by Subject</Text>
             </View>
             {subjects.map((s, i) => (

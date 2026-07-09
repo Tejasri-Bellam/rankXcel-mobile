@@ -56,7 +56,7 @@ export const tutorModalStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  quickChipText: { fontSize: 13, color: "#3B7DF8", fontWeight: "600" },
+  quickChipText: { fontSize: 13, color: '#6C63FF', fontWeight: "600" },
   bubble: {
     maxWidth: "85%",
     borderRadius: 16,
@@ -65,7 +65,7 @@ export const tutorModalStyles = StyleSheet.create({
   },
   bubbleUser: {
     alignSelf: "flex-end",
-    backgroundColor: "#3B7DF8",
+    backgroundColor: "#6C63FF",
     borderBottomRightRadius: 4,
   },
   bubbleTutor: {
@@ -122,7 +122,7 @@ export const tutorModalStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#3B7DF8",
+    backgroundColor: "#6C63FF",
     alignItems: "center",
     justifyContent: "center",
   },

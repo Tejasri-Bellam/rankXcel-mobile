@@ -112,7 +112,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEEFF5' }}>
-        <ActivityIndicator size="large" color="#3B7DF8" />
+        <ActivityIndicator size="large" color='#6C63FF' />
         <Text style={{ marginTop: 12, color: '#9CA3AF' }}>Loading solutions…</Text>
       </SafeAreaView>
     );
@@ -125,7 +125,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
           Solutions are not available for this assessment.
         </Text>
         <TouchableOpacity onPress={onBack} style={{ marginTop: 16 }}>
-          <Text style={{ color: '#3B7DF8', fontWeight: '600' }}>← Go Back</Text>
+          <Text style={{ color: '#6C63FF', fontWeight: '600' }}>← Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -136,7 +136,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color="#3B7DF8" />
+          <Ionicons name="chevron-back" size={18} color='#6C63FF' />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Review</Text>
@@ -328,7 +328,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                 activeOpacity={0.8}
                 onPress={() => setTutorQ({ id: qid, text: stripHtml(questionText) })}
               >
-                <Ionicons name="sparkles" size={13} color="#3B7DF8" />
+                <Ionicons name="sparkles" size={13} color='#6C63FF' />
                 <Text style={styles.askTutorText}>Ask the AI tutor</Text>
               </TouchableOpacity>
             </View>

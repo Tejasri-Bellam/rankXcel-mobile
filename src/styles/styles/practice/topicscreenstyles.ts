@@ -19,7 +19,7 @@ export const topicScreenStyles = StyleSheet.create({
   backText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#3B7DF8",
+    color: '#6C63FF',
   },
   pageTitle: {
     fontSize: 28,
@@ -157,7 +157,7 @@ export const topicScreenStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#3B7DF8",
+    backgroundColor: "#6C63FF",
     borderRadius: 14,
     paddingHorizontal: 24,
     paddingVertical: 12,

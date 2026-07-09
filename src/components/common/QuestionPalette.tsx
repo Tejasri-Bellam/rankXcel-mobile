@@ -105,7 +105,7 @@ export default function QuestionPalette({
 
           <View style={styles.legend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#DBEAFE', borderColor: '#3B7DF8' }]} />
+              <View style={[styles.legendDot, { backgroundColor: '#DBEAFE', borderColor: '#6C63FF' }]} />
               <Text style={styles.legendText}>Answered</Text>
             </View>
             <View style={styles.legendItem}>

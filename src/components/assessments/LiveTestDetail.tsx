@@ -239,7 +239,7 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
   }) => (
     <View style={s.infoRow}>
       <View style={s.infoIcon}>
-        <Ionicons name={icon} size={18} color="#3B82F6" />
+        <Ionicons name={icon} size={18} color='#6C63FF' />
       </View>
       <Text style={s.infoLabel}>{label}</Text>
       <Text style={s.infoValue}>{value}</Text>
@@ -305,8 +305,8 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     if (registered) {
       return (
         <View style={[s.primaryBtn, s.registeredBtn]}>
-          <Ionicons name="checkmark" size={17} color="#3B82F6" />
-          <Text style={[s.primaryBtnText, { color: "#3B82F6" }]}>Registered</Text>
+          <Ionicons name="checkmark" size={17} color="#6C63FF" />
+          <Text style={[s.primaryBtnText, { color: "#6C63FF" }]}>Registered</Text>
         </View>
       );
     }
@@ -333,7 +333,7 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     <View style={s.safeArea}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color="#3B82F6" />
+          <Ionicons name="chevron-back" size={20} color='#6C63FF' />
           <Text style={s.backText}>Back</Text>
         </TouchableOpacity>
       </View>

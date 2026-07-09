@@ -58,9 +58,9 @@ export const mockLibraryStyles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: '#3B7DF8',
+    borderColor: '#6C63FF',
   },
-  loadMoreText: { fontSize: 13, fontWeight: '700', color: '#3B7DF8' },
+  loadMoreText: { fontSize: 13, fontWeight: '700', color: '#6C63FF' },
 
   mockCard: {
     backgroundColor: '#FFFFFF',
@@ -130,18 +130,18 @@ export const mockLibraryStyles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#3B7DF8',
+    borderColor: '#6C63FF',
     borderStyle: 'dashed',
     backgroundColor: '#fff',
     flexShrink: 0,
   },
-  buildBtnText: { fontSize: 13, fontWeight: '600', color: '#3B7DF8' },
+  buildBtnText: { fontSize: 13, fontWeight: '600', color: '#6C63FF' },
 
   centered: { alignItems: 'center', paddingTop: 60, gap: 12 },
   loadingText: { fontSize: 14, color: '#9CA3AF' },
   errorText: { fontSize: 14, color: '#EF4444', textAlign: 'center', paddingHorizontal: 24 },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#6C63FF',
     paddingHorizontal: 28,
     paddingVertical: 10,
     borderRadius: 10,

@@ -160,7 +160,7 @@ export default function SetGoalScreen() {
               />
               {examDropdownOpen ? (
                 <TextInput
-                  style={s.dropdownText}
+                  style={s.dropdownInput}
                   value={examSearch}
                   onChangeText={setExamSearch}
                   placeholder={String(data.goal.placeholders.exam)}

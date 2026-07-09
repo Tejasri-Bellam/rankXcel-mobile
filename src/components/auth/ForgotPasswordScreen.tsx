@@ -1,5 +1,6 @@
 import { forgotPasswordService } from "@/src/libs/services/auth";
 import { forgotPasswordStyles } from "@/src/styles/styles/auth/forgotpasswordscreenstyles";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -127,7 +128,12 @@ export default function ForgotPasswordScreen() {
       onPress={handleBackToLogin}
       activeOpacity={0.7}
     >
-      <Text style={forgotPasswordStyles.backButtonIcon}>‹</Text>
+      <Ionicons
+        name="chevron-back"
+        size={24}
+        color="#6C63FF"
+        style={forgotPasswordStyles.backButtonIcon}
+      />
     </TouchableOpacity>
   );
 
@@ -286,7 +292,7 @@ export default function ForgotPasswordScreen() {
             style={forgotPasswordStyles.resendRow}
           >
             {loading ? (
-              <ActivityIndicator color="#3B7DF8" size="small" />
+              <ActivityIndicator color='#6C63FF' size="small" />
             ) : resendTimer > 0 ? (
               <Text style={forgotPasswordStyles.resendText}>
                 Resend available in {resendTimer}s

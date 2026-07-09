@@ -12,12 +12,12 @@ export const resultsStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F7F8FC' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F8FC', padding: 24 },
   centeredText: { marginTop: 12, color: '#9CA3AF', textAlign: 'center' },
-  retryBtn: { marginTop: 16, backgroundColor: '#3B7DF8', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
+  retryBtn: { marginTop: 16, backgroundColor: '#6C63FF', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
   retryBtnText: { color: '#fff', fontWeight: '700' },
 
   topBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  backText: { fontSize: 15, fontWeight: '600', color: '#3B7DF8' },
+  backText: { fontSize: 15, fontWeight: '600', color: '#6C63FF' },
 
   scrollContent: { padding: 16, paddingBottom: 28 },
 
@@ -140,7 +140,7 @@ export const resultsStyles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  practicePillText: { fontSize: 12, fontWeight: '700', color: '#3B7DF8' },
+  practicePillText: { fontSize: 12, fontWeight: '700', color: '#6C63FF' },
 
   // Strength by subject
   subjectRow: { marginBottom: 14 },

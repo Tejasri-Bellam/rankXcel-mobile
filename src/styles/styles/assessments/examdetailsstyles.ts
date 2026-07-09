@@ -284,7 +284,7 @@ export const examDetailsStyles = StyleSheet.create({
     borderTopColor: BORDER,
   },
   resumeBtn: {
-    backgroundColor: ACCENT,
+    backgroundColor: '#6C63FF',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',

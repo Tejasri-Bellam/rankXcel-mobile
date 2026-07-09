@@ -388,8 +388,8 @@ export default function AssessmentsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchAssessments(true)}
-            colors={["#2F86FF"]}
-            tintColor="#2F86FF"
+            colors={["#6C63FF"]}
+            tintColor="#6C63FF"
           />
         }
       >
@@ -436,7 +436,7 @@ export default function AssessmentsScreen() {
 
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#2F86FF" />
+            <ActivityIndicator size="large" color="#6C63FF" />
           </View>
         ) : tests.length === 0 ? (
           <View style={styles.emptyState}>
@@ -491,7 +491,7 @@ export default function AssessmentsScreen() {
         {loadingMore && (
           <ActivityIndicator
             size="small"
-            color="#2F86FF"
+            color="#6C63FF"
             style={{ marginVertical: 16 }}
           />
         )}

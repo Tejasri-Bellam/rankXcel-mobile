@@ -162,7 +162,7 @@ const ProgressBar = ({
   <View style={pbStyles.container}>
     {answers.map((a, i) => {
       let bg = "#E5E7EB";
-      if (i === current) bg = "#3B7DF8";
+      if (i === current) bg = '#6C63FF';
       else if (i < current) {
         // Test mode never reveals correctness mid-test — answered segments
         // show a neutral filled state instead of green/red.
@@ -539,7 +539,7 @@ export default function PracticeQuestions({
 
   const getOptTextStyle = (optId: string) => {
     if (!reveal) {
-      return [styles.optText, current.selected === optId && { color: "#3B7DF8", fontWeight: "600" as const }];
+      return [styles.optText, current.selected === optId && { color: '#6C63FF', fontWeight: "600" as const }];
     }
     if (optId === question.correctChoiceId) return [styles.optText, { color: "#16A34A", fontWeight: "600" as const }];
     if (optId === current.selected) return [styles.optText, { color: "#EF4444", fontWeight: "600" as const }];
@@ -732,7 +732,7 @@ export default function PracticeQuestions({
                     activeOpacity={0.8}
                     onPress={() => setTutorVisible(true)}
                   >
-                    <Ionicons name="sparkles" size={13} color="#3B7DF8" />
+                    <Ionicons name="sparkles" size={13} color="#6C63FF" />
                     <Text style={styles.askTutorText}>Ask the AI tutor</Text>
                   </TouchableOpacity>
                 </View>
