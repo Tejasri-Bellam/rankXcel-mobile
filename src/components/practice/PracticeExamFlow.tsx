@@ -371,8 +371,25 @@ export const PracticeExamFlow = ({
     setFinalSeconds(0);
   };
 
+  // Android hardware back for the whole flow. A Modal swallows the back press on
+  // Android and routes it only here, so this is required. The questions and
+  // results screens register their own BackHandler (confirm-before-exit /
+  // back-to-hub) which consumes the press before it reaches the Modal; the
+  // settings and loading screens have no handler of their own, so back on them
+  // is routed here to cancel the flow (mirrors the in-screen "Back"/"Previous").
+  const handleAndroidBack = () => {
+    if (screen === "settings" || screen === "loading") {
+      onClose();
+    }
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" statusBarTranslucent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={handleAndroidBack}
+    >
       {screen === "settings" && (
         <PracticeSettingsModal
           chapterName={chapter.name}

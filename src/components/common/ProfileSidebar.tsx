@@ -310,7 +310,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
       // non-fatal — selection still applies for this session
     }
     // Re-fetch the target exam catalogue scoped to the chosen country
-    // (GET /v1/exams/my-target-exams/?country={id}).
+    // (GET /v1/exams/target-exams/?country={id}).
     refreshExams(country.id);
   };
 
@@ -333,7 +333,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
     setTimeout(navigate, 210);
   };
 
-  // Remove a course (target exam). The list comes from my-target-exams (exam
+  // Remove a course (target exam). The list comes from target-exams (exam
   // ids), but DELETE keys on the target-exam record id, so resolve that first.
   const handleDeleteExam = (exam: TargetExam) => {
     Alert.alert(

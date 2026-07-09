@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { getMyTargetExamsService } from "@/src/libs/services/dashboard";
+import { getTargetExamsService } from "@/src/libs/services/profile";
 import { storageGetAccessToken } from "@/src/libs/storage";
 
 export interface TargetExam {
@@ -22,7 +22,7 @@ export interface TargetExam {
   target_year?: number | null;
 }
 
-// my-target-exams returns each row as { id (record id), exam: { id, name, code },
+// target-exams returns each row as { id (record id), exam: { id, name, code },
 // target_year, ... }. Flatten it to a TargetExam keyed on the exam id (what the
 // dashboard/selection use), while tolerating an already-flat shape.
 function normalizeTargetExam(item: any): TargetExam {
@@ -91,7 +91,7 @@ export function TargetExamProvider({
 
       // Resolve the country to scope by: one passed in (region switch) is
       // persisted; otherwise use the saved selection (set from /get_country/ at
-      // login). my-target-exams is scoped by the auth token AND this country, so
+      // login). target-exams is scoped by the auth token AND this country, so
       // the list is specific to the logged-in user in their country.
       let activeCountryId = countryId;
       if (activeCountryId != null && activeCountryId !== "") {
@@ -100,7 +100,7 @@ export function TargetExamProvider({
         activeCountryId = await AsyncStorage.getItem(COUNTRY_KEY);
       }
 
-      const res = await getMyTargetExamsService(activeCountryId);
+      const res = await getTargetExamsService(activeCountryId);
       const data = res?.data;
       const targetExams: TargetExam[] = Array.isArray(data)
         ? data.map(normalizeTargetExam)

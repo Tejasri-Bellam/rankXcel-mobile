@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosInstance } from "axios";
+import { notifySessionExpired } from "@/src/libs/session";
 
 interface ApiError {
   status: number;
@@ -96,6 +97,27 @@ function customizeAxiosError(error: AxiosError<ErrorResponseData>): ApiError {
   return apiError;
 }
 
+// A 401 on an authenticated (token-bearing) request means the backend rejected
+// our token — typically because the account was signed in on another device,
+// which invalidates this one under single-user login. Force a logout.
+//
+// Auth endpoints (/v1/auth/*) are excluded: their 401s are ordinary "invalid
+// credentials" responses that the login screen surfaces inline, and they carry
+// no token anyway.
+function maybeHandleTokenExpiry(error: AxiosError<ErrorResponseData>): void {
+  if (error.response?.status !== 401) return;
+
+  const url = error.config?.url ?? "";
+  if (url.includes("/v1/auth/")) return;
+
+  const authHeader =
+    (error.config?.headers?.Authorization as string | undefined) ??
+    (error.config?.headers?.authorization as string | undefined);
+  if (!authHeader) return;
+
+  notifySessionExpired();
+}
+
 function createAxiosInstance(): AxiosInstance {
   const instance = axios.create({
     baseURL: process.env.EXPO_PUBLIC_API_BASE_URL,
@@ -106,6 +128,7 @@ function createAxiosInstance(): AxiosInstance {
   instance.interceptors.response.use(
     (response) => response,
     (error: AxiosError<ErrorResponseData>) => {
+      maybeHandleTokenExpiry(error);
       return Promise.reject(customizeAxiosError(error));
     }
   );

@@ -58,10 +58,15 @@ export async function getExamsListService(countryId?: number | string | null) {
   );
 }
 
-// Get Target Exams
-export async function getTargetExamsService() {
+// Get Target Exams — the logged-in user's assigned target exams (scoped by the
+// auth token). Optionally filtered to a country. GET /v1/exams/target-exams/
+export async function getTargetExamsService(countryId?: number | string | null) {
+  const query =
+    countryId != null && countryId !== ""
+      ? `?country=${encodeURIComponent(countryId)}`
+      : "";
   return await genericGet(
-    "/v1/exams/target-exams/",
+    `/v1/exams/target-exams/${query}`,
     true
   );
 }
@@ -86,14 +91,6 @@ export async function deleteTargetExamService(
 ) {
   return await genericDelete(
     `/v1/exams/target-exams/${id}/`,
-    true
-  );
-}
-
-// Get My Target Exams
-export async function getMyTargetExamsService() {
-  return await genericGet(
-    "/v1/exams/my-target-exams/",
     true
   );
 }
