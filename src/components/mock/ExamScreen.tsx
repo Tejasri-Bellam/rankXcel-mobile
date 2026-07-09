@@ -11,6 +11,7 @@ import {
   Modal,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -90,6 +91,10 @@ export default function MockExamScreen({
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
+
+  const [isInputFocused, setIsInputFocused] = useState(false);
+const [numericAnswer, setNumericAnswer] = useState('');
+
   // `timeTaken` value when the on-screen question became active, so each saved
   // response carries the seconds spent on that question (see commitCurrentAnswer).
   const qEnterRef = useRef<number>(0);
@@ -491,6 +496,7 @@ export default function MockExamScreen({
         ) : null}
 
         {/* Options */}
+        {(activeQuestion?.options?.length ?? 0) > 0 ? (
         <View style={styles.optionsList}>
           {(activeQuestion?.options ?? []).map((opt: any, idx: number) => {
             const isSelected = selectedOptions.includes(String(opt.id));
@@ -514,17 +520,43 @@ export default function MockExamScreen({
                     </Text>
                   ) : null}
                   {opt.image ? (
-                    <Image
-                      source={{ uri: opt.image }}
-                      style={styles.optImage}
-                      resizeMode="contain"
-                    />
+                    <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
                   ) : null}
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
+        ) : (
+          <View style={styles.fillBlankWrap}>
+            <Text style={styles.fillBlankLabel}>Enter your answer (numeric value):</Text>
+            <View style={[styles.fillBlankBox, isInputFocused && styles.fillBlankBoxFocused]}>
+              <TextInput
+                style={styles.fillBlankInput}
+                placeholder="e.g. 3.14"
+                placeholderTextColor="#C7CAD1"
+                keyboardType="decimal-pad"
+                value={numericAnswer}
+                onChangeText={(text) => {
+                  // allow only digits, one leading minus, one dot, max 2 decimals
+                  const cleaned = text.replace(/[^0-9.-]/g, '');
+                  const parts = cleaned.split('.');
+                  const safe =
+                    parts.length > 2
+                      ? parts[0] + '.' + parts[1].slice(0, 2)
+                      : parts.length === 2
+                      ? parts[0] + '.' + parts[1].slice(0, 2)
+                      : cleaned;
+                  setNumericAnswer(safe);
+                  handleOptionSelect(safe);
+                }}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+              />
+            </View>
+            <Text style={styles.fillBlankHint}>Decimal values are accepted (up to 2 decimal places).</Text>
+          </View>
+        )}
 
         <Text style={styles.swipeHint}>— Swipe to move between questions —</Text>
       </ScrollView>

@@ -3,8 +3,10 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from "@/src/styles/styles";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import { getMeService } from '@/src/libs/services/profile';
 import { useHeaderScroll } from '@/src/libs/context/HeaderScrollContext';
+import { getAlertsUnreadCountService } from '@/src/libs/services/alerts';
 
 type HeaderProps = {
   onProfilePress: () => void;
@@ -17,20 +19,17 @@ const getInitials = (name: string) => {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 };
 
-// Last resolved initials, kept at module scope so they survive the Header
-// unmounting/remounting as the user navigates into detail/exam screens (the
-// header is hidden there). Without this the avatar would briefly flash the
-// "AB" placeholder on every return to a list screen.
 let cachedAvatarText = "";
 
 export default function Header({ onProfilePress }: HeaderProps) {
+  const router = useRouter();
   const [avatarText, setAvatarText] = useState(cachedAvatarText);
-  // Transparent over the page at the top; turns into a solid bar once the
-  // screen is scrolled (set by the active screen's onScroll).
+  const [hasUnread, setHasUnread] = useState(false);
   const { scrolled } = useHeaderScroll();
 
   useEffect(() => {
     fetchUser();
+    fetchUnreadCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -40,14 +39,12 @@ export default function Header({ onProfilePress }: HeaderProps) {
   };
 
   const fetchUser = async () => {
-    // Seed from the cached user first (fast) so the avatar shows the correct
-    // initials immediately instead of a placeholder while the network resolves.
     if (!cachedAvatarText) {
       try {
         const savedUser = await AsyncStorage.getItem("user");
         if (savedUser) applyInitials(getInitials(JSON.parse(savedUser)?.name || ""));
       } catch {
-        // ignore — fall through to the network fetch below
+        // ignore
       }
     }
     try {
@@ -56,21 +53,37 @@ export default function Header({ onProfilePress }: HeaderProps) {
       applyInitials(getInitials(name));
       await AsyncStorage.setItem("user", JSON.stringify(res?.data));
     } catch {
-      // Keep whatever initials we already have (cached/seeded).
+      // keep cached initials
     }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res: any = await getAlertsUnreadCountService();
+      setHasUnread((res?.data?.unread_count ?? 0) > 0);
+    } catch {
+      // non-fatal — dot stays hidden
+    }
+  };
+
+  const handleNotifPress = () => {
+    router.push("/notifications" as any);
   };
 
   return (
     <View style={[styles.header, scrolled ? styles.headerScrolled : styles.headerTransparent]}>
       <View style={styles.headerRight}>
-        <TouchableOpacity style={styles.notifBtn} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.notifBtn}
+          activeOpacity={0.8}
+          onPress={handleNotifPress}
+        >
           <Ionicons
             name="notifications-outline"
             size={20}
             color={COLORS.textDark}
           />
-          {/* Small red dot indicating unread notifications. */}
-          <View style={styles.notifDot} />
+          {hasUnread && <View style={styles.notifDot} />}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -89,17 +102,14 @@ const styles: any = {
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    // No left wordmark in the new design — actions sit on the right.
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  // At the top of the page the header blends into the background.
   headerTransparent: {
     backgroundColor: 'transparent',
     borderBottomWidth: 0,
   },
-  // Once scrolled it becomes a solid bar that separates from the content.
   headerScrolled: {
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
@@ -115,7 +125,6 @@ const styles: any = {
     alignItems: 'center',
     gap: 12,
   },
-  // Bell sits in its own white circle (visible even over the transparent header).
   notifBtn: {
     position: 'relative',
     width: 38,

@@ -92,7 +92,6 @@ export const SUBJECT_COLORS: Record<string, string> = {
   Physics: "#FF6B6B",
   Chemistry: "#4ECDC4",
   Mathematics: "#6C5CE7",
-  Mathemetics: "#6C5CE7",
   Biology: "#22C55E",
   General: "#9898B0",
 };

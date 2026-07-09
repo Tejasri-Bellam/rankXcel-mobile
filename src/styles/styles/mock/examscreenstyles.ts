@@ -306,4 +306,36 @@ export const examScreenStyles = StyleSheet.create({
   marksChipText: { fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] as any },
   marksChipTextPositive: { color: '#059669' },
   marksChipTextNegative: { color: '#DC2626' },
+
+  // Fill in the blank
+  fillBlankWrap: { marginTop: 4 },
+  fillBlankLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 10,
+  },
+  fillBlankBox: {
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#fff',
+  },
+  fillBlankBoxFocused: {
+    borderColor: '#6C63FF',
+    backgroundColor: '#F0F6FF',
+  },
+  fillBlankInput: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A2E',
+    padding: 0,
+  },
+  fillBlankHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 8,
+  },
 });
