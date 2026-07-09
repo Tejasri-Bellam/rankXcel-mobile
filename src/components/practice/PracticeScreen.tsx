@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   RefreshControl,
   ScrollView,
   Text,
@@ -402,6 +403,26 @@ export default function PracticeScreen() {
     // No target exam for the selected region → clear any stale syllabus.
     else setSubjectGroups([]);
   }, [activeExamId, loadSubjects]);
+
+  // Android hardware back: walk the syllabus drill-down back one level
+  // (subtopics → topics → subjects) instead of leaving the tab. Returning false
+  // at the subjects root lets the app shell take over (→ Home).
+  useEffect(() => {
+    const onBack = () => {
+      if (practiceVisible) { setPracticeVisible(false); return true; }
+      if (navScreen === "subtopics") {
+        setNavScreen(displaySubjects ? "topics" : "subjects");
+        return true;
+      }
+      if (navScreen === "topics") {
+        setNavScreen("subjects");
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBack);
+    return () => sub.remove();
+  }, [navScreen, displaySubjects, practiceVisible]);
 
   useEffect(() => {
     if (autoLaunchHandledRef.current) return;

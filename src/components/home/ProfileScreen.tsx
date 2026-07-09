@@ -1,24 +1,10 @@
-import {
-  getMeService,
-  updateMeService,
-} from '@/src/libs/services/profile';
+import { getMeService, updateMeService, changePasswordService } from '@/src/libs/services/profile';
 import { profileStyles } from '@/src/styles/styles/home/profilescreenstyles';
 import { COLORS } from '@/src/styles/styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Text,
-  TextInput,
-  View,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { ActivityIndicator, Alert, Text, TextInput, View, TouchableOpacity, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 
 // Section Header
 const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -144,13 +130,26 @@ export default function ProfileScreen() {
 
     try {
       setPwdLoading(true);
-      Alert.alert(
-        'Not Available',
-        'Authenticated password change endpoint is not yet available. Please use "Forgot Password" from the login screen to reset your password.'
-      );
+
+      await changePasswordService({
+        old_password: currentPwd,
+        new_password: newPwd,
+        confirm_password: confirmPwd,
+      });
+
+      closePasswordModal();
+      Alert.alert('Success', 'Your password has been changed successfully.');
+    } catch (err: any) {
+      const errors = err?.errors ?? {};
+      const message =
+        errors.old_password?.[0] ||
+        errors.new_password?.[0] ||
+        errors.confirm_password?.[0] ||
+        errors.nonFieldErrors?.[0] ||
+        'Failed to change password. Please try again.';
+      setPwdError(message);
     } finally {
       setPwdLoading(false);
-      closePasswordModal();
     }
   };
 
@@ -169,7 +168,7 @@ export default function ProfileScreen() {
     <View style={profileStyles.safeArea}>
       <TouchableOpacity
         style={profileStyles.backButton}
-        onPress={() => router.back()}
+        onPress={() => router.replace('/dashboard')}
       >
         <Ionicons
           name="arrow-back"
@@ -252,7 +251,7 @@ export default function ProfileScreen() {
       >
         <KeyboardAvoidingView
           style={profileStyles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={profileStyles.modalCard}>
             <View style={profileStyles.modalHeader}>

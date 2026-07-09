@@ -651,6 +651,7 @@ export default function AnalyticsScreen() {
       </View>
     );
   }
+console.log('consistency', consistency);
 
   return (
     <View style={styles.safeArea}>
@@ -837,7 +838,7 @@ export default function AnalyticsScreen() {
             ))}
           </View>
           <View style={styles.heatLabels}>
-            <Text style={styles.heatLabelText}>{consistency.weeks} weeks ago</Text>
+            <Text style={styles.heatLabelText}>{consistency.weeks} weeks </Text>
             <Text style={styles.heatLabelText}>Today</Text>
           </View>
         </View>

@@ -6,7 +6,7 @@ export interface LoginPayload {
 export interface SignupPayload {
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   password: string;
   confirm_password: string;
 }
@@ -38,6 +38,12 @@ export interface UpdateProfilePayload {
   first_name?: string;
   last_name?: string;
   phone?: string;
+}
+
+export interface ChangePasswordPayload {
+  old_password: string;
+  new_password: string;
+  confirm_password: string;
 }
 
 export interface User {

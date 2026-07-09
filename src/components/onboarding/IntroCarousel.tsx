@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IntroJson } from '../json/intro';
+import { storageSetOnboardingSeen } from '@/src/libs/storage';
 import { INTRO, introStyles as s } from '@/src/styles/styles/onboarding/introcarouselstyles';
 
 const tap = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) =>
@@ -28,6 +29,9 @@ export default function IntroCarousel() {
 
   const goToAuth = (route: string, strong = false) => {
     tap(strong ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
+    // Mark onboarding as seen so it is never shown again on future launches
+    // (covers Skip, Get Started and the "I already have an account" link).
+    storageSetOnboardingSeen().catch(() => {});
     router.push(route as any);
   };
 

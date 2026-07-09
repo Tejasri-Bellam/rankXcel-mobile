@@ -33,6 +33,7 @@ import {
 } from "@/src/libs/services/countries";
 import { storageGetAccessToken, clearUserSession } from "@/src/libs/storage";
 import { useTargetExam, TargetExam } from "@/src/libs/context/TagretExamContext";
+import ConfirmModal from "@/src/components/common/ConfirmModal";
 
 const { width, height } = Dimensions.get("window");
 // Full-width panel.
@@ -127,6 +128,8 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
   });
   const [coursesOpen, setCoursesOpen] = useState(false);
   const [regionOpen, setRegionOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   // Available exam catalogue for the selected country. null = not yet loaded.
   const [availableExamCount, setAvailableExamCount] = useState<number | null>(
     null
@@ -311,9 +314,23 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
     refreshExams(country.id);
   };
 
+  // Top-level tab routes are navigation roots: switching to them should replace
+  // (no back-stack buildup). Secondary screens (/profile, /history, /set-goal)
+  // are pushed so their back button returns to the tab underneath.
+  const TAB_ROUTES = [
+    "/dashboard",
+    "/practice",
+    "/mock-library",
+    "/assessments",
+    "/analytics",
+  ];
+
   const go = (path: string) => {
     handleClose();
-    setTimeout(() => router.push(path as any), 210);
+    const navigate = TAB_ROUTES.includes(path)
+      ? () => router.replace(path as any)
+      : () => router.push(path as any);
+    setTimeout(navigate, 210);
   };
 
   // Remove a course (target exam). The list comes from my-target-exams (exam
@@ -355,31 +372,28 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
     );
   };
 
-  const confirmLogout = () => {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await logoutService();
-          } catch {
-            // ignore network errors on logout
-          } finally {
-            // Wipe all persisted user-scoped data (token, user, region, target
-            // exam selection/catalogue, and per-exam/quiz caches)...
-            await clearUserSession();
-            // ...and the in-memory exam state, which the provider keeps alive
-            // across logout navigation. Without both, the next student inherits
-            // the previous student's activeExamId and sees their data.
-            reset();
-            onClose();
-            router.replace("/");
-          }
-        },
-      },
-    ]);
+  const confirmLogout = () => setLogoutOpen(true);
+
+  const runLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logoutService();
+    } catch {
+      // ignore network errors on logout
+    } finally {
+      // Wipe all persisted user-scoped data (token, user, region, target
+      // exam selection/catalogue, and per-exam/quiz caches)...
+      await clearUserSession();
+      // ...and the in-memory exam state, which the provider keeps alive
+      // across logout navigation. Without both, the next student inherits
+      // the previous student's activeExamId and sees their data.
+      reset();
+      setLoggingOut(false);
+      setLogoutOpen(false);
+      onClose();
+      router.replace("/");
+    }
   };
 
   const Row = ({
@@ -574,6 +588,20 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
           go("/set-goal");
         }}
         onDeleteExam={handleDeleteExam}
+      />
+
+      {/* Log out confirmation */}
+      <ConfirmModal
+        visible={logoutOpen}
+        title="Log out"
+        message="Are you sure you want to log out?"
+        cancelLabel="Cancel"
+        confirmLabel="Log out"
+        confirmIcon="log-out-outline"
+        destructive
+        loading={loggingOut}
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={runLogout}
       />
     </Modal>
   );

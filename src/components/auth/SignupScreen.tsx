@@ -193,9 +193,12 @@ export default function SignupScreen() {
         confirm_password: confirmPassword,
       };
 
-      await signupService(payload);
+      const res: any = await signupService(payload);
 
-      showToast('Account created successfully', 'success');
+      showToast(
+        res?.message || res?.data?.message || 'Account created successfully',
+        'success'
+      );
 
       // Give the success toast a moment before leaving for email verification.
       setTimeout(() => {

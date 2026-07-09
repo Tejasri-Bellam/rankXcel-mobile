@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { COLORS } from '../../styles';
 
 export const mockLibraryStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F7F8FC' },
