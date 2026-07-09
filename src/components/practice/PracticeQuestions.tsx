@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   BackHandler,
   Image,
@@ -28,6 +27,7 @@ import {
 } from "@/src/libs/services/mock-library";
 import { stripHtml } from "@/src/libs/utils/html";
 import TutorModal, { ConversationApi } from "@/src/components/common/TutorModal";
+import ConfirmModal from "@/src/components/common/ConfirmModal";
 
 export interface ExplanationStep {
   number: number;
@@ -233,19 +233,32 @@ export default function PracticeQuestions({
   // to the results screen, so it never reveals mid-session.
   const reveal = !isTest && current.answered;
   const [tutorVisible, setTutorVisible] = useState(false);
+  // Submit / exit confirmation dialog (replaces the old Alert.alert prompts).
+  const [confirm, setConfirm] = useState<{
+    kind: "submit" | "exit";
+    title: string;
+    message: string;
+    confirmLabel: string;
+    cancelLabel: string;
+    destructive: boolean;
+  } | null>(null);
+  const [finishing, setFinishing] = useState(false);
 
   // Android hardware back: close the tutor if open, otherwise surface the
   // submit/exit confirmation instead of silently leaving the session.
   useEffect(() => {
     const onBackPress = () => {
       if (tutorVisible) { setTutorVisible(false); return true; }
+      // If a confirmation is already showing, back dismisses it rather than
+      // re-opening it (unless a submit is already in flight).
+      if (confirm) { if (!finishing) setConfirm(null); return true; }
       handleEndPractice();
       return true;
     };
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tutorVisible]);
+  }, [tutorVisible, confirm, finishing]);
 
   // Conversation-based tutor for the current question. Memoized per question so
   // the modal's init effect doesn't re-run on every render.
@@ -424,18 +437,17 @@ export default function PracticeQuestions({
     const answered =
       answers.filter((a) => a.answered).length +
       (hasAnswer && !current.answered ? 1 : 0);
-    Alert.alert(
-      isTest ? "Submit test?" : "Submit practice?",
-      `You've answered ${answered} of ${questionList.length}. You can't change answers after submitting.`,
-      [
-        { text: "Keep going", style: "cancel" },
-        {
-          text: isTest ? "Submit now" : "View results",
-          style: isTest ? "destructive" : "default",
-          onPress: () => finalizeSubmit(),
-        },
-      ],
-    );
+    const allAnswered = answered >= questionList.length;
+    setConfirm({
+      kind: "submit",
+      title: isTest ? "Submit test?" : "Submit practice?",
+      message: `You've answered ${answered} of ${questionList.length}. You can't change answers after submitting.`,
+      confirmLabel: isTest ? "Submit now" : "View results",
+      // "Keep going" only makes sense while questions remain; once everything is
+      // answered the dismiss action is just "Cancel".
+      cancelLabel: allAnswered ? "Cancel" : "Keep going",
+      destructive: isTest,
+    });
   };
 
   // Persist the on-screen answer (test mode saves on submit, not per-question)
@@ -471,18 +483,31 @@ export default function PracticeQuestions({
   // X (close) in the header: confirm, then submit the attempt — mirrors the
   // mock exam screen. Once submitted, answers can't be changed.
   const handleEndPractice = () => {
-    Alert.alert(
-      isTest ? "Exit test?" : "Exit practice?",
-      "Your answers will be submitted and you won't be able to change them.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Submit & Exit",
-          style: "destructive",
-          onPress: () => finishPractice(),
-        },
-      ],
-    );
+    setConfirm({
+      kind: "exit",
+      title: isTest ? "Exit test?" : "Exit practice?",
+      message: "Your answers will be submitted and you won't be able to change them.",
+      confirmLabel: "Submit & Exit",
+      cancelLabel: "Cancel",
+      destructive: true,
+    });
+  };
+
+  // Run the pending confirmation (submit or exit). Both paths end the session
+  // and navigate away, so the modal unmounts with the screen on success.
+  const runConfirm = async () => {
+    if (!confirm || finishing) return;
+    setFinishing(true);
+    try {
+      if (confirm.kind === "submit") {
+        await finalizeSubmit();
+      } else {
+        await finishPractice();
+      }
+    } finally {
+      setFinishing(false);
+      setConfirm(null);
+    }
   };
 
   // Option styling
@@ -648,9 +673,6 @@ export default function PracticeQuestions({
           </View>
           )}
 
-          {/* Swipe hint */}
-          <Text style={styles.swipeHint}>— Swipe to move between questions —</Text>
-
           {/* Feedback */}
           {reveal && (
             <View style={[styles.feedbackBox, current.correct ? styles.feedbackCorrect : styles.feedbackWrong]}>
@@ -800,6 +822,19 @@ export default function PracticeQuestions({
           conversation={tutorConversation}
         />
       )}
+
+      <ConfirmModal
+        visible={confirm !== null}
+        title={confirm?.title ?? ""}
+        message={confirm?.message ?? ""}
+        cancelLabel={confirm?.cancelLabel ?? "Cancel"}
+        confirmLabel={confirm?.confirmLabel ?? "Confirm"}
+        confirmIcon="checkmark"
+        destructive={confirm?.destructive ?? false}
+        loading={finishing}
+        onCancel={() => setConfirm(null)}
+        onConfirm={runConfirm}
+      />
     </SafeAreaView>
   );
 }

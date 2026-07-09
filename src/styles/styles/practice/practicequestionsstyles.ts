@@ -143,13 +143,6 @@ export const practiceQuestionsStyles = StyleSheet.create({
   numericWrong: { borderColor: "#EF4444", backgroundColor: "#FEF2F2" },
   numericHint: { fontSize: 12, color: "#9CA3AF", marginTop: 8 },
 
-  swipeHint: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#D1D5DB",
-    marginVertical: 14,
-  },
-
   // Feedback
   feedbackBox: {
     borderRadius: 16,

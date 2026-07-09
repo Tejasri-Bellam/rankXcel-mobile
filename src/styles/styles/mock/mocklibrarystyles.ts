@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { COLORS } from '../../styles';
 
 export const mockLibraryStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F7F8FC' },
@@ -140,7 +141,7 @@ export const mockLibraryStyles = StyleSheet.create({
   loadingText: { fontSize: 14, color: '#9CA3AF' },
   errorText: { fontSize: 14, color: '#EF4444', textAlign: 'center', paddingHorizontal: 24 },
   retryBtn: {
-    backgroundColor: '#3B7DF8',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 28,
     paddingVertical: 10,
     borderRadius: 10,

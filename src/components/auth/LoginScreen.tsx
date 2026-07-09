@@ -396,14 +396,8 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header: back button (left) + country selector (top-right) */}
-          <View style={styles.topRow}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.push('/')}
-            >
-              <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
-            </TouchableOpacity>
+          {/* Header: country selector (top-right) */}
+          <View style={[styles.topRow, { justifyContent: 'flex-end' }]}>
             <View style={countrySelectStyles.chip}>
               <Ionicons name="location-outline" size={16} color="#475569" />
               <Text style={countrySelectStyles.chipText}>
