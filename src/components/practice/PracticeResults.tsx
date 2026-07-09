@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   Image,
   ScrollView,
   Text,
@@ -195,6 +196,18 @@ export default function PracticeResults({
   onBackToHub,
 }: Props) {
   const [view, setView] = useState<"results" | "review">("results");
+
+  // Android hardware back mirrors the in-screen back buttons: the review screen
+  // returns to results, and the results screen leaves the flow.
+  useEffect(() => {
+    const onBack = () => {
+      if (view === "review") { setView("results"); return true; }
+      onBackToHub();
+      return true;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBack);
+    return () => sub.remove();
+  }, [view, onBackToHub]);
 
   // Server-authoritative result + review, fetched once the attempt is submitted.
   const [apiResult, setApiResult] = useState<MockTestResult | null>(null);

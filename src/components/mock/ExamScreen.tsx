@@ -23,6 +23,7 @@ import {
   saveActiveAttempt,
 } from '../../libs/utils/examSession';
 import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
+import ConfirmModal from '../common/ConfirmModal';
 
 interface Props {
   mockId: number | string;
@@ -86,6 +87,7 @@ export default function MockExamScreen({
   const [qStatuses, setQStatuses] = useState<Record<string, QuestionStatus>>(initialStatuses ?? {});
   const [showPalette, setShowPalette] = useState(false);
   const [showSubmitSheet, setShowSubmitSheet] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
   // `timeTaken` value when the on-screen question became active, so each saved
@@ -340,32 +342,25 @@ export default function MockExamScreen({
   // mock list. Submitting here means the mock can't be restarted from scratch.
   const handleExit = () => {
     if (submitting) return;
-    Alert.alert(
-      'Exit test?',
-      "Your test will be submitted and you won't be able to change your answers.",
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Submit & Exit',
-          style: 'destructive',
-          onPress: async () => {
-            if (submitting) return;
-            try {
-              setSubmitting(true);
-              setShowSubmitSheet(false);
-              setShowPalette(false);
-              await flushAndSubmit();
-              await clearActiveAttempt();
-              onBackToMocks?.();
-            } catch (err) {
-              console.log('SUBMIT ERROR:', err);
-              Alert.alert('Error', 'Submission failed. Please try again.');
-              setSubmitting(false);
-            }
-          },
-        },
-      ],
-    );
+    setShowExitConfirm(true);
+  };
+
+  const confirmExit = async () => {
+    if (submitting) return;
+    try {
+      setSubmitting(true);
+      setShowSubmitSheet(false);
+      setShowPalette(false);
+      await flushAndSubmit();
+      await clearActiveAttempt();
+      setShowExitConfirm(false);
+      onBackToMocks?.();
+    } catch (err) {
+      console.log('SUBMIT ERROR:', err);
+      setShowExitConfirm(false);
+      Alert.alert('Error', 'Submission failed. Please try again.');
+      setSubmitting(false);
+    }
   };
 
   // Current flat index
@@ -629,6 +624,20 @@ export default function MockExamScreen({
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* ── Exit (submit & leave) confirmation ── */}
+      <ConfirmModal
+        visible={showExitConfirm}
+        title="Exit test?"
+        message="Your test will be submitted and you won't be able to change your answers."
+        cancelLabel="Cancel"
+        confirmLabel="Submit & Exit"
+        confirmIcon="exit-outline"
+        destructive
+        loading={submitting}
+        onCancel={() => setShowExitConfirm(false)}
+        onConfirm={confirmExit}
+      />
     </SafeAreaView>
   );
 }

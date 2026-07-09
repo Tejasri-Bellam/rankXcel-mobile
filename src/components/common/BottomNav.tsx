@@ -45,7 +45,9 @@ export default function BottomNav() {
             style={styles.tab}
             activeOpacity={0.7}
             onPress={() => {
-              if (!active) router.push(tab.route as any);
+              // Replace (not push) so switching tabs never stacks history — the
+              // back button should not cycle through every previously visited tab.
+              if (!active) router.replace(tab.route as any);
             }}
           >
             <Ionicons

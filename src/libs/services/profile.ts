@@ -5,7 +5,7 @@ import {
   genericDelete,
 } from "./genericService";
 
-import { UpdateProfilePayload } from "../types/auth";
+import { UpdateProfilePayload, ChangePasswordPayload } from "../types/auth";
 
 // Get Current User
 export async function getMeService() {
@@ -21,6 +21,17 @@ export async function updateMeService(
 ) {
   return await genericPatch(
     "/v1/auth/me/",
+    values,
+    { useAccessToken: true }
+  );
+}
+
+// Change Password (authenticated)
+export async function changePasswordService(
+  values: ChangePasswordPayload
+) {
+  return await genericPost(
+    "/v1/auth/me/change-password/",
     values,
     { useAccessToken: true }
   );

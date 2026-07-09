@@ -1,6 +1,6 @@
-import { Stack, usePathname, useGlobalSearchParams } from "expo-router";
+import { Stack, usePathname, useGlobalSearchParams, router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { BackHandler, StatusBar, View } from "react-native";
+import { BackHandler, Platform, StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
@@ -29,6 +29,18 @@ const TAB_ROUTES = [
   "/analytics",
   "/profile",
 ];
+
+// The top-level tab roots (excludes /profile, which is a pushed drill-down).
+// Since tabs are switched with router.replace, these have no back stack of
+// their own: hardware back on any of them returns Home, and Home exits the app.
+const ROOT_TAB_ROUTES = [
+  "/dashboard",
+  "/assessments",
+  "/mock-library",
+  "/practice",
+  "/analytics",
+];
+const HOME_ROUTE = "/dashboard";
 
 function AppShell() {
   const pathname = usePathname();
@@ -62,16 +74,44 @@ function AppShell() {
     submitAbandonedAttempt();
   }, []);
 
+  // Keep the latest values in a ref so the hardware-back handler can be
+  // registered exactly ONCE (on mount). If it re-registered on every
+  // pathname/view change it would jump to the front of the back-press queue and
+  // fire before the screen-level handlers (mock detail, exam, syllabus), which
+  // would send the user Home instead of back to the current tab's list.
+  const backStateRef = useRef({ profileOpen, pathname, view });
+  backStateRef.current = { profileOpen, pathname, view };
+
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      const { profileOpen, pathname, view } = backStateRef.current;
       if (profileOpen) {
         setProfileOpen(false);
         return true;
       }
+      // Any in-screen sub-view (mock detail/results/solutions, live exam)
+      // publishes a `view` param and owns its own back handling — let it return
+      // to its parent list rather than jumping Home from here.
+      if (view) return false;
+
+      const isRootTab = ROOT_TAB_ROUTES.some(
+        (r) => pathname === r || pathname.startsWith(r + "/")
+      );
+      if (isRootTab) {
+        // On a tab other than Home → go Home. On Home → exit the app.
+        if (pathname === HOME_ROUTE || pathname.startsWith(HOME_ROUTE + "/")) {
+          if (Platform.OS === "android") BackHandler.exitApp();
+          return true;
+        }
+        router.replace(HOME_ROUTE);
+        return true;
+      }
+      // Drill-down routes (pushed) fall through to the default pop behaviour.
       return false;
     });
     return () => sub.remove();
-  }, [profileOpen]);
+    // Registered once — reads live state via backStateRef.
+  }, []);
 
   useEffect(() => {
     const configureGoogle = async () => {
