@@ -526,11 +526,11 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
               title="History"
               onPress={() => go("/history")}
             />
-            <Row
+           <Row
               icon={<Ionicons name="notifications-outline" size={18} color={COLORS.orange} />}
               iconBg={COLORS.orangeLight}
               title="Notifications"
-              onPress={() => go("/profile")}
+              onPress={() => go("/notifications-preference")}
               isLast
             />
           </View>
