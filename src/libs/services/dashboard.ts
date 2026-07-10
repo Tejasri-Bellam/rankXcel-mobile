@@ -43,7 +43,7 @@ export async function getSubtopicDetailService(
   examId: number | string,
   topicId: number | string
 ) {
-  return await genericGet(`/v1/exams/${examId}/subtopic/${topicId}/`, true);
+  return await genericGet(`/v1/exams/${examId}/subtopic/${topicId}/trends`, true);
 }
 
 // GET /api/v1/student/consistency/?exam_id={exam_id}
