@@ -216,9 +216,11 @@ export async function getMockTestService(
 
 // Per-subject summary inside a result's topic_breakdown map. The map is keyed
 // by subject id; each entry carries aggregate correct/wrong/unattempted counts
-// plus nested topic/subtopic rows of the same shape. Note the API does NOT
-// include topic/subject names here — names only come from strength_by_subject.
+// plus nested topic/subtopic rows of the same shape. Each node also carries its
+// own `name` and `accuracy`, so weak areas can be surfaced (and deep-linked into
+// practice) straight from this map.
 export interface MockTopicBreakdown {
+  name?: string;
   max_score: number;
   total_score: number;
   correct_score?: number;

@@ -1,17 +1,25 @@
 import { genericGet, genericPost, genericPut } from "./genericService";
 
-// Per-topic row inside a result's topic_breakdown map. The map is keyed by
-// "Subject / Topic" (e.g. "Japan TZ Subject / Verb Conjugation").
+// A node inside a result's topic_breakdown map. The map is keyed by subject id;
+// each entry carries aggregate correct/wrong/unattempted counts plus nested
+// topic/subtopic rows of the same shape. Every node carries its own `name` and
+// `accuracy`, so weak areas can be surfaced (and deep-linked into practice)
+// straight from this map. The legacy flat fields (topic_name/subject_name) are
+// kept optional for older /result/ payloads.
 export interface AssessmentTopicBreakdown {
-  score: number;
+  name?: string;
+  score?: number;
+  total_score?: number;
   max_score: number;
   correct_score?: number;
   wrong_score?: number;
   correct: number;
   wrong: number;
   unattempted: number;
-  topic_name: string;
-  subject_name: string;
+  accuracy?: number;
+  topic_name?: string;
+  subject_name?: string;
+  topics?: Record<string, Partial<AssessmentTopicBreakdown>>;
   subtopics?: Record<string, Partial<AssessmentTopicBreakdown>>;
 }
 

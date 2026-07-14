@@ -18,6 +18,7 @@ import {
 import { getScoreColor } from '@/src/styles/styles';
 import { SUBJECT_ACCENTS } from '@/src/libs/constants';
 import { resultsStyles as styles } from '@/src/styles/styles/mock/resultsstyles';
+import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 
 interface Props {
   mockId: number | string;
@@ -33,6 +34,18 @@ interface Props {
   onBack: () => void;
   onViewSolutions?: () => void;
   onDone: () => void;
+}
+
+// A weak area surfaced under "Practice Next", flattened from topic_breakdown.
+// `topicId` is the id practice targets (a topic's or subtopic's own id); it is
+// absent for subject-level nodes, which practise every topic in the subject.
+interface WeakNode {
+  key: string;
+  name: string;
+  accuracy: number;
+  level: 'Subject' | 'Topic' | 'Sub-topic';
+  subjectName: string;
+  topicId?: number;
 }
 
 function formatTime(seconds: number): string {
@@ -75,6 +88,7 @@ export default function MockExamResults({
   const [result, setResult] = useState<MockTestResult | null>(initialResult ?? null);
   const [loading, setLoading] = useState(!initialResult);
   const [error, setError] = useState<string | null>(null);
+  const { activeExamId } = useTargetExam();
 
   useEffect(() => {
     if (initialResult) return; // already have it from the submit response
@@ -167,12 +181,65 @@ export default function MockExamResults({
     acc: Math.max(0, Math.min(100, Math.round(num(s.accuracy)))),
   }));
 
-  // The topic_breakdown map carries no topic/subject names, so "Practice Next"
-  // suggestions are derived from the weakest named subjects instead.
-  const weakTopics = subjects
-    .filter((s) => s.acc < 60)
-    .sort((a, b) => a.acc - b.acc)
+  // "Practice Next" suggestions: flatten every node in topic_breakdown
+  // (subject → topic → subtopic, each carrying its own name/accuracy) into one
+  // pool and surface the 4 weakest. Tapping one deep-links into the syllabus
+  // practice flow for that exact node.
+  const weakNodes: WeakNode[] = [];
+  Object.entries(result.topic_breakdown ?? {}).forEach(([subjectId, subj]) => {
+    const subjectName = String(subj?.name ?? '');
+    weakNodes.push({
+      key: `subject-${subjectId}`,
+      name: subjectName,
+      accuracy: Math.round(num(subj?.accuracy)),
+      level: 'Subject',
+      subjectName,
+    });
+    Object.entries(subj?.topics ?? {}).forEach(([topicId, topic]) => {
+      weakNodes.push({
+        key: `topic-${topicId}`,
+        name: String(topic?.name ?? ''),
+        accuracy: Math.round(num(topic?.accuracy)),
+        level: 'Topic',
+        subjectName,
+        topicId: Number(topicId),
+      });
+      Object.entries(topic?.subtopics ?? {}).forEach(([subId, sub]) => {
+        weakNodes.push({
+          key: `subtopic-${subId}`,
+          name: String(sub?.name ?? ''),
+          accuracy: Math.round(num(sub?.accuracy)),
+          level: 'Sub-topic',
+          subjectName,
+          // A subtopic practises just its own id (used as topic_ids downstream).
+          topicId: Number(subId),
+        });
+      });
+    });
+  });
+  const practiceNext = weakNodes
+    .filter((n) => n.name)
+    .sort((a, b) => a.accuracy - b.accuracy)
     .slice(0, 4);
+
+  // Deep-link into the syllabus practice tab for a weak node — same params the
+  // Analytics "weak area" tap uses, so the practice setup flow auto-launches.
+  // Subject-level nodes carry no topicId → the flow draws from every topic in
+  // the subject; topic/subtopic nodes target their own id.
+  const startPracticeForNode = (node: WeakNode) => {
+    if (activeExamId == null) return;
+    router.push({
+      pathname: '/practice',
+      params: {
+        chapterName: node.name,
+        subjectName: node.subjectName,
+        ...(node.topicId != null ? { topicId: String(node.topicId) } : {}),
+        questionCount: '20',
+        durationMinutes: '30',
+        examId: String(activeExamId),
+      },
+    });
+  };
 
   const mockTitle = getMockTitle(mock);
 
@@ -259,23 +326,23 @@ export default function MockExamResults({
         )}
 
         {/* ── Practice next ── */}
-        {weakTopics.length > 0 && (
+        {practiceNext.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="locate" size={16} color='#6C63FF' />
               <Text style={styles.sectionTitle}>Practice Next</Text>
             </View>
-            {weakTopics.map((t, i) => (
+            {practiceNext.map((t) => (
               <TouchableOpacity
-                key={`${t.name}-${i}`}
+                key={t.key}
                 style={styles.practiceRow}
-                onPress={onDone}
+                onPress={() => startPracticeForNode(t)}
                 activeOpacity={0.8}
               >
-                <View style={[styles.practiceIcon, { backgroundColor: '#F59E0B' }]} />
+                <View style={[styles.practiceIcon, { backgroundColor: strengthColor(t.accuracy) }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.practiceName} numberOfLines={1}>{t.name}</Text>
-                  <Text style={styles.practiceSub}>Weak · tap to practise</Text>
+                  <Text style={styles.practiceSub}>{t.level} · {t.accuracy}% · tap to practise</Text>
                 </View>
                 <View style={styles.practicePill}>
                   <Ionicons name="play" size={11} color="#6C63FF" />
