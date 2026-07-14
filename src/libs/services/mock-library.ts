@@ -214,17 +214,20 @@ export async function getMockTestService(
   return await genericGet(`/v1/mock-tests/${id}/`, true);
 }
 
-// Per-topic row inside a result's topic_breakdown map.
+// Per-subject summary inside a result's topic_breakdown map. The map is keyed
+// by subject id; each entry carries aggregate correct/wrong/unattempted counts
+// plus nested topic/subtopic rows of the same shape. Note the API does NOT
+// include topic/subject names here — names only come from strength_by_subject.
 export interface MockTopicBreakdown {
-  score: number;
   max_score: number;
+  total_score: number;
   correct_score?: number;
   wrong_score?: number;
   correct: number;
   wrong: number;
   unattempted: number;
-  topic_name: string;
-  subject_name: string;
+  accuracy: number;
+  topics?: Record<string, Partial<MockTopicBreakdown>>;
   subtopics?: Record<string, Partial<MockTopicBreakdown>>;
 }
 
@@ -336,7 +339,7 @@ export interface OptionItem {
 
 export async function getSubjectOptionsService(examId?: number) {
   const qs = examId ? `?exam_id=${examId}` : '';
-  return await genericGet(`/v1/options/subjects/${qs}`, true);
+  return await genericGet(`/v1/options/subjects/?exam=${examId}`, true);
 }
 
 export async function getChapterOptionsService(subjectId?: number) {
