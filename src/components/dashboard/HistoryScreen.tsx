@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   FlatList,
@@ -91,8 +92,9 @@ export default function HistoryScreen() {
         setItems((prev) => (pageNum === 1 ? results : [...prev, ...results]));
         setHasNext(Boolean(data?.next));
         setPage(pageNum);
-      } catch {
-        if (pageNum === 1) setError("Couldn't load your history. Pull to retry.");
+      } catch (err) {
+        if (pageNum === 1)
+          setError(getErrorMessage(err, "Couldn't load your history. Pull to retry."));
       } finally {
         setLoading(false);
         setLoadingMore(false);

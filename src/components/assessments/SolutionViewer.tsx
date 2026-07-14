@@ -7,6 +7,8 @@ import { stripHtml } from '@/src/libs/utils/html';
 import TutorModal from '@/src/components/common/TutorModal';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
+import Toast, { useToast } from '@/src/components/common/Toast';
+import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
   Image,
@@ -71,6 +73,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
+  const { toast, showToast, hideToast } = useToast();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadReview(); }, []);
@@ -104,6 +107,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
       }
     } catch (err) {
       console.log('REVIEW ERROR:', err);
+      showToast(getErrorMessage(err, "Couldn't load solutions."), 'error');
     } finally {
       setLoading(false);
     }
@@ -343,6 +347,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
         questionText={tutorQ?.text}
         ask={(payload) => askAssessmentTutorService(attemptId, payload)}
       />
+      <Toast {...toast} onHide={hideToast} />
     </SafeAreaView>
   );
 }

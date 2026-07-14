@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Text, TextInput, View, TouchableOpacity, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
-import { parseApiError, getFieldError } from '@/src/libs/utils/apiError';
+import { parseApiError, getFieldError, getErrorMessage } from '@/src/libs/utils/apiError';
 
 // Section Header
 const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -89,8 +89,8 @@ export default function ProfileScreen() {
       setname(fullName);
       setEmail(userData?.email || '');
       setPhone(userData?.phone || '');
-    } catch {
-      Alert.alert('Error', 'Failed to load profile data');
+    } catch (err) {
+      Alert.alert('Error', getErrorMessage(err, 'Failed to load profile data'));
     } finally {
       setLoading(false);
     }

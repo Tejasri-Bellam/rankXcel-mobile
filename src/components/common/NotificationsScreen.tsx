@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   Alert,
@@ -104,8 +105,8 @@ export default function NotificationsScreen() {
         ? payload
         : payload?.results ?? [];
       setAlerts(list);
-    } catch {
-      setError("Couldn't load notifications. Pull down to retry.");
+    } catch (err) {
+      setError(getErrorMessage(err, "Couldn't load notifications. Pull down to retry."));
     } finally {
       setLoading(false);
       setRefreshing(false);

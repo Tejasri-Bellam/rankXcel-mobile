@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   ScrollView,
@@ -134,7 +135,7 @@ export default function Leaderboard({ assessmentId, onBack }: Props) {
           if (status >= 400 && status < 500) {
             setBoard({ rows: [], yourResult: null, totalParticipants: 0 });
           } else {
-            setError(err?.message ?? "Couldn't load the leaderboard.");
+            setError(getErrorMessage(err, "Couldn't load the leaderboard."));
           }
         }
       } finally {

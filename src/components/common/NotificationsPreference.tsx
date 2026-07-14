@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import Toast, { useToast } from "@/src/components/common/Toast";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   Alert,
@@ -58,6 +60,7 @@ export default function NotificationPreferencesScreen() {
   const router = useRouter();
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
   const [loading, setLoading] = useState(true);
+  const { toast, showToast, hideToast } = useToast();
 
   useEffect(() => {
     loadPrefs();
@@ -69,8 +72,9 @@ export default function NotificationPreferencesScreen() {
       const res: any = await getNotificationPreferencesService();
       const data = res?.data;
       if (data) setPrefs((prev) => ({ ...prev, ...data }));
-    } catch {
+    } catch (err) {
       // Non-fatal — defaults stay, toggles still work optimistically.
+      showToast(getErrorMessage(err, "Couldn't load your notification preferences."), "error");
     } finally {
       setLoading(false);
     }
@@ -124,6 +128,7 @@ export default function NotificationPreferencesScreen() {
           ))}
         </ScrollView>
       )}
+      <Toast {...toast} onHide={hideToast} />
     </View>
   );
 }

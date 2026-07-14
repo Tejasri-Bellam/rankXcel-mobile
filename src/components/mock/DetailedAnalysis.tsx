@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Toast, { useToast } from '@/src/components/common/Toast';
+import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   View,
   Text,
@@ -70,6 +72,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<AnalysisTab>('subject');
+  const { toast, showToast, hideToast } = useToast();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
@@ -92,8 +95,12 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
       if (resultRes.status === 'fulfilled') {
         setResult((resultRes.value as any)?.data ?? null);
       }
+      if (analysisRes.status === 'rejected' && resultRes.status === 'rejected') {
+        showToast(getErrorMessage(analysisRes.reason, "Couldn't load the analysis."), 'error');
+      }
     } catch (err) {
       console.log('MOCK ANALYSIS ERROR:', err);
+      showToast(getErrorMessage(err, "Couldn't load the analysis."), 'error');
     } finally {
       setLoading(false);
     }
@@ -493,6 +500,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
         )}
 
       </ScrollView>
+      <Toast {...toast} onHide={hideToast} />
     </SafeAreaView>
   );
 }
