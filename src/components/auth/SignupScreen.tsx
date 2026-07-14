@@ -36,6 +36,7 @@ import {
   FieldErrors,
   getApiErrorMessage,
   getApiFieldErrors,
+  getNonFieldError,
 } from '@/src/components/auth/authForm';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BRAND } from '@/src/libs/constants';
@@ -209,8 +210,14 @@ export default function SignupScreen() {
       }, 800);
     } catch (error: any) {
       console.log('SIGNUP ERROR:', JSON.stringify(error, null, 2));
-      setFieldErrors(getApiFieldErrors(error));
-      showToast(getApiErrorMessage(error), 'error');
+      const apiFieldErrors = getApiFieldErrors(error);
+      setFieldErrors(apiFieldErrors);
+      // Show the form-level message as a toast; pure field errors already render
+      // below their inputs, so only toast a generic message when nothing mapped.
+      const nonField = getNonFieldError(error);
+      if (nonField) showToast(nonField, 'error');
+      else if (!Object.keys(apiFieldErrors).length)
+        showToast(getApiErrorMessage(error), 'error');
     } finally {
       setLoading(false);
     }
@@ -483,6 +490,7 @@ export default function SignupScreen() {
               keyboardType="phone-pad"
               error={fieldErrors.mobileNumber}
               hint="10 digit mobile number"
+              maxLength={10}
             />
 
             <InputField

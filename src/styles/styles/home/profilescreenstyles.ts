@@ -318,6 +318,14 @@ addExamInlineField: {
     color: '#EF4444',
     fontWeight: '600',
   },
+  // Inline validation error rendered directly below a single input.
+  fieldError: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
+    lineHeight: 16,
+  },
   pwdActions: {
     flexDirection: 'row',
     alignItems: 'center',

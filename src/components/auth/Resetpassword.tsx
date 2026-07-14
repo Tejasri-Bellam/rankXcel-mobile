@@ -15,6 +15,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { resetPasswordConfirmService } from '@/src/libs/services/auth';
 import { resetPasswordStyles as styles } from '@/src/styles/styles/auth/resetpasswordstyles';
 import { BRAND } from '@/src/libs/constants';
+import { parseApiError, getFieldError, getErrorMessage } from '@/src/libs/utils/apiError';
 
 // Main Screen
 export default function ResetPasswordConfirmScreen() {
@@ -26,6 +27,9 @@ export default function ResetPasswordConfirmScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Server-side field errors, rendered below each password input.
+  const [newPasswordError, setNewPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
   // Password strength indicator
   const getPasswordStrength = (pwd: string): { label: string; color: string; pct: number } => {
@@ -47,16 +51,18 @@ export default function ResetPasswordConfirmScreen() {
 
   // Handler
   const handleResetPassword = async () => {
+    setNewPasswordError('');
+    setConfirmPasswordError('');
     if (!newPassword || !confirmPassword) {
       Alert.alert('Error', 'Please fill in both password fields.');
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters.');
+      setNewPasswordError('Password must be at least 8 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      setConfirmPasswordError('Passwords do not match.');
       return;
     }
     if (!uidb64 || !token) {
@@ -74,19 +80,19 @@ export default function ResetPasswordConfirmScreen() {
       setSuccess(true);
     } catch (error: any) {
       console.log('RESET PASSWORD ERROR:', JSON.stringify(error, null, 2));
-      // The API interceptor rejects with { status, errors, body } — not an
-      // axios error — so read the message off that shape.
-      const apiErrors = error?.errors as Record<string, string[]> | undefined;
-      const body = error?.body as Record<string, any> | undefined;
-      const message =
-        apiErrors?.password?.[0] ||
-        apiErrors?.confirm_password?.[0] ||
-        apiErrors?.token?.[0] ||
-        apiErrors?.nonFieldErrors?.[0] ||
-        (typeof body?.message === 'string' ? body.message : undefined) ||
-        (typeof body?.detail === 'string' ? body.detail : undefined) ||
-        'Failed to reset password. The link may have expired.';
-      Alert.alert('Error', message);
+      // Map field errors below their inputs; token/non-field errors go to an
+      // Alert since they're not tied to a single input.
+      const parsed = parseApiError(error);
+      const pwErr = getFieldError(parsed, 'password', 'new_password');
+      const confErr = getFieldError(parsed, 'confirm_password');
+      if (pwErr) setNewPasswordError(pwErr);
+      if (confErr) setConfirmPasswordError(confErr);
+      if (!pwErr && !confErr) {
+        Alert.alert(
+          'Error',
+          getErrorMessage(error, 'Failed to reset password. The link may have expired.'),
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -188,7 +194,7 @@ export default function ResetPasswordConfirmScreen() {
                   placeholder="Enter new password"
                   placeholderTextColor="#9CA3AF"
                   value={newPassword}
-                  onChangeText={setNewPassword}
+                  onChangeText={(t) => { setNewPassword(t); if (newPasswordError) setNewPasswordError(''); }}
                   secureTextEntry={!showNew}
                   autoCapitalize="none"
                   editable={!loading}
@@ -205,6 +211,10 @@ export default function ResetPasswordConfirmScreen() {
                   />
                 </TouchableOpacity>
               </View>
+
+              {!!newPasswordError && (
+                <Text style={styles.errorText}>{newPasswordError}</Text>
+              )}
 
               {/* Strength bar */}
               {newPassword.length > 0 && (
@@ -247,7 +257,7 @@ export default function ResetPasswordConfirmScreen() {
                   placeholder="Re-enter new password"
                   placeholderTextColor="#9CA3AF"
                   value={confirmPassword}
-                  onChangeText={setConfirmPassword}
+                  onChangeText={(t) => { setConfirmPassword(t); if (confirmPasswordError) setConfirmPasswordError(''); }}
                   secureTextEntry={!showConfirm}
                   autoCapitalize="none"
                   editable={!loading}
@@ -264,9 +274,11 @@ export default function ResetPasswordConfirmScreen() {
                   />
                 </TouchableOpacity>
               </View>
-              {passwordsMismatch && (
+              {confirmPasswordError ? (
+                <Text style={styles.errorText}>{confirmPasswordError}</Text>
+              ) : passwordsMismatch ? (
                 <Text style={styles.errorText}>Passwords do not match</Text>
-              )}
+              ) : null}
             </View>
 
             <TouchableOpacity

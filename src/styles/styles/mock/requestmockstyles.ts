@@ -163,6 +163,25 @@ export const requestMockStyles = StyleSheet.create({
   },
   infoBoxText: { fontSize: 12, color: '#9CA3AF', lineHeight: 17 },
 
+  // Inline validation error shown directly below the field it belongs to.
+  fieldError: {
+    fontSize: 12,
+    color: '#DC2626',
+    lineHeight: 16,
+    marginTop: 6,
+  },
+  // Form-level error (non-field / generation errors) shown above the submit button.
+  formError: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  formErrorText: { fontSize: 12.5, color: '#B91C1C', lineHeight: 18 },
+
   summaryText: {
     fontSize: 13,
     fontWeight: '500',
