@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { getMeService } from '@/src/libs/services/profile';
 import { useHeaderScroll } from '@/src/libs/context/HeaderScrollContext';
-import { getAlertsUnreadCountService } from '@/src/libs/services/alerts';
+import { getAlertsUnreadCountService, getAlertsService } from '@/src/libs/services/alerts';
 
 type HeaderProps = {
   onProfilePress: () => void;
@@ -24,7 +24,7 @@ let cachedAvatarText = "";
 export default function Header({ onProfilePress }: HeaderProps) {
   const router = useRouter();
   const [avatarText, setAvatarText] = useState(cachedAvatarText);
-  const [hasUnread, setHasUnread] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { scrolled } = useHeaderScroll();
 
   useEffect(() => {
@@ -60,9 +60,35 @@ export default function Header({ onProfilePress }: HeaderProps) {
   const fetchUnreadCount = async () => {
     try {
       const res: any = await getAlertsUnreadCountService();
-      setHasUnread((res?.data?.unread_count ?? 0) > 0);
+      // Handle either { data: { unread_count } } or { unread_count } directly,
+      // depending on how genericGet unwraps the response.
+      const count = res?.data?.unread_count ?? res?.unread_count;
+
+      if (typeof count === "number") {
+        setUnreadCount(count);
+        return;
+      }
+
+      // Fallback: unread-count endpoint didn't return a usable number —
+      // derive it from the full alerts list instead.
+      await fetchUnreadCountFallback();
     } catch {
-      // non-fatal — dot stays hidden
+      await fetchUnreadCountFallback();
+    }
+  };
+
+  const fetchUnreadCountFallback = async () => {
+    try {
+      const res: any = await getAlertsService();
+      const payload = res?.data ?? res;
+      const list = Array.isArray(payload) ? payload : payload?.results ?? [];
+      const hasReadField = list.length > 0 && typeof list[0]?.is_read === "boolean";
+      const count = hasReadField
+        ? list.filter((a: any) => !a.is_read).length
+        : list.length;
+      setUnreadCount(count);
+    } catch {
+      // non-fatal — badge stays hidden
     }
   };
 
@@ -83,7 +109,13 @@ export default function Header({ onProfilePress }: HeaderProps) {
             size={20}
             color={COLORS.textDark}
           />
-          {hasUnread && <View style={styles.notifDot} />}
+          {unreadCount > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -139,16 +171,25 @@ const styles: any = {
     shadowRadius: 6,
     elevation: 2,
   },
-  notifDot: {
+  notifBadge: {
     position: 'absolute',
-    top: 9,
-    right: 10,
+    top: 3,
+    right: 3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
     backgroundColor: COLORS.red,
-    borderRadius: 4,
-    width: 8,
-    height: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: COLORS.white,
+  },
+  notifBadgeText: {
+    color: COLORS.white,
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 11,
   },
   avatar: {
     width: 38,

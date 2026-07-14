@@ -10,7 +10,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import {
-  getMockTestResultService,
   getMockAttemptResultService,
   MockTest,
   MockTestResult,
@@ -22,8 +21,8 @@ import { resultsStyles as styles } from '@/src/styles/styles/mock/resultsstyles'
 
 interface Props {
   mockId: number | string;
-  // Attempt to read the result from; when set, the attempt-based /result/
-  // endpoint is used, otherwise it falls back to the mock-based one.
+  // Attempt to read the result from; the attempt-based /result/ endpoint is
+  // keyed on this id.
   attemptId?: number | string | null;
   mock: MockTest;
   answers: Record<string, string[]>;
@@ -65,7 +64,6 @@ const subjectAccent = (name: string): string => {
 };
 
 export default function MockExamResults({
-  mockId,
   attemptId,
   mock,
   timeTakenSeconds,
@@ -88,10 +86,11 @@ export default function MockExamResults({
     try {
       setLoading(true);
       setError(null);
-      const res =
-        attemptId != null
-          ? await getMockAttemptResultService(attemptId)
-          : await getMockTestResultService(mockId);
+      if (attemptId == null) {
+        setError('Failed to load results.');
+        return;
+      }
+      const res = await getMockAttemptResultService(attemptId);
       const data = ((res as any)?.data ?? (res as any)) as MockTestResult | null;
       if (!data) {
         setError('Failed to load results.');
@@ -162,24 +161,18 @@ export default function MockExamResults({
   const verdict =
     percentagePct >= 80 ? 'Mastered' : percentagePct >= 50 ? 'Good progress' : 'Needs work';
 
-  // Weakest topics → "Practice next" suggestions.
-  const weakTopics = topics
-    .map((t) => {
-      const att = num(t.correct) + num(t.wrong) + num(t.unattempted);
-      return {
-        name: t.topic_name || 'Topic',
-        subject: t.subject_name || '',
-        acc: att > 0 ? Math.round((num(t.correct) / att) * 100) : 0,
-      };
-    })
-    .filter((t) => t.acc < 60)
-    .sort((a, b) => a.acc - b.acc)
-    .slice(0, 4);
-
   const subjects = (result.strength_by_subject ?? []).map((s) => ({
     name: s.subject_name,
-    acc: Math.round(num(s.accuracy)),
+    // Accuracy can come back negative under negative marking — clamp to 0–100.
+    acc: Math.max(0, Math.min(100, Math.round(num(s.accuracy)))),
   }));
+
+  // The topic_breakdown map carries no topic/subject names, so "Practice Next"
+  // suggestions are derived from the weakest named subjects instead.
+  const weakTopics = subjects
+    .filter((s) => s.acc < 60)
+    .sort((a, b) => a.acc - b.acc)
+    .slice(0, 4);
 
   const mockTitle = getMockTitle(mock);
 
@@ -353,3 +346,4 @@ export default function MockExamResults({
     </SafeAreaView>
   );
 }
+ 
