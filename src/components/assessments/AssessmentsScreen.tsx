@@ -325,10 +325,19 @@ export default function AssessmentsScreen() {
   }, [selected]);
 
   if (selected) {
+    // Render from the freshest copy of this test in `data` (kept current by the
+    // 30s tick and the boundary refetch) and re-derive its status each render,
+    // rather than the frozen snapshot captured at tap time. Otherwise a test
+    // that goes live — or that the student just registered for — while its
+    // detail is open keeps showing "Registered"/"Upcoming" instead of "Enter
+    // live test" until a manual pull-to-refresh.
+    const fresh =
+      data.find((it) => String(it?.id) === String(selected.item?.id)) ??
+      selected.item;
     return (
       <LiveTestDetail
-        item={selected.item}
-        status={selected.status}
+        item={fresh}
+        status={deriveStatus(fresh)}
         onBack={() => {
           setSelected(null);
           fetchAssessments(true);

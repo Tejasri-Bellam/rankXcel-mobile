@@ -543,7 +543,7 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
            <Row
               icon={<Ionicons name="notifications-outline" size={18} color={COLORS.orange} />}
               iconBg={COLORS.orangeLight}
-              title="Notifications"
+              title="Notification Preference"
               onPress={() => go("/notifications-preference")}
               isLast
             />
