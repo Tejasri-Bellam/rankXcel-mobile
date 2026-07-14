@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
   ScrollView,
@@ -95,8 +96,8 @@ export default function ExamResults({
         return;
       }
       setResult(data);
-    } catch {
-      setError('Failed to load results.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load results.'));
     } finally {
       setLoading(false);
     }

@@ -18,6 +18,7 @@ import {
 import { onboardingStyles as s } from '@/src/styles/styles/onboarding/setgoalscreenstyles';
 import { COLORS } from '@/src/styles/styles';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
+import { parseApiError, getFieldError } from '@/src/libs/utils/apiError';
 import { OnboardingJson } from '../json/onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -36,6 +37,10 @@ export default function SetGoalScreen() {
   const [submitting, setSubmitting] = useState(false);
   // Ids of exams the user has already assigned — disabled in the dropdown.
   const [assignedIds, setAssignedIds] = useState<Set<number>>(new Set());
+  // Server-side validation errors, rendered below their fields.
+  const [goalErrors, setGoalErrors] = useState<{
+    exam?: string; targetYear?: string; form?: string;
+  }>({});
 
   useEffect(() => {
     (async () => {
@@ -77,6 +82,7 @@ export default function SetGoalScreen() {
       return;
     }
     setSubmitting(true);
+    setGoalErrors({});
     try {
       const res = await addTargetExamService({
         exam: selectedExam.id,
@@ -91,25 +97,29 @@ export default function SetGoalScreen() {
       }
       Alert.alert('Error', 'Could not save your goal. Please try again.');
     } catch (error: any) {
-      const apiErrors = error?.errors || {};
-      const body = error?.body || {};
-      const message =
-        apiErrors.nonFieldErrors?.[0] ||
-        apiErrors.exam?.[0] ||
-        apiErrors.target_year?.[0] ||
-        Object.values(apiErrors).flat()[0] ||
-        (typeof body.detail === 'string' ? body.detail : null) ||
-        'Failed to save target exam';
+      const parsed = parseApiError(error);
+      const examErr = getFieldError(parsed, 'exam', 'exam_id');
+      const yearErr = getFieldError(parsed, 'target_year', 'year');
+      const formMsg =
+        parsed.nonFieldError ??
+        (typeof error?.body?.detail === 'string' ? error.body.detail : null);
 
       // Goal already set for this account — just continue in.
       if (
-        String(message).toLowerCase().includes('already') ||
+        String(formMsg ?? '').toLowerCase().includes('already') ||
         error?.status === 409
       ) {
         router.replace('/dashboard');
         return;
       }
-      Alert.alert('Error', String(message));
+
+      setGoalErrors({
+        exam: examErr,
+        targetYear: yearErr,
+        form:
+          formMsg ??
+          (examErr || yearErr ? undefined : 'Failed to save target exam'),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -211,6 +221,7 @@ export default function SetGoalScreen() {
                             setSelectedExam(opt);
                             setExamDropdownOpen(false);
                             setExamSearch('');
+                            setGoalErrors((p) => ({ ...p, exam: undefined, form: undefined }));
                           }}
                         >
                           <Text style={s.optionText}>{opt.name}</Text>
@@ -223,6 +234,9 @@ export default function SetGoalScreen() {
                   </ScrollView>
                 )}
               </View>
+            )}
+            {!!goalErrors.exam && (
+              <Text style={s.fieldError}>{goalErrors.exam}</Text>
             )}
           </View>
 
@@ -243,6 +257,7 @@ export default function SetGoalScreen() {
                 onChangeText={(text) => {
                   const digits = text.replace(/[^0-9]/g, '');
                   setTargetYear(digits ? Number(digits) : null);
+                  setGoalErrors((p) => ({ ...p, targetYear: undefined, form: undefined }));
                 }}
                 placeholder={String(data.goal.placeholders.year)}
                 placeholderTextColor={COLORS.textLight}
@@ -250,7 +265,12 @@ export default function SetGoalScreen() {
                 maxLength={4}
               />
             </View>
+            {!!goalErrors.targetYear && (
+              <Text style={s.fieldError}>{goalErrors.targetYear}</Text>
+            )}
           </View>
+
+          {!!goalErrors.form && <Text style={s.fieldError}>{goalErrors.form}</Text>}
 
           {/* Submit */}
           <TouchableOpacity

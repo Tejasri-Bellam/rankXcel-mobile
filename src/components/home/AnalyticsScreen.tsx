@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
+import Toast, { useToast } from "@/src/components/common/Toast";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -370,46 +372,51 @@ export default function AnalyticsScreen() {
   const [trends, setTrends] = useState<TrendsData>(EMPTY_TRENDS);
   const [weakestNodes, setWeakestNodes] = useState<WeakNode[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast, hideToast } = useToast();
 
   const loadConsistency = useCallback(async () => {
     if (activeExamId == null) return;
     try {
       const res = await getConsistencyService(activeExamId);
       setConsistency(normalizeConsistency(res));
-    } catch {
+    } catch (err) {
       setConsistency(EMPTY_CONSISTENCY);
+      showToast(getErrorMessage(err, "Couldn't load your stats."), "error");
     }
-  }, [activeExamId]);
+  }, [activeExamId, showToast]);
 
   const loadExamStats = useCallback(async () => {
     if (activeExamId == null) return;
     try {
       const res = await getExamStatsService(activeExamId);
       setExamStats(normalizeExamStats(res));
-    } catch {
+    } catch (err) {
       setExamStats(EMPTY_STATS);
+      showToast(getErrorMessage(err, "Couldn't load your stats."), "error");
     }
-  }, [activeExamId]);
+  }, [activeExamId, showToast]);
 
   const loadTrends = useCallback(async () => {
     if (activeExamId == null) return;
     try {
       const res = await getExamTrendsService(activeExamId);
       setTrends(normalizeTrends(res));
-    } catch {
+    } catch (err) {
       setTrends(EMPTY_TRENDS);
+      showToast(getErrorMessage(err, "Couldn't load your stats."), "error");
     }
-  }, [activeExamId]);
+  }, [activeExamId, showToast]);
 
   const loadWeakestNodes = useCallback(async () => {
     if (activeExamId == null) return;
     try {
       const res = await getWeakestNodesService(activeExamId);
       setWeakestNodes(normalizeWeakestNodes(res));
-    } catch {
+    } catch (err) {
       setWeakestNodes([]);
+      showToast(getErrorMessage(err, "Couldn't load your stats."), "error");
     }
-  }, [activeExamId]);
+  }, [activeExamId, showToast]);
 
   useEffect(() => {
     loadConsistency();
@@ -851,6 +858,7 @@ console.log('consistency', consistency);
 
         <View style={{ height: 28 }} />
       </ScrollView>
+      <Toast {...toast} onHide={hideToast} />
     </View>
   );
 }

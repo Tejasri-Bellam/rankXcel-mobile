@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Text, TextInput, View, TouchableOpacity, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { parseApiError, getFieldError, getErrorMessage } from '@/src/libs/utils/apiError';
 
 // Section Header
 const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
@@ -16,10 +17,10 @@ const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string })
 
 // Labeled Input
 const LabeledInput = ({
-  label, value, onChangeText, placeholder, keyboardType, disabled = false,
+  label, value, onChangeText, maxLength, placeholder, keyboardType, disabled = false, error,
 }: {
   label: string; value: string; onChangeText: (t: string) => void;
-  placeholder?: string; keyboardType?: any; disabled?: boolean;
+  maxLength?: number; placeholder?: string; keyboardType?: any; disabled?: boolean; error?: string;
 }) => (
   <View style={profileStyles.inputGroup}>
     <Text style={profileStyles.inputLabel}>{label}</Text>
@@ -32,11 +33,13 @@ const LabeledInput = ({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
+        maxLength={maxLength}
         placeholderTextColor={COLORS.textLight}
         keyboardType={keyboardType || 'default'}
         editable={!disabled}
       />
     </View>
+    {!!error && <Text style={profileStyles.fieldError}>{error}</Text>}
   </View>
 );
 
@@ -51,6 +54,10 @@ export default function ProfileScreen() {
   const [name, setname] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  // Server-side validation errors for the personal-info form.
+  const [personalErrors, setPersonalErrors] = useState<{
+    name?: string; phone?: string; form?: string;
+  }>({});
 
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [currentPwd, setCurrentPwd] = useState('');
@@ -59,7 +66,10 @@ export default function ProfileScreen() {
   const [showCurrentPwd, setShowCurrentPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
-  const [pwdError, setPwdError] = useState('');
+  // Per-field password errors (below each input) plus a form-level message.
+  const [pwdErrors, setPwdErrors] = useState<{
+    current?: string; new?: string; confirm?: string; form?: string;
+  }>({});
   const [pwdLoading, setPwdLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -79,8 +89,8 @@ export default function ProfileScreen() {
       setname(fullName);
       setEmail(userData?.email || '');
       setPhone(userData?.phone || '');
-    } catch {
-      Alert.alert('Error', 'Failed to load profile data');
+    } catch (err) {
+      Alert.alert('Error', getErrorMessage(err, 'Failed to load profile data'));
     } finally {
       setLoading(false);
     }
@@ -94,6 +104,7 @@ export default function ProfileScreen() {
   const handleSavePersonal = async () => {
     try {
       setSaveLoading(true);
+      setPersonalErrors({});
 
       const payload = {
         name: name.trim(),
@@ -104,8 +115,19 @@ export default function ProfileScreen() {
 
       Alert.alert('Success', 'Profile updated successfully');
       fetchProfile();
-    } catch {
-      Alert.alert('Un-success', 'Failed to update profile');
+    } catch (err: any) {
+      // Show any field-level errors below the matching input; fall back to a
+      // form-level message for anything else.
+      const parsed = parseApiError(err);
+      const nameErr = getFieldError(parsed, 'name', 'full_name', 'first_name');
+      const phoneErr = getFieldError(parsed, 'phone', 'mobile', 'mobile_number');
+      setPersonalErrors({
+        name: nameErr,
+        phone: phoneErr,
+        form:
+          parsed.nonFieldError ??
+          (nameErr || phoneErr ? undefined : 'Failed to update profile'),
+      });
     } finally {
       setSaveLoading(false);
     }
@@ -116,17 +138,17 @@ export default function ProfileScreen() {
     setCurrentPwd('');
     setNewPwd('');
     setConfirmPwd('');
-    setPwdError('');
+    setPwdErrors({});
     setShowCurrentPwd(false);
     setShowNewPwd(false);
     setShowConfirmPwd(false);
   };
 
   const handleUpdatePassword = async () => {
-    setPwdError('');
-    if (!currentPwd) { setPwdError('Please enter your current password.'); return; }
-    if (newPwd.length < 8) { setPwdError('New password must be at least 8 characters.'); return; }
-    if (newPwd !== confirmPwd) { setPwdError('Passwords do not match.'); return; }
+    setPwdErrors({});
+    if (!currentPwd) { setPwdErrors({ current: 'Please enter your current password.' }); return; }
+    if (newPwd.length < 8) { setPwdErrors({ new: 'New password must be at least 8 characters.' }); return; }
+    if (newPwd !== confirmPwd) { setPwdErrors({ confirm: 'Passwords do not match.' }); return; }
 
     try {
       setPwdLoading(true);
@@ -140,14 +162,22 @@ export default function ProfileScreen() {
       closePasswordModal();
       Alert.alert('Success', 'Your password has been changed successfully.');
     } catch (err: any) {
-      const errors = err?.errors ?? {};
-      const message =
-        errors.old_password?.[0] ||
-        errors.new_password?.[0] ||
-        errors.confirm_password?.[0] ||
-        errors.nonFieldErrors?.[0] ||
-        'Failed to change password. Please try again.';
-      setPwdError(message);
+      // Map each server field error below its input; anything else becomes a
+      // form-level message shown above the actions.
+      const parsed = parseApiError(err);
+      const current = getFieldError(parsed, 'old_password', 'current_password');
+      const next = getFieldError(parsed, 'new_password', 'password');
+      const confirm = getFieldError(parsed, 'confirm_password');
+      setPwdErrors({
+        current,
+        new: next,
+        confirm,
+        form:
+          parsed.nonFieldError ??
+          (current || next || confirm
+            ? undefined
+            : 'Failed to change password. Please try again.'),
+      });
     } finally {
       setPwdLoading(false);
     }
@@ -213,8 +243,9 @@ export default function ProfileScreen() {
         {/* ── Personal Information ── */}
         <View style={profileStyles.card}>
           <SectionHeader title="Personal Information" subtitle="Update your name and contact details." />
-          <LabeledInput label="Full Name" value={name} onChangeText={setname} placeholder="Your full name" />
-          <LabeledInput label="Phone Number" value={phone} onChangeText={setPhone} placeholder="9876543210" keyboardType="phone-pad" />
+          <LabeledInput label="Full Name" value={name} onChangeText={(t) => { setname(t); setPersonalErrors((p) => ({ ...p, name: undefined, form: undefined })); }} placeholder="Your full name" error={personalErrors.name} />
+          <LabeledInput maxLength={10} label="Phone Number" value={phone} onChangeText={(t) => { setPhone(t); setPersonalErrors((p) => ({ ...p, phone: undefined, form: undefined })); }} placeholder="9876543210" keyboardType="phone-pad" error={personalErrors.phone} />
+          {!!personalErrors.form && <Text style={profileStyles.fieldError}>{personalErrors.form}</Text>}
           <TouchableOpacity style={profileStyles.saveBtn} onPress={handleSavePersonal} disabled={saveLoading}>
             {saveLoading
               ? <ActivityIndicator size="small" color={COLORS.white} />
@@ -276,29 +307,32 @@ export default function ProfileScreen() {
             >
               <Text style={profileStyles.inputLabel}>Current Password</Text>
               <View style={profileStyles.pwdInputRow}>
-                <TextInput style={profileStyles.pwdInput} value={currentPwd} onChangeText={setCurrentPwd} placeholder="Enter current password" placeholderTextColor={COLORS.textLight} secureTextEntry={!showCurrentPwd} />
+                <TextInput style={profileStyles.pwdInput} value={currentPwd} onChangeText={(t) => { setCurrentPwd(t); setPwdErrors((p) => ({ ...p, current: undefined, form: undefined })); }} placeholder="Enter current password" placeholderTextColor={COLORS.textLight} secureTextEntry={!showCurrentPwd} />
                 <TouchableOpacity style={profileStyles.eyeBtn} onPress={() => setShowCurrentPwd(!showCurrentPwd)}>
                   <Ionicons name={showCurrentPwd ? 'eye-outline' : 'eye-off-outline'} size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
               </View>
+              {!!pwdErrors.current && <Text style={profileStyles.fieldError}>{pwdErrors.current}</Text>}
 
               <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>New Password</Text>
               <View style={profileStyles.pwdInputRow}>
-                <TextInput style={profileStyles.pwdInput} value={newPwd} onChangeText={setNewPwd} placeholder="At least 8 characters" placeholderTextColor={COLORS.textLight} secureTextEntry={!showNewPwd} />
+                <TextInput style={profileStyles.pwdInput} value={newPwd} onChangeText={(t) => { setNewPwd(t); setPwdErrors((p) => ({ ...p, new: undefined, form: undefined })); }} placeholder="At least 8 characters" placeholderTextColor={COLORS.textLight} secureTextEntry={!showNewPwd} />
                 <TouchableOpacity style={profileStyles.eyeBtn} onPress={() => setShowNewPwd(!showNewPwd)}>
                   <Ionicons name={showNewPwd ? 'eye-outline' : 'eye-off-outline'} size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
               </View>
+              {!!pwdErrors.new && <Text style={profileStyles.fieldError}>{pwdErrors.new}</Text>}
 
               <Text style={[profileStyles.inputLabel, { marginTop: 12 }]}>Confirm New Password</Text>
               <View style={profileStyles.pwdInputRow}>
-                <TextInput style={profileStyles.pwdInput} value={confirmPwd} onChangeText={setConfirmPwd} placeholder="Repeat new password" placeholderTextColor={COLORS.textLight} secureTextEntry={!showConfirmPwd} />
+                <TextInput style={profileStyles.pwdInput} value={confirmPwd} onChangeText={(t) => { setConfirmPwd(t); setPwdErrors((p) => ({ ...p, confirm: undefined, form: undefined })); }} placeholder="Repeat new password" placeholderTextColor={COLORS.textLight} secureTextEntry={!showConfirmPwd} />
                 <TouchableOpacity style={profileStyles.eyeBtn} onPress={() => setShowConfirmPwd(!showConfirmPwd)}>
                   <Ionicons name={showConfirmPwd ? 'eye-outline' : 'eye-off-outline'} size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
               </View>
+              {!!pwdErrors.confirm && <Text style={profileStyles.fieldError}>{pwdErrors.confirm}</Text>}
 
-              {pwdError !== '' && <Text style={profileStyles.pwdError}>{pwdError}</Text>}
+              {!!pwdErrors.form && <Text style={profileStyles.pwdError}>{pwdErrors.form}</Text>}
 
               <View style={profileStyles.pwdActions}>
                 <TouchableOpacity style={profileStyles.cancelPwdBtn} onPress={closePasswordModal}>

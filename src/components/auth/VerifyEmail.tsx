@@ -12,12 +12,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { resendOtpService, verifyEmailService } from '@/src/libs/services/auth';
 import { storageSetAccessToken } from '@/src/libs/storage';
 import { verifyEmailStyles as styles } from '@/src/styles/styles/auth/verifyemailstyles';
+import { getApiErrorMessage } from './authForm';
+import { parseApiError, getFieldError } from '@/src/libs/utils/apiError';
 
 const OTP_LENGTH = 6;
 
 export default function VerifyEmailScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const [otpError, setOtpError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -73,10 +76,11 @@ export default function VerifyEmailScreen() {
 
     const code = otp.join('');
     if (code.length < OTP_LENGTH) {
-      Alert.alert('Error', 'Please enter the complete 6-digit code');
+      setOtpError('Please enter the complete 6-digit code');
       return;
     }
 
+    setOtpError('');
     setLoading(true);
 
     try {
@@ -106,12 +110,16 @@ export default function VerifyEmailScreen() {
       ]);
     } catch (error: any) {
       console.log('VERIFY ERROR:', JSON.stringify(error, null, 2));
-      Alert.alert(
-        'Verification Failed',
-        error?.body?.error ||
-          error?.body?.detail ||
-          'Invalid or expired code. Please try again.'
-      );
+      // Show OTP-specific errors below the code boxes; anything else in an Alert.
+      const parsed = parseApiError(error);
+      const codeErr = getFieldError(parsed, 'otp', 'code', 'token');
+      if (codeErr) setOtpError(codeErr);
+      else if (parsed.nonFieldError) setOtpError(parsed.nonFieldError);
+      else
+        Alert.alert(
+          'Verification Failed',
+          getApiErrorMessage(error, 'Invalid or expired code. Please try again.')
+        );
     } finally {
       setLoading(false);
     }
@@ -143,10 +151,7 @@ export default function VerifyEmailScreen() {
       setCanResend(false);
     } catch (error: any) {
       console.log('RESEND ERROR:', JSON.stringify(error, null, 2));
-      Alert.alert(
-        'Error',
-        error?.body?.error || error?.body?.detail || 'Failed to resend OTP'
-      );
+      Alert.alert('Error', getApiErrorMessage(error, 'Failed to resend OTP'));
     } finally {
       setLoading(false);
     }
@@ -193,7 +198,7 @@ export default function VerifyEmailScreen() {
                   digit ? styles.otpBoxFilled : null,
                 ]}
                 value={digit}
-                onChangeText={(val) => handleOtpChange(val, index)}
+                onChangeText={(val) => { if (otpError) setOtpError(''); handleOtpChange(val, index); }}
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 keyboardType="number-pad"
                 maxLength={1} // ✅ FIXED
@@ -202,6 +207,12 @@ export default function VerifyEmailScreen() {
               />
             ))}
           </View>
+
+          {!!otpError && (
+            <Text style={{ marginTop: 4, marginBottom: 4, fontSize: 12, color: '#EF4444', fontWeight: '500', textAlign: 'center' }}>
+              {otpError}
+            </Text>
+          )}
 
           <View style={styles.resendContainer}>
             {canResend ? (

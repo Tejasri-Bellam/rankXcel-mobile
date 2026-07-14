@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   Modal,
@@ -110,8 +111,8 @@ export default function CountrySelect({ onChange }: Props) {
           mapped[0] ??
           null;
         if (active && initial) setSelected(initial);
-      } catch {
-        if (active) setError("Couldn't load countries.");
+      } catch (err) {
+        if (active) setError(getErrorMessage(err, "Couldn't load countries."));
       } finally {
         if (active) setLoading(false);
       }

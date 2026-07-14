@@ -11,6 +11,8 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast, { useToast } from "@/src/components/common/Toast";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getassessmentsService } from "@/src/libs/services/assessments";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
@@ -150,6 +152,7 @@ export default function AssessmentsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const loadingMoreRef = useRef(false);
+  const { toast, showToast, hideToast } = useToast();
 
   // Honour a `tab` filter passed in via navigation (e.g. Home's "Upcoming live
   // → All"), then clear it so a manual filter change isn't overridden later.
@@ -182,6 +185,8 @@ export default function AssessmentsScreen() {
       );
     } catch (error: any) {
       console.log("ASSESSMENTS ERROR:", JSON.stringify(error, null, 2));
+      if (!silent)
+        showToast(getErrorMessage(error, "Couldn't load assessments."), "error");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -505,6 +510,7 @@ export default function AssessmentsScreen() {
           />
         )}
       </ScrollView>
+      <Toast {...toast} onHide={hideToast} />
     </SafeAreaView>
   );
 }

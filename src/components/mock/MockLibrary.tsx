@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
   BackHandler,
@@ -192,7 +193,7 @@ export default function MockLibrary({
       setPage(1);
       setHasMore(!!next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load mock tests.');
+      setError(getErrorMessage(err, 'Failed to load mock tests.'));
     } finally {
       setLoading(false);
       setRefreshing(false);

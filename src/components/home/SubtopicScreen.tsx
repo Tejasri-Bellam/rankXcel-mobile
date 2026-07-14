@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
+import Toast, { useToast } from "@/src/components/common/Toast";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -116,6 +118,7 @@ export default function SubtopicScreen() {
   const [detail, setDetail] = useState<SubtopicDetail>(fallback);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const { toast, showToast, hideToast } = useToast();
 
   const load = useCallback(async () => {
     if (examId == null || topicId == null) {
@@ -125,12 +128,13 @@ export default function SubtopicScreen() {
     try {
       const res = await getSubtopicDetailService(examId, topicId);
       setDetail(normalize(res));
-    } catch {
-      // Keep whatever fallback values we were handed.
+    } catch (err) {
+      // Keep whatever fallback values we were handed, but tell the user why.
+      showToast(getErrorMessage(err, "Couldn't load this sub-topic."), "error");
     } finally {
       setLoading(false);
     }
-  }, [examId, topicId]);
+  }, [examId, topicId, showToast]);
 
   useEffect(() => {
     load();
@@ -315,6 +319,7 @@ export default function SubtopicScreen() {
           <ActivityIndicator size="small" color={COLORS.primary} />
         </View>
       ) : null}
+      <Toast {...toast} onHide={hideToast} />
     </View>
   );
 }

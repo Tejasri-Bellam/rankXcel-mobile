@@ -4,6 +4,7 @@ import {
   AssessmentResult,
 } from "@/src/libs/services/assessments-attempts";
 import { stripHtml } from "@/src/libs/utils/html";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -252,7 +253,10 @@ export default function ExamScreen({
       console.log("QUESTIONS ERROR:", error);
       Alert.alert(
         "Error",
-        "Failed to load questions. Please go back and try again.",
+        getErrorMessage(
+          error,
+          "Failed to load questions. Please go back and try again.",
+        ),
       );
     } finally {
       setLoading(false);

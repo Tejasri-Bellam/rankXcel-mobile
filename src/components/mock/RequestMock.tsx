@@ -48,6 +48,26 @@ interface Props {
 type Scope = 'full' | 'subjects';
 type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
 
+// Server validation errors that map to a specific input in this form.
+type FieldErrors = {
+  subjects?: string;
+  questionCount?: string;
+  difficulty?: string;
+  duration?: string;
+};
+
+// Maps the backend's snake_case field keys onto our local field names so each
+// message renders below the matching input. Keys not listed here (e.g.
+// `questions` generation errors) fall through to the form-level banner.
+const SERVER_FIELD_MAP: Record<string, keyof FieldErrors> = {
+  subject_ids: 'subjects',
+  subjects: 'subjects',
+  question_count: 'questionCount',
+  difficulty: 'difficulty',
+  total_duration_minutes: 'duration',
+  duration: 'duration',
+};
+
 export default function RequestMockModal({
   visible,
   onClose,
@@ -71,6 +91,15 @@ export default function RequestMockModal({
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
+  // Server-side validation errors, keyed by form field, plus a form-level
+  // message for non-field / generation errors that don't map to a single input.
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const clearErrors = useCallback(() => {
+    setFieldErrors({});
+    setFormError(null);
+  }, []);
+
   const resetForm = useCallback(() => {
     setScope(isPractice ? 'subjects' : 'full');
     setSelectedSubjectIds([]);
@@ -78,7 +107,8 @@ export default function RequestMockModal({
     setQuestionCount(30);
     setDifficulty('mixed');
     setDuration(60);
-  }, [isPractice]);
+    clearErrors();
+  }, [isPractice, clearErrors]);
 
   useEffect(() => {
     if (!visible) return;
@@ -92,6 +122,7 @@ export default function RequestMockModal({
   }, [visible, resetForm, defaultExamId]);
 
   const toggleSubject = (id: number) => {
+    clearErrors();
     setSelectedSubjectIds((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
     );
@@ -99,19 +130,24 @@ export default function RequestMockModal({
 
   const allSubjectsSelected =
     subjects.length > 0 && selectedSubjectIds.length === subjects.length;
-  const toggleSelectAll = () =>
+  const toggleSelectAll = () => {
+    clearErrors();
     setSelectedSubjectIds(allSubjectsSelected ? [] : subjects.map((s) => s.id));
+  };
 
   const isFullSyllabus = scope === 'full' && !isPractice;
   const isPresetCount = QUESTION_OPTIONS.includes(questionCount);
   const customCountValue = !isPresetCount && questionCount > 0 ? String(questionCount) : '';
 
   const handleCustomCount = (text: string) => {
+    clearErrors();
     const n = parseInt(text.replace(/[^0-9]/g, ''), 10);
     setQuestionCount(Number.isFinite(n) ? n : 0);
   };
-  const adjustCount = (delta: number) =>
+  const adjustCount = (delta: number) => {
+    clearErrors();
     setQuestionCount((prev) => Math.max(1, Math.min(200, (prev || 0) + delta)));
+  };
 
   const needsSubjects = scope === 'subjects' || isPractice;
 
@@ -140,6 +176,7 @@ export default function RequestMockModal({
     }
     submittingRef.current = true;
     setSubmitting(true);
+    clearErrors();
     try {
       const payload = isFullSyllabus
         ? {
@@ -164,21 +201,31 @@ export default function RequestMockModal({
       onCreated(String(newId));
       onClose();
     } catch (err) {
-      console.log('err', err);
-      
-      // The axios interceptor rejects with a custom ApiError: { status, errors, body }
-      const apiErr = err as { status?: number; errors?: Record<string, string[]>; body?: any };
-      let message = 'Could not generate mock test.';
+      // The axios interceptor rejects with a normalized ApiError:
+      // { status, errors: Record<string, string[]>, body }. Field errors arrive
+      // as top-level keys in `errors`; non-field errors as errors.nonFieldErrors.
+      const apiErr = err as { errors?: Record<string, string[]> };
+      const nextFieldErrors: FieldErrors = {};
+      const formParts: string[] = [];
       if (apiErr?.errors && typeof apiErr.errors === 'object') {
-        const parts = Object.entries(apiErr.errors).map(([k, v]) => {
-          const text = Array.isArray(v) ? v.join(', ') : String(v);
-          return k === 'nonFieldErrors' ? text : `${k}: ${text}`;
-        });
-        if (parts.length) message = parts.join('\n');
+        for (const [key, value] of Object.entries(apiErr.errors)) {
+          const text = Array.isArray(value) ? value.join(', ') : String(value);
+          if (!text) continue;
+          const localKey = key === 'nonFieldErrors' ? undefined : SERVER_FIELD_MAP[key];
+          if (localKey) nextFieldErrors[localKey] = text;
+          else formParts.push(text);
+        }
       } else if (err instanceof Error) {
-        message = err.message;
+        formParts.push(err.message);
       }
-      Alert.alert('Error', message);
+      setFieldErrors(nextFieldErrors);
+      setFormError(
+        formParts.length
+          ? formParts.join('\n')
+          : Object.keys(nextFieldErrors).length
+            ? null
+            : 'Could not generate mock test.',
+      );
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -249,7 +296,10 @@ export default function RequestMockModal({
                       <TouchableOpacity
                         key={s.value}
                         style={[styles.segmentBtn, active && styles.segmentBtnActive]}
-                        onPress={() => setScope(s.value)}
+                        onPress={() => {
+                          clearErrors();
+                          setScope(s.value);
+                        }}
                         activeOpacity={0.85}
                       >
                         <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
@@ -306,6 +356,9 @@ export default function RequestMockModal({
                     })}
                   </View>
                 )}
+                {!!fieldErrors.subjects && (
+                  <Text style={styles.fieldError}>{fieldErrors.subjects}</Text>
+                )}
               </>
             )}
 
@@ -322,6 +375,7 @@ export default function RequestMockModal({
                         key={n}
                         style={[styles.optChip, active && styles.optChipActive]}
                         onPress={() => {
+                          clearErrors();
                           setShowCustomCount(false);
                           setQuestionCount(n);
                         }}
@@ -377,6 +431,9 @@ export default function RequestMockModal({
                     </View>
                   </View>
                 )}
+                {!!fieldErrors.questionCount && (
+                  <Text style={styles.fieldError}>{fieldErrors.questionCount}</Text>
+                )}
               </>
             )}
 
@@ -388,7 +445,10 @@ export default function RequestMockModal({
                   <TouchableOpacity
                     key={d.value}
                     style={[styles.segmentBtn, active && styles.segmentBtnActive]}
-                    onPress={() => setDifficulty(d.value)}
+                    onPress={() => {
+                      clearErrors();
+                      setDifficulty(d.value);
+                    }}
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
@@ -398,6 +458,9 @@ export default function RequestMockModal({
                 );
               })}
             </View>
+            {!!fieldErrors.difficulty && (
+              <Text style={styles.fieldError}>{fieldErrors.difficulty}</Text>
+            )}
 
             {isFullSyllabus ? (
               <View style={styles.infoBox}>
@@ -411,13 +474,25 @@ export default function RequestMockModal({
                 {renderChipRow(
                   DURATION_OPTIONS.map((n) => ({ value: n, label: `${n}m` })),
                   duration,
-                  setDuration,
+                  (v) => {
+                    clearErrors();
+                    setDuration(v);
+                  },
+                )}
+                {!!fieldErrors.duration && (
+                  <Text style={styles.fieldError}>{fieldErrors.duration}</Text>
                 )}
               </>
             )}
 
             {summaryParts.length > 0 && (
               <Text style={styles.summaryText}>{summaryParts.join('  ·  ')}</Text>
+            )}
+
+            {!!formError && (
+              <View style={styles.formError}>
+                <Text style={styles.formErrorText}>{formError}</Text>
+              </View>
             )}
 
             <TouchableOpacity

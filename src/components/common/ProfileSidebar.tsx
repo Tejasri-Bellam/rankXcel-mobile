@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   Alert,
@@ -784,8 +785,8 @@ function CountrySheet({
           ? payload
           : payload?.results ?? payload?.data ?? payload?.countries ?? [];
         if (active) setCountries(list.map(normalizeCountry));
-      } catch {
-        if (active) setError("Couldn't load countries. Please try again.");
+      } catch (err) {
+        if (active) setError(getErrorMessage(err, "Couldn't load countries. Please try again."));
       } finally {
         if (active) setLoading(false);
       }

@@ -1,4 +1,6 @@
 import { forgotPasswordService } from "@/src/libs/services/auth";
+import { getApiErrorMessage } from "./authForm";
+import { parseApiError, getFieldError } from "@/src/libs/utils/apiError";
 import { forgotPasswordStyles } from "@/src/styles/styles/auth/forgotpasswordscreenstyles";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -23,6 +25,7 @@ type Step = "email" | "checkEmail";
 export default function ForgotPasswordScreen() {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
@@ -68,14 +71,15 @@ export default function ForgotPasswordScreen() {
   // Handlers
 
   const handleSendResetLink = async () => {
+    setEmailError("");
     if (!email.trim()) {
-      Alert.alert("Error", "Please enter your email address.");
+      setEmailError("Please enter your email address.");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert("Error", "Please enter a valid email address.");
+      setEmailError("Please enter a valid email address.");
       return;
     }
 
@@ -89,11 +93,16 @@ export default function ForgotPasswordScreen() {
       setStep("checkEmail");
       setResendTimer(30);
     } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error?.response?.data?.message ||
-          "Failed to send reset link. Please try again.",
-      );
+      // Prefer an email-specific field error below the input; otherwise a
+      // form-level message.
+      const parsed = parseApiError(error);
+      const fieldMsg = getFieldError(parsed, "email");
+      if (fieldMsg) setEmailError(fieldMsg);
+      else
+        Alert.alert(
+          "Error",
+          getApiErrorMessage(error, "Failed to send reset link. Please try again."),
+        );
     } finally {
       setLoading(false);
     }
@@ -110,7 +119,7 @@ export default function ForgotPasswordScreen() {
     } catch (error: any) {
       Alert.alert(
         "Error",
-        error?.response?.data?.message || "Failed to resend. Please try again.",
+        getApiErrorMessage(error, "Failed to resend. Please try again."),
       );
     } finally {
       setLoading(false);
@@ -197,7 +206,7 @@ export default function ForgotPasswordScreen() {
                       placeholder="aanya@example.com"
                       placeholderTextColor="#9CA3AF"
                       value={email}
-                      onChangeText={setEmail}
+                      onChangeText={(t) => { setEmail(t); if (emailError) setEmailError(""); }}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -206,6 +215,11 @@ export default function ForgotPasswordScreen() {
                       onBlur={() => setEmailFocused(false)}
                     />
                   </View>
+                  {!!emailError && (
+                    <Text style={{ marginTop: 6, fontSize: 12, color: "#EF4444", fontWeight: "500" }}>
+                      {emailError}
+                    </Text>
+                  )}
                 </View>
 
                 <TouchableOpacity

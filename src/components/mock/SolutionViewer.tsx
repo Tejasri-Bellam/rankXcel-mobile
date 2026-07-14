@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Toast, { useToast } from '@/src/components/common/Toast';
+import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
   Image,
@@ -74,6 +76,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
+  const { toast, showToast, hideToast } = useToast();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadReview(); }, []);
@@ -128,6 +131,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
       }
     } catch (err) {
       console.log('REVIEW ERROR:', err);
+      showToast(getErrorMessage(err, "Couldn't load solutions."), 'error');
     } finally {
       setLoading(false);
     }
@@ -320,6 +324,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
         questionText={tutorQ?.text}
         conversation={tutorConversation}
       />
+      <Toast {...toast} onHide={hideToast} />
     </SafeAreaView>
   );
 }

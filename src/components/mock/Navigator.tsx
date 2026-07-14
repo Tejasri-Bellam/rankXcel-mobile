@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getErrorMessage } from '@/src/libs/utils/apiError';
 import { ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MockExamScreen from './ExamScreen';
@@ -153,8 +154,8 @@ export default function MockExamNavigator({
       setInitialAnswers(savedAnswers);
       setInitialStatuses(savedStatuses);
       setExam(examData);
-    } catch {
-      setError('Failed to load questions. Please go back and try again.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load questions. Please go back and try again.'));
     } finally {
       setLoading(false);
     }

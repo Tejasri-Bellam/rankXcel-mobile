@@ -137,6 +137,13 @@ export const onboardingStyles = StyleSheet.create({
     color: COLORS.textDark,
     marginBottom: 10,
   },
+  fieldError: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
+    lineHeight: 16,
+  },
   dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
