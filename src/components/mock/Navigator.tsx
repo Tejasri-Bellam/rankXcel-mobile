@@ -55,8 +55,9 @@ export default function MockExamNavigator({
         text: c?.text ?? c?.label ?? String(c ?? ''),
         image: c?.image ?? null,
       })),
-      marks_correct: q.marks_correct ?? inner.marks_correct ?? 4,
-      marks_incorrect: q.marks_incorrect ?? inner.marks_incorrect ?? -1,
+      marks_correct: q.marks_correct ?? inner.marks_correct,
+      marks_incorrect:
+        q.marks_wrong ?? q.marks_incorrect ?? inner.marks_wrong ?? inner.marks_incorrect,
       subject: q.subject_name ?? q.subject ?? inner.subject_name ?? inner.subject ?? null,
       selected_options: q.selected_options ?? q.selected_choices ?? q.response?.selected_options,
     };

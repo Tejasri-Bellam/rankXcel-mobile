@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ import {
 } from '@/src/libs/services/countries';
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
-import CountrySelect from '@/src/components/common/CountrySelect';
+import { countrySelectStyles } from '@/src/styles/styles/common/countryselectstyles';
 import InputField from '@/src/components/common/InputField';
 import Toast, { useToast } from '@/src/components/common/Toast';
 import {
@@ -131,12 +131,40 @@ export default function SignupScreen() {
   const { reset: resetTargetExam, refreshExams } = useTargetExam();
   const { toast, showToast, hideToast } = useToast();
 
-  // Country chosen via the header selector — used as a fallback when the
-  // authenticated /get_country/ lookup can't resolve a country after Google
-  // sign-in.
+  // Device-location country used as a fallback when the authenticated
+  // /get_country/ lookup can't resolve a country after Google sign-in.
   const [selectedCountryId, setSelectedCountryId] = useState<
     number | string | null
   >(null);
+
+  // Device-location country shown in the top-right chip. Resolved from
+  // GET /v1/get_country/ (no countries-options catalogue involved).
+  const [country, setCountry] = useState<{
+    id: number | string;
+    name: string;
+    isoCode2?: string;
+  } | null>(null);
+
+  // Detect the user's country from the device location once on mount so the
+  // header reflects it and the post-signup data fetch can be scoped to it.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res: any = await getCountryService();
+        const detected = normalizeUserCountry(res?.data);
+        if (active && detected) {
+          setCountry(detected);
+          setSelectedCountryId(detected.id);
+        }
+      } catch {
+        // Non-fatal — signup still works without a pre-detected country.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -146,6 +174,12 @@ export default function SignupScreen() {
   const [agreeTerms, setAgreeTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  // Tracks the in-flight social provider separately from `loading` so the
+  // provider's own button shows the spinner instead of the "Create account"
+  // button.
+  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(
+    null
+  );
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Clears the inline error for a single field as the user edits it.
@@ -295,7 +329,7 @@ export default function SignupScreen() {
 
   const handleGoogleSignIn = async () => {
     setFieldErrors({});
-    setLoading(true);
+    setSocialLoading('google');
 
     try {
       // Android only — verifies a usable Play Services is present. No-op on iOS.
@@ -343,7 +377,7 @@ export default function SignupScreen() {
       console.log('GOOGLE SIGNUP ERROR:', JSON.stringify(error, null, 2));
       showToast(getApiErrorMessage(error) || 'Google sign-in failed', 'error');
     } finally {
-      setLoading(false);
+      setSocialLoading(null);
     }
   };
 
@@ -351,7 +385,7 @@ export default function SignupScreen() {
   // token (JWT) we forward to the backend as `identity_token` (the field apple_sso requires).
   const handleAppleSignIn = async () => {
     setFieldErrors({});
-    setLoading(true);
+    setSocialLoading('apple');
 
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -389,7 +423,7 @@ export default function SignupScreen() {
       console.log('APPLE SIGNUP ERROR:', JSON.stringify(error, null, 2));
       showToast(getApiErrorMessage(error) || 'Apple sign-in failed', 'error');
     } finally {
-      setLoading(false);
+      setSocialLoading(null);
     }
   };
 
@@ -405,7 +439,7 @@ export default function SignupScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header: back button (left) + country selector (top-right) */}
+          {/* Header: back button (left) + country chip (top-right) */}
           <View style={styles.topRow}>
             <TouchableOpacity
               style={styles.backButton}
@@ -413,7 +447,12 @@ export default function SignupScreen() {
             >
               <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
             </TouchableOpacity>
-            <CountrySelect onChange={(c) => setSelectedCountryId(c.id)} />
+            <View style={countrySelectStyles.chip}>
+              <Ionicons name="location-outline" size={16} color="#475569" />
+              <Text style={countrySelectStyles.chipText}>
+                {country?.name ?? 'Region'}
+              </Text>
+            </View>
           </View>
 
           {/* Brand */}
@@ -542,7 +581,7 @@ export default function SignupScreen() {
             <TouchableOpacity
               style={styles.primaryButton}
               onPress={handleSignup}
-              disabled={loading}
+              disabled={loading || socialLoading !== null}
               activeOpacity={0.85}
             >
               <Text style={styles.primaryButtonText}>
@@ -564,7 +603,7 @@ export default function SignupScreen() {
                 style={[styles.socialButton, styles.appleButton]}
                 activeOpacity={0.85}
                 onPress={handleAppleSignIn}
-                disabled={loading}
+                disabled={loading || socialLoading !== null}
               >
                 <Ionicons
                   name="logo-apple"
@@ -572,7 +611,11 @@ export default function SignupScreen() {
                   color="#FFFFFF"
                   style={styles.socialIcon}
                 />
-                <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                <Text style={styles.appleButtonText}>
+                  {socialLoading === 'apple'
+                    ? 'Signing in...'
+                    : 'Continue with Apple'}
+                </Text>
               </TouchableOpacity>
             )}
 
@@ -580,10 +623,14 @@ export default function SignupScreen() {
               style={[styles.socialButton, styles.googleButton]}
               activeOpacity={0.85}
               onPress={handleGoogleSignIn}
-              disabled={loading}
+              disabled={loading || socialLoading !== null}
             >
               <Text style={styles.googleG}>G</Text>
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
+              <Text style={styles.googleButtonText}>
+                {socialLoading === 'google'
+                  ? 'Signing in...'
+                  : 'Continue with Google'}
+              </Text>
             </TouchableOpacity>
 
             {/* Footer terms */}

@@ -456,16 +456,32 @@ const [numericAnswer, setNumericAnswer] = useState('');
           <View style={styles.marksRow}>
             <View style={[styles.marksChip, styles.marksChipPositive]}>
               <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
-                +{activeQuestion?.marks_correct ?? 4}
+                +{activeQuestion?.marks_correct}
               </Text>
             </View>
-            <View style={[styles.marksChip, styles.marksChipNegative]}>
-              <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
-                {Number(activeQuestion?.marks_incorrect ?? -1) > 0
-                  ? `-${activeQuestion?.marks_incorrect}`
-                  : (activeQuestion?.marks_incorrect ?? -1)}
-              </Text>
-            </View>
+            {(() => {
+              const marksWrong = Number(activeQuestion?.marks_incorrect);
+              const isNegative = marksWrong < 0;
+              return (
+                <View
+                  style={[
+                    styles.marksChip,
+                    isNegative ? styles.marksChipNegative : styles.marksChipWarning,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.marksChipText,
+                      isNegative
+                        ? styles.marksChipTextNegative
+                        : styles.marksChipTextWarning,
+                    ]}
+                  >
+                    {activeQuestion?.marks_incorrect}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
           <TouchableOpacity
             style={[styles.markBtn, isMarked && styles.markBtnActive]}

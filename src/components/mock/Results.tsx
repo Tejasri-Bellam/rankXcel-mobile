@@ -176,11 +176,15 @@ export default function MockExamResults({
   const verdict =
     percentagePct >= 80 ? 'Mastered' : percentagePct >= 50 ? 'Good progress' : 'Needs work';
 
-  const subjects = (result.strength_by_subject ?? []).map((s) => ({
-    name: s.subject_name,
-    // Accuracy can come back negative under negative marking — clamp to 0–100.
-    acc: Math.max(0, Math.min(100, Math.round(num(s.accuracy)))),
-  }));
+  // "Strength by Subject" — the API dropped strength_by_subject, so derive it
+  // from each subject-level node in topic_breakdown (its name + accuracy).
+  const subjects = Object.values(result.topic_breakdown ?? {})
+    .filter((s) => s?.name)
+    .map((s) => ({
+      name: String(s.name),
+      // Accuracy can come back negative under negative marking — clamp to 0–100.
+      acc: Math.max(0, Math.min(100, Math.round(num(s.accuracy)))),
+    }));
 
   // "Practice Next" suggestions: flatten every node in topic_breakdown
   // (subject → topic → subtopic, each carrying its own name/accuracy) into one

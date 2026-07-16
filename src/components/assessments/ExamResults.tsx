@@ -215,10 +215,14 @@ export default function ExamResults({
     });
   };
 
-  const subjects = (result.strength_by_subject ?? []).map((s) => ({
-    name: s.subject_name,
-    acc: Math.round(num(s.accuracy)),
-  }));
+  // "Strength by Subject" — the API dropped strength_by_subject, so derive it
+  // from each subject-level node in topic_breakdown (its name + accuracy).
+  const subjects = Object.values(result.topic_breakdown ?? {})
+    .filter((s) => s?.name)
+    .map((s) => ({
+      name: String(s.name),
+      acc: Math.round(num(s.accuracy)),
+    }));
 
   const title: string = result.assessment?.name ?? exam?.name ?? 'Assessment';
 

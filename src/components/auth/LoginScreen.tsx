@@ -127,6 +127,14 @@ const enrichRegionFromCatalogue = async (
   }
 };
 
+// Only student accounts may use the app. Pull the role from the auth response
+// (present on both password and SSO responses) and check it's STUDENT,
+// case-insensitively.
+const isStudentRole = (data: any): boolean => {
+  const role = data?.user?.role ?? data?.role;
+  return typeof role === 'string' && role.trim().toUpperCase() === 'STUDENT';
+};
+
 export default function LoginScreen() {
   // Used to drop any leftover in-memory exam state from a previous session, and
   // to load this user's country-scoped target exams right after login.
@@ -185,6 +193,12 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
+  // Tracks the in-flight social provider separately from `loading` so the
+  // provider's own button shows the spinner instead of the email/password
+  // "Log in" button.
+  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(
+    null
+  );
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Clears the inline error for a single field as the user edits it.
@@ -297,6 +311,11 @@ export default function LoginScreen() {
 
       const { data } = (await loginService(payload)) as { data: any };
 
+      if (!isStudentRole(data)) {
+        showToast('This account is not a student account.', 'error');
+        return;
+      }
+
       showToast('Logged in successfully', 'success');
       await completeLogin(data);
     } catch (error: any) {
@@ -315,7 +334,7 @@ export default function LoginScreen() {
 
   const handleGoogleSignIn = async () => {
     setFieldErrors({});
-    setLoading(true);
+    setSocialLoading('google');
 
     try {
       // Android only — verifies a usable Play Services is present. No-op on iOS.
@@ -349,6 +368,11 @@ export default function LoginScreen() {
         access_token: idToken,
       })) as { data: any };
 
+      if (!isStudentRole(data)) {
+        showToast('This account is not a student account.', 'error');
+        return;
+      }
+
       showToast('Logged in successfully', 'success');
       await completeLogin(data);
     } catch (error: any) {
@@ -361,7 +385,7 @@ export default function LoginScreen() {
       }
       showToast(getApiErrorMessage(error) || 'Google sign-in failed', 'error');
     } finally {
-      setLoading(false);
+      setSocialLoading(null);
     }
   };
 
@@ -369,7 +393,7 @@ export default function LoginScreen() {
   // token (JWT) we forward to the backend as `identity_token` (the field apple_sso requires).
   const handleAppleSignIn = async () => {
     setFieldErrors({});
-    setLoading(true);
+    setSocialLoading('apple');
 
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -396,6 +420,11 @@ export default function LoginScreen() {
 
       const { data } = (await appleLoginService(payload)) as { data: any };
 
+      if (!isStudentRole(data)) {
+        showToast('This account is not a student account.', 'error');
+        return;
+      }
+
       showToast('Logged in successfully', 'success');
       await completeLogin(data);
     } catch (error: any) {
@@ -405,7 +434,7 @@ export default function LoginScreen() {
       }
       showToast(getApiErrorMessage(error) || 'Apple sign-in failed', 'error');
     } finally {
-      setLoading(false);
+      setSocialLoading(null);
     }
   };
 
@@ -501,7 +530,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={styles.primaryButton}
               onPress={handleLogin}
-              disabled={loading}
+              disabled={loading || socialLoading !== null}
               activeOpacity={0.85}
             >
               <Text style={styles.primaryButtonText}>
@@ -523,7 +552,7 @@ export default function LoginScreen() {
                 style={[styles.socialButton, styles.appleButton]}
                 activeOpacity={0.85}
                 onPress={handleAppleSignIn}
-                disabled={loading}
+                disabled={loading || socialLoading !== null}
               >
                 <Ionicons
                   name="logo-apple"
@@ -531,7 +560,11 @@ export default function LoginScreen() {
                   color="#FFFFFF"
                   style={styles.socialIcon}
                 />
-                <Text style={styles.appleButtonText}>Continue with Apple</Text>
+                <Text style={styles.appleButtonText}>
+                  {socialLoading === 'apple'
+                    ? 'Signing in...'
+                    : 'Continue with Apple'}
+                </Text>
               </TouchableOpacity>
             )}
 
@@ -539,10 +572,14 @@ export default function LoginScreen() {
               style={[styles.socialButton, styles.googleButton]}
               activeOpacity={0.85}
               onPress={handleGoogleSignIn}
-              disabled={loading}
+              disabled={loading || socialLoading !== null}
             >
               <Text style={styles.googleG}>G</Text>
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
+              <Text style={styles.googleButtonText}>
+                {socialLoading === 'google'
+                  ? 'Signing in...'
+                  : 'Continue with Google'}
+              </Text>
             </TouchableOpacity>
 
             {/* Footer terms */}

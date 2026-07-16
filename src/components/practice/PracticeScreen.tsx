@@ -121,10 +121,6 @@ export const getStrengthLabel = (accuracy: number | null): string => {
   return "Weak";
 };
 
-// Colour of the strength square next to each row (grey when unattempted).
-const squareColor = (accuracy: number | null): string =>
-  accuracy === null ? "#D1D5DB" : getAccuracyColor(accuracy);
-
 // A single topic node (with its `subtopics`) → ChapterItem.
 const normalizeTopic = (topic: any, subjectName: string): ChapterItem => {
   const subtopicsRaw = Array.isArray(topic?.subtopics) ? topic.subtopics : [];
@@ -275,13 +271,24 @@ const StatBanner = ({
   </View>
 );
 
-// Small blue play button shown on every practisable (leaf) row. It's the row's
-// default tap target — pressing the row starts untimed practice.
-const PlayButton = () => (
-  <View style={styles.playBtn}>
-    <Ionicons name="play" size={15} color="#6C63FF" />
-  </View>
-);
+// Small blue play button shown on every practisable row. When the row's own tap
+// starts practice (leaf topics / sub-topics) it's decorative; pass `onPress` to
+// make it start practice itself (topics whose row tap drills into sub-topics).
+const PlayButton = ({ onPress }: { onPress?: () => void }) =>
+  onPress ? (
+    <TouchableOpacity
+      style={styles.playBtn}
+      onPress={onPress}
+      activeOpacity={0.7}
+      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+    >
+      <Ionicons name="play" size={15} color="#6C63FF" />
+    </TouchableOpacity>
+  ) : (
+    <View style={styles.playBtn}>
+      <Ionicons name="play" size={15} color="#6C63FF" />
+    </View>
+  );
 
 // File-icon button next to the play button — starts the same node as a TEST
 // (test_type "TEST"): answers are revealed only after the whole test is done.
@@ -543,14 +550,30 @@ export default function PracticeScreen() {
                 <Text style={styles.listName}>{topic.name}</Text>
                 <Text style={styles.listMeta}>{meta}</Text>
               </View>
-              <View style={[styles.square, { backgroundColor: squareColor(topic.accuracy) }]} />
-              {hasSubs ? (
-                <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
-              ) : (
-                <RowActions
-                  onTest={() => openPractice(topicToChapter(topic, subject), true)}
+              {/* Every topic row shows play + file + chevron for a consistent
+                  layout. Topics with sub-topics drill in on tap and their
+                  play/file act across the whole topic (all sub-topics); leaf
+                  topics practise on row tap, so their chevron is decorative. */}
+              <View style={styles.rowActions}>
+                <PlayButton
+                  onPress={
+                    hasSubs
+                      ? () => openPractice(topicAllChapter(topic, subject))
+                      : undefined
+                  }
                 />
-              )}
+                <TestButton
+                  onPress={() =>
+                    openPractice(
+                      hasSubs
+                        ? topicAllChapter(topic, subject)
+                        : topicToChapter(topic, subject),
+                      true
+                    )
+                  }
+                />
+                <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -661,7 +684,6 @@ export default function PracticeScreen() {
                     <Text style={styles.listName}>{sub.name}</Text>
                     <Text style={styles.listMeta}>{meta}</Text>
                   </View>
-                  <View style={[styles.square, { backgroundColor: squareColor(sub.accuracy) }]} />
                   <RowActions
                     onTest={() => openPractice(subToChapter(sub, subject), true)}
                   />
