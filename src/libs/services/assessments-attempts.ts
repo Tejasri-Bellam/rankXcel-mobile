@@ -39,7 +39,6 @@ export interface AssessmentResult {
   total_participants: number | null;
   time_taken_seconds: number;
   topic_breakdown: Record<string, AssessmentTopicBreakdown>;
-  strength_by_subject: { subject_name: string; accuracy: number }[];
 }
 
 // Get Attempt

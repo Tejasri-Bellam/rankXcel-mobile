@@ -303,9 +303,11 @@ export const examScreenStyles = StyleSheet.create({
   marksChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
   marksChipPositive: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
   marksChipNegative: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  marksChipWarning: { backgroundColor: '#FEFCE8', borderColor: '#FDE68A' },
   marksChipText: { fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] as any },
   marksChipTextPositive: { color: '#059669' },
   marksChipTextNegative: { color: '#DC2626' },
+  marksChipTextWarning: { color: '#B45309' },
 
   // Fill in the blank
   fillBlankWrap: { marginTop: 4 },
