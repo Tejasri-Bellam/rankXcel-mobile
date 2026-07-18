@@ -154,6 +154,8 @@ export default function AssessmentsScreen() {
   const loadingMoreRef = useRef(false);
   const { toast, showToast, hideToast } = useToast();
 
+  const [allAssessments, setAllAssessments] = useState<any[]>([]);
+
   // Honour a `tab` filter passed in via navigation (e.g. Home's "Upcoming live
   // → All"), then clear it so a manual filter change isn't overridden later.
   useEffect(() => {
@@ -180,9 +182,14 @@ export default function AssessmentsScreen() {
       setData(list);
       setPage(1);
       setHasMore(!Array.isArray(raw) && !!raw?.next);
-      setTotalCount(
-        typeof raw?.count === "number" ? raw.count : list.length
-      );
+      setTotalCount(typeof raw?.count === "number" ? raw.count : list.length);
+      // Initially use page-1 data
+      setAllAssessments(list);
+
+      // If more pages exist, fetch them in background
+      if (!Array.isArray(raw) && raw?.next) {
+        fetchRemainingPages(list, 2);
+      }
     } catch (error: any) {
       console.log("ASSESSMENTS ERROR:", JSON.stringify(error, null, 2));
       if (!silent)
@@ -223,6 +230,45 @@ export default function AssessmentsScreen() {
       loadingMoreRef.current = false;
     }
   };
+
+  const fetchRemainingPages = async (
+  initialData: any[],
+  startPage: number
+) => {
+  if (activeExamId == null) return;
+
+  let page = startPage;
+  let all = [...initialData];
+
+  try {
+    while (true) {
+      const res = await getassessmentsService(activeExamId, page);
+      const raw: any = res?.data;
+
+      const list: any[] = Array.isArray(raw)
+        ? raw
+        : raw?.results || [];
+
+      if (list.length === 0) break;
+
+      all.push(...list);
+
+      if (Array.isArray(raw) || !raw?.next) break;
+
+      page++;
+    }
+
+    // Remove duplicates
+    const unique = Array.from(
+      new Map(all.map(item => [item.id, item])).values()
+    );
+
+    setAllAssessments(unique);
+
+  } catch (err) {
+    console.log("Background count fetch failed", err);
+  }
+};
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
@@ -362,10 +408,13 @@ export default function AssessmentsScreen() {
   // assessment for the exam (so the student can browse/register); only the Live
   // filter is restricted to registered + live below.
   const order: Record<LiveStatus, number> = { live: 0, upcoming: 1, results: 2 };
-  const allTests = data
-    .filter(matchesActiveExam)
-    .map((item) => ({ item, status: deriveStatus(item) }))
-    .sort((a, b) => order[a.status] - order[b.status]);
+  const allTests = allAssessments
+  .filter(matchesActiveExam)
+  .map((item) => ({
+    item,
+    status: deriveStatus(item),
+  }))
+  .sort((a, b) => order[a.status] - order[b.status]);
 
   // Live filter = registered AND the backend's live student_status.
   const isLive = (t: { item: any; status: LiveStatus }) =>
@@ -380,12 +429,20 @@ export default function AssessmentsScreen() {
     completed: allTests.filter((t) => t.status === "results").length,
   };
 
+  const visibleTests = data
+  .filter(matchesActiveExam)
+  .map((item) => ({
+    item,
+    status: deriveStatus(item),
+  }))
+  .sort((a, b) => order[a.status] - order[b.status]);
+
   const tests =
-    filter === "all"
-      ? allTests
-      : filter === "live"
-        ? allTests.filter(isLive)
-        : allTests.filter((t) => t.status === FILTER_STATUS[filter]);
+  filter === "all"
+    ? visibleTests
+    : filter === "live"
+      ? visibleTests.filter(isLive)
+      : visibleTests.filter((t) => t.status === FILTER_STATUS[filter]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>

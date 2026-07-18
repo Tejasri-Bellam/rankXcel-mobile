@@ -70,7 +70,20 @@ const extractCorrectAnswer = (body: any): string | null => {
     body.numeric_answer ??
     body.answer ??
     null;
-  return v == null ? null : String(v);
+  if (v != null) return String(v);
+
+  // NUMERICAL questions can come back as a choices array instead, e.g.
+  // { correct_choices: [{ id, text: "3.0", is_correct: true }] } — the
+  // answer is the correct choice's `text`, not a scalar field.
+  const lists: unknown[] = [body.correct_choices, body.correct_options, body.correct_answers];
+  for (const list of lists) {
+    if (Array.isArray(list) && list.length > 0) {
+      const first = list[0] as any;
+      const text = first?.text ?? first?.label;
+      if (text != null && String(text).trim() !== "") return String(text).trim();
+    }
+  }
+  return null;
 };
 
 const parseExplanation = (raw: any): StructuredExplanation | null => {

@@ -93,7 +93,7 @@ export default function MockExamScreen({
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
 
   const [isInputFocused, setIsInputFocused] = useState(false);
-const [numericAnswer, setNumericAnswer] = useState('');
+
 
   // `timeTaken` value when the on-screen question became active, so each saved
   // response carries the seconds spent on that question (see commitCurrentAnswer).
@@ -552,7 +552,7 @@ const [numericAnswer, setNumericAnswer] = useState('');
                 placeholder="e.g. 3.14"
                 placeholderTextColor="#C7CAD1"
                 keyboardType="decimal-pad"
-                value={numericAnswer}
+                value={selectedOptions[0] ?? ''}
                 onChangeText={(text) => {
                   // allow only digits, one leading minus, one dot, max 2 decimals
                   const cleaned = text.replace(/[^0-9.-]/g, '');
@@ -563,7 +563,6 @@ const [numericAnswer, setNumericAnswer] = useState('');
                       : parts.length === 2
                       ? parts[0] + '.' + parts[1].slice(0, 2)
                       : cleaned;
-                  setNumericAnswer(safe);
                   handleOptionSelect(safe);
                 }}
                 onFocus={() => setIsInputFocused(true)}

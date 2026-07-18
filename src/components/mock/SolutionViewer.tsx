@@ -61,6 +61,33 @@ const correctIdsWithSolution = (q: any, sol: any): string[] => {
   return correctIdsFor(sol);
 };
 
+// Numeric correct answer: scalar fields first, then the correct choice's
+// `text` (NUMERIC questions can come back as a choices array), then the
+// per-question /solutions/ payload if the review response omits it.
+const numericAnswerWithSolution = (q: any, sol: any): string => {
+  const scalar = q?.correct_answer ?? q?.correct_numeric_answer ?? null;
+  if (scalar != null && String(scalar).trim() !== '') return String(scalar).trim();
+
+  const flagged = getChoices(q).find(
+    (c: any) => c?.is_correct === true || c?.correct === true,
+  );
+  const fromChoice = flagged?.text ?? flagged?.label;
+  if (fromChoice != null && String(fromChoice).trim() !== '') return String(fromChoice).trim();
+
+  if (!sol) return '';
+  const solScalar = sol?.correct_answer ?? sol?.correct_numeric_answer ?? null;
+  if (solScalar != null && String(solScalar).trim() !== '') return String(solScalar).trim();
+  const solFlagged = getChoices(sol).find(
+    (c: any) => c?.is_correct === true || c?.correct === true,
+  );
+  const solText = solFlagged?.text ?? solFlagged?.label;
+  return solText != null ? String(solText).trim() : '';
+};
+
+// Strip parentheses/commas/whitespace so "(1200)" and "1200" compare equal.
+const normalizeNumeric = (v: string): string => v.replace(/[(),\s]/g, '');
+
+
 const selectedIdsFor = (q: any): string[] => {
   const raw =
     q?.your_answer?.selected_choice_ids ??
@@ -179,17 +206,40 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
           const userAnswer =
             qid != null && answers[String(qid)]?.length ? answers[String(qid)] : apiSelected;
 
-          const isCorrect =
-            q?.outcome === 'correct' ||
-            (q?.outcome == null &&
-              userAnswer.length > 0 &&
-              correctAnswers.length === userAnswer.length &&
-              correctAnswers.every((a: string) => userAnswer.includes(a)));
+          const questionType = q?.question_type ?? q?.type ?? 'MCQ';
+          const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
 
-          const isSkipped =
-            q?.outcome === 'skipped' ||
-            q?.outcome === 'unattempted' ||
-            (q?.outcome == null && userAnswer.length === 0);
+          const numericUser = isNumericQ
+            ? String(
+                (qid != null && answers[String(qid)]?.[0]) ??
+                  q?.your_answer?.numeric_answer ??
+                  q?.numeric_answer ??
+                  '',
+              ).trim()
+            : '';
+          const numericCorrect = isNumericQ ? numericAnswerWithSolution(q, currentSolution) : '';
+
+         const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
+
+          // NUMERIC questions: the /review/ endpoint's `outcome` field is
+          // unreliable — it reports "skipped" even when answered and scored
+          // (the /result/ totals already count these correctly). So numeric
+          // correctness is always derived locally, never from `q?.outcome`.
+          const isCorrect = isNumericQ
+            ? attempted &&
+              numericCorrect !== '' &&
+              normalizeNumeric(numericUser) === normalizeNumeric(numericCorrect)
+            : q?.outcome === 'correct' ||
+              (q?.outcome == null &&
+                userAnswer.length > 0 &&
+                correctAnswers.length === userAnswer.length &&
+                correctAnswers.every((a: string) => userAnswer.includes(a)));
+
+          const isSkipped = isNumericQ
+            ? !attempted
+            : q?.outcome === 'skipped' ||
+              q?.outcome === 'unattempted' ||
+              (q?.outcome == null && !attempted);
 
           const explanation =
             currentSolution?.explanation ??
@@ -240,7 +290,30 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               ) : null}
 
               {/* Options */}
-              {sortedChoices.map((opt: any, idx: number) => {
+              {isNumericQ ? (
+                <View style={styles.numericReview}>
+                  <Text style={styles.numericReviewRow}>
+                    Your answer:{' '}
+                    <Text
+                      style={{
+                        fontWeight: '700',
+                        color: isCorrect ? '#15803D' : '#B91C1C',
+                      }}
+                    >
+                      {numericUser || '—'}
+                    </Text>
+                  </Text>
+                  {!isCorrect && numericCorrect !== '' && (
+                    <Text style={styles.numericReviewRow}>
+                      Correct answer:{' '}
+                      <Text style={{ fontWeight: '700', color: '#15803D' }}>
+                        {numericCorrect}
+                      </Text>
+                    </Text>
+                  )}
+                </View>
+              ) : (
+              sortedChoices.map((opt: any, idx: number) => {
                 const optId = String(opt?.id ?? opt?.value ?? idx);
                 const state = getOptState(optId);
                 const letter = String.fromCharCode(65 + idx);
@@ -287,7 +360,8 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                     )}
                   </View>
                 );
-              })}
+              })
+              )}
 
               {/* Why / explanation */}
               {explanation && (
