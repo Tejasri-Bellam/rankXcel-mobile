@@ -94,8 +94,19 @@ const parseReview = (
       );
       if (flagged) correctChoiceId = String(flagged.id);
     }
-    const correctAnswer =
+    // change `const correctAnswer = ...` to `let`, then add the fallback:
+    let correctAnswer =
       q.correct_answer ?? q.correct_numeric_answer ?? q.question?.correct_answer ?? null;
+    if (correctAnswer == null && numeric) {
+      const flagged = (Array.isArray(choicesRaw) ? choicesRaw : []).find(
+        (c: any) =>
+          c?.is_correct === true ||
+          c?.correct === true ||
+          String(c?.id) === String(correctChoiceId),
+      );
+      const text = flagged?.text ?? flagged?.label;
+      if (text != null && String(text).trim() !== "") correctAnswer = String(text).trim();
+    }
 
     // Student's answer.
     const ya = q.your_answer ?? q.response ?? q;

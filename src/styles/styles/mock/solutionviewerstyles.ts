@@ -130,4 +130,8 @@ export const solutionViewerStyles = StyleSheet.create({
     backgroundColor: '#EEF4FF',
   },
   askTutorText: { fontSize: 12, fontWeight: '700', color: '#6C63FF' },
+
+   numericReview: { gap: 6, marginBottom: 4 },
+  numericReviewRow: { fontSize: 14, color: '#1A1A2E' },
+
 });

@@ -300,7 +300,7 @@ export default function ExamResults({
         {onViewSolutions && (
           <TouchableOpacity style={styles.reviewCard} onPress={onViewSolutions} activeOpacity={0.85}>
             <Ionicons name="eye-outline" size={18} color='#6C63FF' />
-            <Text style={styles.reviewCardText}>Review all {totalQ} questions</Text>
+            <Text style={styles.reviewCardText}>Review all questions</Text>
           </TouchableOpacity>
         )}
 

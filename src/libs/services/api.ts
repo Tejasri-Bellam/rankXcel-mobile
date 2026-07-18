@@ -71,11 +71,11 @@ function customizeAxiosError(error: AxiosError<ErrorResponseData>): ApiError {
       }
     } else if (status === 404) {
       const detail =
-        typeof data?.detail === "string" ? data.detail : "Resource not found";
+        typeof data?.detail === "string" ? data.detail : "Sorry, the requested Content was not found";
       apiError.errors.nonFieldErrors = [detail];
     } else if (status === 429) {
       const detail =
-        typeof data?.detail === "string" ? data.detail : "Too many requests";
+        typeof data?.detail === "string" ? data.detail : "Sorry, you are making too many requests";
       apiError.errors.nonFieldErrors = [detail, "Please try again later"];
     } else {
       const detail =

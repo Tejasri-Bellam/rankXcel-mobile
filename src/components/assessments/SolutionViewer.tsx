@@ -68,6 +68,29 @@ const choiceExplanationFor = (q: any): string | null => {
   return correct?.explanation ? String(correct.explanation) : null;
 };
 
+// Numeric correct answer, checking scalar fields first, then falling back to
+// the correct choice's `text` (mirrors correctIdsWithSolution's MCQ fallback),
+// then the per-question /solutions/ payload if the review response omits it.
+const numericAnswerWithSolution = (q: any, sol: any): string => {
+  const scalar = q?.correct_answer ?? q?.correct_numeric_answer ?? null;
+  if (scalar != null && String(scalar).trim() !== '') return String(scalar).trim();
+
+  const flagged = getChoices(q).find(
+    (c: any) => c?.is_correct === true || c?.correct === true,
+  );
+  const fromChoice = flagged?.text ?? flagged?.label;
+  if (fromChoice != null && String(fromChoice).trim() !== '') return String(fromChoice).trim();
+
+  if (!sol) return '';
+  const solScalar = sol?.correct_answer ?? sol?.correct_numeric_answer ?? null;
+  if (solScalar != null && String(solScalar).trim() !== '') return String(solScalar).trim();
+  const solFlagged = getChoices(sol).find(
+    (c: any) => c?.is_correct === true || c?.correct === true,
+  );
+  const solText = solFlagged?.text ?? solFlagged?.label;
+  return solText != null ? String(solText).trim() : '';
+};
+
 export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
@@ -167,7 +190,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
             ).trim()
             : '';
           const numericCorrect = isNumericQ
-            ? String(q?.correct_answer ?? q?.correct_numeric_answer ?? '').trim()
+            ? numericAnswerWithSolution(q, currentSolution)
             : '';
 
           const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
@@ -325,16 +348,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                   </Text>
                 </View>
               )}
-
-              {/* Ask the AI tutor */}
-              <TouchableOpacity
-                style={styles.askTutorBtn}
-                activeOpacity={0.8}
-                onPress={() => setTutorQ({ id: qid, text: stripHtml(questionText) })}
-              >
-                <Ionicons name="sparkles" size={13} color='#6C63FF' />
-                <Text style={styles.askTutorText}>Ask the AI tutor</Text>
-              </TouchableOpacity>
             </View>
           );
         })}
