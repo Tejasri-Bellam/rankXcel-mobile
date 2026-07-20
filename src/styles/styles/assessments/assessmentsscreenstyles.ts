@@ -56,7 +56,7 @@ export const liveTestsStyles = StyleSheet.create({
     elevation: 2,
   },
   cardLive: {
-    borderWidth: 1.5,
+    borderWidth: 1.3,
     borderColor: "#F2A29A",
   },
 
@@ -74,11 +74,11 @@ export const liveTestsStyles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
   },
-  statusPillText: { fontSize: 12, fontWeight: "700" },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#EF4444" },
+  statusPillText: { fontSize: 10, fontWeight: "700" },
+  liveDot: { width: 4, height: 4, borderRadius: 3, backgroundColor: "#EF4444" },
   participants: { fontSize: 13, color: "#9CA3AF", fontWeight: "500" },
 
-  cardTitle: { fontSize: 17, fontWeight: "800", color: "#1A1A2E", marginBottom: 6 },
+  cardTitle: { fontSize: 14, fontWeight: "800", color: "#1A1A2E", marginBottom: 6 },
   cardMeta: { fontSize: 13, color: "#9CA3AF" },
 
   studentStatusPill: {

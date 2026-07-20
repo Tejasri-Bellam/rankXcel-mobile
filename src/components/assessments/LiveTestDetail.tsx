@@ -185,7 +185,14 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
 
   // ── Sub-views ──────────────────────────────────────────────────────────────
   if (view === "leaderboard") {
-    return <Leaderboard assessmentId={assessmentId} onBack={() => setView("detail")} />;
+    return(
+    <Leaderboard
+    assessmentId={assessmentId}
+    onBack={() => setView("detail")} 
+    assessmentName={item?.name}
+      liveLabel={displayMeta.label}
+      />
+  );
   }
 
   if (view === "exam") {
