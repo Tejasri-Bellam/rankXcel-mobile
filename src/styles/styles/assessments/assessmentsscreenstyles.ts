@@ -48,7 +48,7 @@ export const liveTestsStyles = StyleSheet.create({
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
-    padding: 16,
+    padding: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -79,7 +79,7 @@ export const liveTestsStyles = StyleSheet.create({
   participants: { fontSize: 13, color: "#9CA3AF", fontWeight: "500" },
 
   cardTitle: { fontSize: 14, fontWeight: "800", color: "#1A1A2E", marginBottom: 6 },
-  cardMeta: { fontSize: 13, color: "#9CA3AF" },
+  cardMeta: { fontSize: 12, color: "#9CA3AF" },
 
   studentStatusPill: {
     alignSelf: "flex-start",

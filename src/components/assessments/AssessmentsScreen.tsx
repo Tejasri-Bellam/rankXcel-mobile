@@ -467,7 +467,7 @@ export default function AssessmentsScreen() {
         <View style={styles.header}>
           <Text style={styles.pageTitle}>Live Tests</Text>
           <Text style={styles.pageSubtitle}>
-            Compete against everyone, in real time. Climb the national leaderboard.
+            Compete against everyone, in real time. Climb the National Leaderboard.
           </Text>
         </View>
 

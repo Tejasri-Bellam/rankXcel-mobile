@@ -124,17 +124,25 @@ export default function NotificationsScreen() {
 
   const handleMarkRead = async (item: AlertItem) => {
     if (item.is_read) return;
-    // Optimistic update
+
+    // Update UI immediately
     setAlerts((prev) =>
-      prev.map((a) => (a.id === item.id ? { ...a, is_read: true } : a))
+      prev.map((a) =>
+        a.id === item.id
+          ? {
+              ...a,
+              is_read: true,
+              read_at: new Date().toISOString(),
+            }
+          : a
+      )
     );
+
     try {
       await markAlertReadService(item.id);
     } catch {
-      // revert
-      setAlerts((prev) =>
-        prev.map((a) => (a.id === item.id ? { ...a, is_read: false } : a))
-      );
+      // If API fails, reload from server
+      fetchAlerts(true);
     }
   };
 
@@ -435,7 +443,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   cardRight: {
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
     paddingTop: 2,
   },
