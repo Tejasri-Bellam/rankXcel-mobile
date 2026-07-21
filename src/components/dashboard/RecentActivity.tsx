@@ -13,16 +13,20 @@ const MAX_ROWS = 5;
 
 const scoreColor = getScoreColor;
 
-// Icon per activity type ("Practice" | "Mock" | "Assessment").
+// Icon per activity type — matches the bottom-nav tab icons (see BottomNav):
+// Mock → Mocks tab, Assessment/Live → Live tab, Practice/Test → Syllabus tab.
 const typeIcon = (type: string): keyof typeof Ionicons.glyphMap => {
   switch ((type || "").toLowerCase()) {
     case "mock":
-      return "newspaper-outline";
+      return "document-text-outline";
     case "assessment":
-      return "school-outline";
+    case "live":
+      return "radio-outline";
+    case "test":
+      return "document-outline";
     case "practice":
     default:
-      return "create-outline";
+      return "play-outline";
   }
 };
 
