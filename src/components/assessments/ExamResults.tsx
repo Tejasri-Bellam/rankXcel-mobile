@@ -124,14 +124,16 @@ export default function ExamResults({
     );
   }
 
-  // ── Derive totals from topic_breakdown ──
+  // ── Totals ──
+  // Prefer the top-level counts the API now returns; fall back to summing
+  // topic_breakdown when they're absent.
   const topics: AssessmentTopicBreakdown[] = Object.values(result.topic_breakdown ?? {});
-  let correct = 0;
-  let wrong = 0;
+  let correct = num(result.correct_questions_count);
+  let wrong = num(result.wrong_questions_count);
   let skipped = 0;
   topics.forEach((t) => {
-    correct += num(t.correct);
-    wrong += num(t.wrong);
+    if (result.correct_questions_count == null) correct += num(t.correct);
+    if (result.wrong_questions_count == null) wrong += num(t.wrong);
     skipped += num(t.unattempted);
   });
   const totalQ = correct + wrong + skipped || num(exam?.question_count) || 0;
