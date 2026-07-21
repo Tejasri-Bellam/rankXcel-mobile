@@ -33,6 +33,11 @@ interface Props {
   exam: any;
   initialAnswers?: Record<string, string[]>;
   initialStatuses?: Record<string, QuestionStatus>;
+  // Absolute epoch-ms deadline from the attempt's server clock (started_at +
+  // duration), when the questions endpoint provides it. Anchoring to it is what
+  // makes RESUME continue from the real remaining time instead of restarting the
+  // full duration. Null/omitted → self-paced fallback of full duration from now.
+  serverDeadlineMs?: number | null;
   onSubmit: (
     answers: Record<string, string[]>,
     timeTaken: number,
@@ -68,6 +73,7 @@ export default function MockExamScreen({
   exam,
   initialAnswers,
   initialStatuses,
+  serverDeadlineMs,
   onSubmit,
   onBackToMocks,
 }: Props) {
@@ -110,7 +116,13 @@ export default function MockExamScreen({
   // attempt so a killed app can be auto-submitted on next launch.
   useEffect(() => {
     if (!exam?.sections?.length || deadline != null) return;
-    const dl = Date.now() + totalSeconds * 1000;
+    // Prefer the server clock when present (resume-safe); otherwise count the
+    // full duration from now for a fresh, self-paced attempt.
+    const usingServerClock =
+      serverDeadlineMs != null && Number.isFinite(serverDeadlineMs);
+    const dl = usingServerClock
+      ? (serverDeadlineMs as number)
+      : Date.now() + totalSeconds * 1000;
     setDeadline(dl);
     saveActiveAttempt({ kind: 'mock', attemptId, deadline: dl });
     // eslint-disable-next-line react-hooks/exhaustive-deps

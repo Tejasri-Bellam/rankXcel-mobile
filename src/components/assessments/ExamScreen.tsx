@@ -38,6 +38,11 @@ interface Props {
   assessmentId: number;
   attemptId: number;
   durationMinutes: number;
+  // Absolute epoch-ms the assessment window closes (scheduled_at +
+  // total_duration_minutes). When set, the countdown is anchored to it so a
+  // late joiner only gets the remaining window rather than the full duration.
+  // Null/omitted → self-paced fallback of the full duration from now.
+  scheduledEndMs?: number | null;
   onSubmit: (
     answers: Record<string, string[]>,
     timeTakenSeconds: number,
@@ -82,11 +87,19 @@ export default function ExamScreen({
   assessmentId,
   attemptId,
   durationMinutes,
+  scheduledEndMs,
   onSubmit,
   onBackToAssessments,
 }: Props) {
   const [exam, setExam] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // The attempt id actually used for saves/submit. Seeded from the prop, but the
+  // questions endpoint echoes an authoritative `attempt_id` that overrides it —
+  // this matters on a reattempt, where the server mints a new attempt whose id
+  // differs from the one the detail screen navigated in with.
+  const [effectiveAttemptId, setEffectiveAttemptId] =
+    useState<number>(attemptId);
 
   // Timer state — initialised after exam data loads
   const [timeLeft, setTimeLeft] = useState(0);
@@ -119,10 +132,17 @@ export default function ExamScreen({
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set once the attempt is submitted. The runner stays mounted behind the
+  // success popup while the parent redirects home, so this freezes the countdown
+  // (and its per-second re-render) — otherwise the background keeps "reloading".
+  const [submitted, setSubmitted] = useState(false);
   const insets = useSafeAreaInsets();
 
   // Track in-flight save requests so we can await them before submit
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
+
+  // Lets us scroll the numeric input into view when the keyboard opens.
+  const scrollRef = useRef<ScrollView>(null);
 
   // ── Load questions ──
   useEffect(() => {
@@ -242,14 +262,62 @@ export default function ExamScreen({
         setQStatuses(savedStatuses);
       }
 
+      // The questions endpoint echoes the authoritative attempt id (and, for an
+      // in-progress attempt, its server-side clock). Prefer it over the prop.
+      const serverAttemptId = Number(raw?.attempt_id);
+      const resolvedAttemptId = Number.isFinite(serverAttemptId)
+        ? serverAttemptId
+        : attemptId;
+      setEffectiveAttemptId(resolvedAttemptId);
+
+      // Server timestamps for the running attempt, when present. `expires_at` is
+      // the wall-clock instant the attempt is due; `started_at` is when it began.
+      const startedMs = Date.parse(raw?.started_at ?? "");
+      const expiresMs = Date.parse(raw?.expires_at ?? "");
+      const hasServerClock = Number.isFinite(expiresMs);
+      // When both bounds are known this is the true attempt length; the countdown
+      // effect keys `timeTaken` off duration_minutes, so align it to the server.
+      if (hasServerClock && Number.isFinite(startedMs)) {
+        examData = {
+          ...examData,
+          duration_minutes: Math.max(0, (expiresMs - startedMs) / 60000),
+        };
+      }
+
       setExam(examData);
       const total = (examData.duration_minutes ?? 60) * 60;
-      setTimeLeft(total);
       // Anchor the countdown to a wall-clock deadline and register the attempt
       // so a killed app can be auto-submitted on next launch.
-      const dl = Date.now() + total * 1000;
+      //
+      // Priority: the server's `expires_at` wins when present — it's the source
+      // of truth and is what makes RESUME continue from where the attempt left
+      // off (rather than restarting the timer). Otherwise a scheduled assessment
+      // closes at `scheduledEndMs` (scheduled_at + total_duration) for everyone,
+      // so a late joiner only gets the remaining window. Self-paced assessments
+      // with no server clock get the full duration counted from now.
+      const now = Date.now();
+      const usingWindow =
+        scheduledEndMs != null && Number.isFinite(scheduledEndMs);
+      const dl = hasServerClock
+        ? expiresMs
+        : usingWindow
+          ? (scheduledEndMs as number)
+          : now + total * 1000;
+      console.log(
+        "TIMER —",
+        hasServerClock
+          ? `server clock: expires ${new Date(dl).toISOString()}, now ${new Date(now).toISOString()}, remaining ${Math.round((dl - now) / 1000)}s (resume-safe)`
+          : usingWindow
+            ? `scheduled window: ends ${new Date(dl).toISOString()}, now ${new Date(now).toISOString()}, remaining ${Math.round((dl - now) / 1000)}s (of ${total}s full)`
+            : `self-paced: full ${total}s from now (scheduledEndMs=${scheduledEndMs})`,
+      );
+      setTimeLeft(Math.max(0, Math.round((dl - now) / 1000)));
       setDeadline(dl);
-      saveActiveAttempt({ kind: "assessment", attemptId, deadline: dl });
+      saveActiveAttempt({
+        kind: "assessment",
+        attemptId: resolvedAttemptId,
+        deadline: dl,
+      });
     } catch (error) {
       console.log("QUESTIONS ERROR:", error);
       Alert.alert(
@@ -268,7 +336,7 @@ export default function ExamScreen({
   // Recompute time left from the deadline each tick (and immediately on
   // mount/resume) so suspended JS timers can't drift the clock.
   useEffect(() => {
-    if (deadline == null) return;
+    if (deadline == null || submitted) return;
     const total = (exam?.duration_minutes ?? durationMinutes ?? 60) * 60;
     const sync = () => {
       const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
@@ -283,7 +351,7 @@ export default function ExamScreen({
     }, 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deadline]);
+  }, [deadline, submitted]);
 
   // ── AppState / tab-switch detection ──
   useEffect(() => {
@@ -413,7 +481,7 @@ export default function ExamScreen({
       .map((v) => Number(v))
       .filter((n) => Number.isFinite(n));
 
-    const savePromise = updateAssessmentResponsesService(attemptId, qId, {
+    const savePromise = updateAssessmentResponsesService(effectiveAttemptId, qId, {
       selected_choice_ids: numericOptions,
       is_marked_for_review: markedForReview,
       time_spent_seconds: 0,
@@ -445,7 +513,7 @@ export default function ExamScreen({
   ) => {
     const trimmed = (value ?? "").trim();
 
-    const savePromise = updateAssessmentResponsesService(attemptId, qId, {
+    const savePromise = updateAssessmentResponsesService(effectiveAttemptId, qId, {
       numeric_answer: trimmed === "" ? null : trimmed,
       selected_choice_ids: [],
       is_marked_for_review: markedForReview,
@@ -624,10 +692,19 @@ export default function ExamScreen({
         console.log("All pending saves completed.");
       }
 
-      console.log("Submitting attempt:", attemptId);
+      console.log("Submitting attempt:", effectiveAttemptId);
 
-      const response = await assessmentSubmitService(attemptId);
+      const response = await assessmentSubmitService(effectiveAttemptId);
       await clearActiveAttempt();
+
+      // Freeze the runner: the parent keeps us mounted behind the success popup
+      // while it redirects home, so stop the countdown and cancel any pending
+      // background-grace submit before handing the result up.
+      setSubmitted(true);
+      if (graceTimerRef.current) {
+        clearTimeout(graceTimerRef.current);
+        graceTimerRef.current = null;
+      }
 
       console.log("SUBMIT RESPONSE:", JSON.stringify(response, null, 2));
 
@@ -672,6 +749,10 @@ export default function ExamScreen({
     activeQIdx === activeSection.questions.length - 1;
   const isFirst = activeSectionIdx === 0 && activeQIdx === 0;
   const isTimeLow = timeLeft < 300;
+  // Show the button spinner only while the submit is actually in flight. Once
+  // it succeeds we surface the success popup (submitted=true), so the spinner
+  // behind it must stop rather than keep looping until the popup redirects.
+  const showSubmitLoader = isSubmitting && !submitted;
 
   const paletteItems = flatQuestions.map(({ q, si, qi }: any) => {
     const status = qStatuses[q.id];
@@ -759,15 +840,20 @@ export default function ExamScreen({
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        // Android already resizes the window on keyboard open (adjustResize in
+        // the manifest); adding "height" here double-handles it and makes the
+        // layout jump. Only iOS needs the avoider.
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
       {/* Question content */}
       {activeQuestion ? (
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Q label + Mark */}
           <View style={styles.qMetaRow}>
@@ -804,7 +890,13 @@ export default function ExamScreen({
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.questionText}>{stripHtml(activeQuestion.text ?? "")}</Text>
+          {/* Image-only questions (e.g. a bare structure) have no text — skip
+              the empty <Text> so it doesn't reserve a blank line above the image. */}
+          {!!stripHtml(activeQuestion.text ?? "").trim() && (
+            <Text style={styles.questionText}>
+              {stripHtml(activeQuestion.text ?? "")}
+            </Text>
+          )}
           {activeQuestion.image && (
             <Image source={{ uri: activeQuestion.image }} style={styles.questionImage} />
           )}
@@ -844,6 +936,14 @@ export default function ExamScreen({
                 onChangeText={handleNumericChange}
                 onEndEditing={handleNumericBlur}
                 onBlur={handleNumericBlur}
+                // Reveal the input (and hint) just above the keyboard — they sit
+                // at the end of the scroll content on numeric questions.
+                onFocus={() =>
+                  setTimeout(
+                    () => scrollRef.current?.scrollToEnd({ animated: true }),
+                    150,
+                  )
+                }
                 keyboardType={
                   Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
                 }
@@ -912,6 +1012,7 @@ export default function ExamScreen({
           <Text style={{ color: "#9898B0" }}>No question available.</Text>
         </View>
       )}
+      </KeyboardAvoidingView>
 
       {/* Bottom bar */}
       <View style={styles.bottomBar}>
@@ -932,7 +1033,7 @@ export default function ExamScreen({
               disabled={isSubmitting}
               activeOpacity={0.85}
             >
-              {isSubmitting ? (
+              {showSubmitLoader ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
@@ -953,7 +1054,7 @@ export default function ExamScreen({
           )}
         </View>
       </View>
-      </KeyboardAvoidingView>
+
 
       {/* Question palette */}
       <QuestionPalette
@@ -1010,7 +1111,7 @@ export default function ExamScreen({
                 disabled={isSubmitting}
                 activeOpacity={0.85}
               >
-                {isSubmitting ? (
+                {showSubmitLoader ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>

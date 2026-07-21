@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
+  AppState,
   BackHandler,
   RefreshControl,
   ScrollView,
@@ -23,6 +24,7 @@ import { getScoreColor } from '@/src/styles/styles';
 import { useHeaderScrollHandler } from '@/src/libs/context/HeaderScrollContext';
 import MockDetails from './Details';
 import RequestMockModal from './RequestMock';
+import { getActiveAttempt, submitAbandonedAttempt } from '@/src/libs/utils/examSession';
 import { mockLibraryStyles as styles } from '@/src/styles/styles/mock/mocklibrarystyles';
 
 
@@ -222,6 +224,42 @@ export default function MockLibrary({
 
   useEffect(() => { loadMocks(); }, [loadMocks]);
 
+  // Auto-submit a timed-out mock and refresh the list. Mocks are self-paced, so
+  // their deadline isn't in the list data — it lives in the stored active
+  // attempt. On foreground (a reopen), submit any abandoned attempt then refetch
+  // so its card flips from in-progress to submitted; while the library sits open,
+  // a timer fires the same at the exact deadline. submitAbandonedAttempt() is a
+  // no-op unless a stored attempt's deadline has actually passed.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const settleAndRefresh = async () => {
+      await submitAbandonedAttempt();
+      if (!cancelled) loadMocks(true);
+    };
+
+    const scheduleTimer = async () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      const record = await getActiveAttempt();
+      if (cancelled || !record || record.kind !== 'mock') return;
+      const msLeft = record.deadline - Date.now();
+      // +1s so the deadline has definitely passed when the timer fires.
+      if (msLeft > 0) timer = setTimeout(settleAndRefresh, msLeft + 1000);
+      else settleAndRefresh();
+    };
+
+    scheduleTimer();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') { settleAndRefresh(); scheduleTimer(); }
+    });
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      sub.remove();
+    };
+  }, [loadMocks]);
+
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (requestVisible) { setRequestVisible(false); return true; }
@@ -351,7 +389,10 @@ export default function MockLibrary({
                 key={String(mock.id)}
                 mock={mock}
                 onPress={() => {
-                  if (mock.status === 'IN_PROGRESS') setResumeMock(mock);
+                  // Resume keys off the ATTEMPT status, not the mock's publish
+                  // `status` (which is PUBLISHED/etc., never IN_PROGRESS).
+                  if (mock.latest_attempt_status === 'IN_PROGRESS')
+                    setResumeMock(mock);
                   else setSelectedMock(mock);
                 }}
               />

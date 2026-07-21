@@ -11,6 +11,7 @@ import {
 
 import { router } from 'expo-router';
 import ExamNavigator from './ExamNavigator';
+import SubmitSuccessModal from './SubmitSuccessModal';
 import ExamResults from './ExamResults';
 import SolutionViewer from './SolutionViewer';
 import { assessmentStartService, AssessmentResult } from '@/src/libs/services/assessments-attempts';
@@ -36,6 +37,8 @@ export default function ExamDetails({ item, onBack }: Props) {
   const [submittedResult, setSubmittedResult] = useState<AssessmentResult | null>(null);
   const [timeTaken, setTimeTaken] = useState(0);
   const [startLoading, setStartLoading] = useState(false);
+  // Shown after a successful submit; dismissing it redirects to the home page.
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const status = item?.derived_status ?? item?.student_status;
 
@@ -112,35 +115,63 @@ export default function ExamDetails({ item, onBack }: Props) {
     }
     try {
       setStartLoading(true);
-      await assessmentStartService(attemptId);
+      // Resume is just a re-entry into an already-started attempt — starting it
+      // again is unnecessary (the backend rejects it with INVALID_STATE anyway).
+      // The runner reconstructs the timer from the attempt's server clock.
+      if (!isInProgress) {
+        await assessmentStartService(attemptId);
+      }
     } catch (error: any) {
       const code = error?.body?.code ?? error?.errors?.code?.[0];
       if (code !== 'INVALID_STATE') {
         Alert.alert('Error', error?.body?.error ?? 'Failed to start. Please try again.');
         return;
       }
-      // INVALID_STATE 
+      // INVALID_STATE
     } finally {
       setStartLoading(false);
     }
     setCurrentView('exam');
   };
 
+  // Dismiss the success popup and route to the home page.
+  const handleGoHome = () => {
+    setShowSuccessModal(false);
+    router.replace('/dashboard');
+  };
+
 
   if (currentView === 'exam') {
     return (
-      <ExamNavigator
-        assessmentId={assessmentId}
-        attemptId={attemptId}
-        durationMinutes={item?.total_duration_minutes ?? 60}
-        onSubmit={(answers, seconds, result) => {
-          setSubmittedAnswers(answers);
-          setTimeTaken(seconds);
-          setSubmittedResult(result ?? null);
-          setCurrentView('results');
-        }}
-        onBackToAssessments={onBack}
-      />
+      <>
+        <ExamNavigator
+          assessmentId={assessmentId}
+          attemptId={attemptId}
+          durationMinutes={item?.total_duration_minutes ?? 60}
+          // Scheduled assessments close at scheduled_at + duration for everyone,
+          // so a late start only gets the remaining window. No schedule → the
+          // exam screen falls back to the full duration from now.
+          scheduledEndMs={
+            item?.scheduled_at &&
+            !isNaN(new Date(item.scheduled_at).getTime())
+              ? new Date(item.scheduled_at).getTime() +
+                (item?.total_duration_minutes ?? 60) * 60 * 1000
+              : null
+          }
+          onSubmit={(answers, seconds, result) => {
+            setSubmittedAnswers(answers);
+            setTimeTaken(seconds);
+            setSubmittedResult(result ?? null);
+            // On success, surface the popup and redirect home (results stay
+            // reachable later from the completed assessment's detail screen).
+            setShowSuccessModal(true);
+          }}
+          onBackToAssessments={onBack}
+        />
+
+        {/* Submit success popup — auto-redirects home after 5s. */}
+        <SubmitSuccessModal visible={showSuccessModal} onDone={handleGoHome} />
+      </>
     );
   }
 

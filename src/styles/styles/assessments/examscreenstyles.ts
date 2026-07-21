@@ -102,8 +102,11 @@ export const examScreenStyles = StyleSheet.create({
     marginBottom: 12,
   },
   questionImage: {
-    width: "50%",
-    height: "50%",
+    // A fixed pixel height — NOT a percentage. Inside a ScrollView the content
+    // container has no resolved height, so `height: "50%"` blew the image box up
+    // to ~half the viewport and left a large empty gap below the diagram.
+    width: "100%",
+    height: 220,
     resizeMode: "contain",
     borderRadius: 8,
     alignSelf: "center",
