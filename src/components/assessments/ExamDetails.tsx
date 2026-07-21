@@ -115,14 +115,19 @@ export default function ExamDetails({ item, onBack }: Props) {
     }
     try {
       setStartLoading(true);
-      await assessmentStartService(attemptId);
+      // Resume is just a re-entry into an already-started attempt — starting it
+      // again is unnecessary (the backend rejects it with INVALID_STATE anyway).
+      // The runner reconstructs the timer from the attempt's server clock.
+      if (!isInProgress) {
+        await assessmentStartService(attemptId);
+      }
     } catch (error: any) {
       const code = error?.body?.code ?? error?.errors?.code?.[0];
       if (code !== 'INVALID_STATE') {
         Alert.alert('Error', error?.body?.error ?? 'Failed to start. Please try again.');
         return;
       }
-      // INVALID_STATE 
+      // INVALID_STATE
     } finally {
       setStartLoading(false);
     }

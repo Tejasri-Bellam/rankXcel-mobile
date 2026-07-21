@@ -26,7 +26,7 @@ export const STUDENT_STATUS_META: Record<string, StatusMeta> = {
   upcoming: { label: "Upcoming", color: "#3B82F6", bg: "#EAF1FF" },
   scheduled: { label: "Scheduled", color: "#3B82F6", bg: "#EAF1FF" },
   registered: { label: "Registered", color: "#2563EB", bg: "#EAF1FF" },
-  completed: { label: "Results Out", color: "#059669", bg: "#E7F6EF" },
+  completed: { label: "Completed", color: "#059669", bg: "#E7F6EF" },
   submitted: { label: "Submitted", color: "#059669", bg: "#E7F6EF" },
   missed: { label: "Missed", color: "#6B7280", bg: "#F1F2F5" },
   expired: { label: "Expired", color: "#6B7280", bg: "#F1F2F5" },

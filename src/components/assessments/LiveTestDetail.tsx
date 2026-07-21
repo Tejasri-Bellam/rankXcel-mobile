@@ -22,7 +22,13 @@ import SolutionViewer from "./SolutionViewer";
 import Leaderboard from "./Leaderboard";
 import SubmitSuccessModal from "./SubmitSuccessModal";
 import { liveTestDetailStyles as s } from "@/src/styles/styles/assessments/livetestdetailstyles";
-import { LiveStatus, LIVE_STATUS_META } from "@/src/libs/constants";
+import {
+  LiveStatus,
+  LIVE_STATUS_META,
+  SUBMITTED_STATUSES,
+  mapStudentStatus,
+  studentStatusMeta,
+} from "@/src/libs/constants";
 
 export type { LiveStatus };
 
@@ -63,8 +69,28 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     ? true
     : Date.now() >= examStart + (item?.total_duration_minutes ?? 0) * 60 * 1000;
 
-  // Show "Completed" while the window is still open; only flip to the
-  // results-out pill once the exam has actually ended.
+  // Results (and the leaderboard) are gated on the backend's explicit
+  // `assessment_results` flag — the authoritative "results have been published"
+  // signal — rather than inferring it from the schedule having elapsed.
+  const resultsOut = item?.assessment_results === true;
+
+  // Status pill driven by the student's ACTUAL status (not the static
+  // schedule-derived live/upcoming/results label). A submitted attempt reads
+  // "Completed" until results publish, then "Results Out".
+  const rawStatus = String(item?.student_status ?? "").toLowerCase();
+  const statusPillMeta = SUBMITTED_STATUSES.has(rawStatus)
+    ? resultsOut
+      ? { label: "Results Out", color: "#059669", bg: "#E7F6EF" }
+      : { label: "Completed", color: "#2563EB", bg: "#EAF1FF" }
+    : studentStatusMeta(item?.student_status) ?? {
+        label: meta.label,
+        color: meta.color,
+        bg: meta.bg,
+      };
+  // A live dot only while genuinely live (and results not yet out).
+  const statusIsLive = mapStudentStatus(rawStatus) === "live" && !resultsOut;
+
+  // Retained for the leaderboard header label passed down below.
   const displayMeta =
     status === "results" && !examEnded
       ? { label: "Completed", color: "#2563EB", bg: "#EAF1FF", live: false }
@@ -254,14 +280,18 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       }
       setAttemptId(id);
 
-      // Start the attempt. Idempotent — an already-started attempt returns
-      // INVALID_STATE, which we treat as "already started" and continue.
-      console.log("STARTING attempt via Start API, attempt id:", id);
-      try {
-        await assessmentStartService(id);
-      } catch (err: any) {
-        const code = err?.body?.code ?? err?.errors?.code?.[0];
-        if (code !== "INVALID_STATE") throw err;
+      // Start the attempt — unless we're resuming one that's already in progress
+      // (the runner rebuilds the timer from the attempt's server clock). Start is
+      // idempotent regardless: an already-started attempt returns INVALID_STATE,
+      // which we treat as "already started" and continue.
+      if (!isInProgress || forceNew) {
+        console.log("STARTING attempt via Start API, attempt id:", id);
+        try {
+          await assessmentStartService(id);
+        } catch (err: any) {
+          const code = err?.body?.code ?? err?.errors?.code?.[0];
+          if (code !== "INVALID_STATE") throw err;
+        }
       }
       setView("exam");
     } catch (err: any) {
@@ -402,9 +432,10 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       );
     }
     if (status === "results") {
-      // Submitted → view results. Assessments aren't re-attemptable, so a missed
-      // (never submitted) test just shows an inert "ended" state.
-      if (isSubmitted) {
+      // Personal results are viewable once the student has submitted AND the
+      // backend has published them (assessment_results). Submitted but not yet
+      // published → awaiting; a missed (never submitted) test → inert "ended".
+      if (isSubmitted && resultsOut) {
         return (
           <TouchableOpacity
             style={s.primaryBtn}
@@ -414,6 +445,16 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
             <Ionicons name="bar-chart" size={17} color="#fff" />
             <Text style={s.primaryBtnText}>View results</Text>
           </TouchableOpacity>
+        );
+      }
+      if (isSubmitted) {
+        return (
+          <View style={[s.primaryBtn, s.missedBtn]}>
+            <Ionicons name="hourglass-outline" size={17} color="#9CA3AF" />
+            <Text style={[s.primaryBtnText, { color: "#9CA3AF" }]}>
+              Awaiting results
+            </Text>
+          </View>
         );
       }
       return (
@@ -467,10 +508,10 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       >
         <Text style={s.kicker}>Live Test</Text>
 
-        <View style={[s.statusPill, { backgroundColor: displayMeta.bg }]}>
-          {displayMeta.live ? <View style={s.liveDot} /> : null}
-          <Text style={[s.statusPillText, { color: displayMeta.color }]}>
-            {displayMeta.label}
+        <View style={[s.statusPill, { backgroundColor: statusPillMeta.bg }]}>
+          {statusIsLive ? <View style={s.liveDot} /> : null}
+          <Text style={[s.statusPillText, { color: statusPillMeta.color }]}>
+            {statusPillMeta.label}
           </Text>
         </View>
 
@@ -503,8 +544,8 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
 
         {renderPrimary()}
 
-        {/* Leaderboard is only meaningful once results are out (exam ended). */}
-        {examEnded && (
+        {/* Leaderboard shows once results are published (assessment_results). */}
+        {resultsOut && (
           <TouchableOpacity
             style={s.secondaryBtn}
             onPress={() => setView("leaderboard")}

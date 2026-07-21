@@ -1,6 +1,6 @@
 import { Stack, usePathname, useGlobalSearchParams, router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { BackHandler, Platform, StatusBar, View } from "react-native";
+import { AppState, BackHandler, Platform, StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
@@ -89,8 +89,16 @@ function AppShell() {
 
   // On cold launch, submit any exam attempt left in progress by a previous run
   // that was killed / swiped out of recents mid-exam (it never got to submit).
+  // Also re-check on every foreground: a warm resume (app not fully killed)
+  // doesn't remount this component, so the cold-launch call alone would miss an
+  // attempt whose scheduled window elapsed while the app sat in the background.
+  // submitAbandonedAttempt() no-ops unless the stored attempt's deadline passed.
   useEffect(() => {
     submitAbandonedAttempt();
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") submitAbandonedAttempt();
+    });
+    return () => sub.remove();
   }, []);
 
   // Keep the latest values in a ref so the hardware-back handler can be

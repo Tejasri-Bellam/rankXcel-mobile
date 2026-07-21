@@ -15,13 +15,13 @@ import Toast, { useToast } from "@/src/components/common/Toast";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getassessmentsService } from "@/src/libs/services/assessments";
+import { submitAbandonedAttempt } from "@/src/libs/utils/examSession";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import LiveTestDetail from "./LiveTestDetail";
 import { liveTestsStyles as styles } from "@/src/styles/styles/assessments/assessmentsscreenstyles";
 import {
   LiveStatus,
-  SUBMITTED_STATUSES,
   mapStudentStatus,
   studentStatusMeta,
 } from "@/src/libs/constants";
@@ -47,13 +47,23 @@ const FILTER_STATUS: Record<Exclude<FilterValue, "all">, LiveStatus> = {
 };
 
 const deriveStatus = (item: any): LiveStatus => {
-  // Prefer the authoritative server status; fall back to schedule-based timing.
-  const mapped = mapStudentStatus(item?.student_status);
-  if (mapped) return mapped;
-
   const scheduled = new Date(item?.scheduled_at).getTime();
   const end = scheduled + (item?.total_duration_minutes ?? 0) * 60 * 1000;
   const now = Date.now();
+  const windowEnded = !isNaN(scheduled) && now > end;
+
+  // Prefer the authoritative server status; fall back to schedule-based timing.
+  const mapped = mapStudentStatus(item?.student_status);
+  if (mapped) {
+    // The scheduled window is the source of truth for whether a test is still
+    // open. The backend can keep reporting "live"/"in_progress" past the end
+    // time when an attempt was never submitted — but a closed window is results,
+    // never live. This is what stops a stale "Resume" button (and the "Live"
+    // pill) showing after the assessment has actually ended.
+    if (mapped === "live" && windowEnded) return "results";
+    return mapped;
+  }
+
   if (isNaN(scheduled)) return "upcoming";
   if (now < scheduled) return "upcoming";
   if (now <= end) return "live";
@@ -67,26 +77,14 @@ const assessmentEndTime = (item: any): Date | null => {
   return new Date(start + (item?.total_duration_minutes ?? 0) * 60 * 1000);
 };
 
-// Whether the test's scheduled window has fully elapsed (i.e. results time).
-const examHasEnded = (item: any): boolean => {
-  const end = assessmentEndTime(item);
-  return end ? Date.now() >= end.getTime() : false;
-};
-
-// The student-status pill, with one timing rule on top of STUDENT_STATUS_META:
-// a submitted/completed attempt reads "Completed" while the test window is
-// still open, and only flips to "Results Out" once the exam has actually ended.
+// The card pill mirrors the backend's raw student_status directly (completed →
+// "Completed", missed → "Missed", live → "Live", …). "Results Out" is a
+// detail-screen concept gated on the published-results flag, not something the
+// list can infer — the list endpoint doesn't return it.
 const studentDisplayMeta = (
   item: any
-): { label: string; color: string; bg: string } | null => {
-  const raw = String(item?.student_status ?? "").toLowerCase();
-  if (SUBMITTED_STATUSES.has(raw)) {
-    return examHasEnded(item)
-      ? { label: "Results Out", color: "#059669", bg: "#E7F6EF" }
-      : { label: "Completed", color: "#2563EB", bg: "#EAF1FF" };
-  }
-  return studentStatusMeta(item?.student_status);
-};
+): { label: string; color: string; bg: string } | null =>
+  studentStatusMeta(item?.student_status);
 
 const timeOnly = (d: Date): string =>
   d.toLocaleTimeString("en-GB", {
@@ -308,7 +306,14 @@ export default function AssessmentsScreen() {
     if (!isFinite(next)) return;
     // +1s buffer so the boundary has definitely passed when we refetch.
     const delay = Math.max(next - now + 1000, 1000);
-    const id = setTimeout(() => fetchAssessments(false, true), delay);
+    const id = setTimeout(async () => {
+      // A window just closed while the list sat open — submit an attempt the
+      // student abandoned mid-exam before refreshing, so its card reflects the
+      // real (submitted) state rather than a stale in-progress one. No-ops unless
+      // a stored attempt's deadline has actually passed.
+      await submitAbandonedAttempt();
+      fetchAssessments(false, true);
+    }, delay);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, loading, refreshing, activeExamId]);
@@ -416,10 +421,11 @@ export default function AssessmentsScreen() {
   }))
   .sort((a, b) => order[a.status] - order[b.status]);
 
-  // Live filter = registered AND the backend's live student_status.
+  // Live filter = registered AND still-open live status. Uses the derived
+  // status (not the raw student_status) so a test whose window has closed drops
+  // out of "Live" even if the backend still reports it as live/in-progress.
   const isLive = (t: { item: any; status: LiveStatus }) =>
-    Boolean(t.item?.is_registered) &&
-    String(t.item?.student_status ?? "").toLowerCase() === "live";
+    Boolean(t.item?.is_registered) && t.status === "live";
 
   const counts: Record<FilterValue, number> = {
     // "All" reflects the server's total across all pages, not just what's loaded.
@@ -521,12 +527,12 @@ export default function AssessmentsScreen() {
         ) : (
           <View style={styles.cardList}>
             {tests.map(({ item, status }) => {
-              // The card shows only the backend's student_status pill (with the
-              // submitted→"Completed"/"Results Out" timing rule applied).
+              // The card shows the backend's raw student_status pill.
               const ss = studentDisplayMeta(item);
-              const isLive = ["live", "active", "ongoing", "in_progress"].includes(
-                String(item.student_status ?? "").toLowerCase()
-              );
+              // The pulsing live dot follows the derived status, so it goes away
+              // once the scheduled window has closed (not just when the backend
+              // flips student_status away from live).
+              const isLive = status === "live";
               return (
                 <TouchableOpacity
                   key={String(item.id)}
