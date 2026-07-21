@@ -49,18 +49,32 @@ export async function getActiveAttempt(): Promise<ActiveExamAttempt | null> {
 }
 
 // Called once at app launch. A stored record here means the previous run ended
-// without submitting (the app was closed / removed from recents during an
-// exam), so submit that attempt and clear the record.
+// without submitting (the app was closed / removed from recents during an exam).
+//
+// Only auto-submit if the attempt's time is actually up. If time still remains,
+// KEEP the record so the student can reopen and resume where they left off — a
+// later launch (past the deadline) will submit it if they never return.
 export async function submitAbandonedAttempt(): Promise<void> {
   const record = await getActiveAttempt();
   if (!record) return;
+
+  const timeLeft =
+    typeof record.deadline === "number" && Date.now() < record.deadline;
+  if (timeLeft) {
+    console.log(
+      "Active attempt still has time left — keeping for resume:",
+      record,
+    );
+    return;
+  }
+
   try {
     if (record.kind === "mock") {
       await submitMockAttemptService(record.attemptId);
     } else {
       await assessmentSubmitService(Number(record.attemptId));
     }
-    console.log("Auto-submitted abandoned attempt:", record);
+    console.log("Auto-submitted abandoned attempt (time up):", record);
   } catch (e) {
     console.log("submitAbandonedAttempt error:", e);
   } finally {

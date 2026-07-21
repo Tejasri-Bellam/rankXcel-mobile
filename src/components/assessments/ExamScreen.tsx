@@ -38,6 +38,11 @@ interface Props {
   assessmentId: number;
   attemptId: number;
   durationMinutes: number;
+  // Absolute epoch-ms the assessment window closes (scheduled_at +
+  // total_duration_minutes). When set, the countdown is anchored to it so a
+  // late joiner only gets the remaining window rather than the full duration.
+  // Null/omitted → self-paced fallback of the full duration from now.
+  scheduledEndMs?: number | null;
   onSubmit: (
     answers: Record<string, string[]>,
     timeTakenSeconds: number,
@@ -82,6 +87,7 @@ export default function ExamScreen({
   assessmentId,
   attemptId,
   durationMinutes,
+  scheduledEndMs,
   onSubmit,
   onBackToAssessments,
 }: Props) {
@@ -123,6 +129,9 @@ export default function ExamScreen({
 
   // Track in-flight save requests so we can await them before submit
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
+
+  // Lets us scroll the numeric input into view when the keyboard opens.
+  const scrollRef = useRef<ScrollView>(null);
 
   // ── Load questions ──
   useEffect(() => {
@@ -244,10 +253,24 @@ export default function ExamScreen({
 
       setExam(examData);
       const total = (examData.duration_minutes ?? 60) * 60;
-      setTimeLeft(total);
       // Anchor the countdown to a wall-clock deadline and register the attempt
       // so a killed app can be auto-submitted on next launch.
-      const dl = Date.now() + total * 1000;
+      //
+      // A scheduled assessment closes at `scheduledEndMs` (scheduled_at +
+      // total_duration) for everyone, so a late joiner only gets the remaining
+      // window. Self-paced assessments (no scheduled window) get the full
+      // duration counted from now.
+      const now = Date.now();
+      const usingWindow =
+        scheduledEndMs != null && Number.isFinite(scheduledEndMs);
+      const dl = usingWindow ? (scheduledEndMs as number) : now + total * 1000;
+      console.log(
+        "TIMER —",
+        usingWindow
+          ? `scheduled window: ends ${new Date(dl).toISOString()}, now ${new Date(now).toISOString()}, remaining ${Math.round((dl - now) / 1000)}s (of ${total}s full)`
+          : `self-paced: full ${total}s from now (scheduledEndMs=${scheduledEndMs})`,
+      );
+      setTimeLeft(Math.max(0, Math.round((dl - now) / 1000)));
       setDeadline(dl);
       saveActiveAttempt({ kind: "assessment", attemptId, deadline: dl });
     } catch (error) {
@@ -759,15 +782,20 @@ export default function ExamScreen({
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        // Android already resizes the window on keyboard open (adjustResize in
+        // the manifest); adding "height" here double-handles it and makes the
+        // layout jump. Only iOS needs the avoider.
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
       {/* Question content */}
       {activeQuestion ? (
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Q label + Mark */}
           <View style={styles.qMetaRow}>
@@ -844,6 +872,14 @@ export default function ExamScreen({
                 onChangeText={handleNumericChange}
                 onEndEditing={handleNumericBlur}
                 onBlur={handleNumericBlur}
+                // Reveal the input (and hint) just above the keyboard — they sit
+                // at the end of the scroll content on numeric questions.
+                onFocus={() =>
+                  setTimeout(
+                    () => scrollRef.current?.scrollToEnd({ animated: true }),
+                    150,
+                  )
+                }
                 keyboardType={
                   Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
                 }
@@ -912,6 +948,7 @@ export default function ExamScreen({
           <Text style={{ color: "#9898B0" }}>No question available.</Text>
         </View>
       )}
+      </KeyboardAvoidingView>
 
       {/* Bottom bar */}
       <View style={styles.bottomBar}>
@@ -953,7 +990,7 @@ export default function ExamScreen({
           )}
         </View>
       </View>
-      </KeyboardAvoidingView>
+
 
       {/* Question palette */}
       <QuestionPalette

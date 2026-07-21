@@ -6,6 +6,7 @@ type Props = {
   assessmentId: number;
   attemptId: number;
   durationMinutes: number;
+  scheduledEndMs?: number | null;
   onSubmit: (
     answers: Record<string, string[]>,
     timeTakenSeconds: number,
@@ -18,6 +19,7 @@ export default function ExamNavigator({
   assessmentId,
   attemptId,
   durationMinutes,
+  scheduledEndMs,
   onSubmit,
   onBackToAssessments,
 }: Props) {
@@ -29,6 +31,7 @@ export default function ExamNavigator({
       assessmentId={assessmentId}
       attemptId={attemptId}
       durationMinutes={durationMinutes}
+      scheduledEndMs={scheduledEndMs}
       onSubmit={onSubmit}
       onBackToAssessments={onBackToAssessments}
     />

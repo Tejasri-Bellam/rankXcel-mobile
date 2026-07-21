@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { assessmentStartService } from "@/src/libs/services/assessments-attempts";
 import {
+  getassessmentsService,
   reattemptAssessmentService,
   registerAssessmentService,
 } from "@/src/libs/services/assessments";
@@ -19,6 +20,7 @@ import ExamNavigator from "./ExamNavigator";
 import ExamResults from "./ExamResults";
 import SolutionViewer from "./SolutionViewer";
 import Leaderboard from "./Leaderboard";
+import SubmitSuccessModal from "./SubmitSuccessModal";
 import { liveTestDetailStyles as s } from "@/src/styles/styles/assessments/livetestdetailstyles";
 import { LiveStatus, LIVE_STATUS_META } from "@/src/libs/constants";
 
@@ -75,6 +77,8 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
   >({});
   const [timeTaken, setTimeTaken] = useState(0);
   const [loading, setLoading] = useState(false);
+  // Shown after a successful submit; auto-redirects to home after a few seconds.
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Seeded from the list's `is_registered`; flipped on a successful register.
   const [registered, setRegistered] = useState<boolean>(
@@ -93,11 +97,25 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       0
   );
 
+  // Pull an ATTEMPT id out of the various shapes the API returns it in.
+  // NB: `assessment_id` is deliberately NOT read here — the register response
+  // echoes it (== the assessment id) and it is not an attempt id.
+  const pickAttemptId = (obj: any): number | undefined =>
+    obj == null
+      ? undefined
+      : obj.attempt_id ??
+        obj.attemptId ??
+        obj.latest_attempt_id ??
+        obj.attempt?.id ??
+        obj.id;
+
   const handleRegister = async () => {
     if (registering || registered) return;
     try {
       setRegistering(true);
       await registerAssessmentService(assessmentId);
+      // Registration creates the attempt server-side but doesn't return its id
+      // (the response only echoes assessment_id) — it's fetched at enter time.
       setRegistered(true);
       // Reflect this registration in the displayed count right away.
       setParticipants((c) => c + 1);
@@ -121,6 +139,9 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
   const questionCount = item?.question_count ?? 0;
   // A results-out test the student actually submitted (vs. missed).
   const isSubmitted = item?.latest_attempt_status === "SUBMITTED";
+  // An attempt that was started but not yet submitted (e.g. the student closed
+  // the app mid-exam) — the CTA should read "Resume" rather than "Enter".
+  const isInProgress = item?.latest_attempt_status === "IN_PROGRESS";
 
   // Publish the active view so the app shell can hide the global header while
   // inside the live-test flow (see HEADER hiding in app/_layout.tsx).
@@ -152,20 +173,90 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     return () => sub.remove();
   }, [view, onBack]);
 
+  // The register response doesn't return the attempt id — but the assessments
+  // list carries it as `latest_attempt_id` once registration has created it.
+  // Re-fetch the (exam-scoped) list, paging until this assessment is found, and
+  // read its latest_attempt_id.
+  const resolveExistingAttemptId = async (): Promise<number | undefined> => {
+    const examId = item?.exam?.id;
+    try {
+      let page = 1;
+      while (page <= 20) {
+        const res: any = await getassessmentsService(examId, page);
+        const raw: any = res?.data ?? res;
+        const list: any[] = Array.isArray(raw) ? raw : raw?.results ?? [];
+        const match = list.find(
+          (a: any) => String(a?.id) === String(assessmentId),
+        );
+        if (match) {
+          console.log(
+            "LIST MATCH — assessment",
+            match?.id,
+            "latest_attempt_id:",
+            match?.latest_attempt_id,
+            "status:",
+            match?.latest_attempt_status,
+          );
+          return match?.latest_attempt_id ?? undefined;
+        }
+        if (Array.isArray(raw) || !raw?.next) break;
+        page++;
+      }
+      console.log("LIST: assessment", assessmentId, "not found in", page, "pages");
+    } catch (e) {
+      console.log("LIST REFETCH ERROR:", e);
+    }
+    return undefined;
+  };
+
+  // Registration is what creates a student's attempt, but its response only
+  // echoes assessment_id — so ensure we're registered (idempotent), then read
+  // the freshly-created attempt id (latest_attempt_id) from the assessments list.
+  const ensureRegisteredAttemptId = async (): Promise<number | undefined> => {
+    if (!registered) {
+      try {
+        await registerAssessmentService(assessmentId);
+        console.log("REGISTER (on enter): ok");
+        setRegistered(true);
+      } catch (err: any) {
+        const code = err?.body?.code ?? err?.errors?.code?.[0];
+        console.log("REGISTER (on enter) ERROR:", JSON.stringify(err, null, 2));
+        // Already registered is fine — the attempt already exists.
+        if (code !== "ALREADY_REGISTERED") throw err;
+        setRegistered(true);
+      }
+    }
+    return await resolveExistingAttemptId();
+  };
+
   const enterLiveTest = async (forceNew = false) => {
-    let id = attemptId;
+    // Prefer the freshest attempt id from the item prop (updated by the parent's
+    // refetch) over the once-seeded state, which can be stale.
+    let id: number | undefined = item?.latest_attempt_id ?? attemptId ?? undefined;
     try {
       setLoading(true);
-      // No attempt yet (or a fresh re-attempt) → create one, then start.
-      if (!id || forceNew) {
+      console.log("ENTER LIVE TEST — latest_attempt_id:", item?.latest_attempt_id, "state:", attemptId);
+
+      if (forceNew) {
+        // Explicit re-attempt → create a fresh attempt server-side.
         const res: any = await reattemptAssessmentService(assessmentId);
-        const body = res?.data ?? {};
-        id =
-          body?.id ?? body?.attempt_id ?? body?.latest_attempt_id ??
-          body?.data?.id ?? body?.attempt?.id;
-        if (!id) throw new Error("No attempt id returned");
-        setAttemptId(id);
+        id = pickAttemptId(res?.data ?? res);
+      } else if (!id) {
+        // First attempt: the attempt is created at registration. Resolve its id
+        // (NOT via /reattempt/, which is only for subsequent attempts).
+        id = await ensureRegisteredAttemptId();
       }
+
+      if (!id) {
+        throw new Error(
+          "Couldn't find your attempt. Please register for this test and try again.",
+        );
+      }
+      setAttemptId(id);
+
+      // Start the attempt. Idempotent — an already-started attempt returns
+      // INVALID_STATE, which we treat as "already started" and continue.
+      console.log("STARTING attempt via Start API, attempt id:", id);
       try {
         await assessmentStartService(id);
       } catch (err: any) {
@@ -197,17 +288,35 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
 
   if (view === "exam") {
     return (
-      <ExamNavigator
-        assessmentId={assessmentId}
-        attemptId={attemptId}
-        durationMinutes={durationMinutes}
-        onSubmit={(answers: Record<string, string[]>, seconds: number) => {
-          setSubmittedAnswers(answers);
-          setTimeTaken(seconds);
-          setView("results");
-        }}
-        onBackToAssessments={onBack}
-      />
+      <>
+        <ExamNavigator
+          assessmentId={assessmentId}
+          attemptId={attemptId}
+          durationMinutes={durationMinutes}
+          // Live tests close at scheduled_at + duration for everyone — a late
+          // joiner only gets the remaining window (see examEnded / examStart).
+          scheduledEndMs={
+            isNaN(examStart)
+              ? null
+              : examStart + durationMinutes * 60 * 1000
+          }
+          onSubmit={(answers: Record<string, string[]>, seconds: number) => {
+            setSubmittedAnswers(answers);
+            setTimeTaken(seconds);
+            // Show the success popup; it auto-redirects home after 5s.
+            setShowSuccessModal(true);
+          }}
+          onBackToAssessments={onBack}
+        />
+
+        <SubmitSuccessModal
+          visible={showSuccessModal}
+          onDone={() => {
+            setShowSuccessModal(false);
+            router.replace("/dashboard");
+          }}
+        />
+      </>
     );
   }
 
@@ -279,8 +388,14 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
             <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Ionicons name="radio" size={17} color="#fff" />
-              <Text style={s.primaryBtnText}>Enter live test</Text>
+              <Ionicons
+                name={isInProgress ? "play" : "radio"}
+                size={17}
+                color="#fff"
+              />
+              <Text style={s.primaryBtnText}>
+                {isInProgress ? "Resume live test" : "Enter live test"}
+              </Text>
             </>
           )}
         </TouchableOpacity>
