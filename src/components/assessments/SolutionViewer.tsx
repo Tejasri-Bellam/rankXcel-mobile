@@ -96,10 +96,15 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
+  const [expandedExplanations, setExpandedExplanations] = useState<Record<string, boolean>>({});
   const { toast, showToast, hideToast } = useToast();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadReview(); }, []);
+
+  const toggleExplanation = (key: string) => {
+    setExpandedExplanations((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const questions: any[] = useMemo(() => reviewData?.questions ?? [], [reviewData]);
 
@@ -272,17 +277,32 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
 
               {/* Numeric answer comparison */}
               {isNumericQ ? (
-                <View style={styles.numericRow}>
-                  <View style={[styles.numericBox, styles.numericBoxUser]}>
-                    <Text style={styles.numericBoxLabel}>Your answer</Text>
-                    <Text style={styles.numericBoxValue}>{numericUser || '—'}</Text>
-                  </View>
-                  <View style={[styles.numericBox, styles.numericBoxCorrect]}>
-                    <Text style={styles.numericBoxLabel}>Correct answer</Text>
-                    <Text style={[styles.numericBoxValue, { color: '#166534' }]}>
-                      {numericCorrect || '—'}
+                <View style={styles.numericAnswerBlock}>
+                  {isCorrect ? (
+                    // Correct: only show what the user answered
+                    <Text style={styles.numericAnswerLine}>
+                      <Text style={styles.numericAnswerLabel}>Your answer: </Text>
+                      <Text style={styles.numericAnswerValueCorrect}>{numericUser || '—'}</Text>
                     </Text>
-                  </View>
+                  ) : isSkipped ? (
+                    // Skipped: nothing was entered, just show the correct answer
+                    <Text style={styles.numericAnswerLine}>
+                      <Text style={styles.numericAnswerLabel}>Correct answer: </Text>
+                      <Text style={styles.numericAnswerValueCorrect}>{numericCorrect || '—'}</Text>
+                    </Text>
+                  ) : (
+                    // Wrong: show both, so the user can compare
+                    <>
+                      <Text style={styles.numericAnswerLine}>
+                        <Text style={styles.numericAnswerLabel}>Your answer: </Text>
+                        <Text style={styles.numericAnswerValueWrong}>{numericUser || '—'}</Text>
+                      </Text>
+                      <Text style={styles.numericAnswerLine}>
+                        <Text style={styles.numericAnswerLabel}>Correct answer: </Text>
+                        <Text style={styles.numericAnswerValueCorrect}>{numericCorrect || '—'}</Text>
+                      </Text>
+                    </>
+                  )}
                 </View>
               ) : (
                 sortedChoices.map((opt: any, idx: number) => {
@@ -336,18 +356,72 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               )}
 
               {/* Why / explanation */}
-              {explanation && (
-                <View style={styles.whyBox}>
-                  <Text style={styles.whyText}>
-                    <Text style={styles.whyLabel}>Why: </Text>
-                    {typeof explanation === 'string'
-                      ? stripHtml(explanation)
-                      : explanation?.summary
-                        ? stripHtml(explanation.summary)
-                        : 'See explanation above.'}
-                  </Text>
-                </View>
-              )}
+              {explanation && (() => {
+                let exp = explanation;
+                if (typeof exp === 'string') {
+                  try {
+                    const parsed = JSON.parse(exp);
+                    if (parsed && typeof parsed === 'object') exp = parsed;
+                  } catch {
+                    // not JSON — leave as plain string
+                  }
+                }
+
+                const explKey = String(qid ?? qIdx);
+                const isOpen = !!expandedExplanations[explKey];
+                const steps = Array.isArray(exp?.steps) ? exp.steps : null;
+
+                return (
+                  <View style={styles.whyBox}>
+                    <TouchableOpacity
+                      style={styles.whyToggleRow}
+                      activeOpacity={0.7}
+                      onPress={() => toggleExplanation(explKey)}
+                    >
+                      <Text style={styles.whyToggleLabel}>Explanation</Text>
+                      <Ionicons
+                        name={isOpen ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                        color="#6C63FF"
+                      />
+                    </TouchableOpacity>
+
+                    {isOpen && (
+                      <View style={styles.whyBody}>
+                        {steps && steps.length > 0 ? (
+                          <>
+                            {exp?.summary ? (
+                              <Text style={styles.whySummary}>{stripHtml(exp.summary)}</Text>
+                            ) : null}
+                            {steps.map((s: any, i: number) => (
+                              <View key={s?.step_number ?? i} style={styles.whyStepBlock}>
+                                <Text style={styles.whyStepHeading}>
+                                  Step {s?.step_number ?? i + 1}
+                                  {s?.heading ? `. ${stripHtml(s.heading)}` : ''}
+                                </Text>
+                                {s?.explanation ? (
+                                  <Text style={styles.whyStepText}>{stripHtml(s.explanation)}</Text>
+                                ) : null}
+                              </View>
+                            ))}
+                            {exp?.conclusion ? (
+                              <Text style={styles.whyConclusion}>{stripHtml(exp.conclusion)}</Text>
+                            ) : null}
+                          </>
+                        ) : (
+                          <Text style={styles.whyText}>
+                            {typeof exp === 'string'
+                              ? stripHtml(exp)
+                              : exp?.summary
+                                ? stripHtml(exp.summary)
+                                : 'See explanation above.'}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
             </View>
           );
         })}

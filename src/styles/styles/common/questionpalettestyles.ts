@@ -26,7 +26,7 @@ export const questionPaletteStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 16,
   },
   title: { fontSize: 20, fontWeight: '800', color: '#1A1A2E' },
 
@@ -80,9 +80,9 @@ export const questionPaletteStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#000000',
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
-  submitText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  submitText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });

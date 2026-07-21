@@ -131,16 +131,51 @@ export const solutionViewerStyles = StyleSheet.create({
   numericBoxLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600', marginBottom: 4 },
   numericBoxValue: { fontSize: 16, fontWeight: '800', color: '#1A1A2E' },
 
+  // New plain-text numeric answer display (replaces the boxed cards)
+  numericAnswerBlock: { marginTop: 2, marginBottom: 6, gap: 6 },
+  numericAnswerLine: { fontSize: 15, lineHeight: 22 },
+  numericAnswerLabel: { color: '#1A1A2E', fontWeight: '600' },
+  numericAnswerValueCorrect: { color: '#22C55E', fontWeight: '800' },
+  numericAnswerValueWrong: { color: '#EF4444', fontWeight: '800' },
+
   whyBox: {
     marginTop: 10,
     backgroundColor: '#F9FAFB',
     borderRadius: 10,
-    padding: 12,
     borderLeftWidth: 3,
     borderLeftColor: '#6C63FF',
+    overflow: 'hidden',
+  },
+  whyToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  whyToggleLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  whyBody: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   whyLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
   whyText: { fontSize: 13, color: '#6B7280', lineHeight: 20 },
+
+  // New: structured step-by-step explanation
+  whySummary: { fontSize: 13, color: '#1A1A2E', lineHeight: 20, marginBottom: 10 },
+  whyStepBlock: { marginBottom: 10 },
+  whyStepHeading: { fontSize: 12.5, fontWeight: '700', color: '#6C63FF', marginBottom: 2 },
+  whyStepText: { fontSize: 13, color: '#6B7280', lineHeight: 19 },
+  whyConclusion: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A2E',
+    marginTop: 4,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+
   askTutorBtn: {
     flexDirection: 'row',
     alignItems: 'center',

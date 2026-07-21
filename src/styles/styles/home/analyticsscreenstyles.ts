@@ -24,7 +24,7 @@ export const analyticsScreenStyles = StyleSheet.create({
     backgroundColor: "#E9EBF2",
     borderRadius: 14,
     padding: 4,
-    marginBottom: 20,
+    marginBottom: 10,
   },
   tabBtn: {
     flex: 1,
@@ -43,12 +43,33 @@ export const analyticsScreenStyles = StyleSheet.create({
   tabText: { fontSize: 14, fontWeight: "700", color: COLORS.textLight },
   tabTextActive: { color: COLORS.textDark },
 
+  // ── Trends sub-filter (All / Mocks / Assessments) ──
+  trendsFilterRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  trendsFilterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  trendsFilterChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  trendsFilterText: { fontSize: 12, fontWeight: "700", color: COLORS.textLight },
+  trendsFilterTextActive: { color: COLORS.white },
+
   // ── Heatmap tab ──
   legendRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   legendText: { fontSize: 12, color: COLORS.textLight, fontWeight: "600" },
   legendCell: { width: 18, height: 18, borderRadius: 5 },
@@ -79,11 +100,11 @@ export const analyticsScreenStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 6,
   },
-  trendCaption: { fontSize: 13, color: COLORS.textMedium },
-  trendPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  trendPillText: { fontSize: 12, fontWeight: "800" },
+  trendCaption: { fontSize: 12, color: COLORS.textMedium },
+  trendPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
+  trendPillText: { fontSize: 10, fontWeight: "800" },
 
   gaugeCard: {
     backgroundColor: COLORS.white,
@@ -132,14 +153,14 @@ export const analyticsScreenStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: COLORS.textDark },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: COLORS.textDark },
 
   card: {
     backgroundColor: COLORS.white,
     borderRadius: 18,
-    padding: 18,
+    padding: 16,
     marginBottom: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
