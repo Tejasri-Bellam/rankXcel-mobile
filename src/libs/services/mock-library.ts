@@ -51,6 +51,11 @@ export interface MockTest {
   total_attempts?: number;
   // Most recent attempt — used to view its result / review / analysis.
   latest_attempt_id?: number | null;
+  latest_attempt_number?: number | null;
+  // The student's most recent attempt status (IN_PROGRESS/SUBMITTED/…). Distinct
+  // from `status`, which is the mock's PUBLISH state — this is what tells us a
+  // mid-test attempt can be resumed.
+  latest_attempt_status?: string | null;
   // Scope: full-syllabus vs. subject-picked. Drives the card's scope label.
   is_full_syllabus?: boolean;
   // Admin-authored ("official") mock — shown with an Admin badge on the card.

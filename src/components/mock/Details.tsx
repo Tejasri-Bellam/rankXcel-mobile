@@ -67,7 +67,9 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
     return () => sub.remove();
   }, [currentView, onBack]);
 
-  const isInProgress = mockData.status === 'IN_PROGRESS';
+  // Resume is driven by the ATTEMPT status (latest_attempt_status), not the
+  // mock's publish `status` (which is PUBLISHED/etc. and never IN_PROGRESS).
+  const isInProgress = mockData.latest_attempt_status === 'IN_PROGRESS';
   // Retake is offered once the student has at least one attempt.
   const canRetake = Number(mockData.total_attempts ?? 0) > 0;
   // Attempt id for viewing results: the just-finished attempt this session, else
@@ -75,9 +77,19 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
   const resultAttemptId = attemptId ?? mockData.latest_attempt_id ?? null;
 
   // Start (or resume) an attempt. The /start/ response carries the attempt_id
-  // that the questions / response / submit endpoints are keyed on; for an
-  // already in-progress mock it returns the current attempt.
+  // that the questions / response / submit endpoints are keyed on. There is NO
+  // resume API: /start/ REJECTS an in-progress mock (400), so resuming reuses
+  // the existing latest_attempt_id and goes straight to the questions endpoint —
+  // the same pattern as assessments.
   const handleStart = async () => {
+    // Resume: the in-progress attempt already exists, so reuse its id and skip
+    // /start/ entirely (it would 400 with "already have an in-progress attempt").
+    // The questions endpoint rebuilds the timer from the attempt's server clock.
+    if (isInProgress && mockData.latest_attempt_id != null) {
+      setAttemptId(mockData.latest_attempt_id);
+      setCurrentView('exam');
+      return;
+    }
     try {
       setStartLoading(true);
       const res = await startMockTestService(String(mockData.id));
@@ -92,15 +104,30 @@ export default function MockDetails({ mock, onBack, initialView = 'detail' }: Pr
       setCurrentView('exam');
     } catch (error: any) {
       console.log('err', error);
-      
-      // Some backends return the in-progress attempt id in the error body.
-      const aId = error?.body?.attempt_id ?? null;
+
+      // /start/ 400s when an attempt is already in progress (list data was stale)
+      // and does NOT return its id — recover by resuming the known
+      // latest_attempt_id rather than surfacing an error.
+      const msg = String(
+        error?.errors?.mock_test_id?.[0] ?? error?.body?.mock_test_id?.[0] ?? '',
+      ).toLowerCase();
+      const inProgressConflict =
+        error?.status === 400 && msg.includes('in-progress');
+      const aId =
+        error?.body?.attempt_id ??
+        (inProgressConflict ? mockData.latest_attempt_id : null) ??
+        null;
       if (aId != null) {
         setAttemptId(aId);
         setCurrentView('exam');
         return;
       }
-      Alert.alert('Error', error?.body?.error ?? 'Failed to start. Please try again.');
+      Alert.alert(
+        'Error',
+        error?.body?.error ??
+          error?.errors?.mock_test_id?.[0] ??
+          'Failed to start. Please try again.',
+      );
       setCurrentView('detail');
     } finally {
       setStartLoading(false);

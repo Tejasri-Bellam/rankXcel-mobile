@@ -5,12 +5,16 @@ import { genericGet, genericPost } from "./genericService";
 export async function getassessmentsService(
   examId?: number | string,
   page?: number,
+  status?: string,
 ) {
-  const pageQs = page && page > 1 ? `?page=${page}` : "";
+  const qs = new URLSearchParams();
+  if (page && page > 1) qs.set("page", String(page));
+  if (status) qs.set("status", status);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
   if (examId != null) {
-    return await genericGet(`/v1/exams/${examId}/assessments/${pageQs}`, true);
+    return await genericGet(`/v1/exams/${examId}/assessments/${suffix}`, true);
   }
-  return await genericGet(`/v1/student/assessments/${pageQs}`, true);
+  return await genericGet(`/v1/student/assessments/${suffix}`, true);
 }
 
 

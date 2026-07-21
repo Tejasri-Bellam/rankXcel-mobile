@@ -22,28 +22,47 @@ import LiveTestDetail from "./LiveTestDetail";
 import { liveTestsStyles as styles } from "@/src/styles/styles/assessments/assessmentsscreenstyles";
 import {
   LiveStatus,
+  LIVE_STATUS_META,
   mapStudentStatus,
   studentStatusMeta,
 } from "@/src/libs/constants";
 
-type FilterValue = "all" | "live" | "upcoming" | "completed";
+type FilterValue = "all" | "live" | "upcoming" | "completed" | "missed";
 
 const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "All", value: "all" },
   { label: "Live", value: "live" },
   { label: "Upcoming", value: "upcoming" },
   { label: "Completed", value: "completed" },
+  { label: "Missed", value: "missed" },
 ];
 
 const FILTER_VALUES = FILTERS.map((f) => f.value);
 const isFilterValue = (v: unknown): v is FilterValue =>
   typeof v === "string" && (FILTER_VALUES as string[]).includes(v);
 
-// "Completed" maps to the results-out status.
-const FILTER_STATUS: Record<Exclude<FilterValue, "all">, LiveStatus> = {
+// Every tab except "All" maps 1:1 to the backend's `?status=` value, so the list
+// is filtered server-side across all pages — not just within the pages already
+// loaded on the client (which is why a client-side "Completed" would miss items
+// sitting on an un-fetched page).
+const statusQuery = (f: FilterValue): string | undefined =>
+  f === "all" ? undefined : f;
+
+// Bucket a raw student_status into the tab it belongs to. Used only for the tab
+// count badges, which are derived client-side from the full unfiltered list.
+const FILTER_OF_STATUS: Record<string, Exclude<FilterValue, "all">> = {
   live: "live",
+  active: "live",
+  ongoing: "live",
+  in_progress: "live",
   upcoming: "upcoming",
-  completed: "results",
+  scheduled: "upcoming",
+  registered: "upcoming",
+  completed: "completed",
+  submitted: "completed",
+  missed: "missed",
+  expired: "missed",
+  closed: "missed",
 };
 
 const deriveStatus = (item: any): LiveStatus => {
@@ -78,13 +97,18 @@ const assessmentEndTime = (item: any): Date | null => {
 };
 
 // The card pill mirrors the backend's raw student_status directly (completed →
-// "Completed", missed → "Missed", live → "Live", …). "Results Out" is a
-// detail-screen concept gated on the published-results flag, not something the
-// list can infer — the list endpoint doesn't return it.
+// "Completed", missed → "Missed", live → "Live", …). The one exception: once a
+// completed attempt's results have been published (`assessment_results` true),
+// the pill reads "Results Out" instead of "Completed".
 const studentDisplayMeta = (
   item: any
-): { label: string; color: string; bg: string } | null =>
-  studentStatusMeta(item?.student_status);
+): { label: string; color: string; bg: string } | null => {
+  const status = (item?.student_status ?? "").toLowerCase();
+  if (status === "completed" && item?.assessment_results) {
+    return LIVE_STATUS_META.results;
+  }
+  return studentStatusMeta(item?.student_status);
+};
 
 const timeOnly = (d: Date): string =>
   d.toLocaleTimeString("en-GB", {
@@ -144,11 +168,12 @@ export default function AssessmentsScreen() {
   const [, setNow] = useState(() => Date.now());
 
   // Pagination — the list endpoint is paginated (20/page); pull pages as the
-  // user scrolls. `totalCount` is the server's total across all pages.
+  // user scrolls. `allCount` is the server's grand total across all pages,
+  // fetched separately (unfiltered) for the "All" tab badge.
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
+  const [allCount, setAllCount] = useState(0);
   const loadingMoreRef = useRef(false);
   const { toast, showToast, hideToast } = useToast();
 
@@ -174,20 +199,18 @@ export default function AssessmentsScreen() {
         // background refresh (auto status flip) — no spinner
       } else if (isRefresh) setRefreshing(true);
       else setLoading(true);
-      const res = await getassessmentsService(activeExamId, 1);
+      // Filter server-side via `?status=` so the tab reflects every matching
+      // assessment across all pages, not just the ones already loaded.
+      const res = await getassessmentsService(
+        activeExamId,
+        1,
+        statusQuery(filter)
+      );
       const raw: any = res?.data;
       const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
       setData(list);
       setPage(1);
       setHasMore(!Array.isArray(raw) && !!raw?.next);
-      setTotalCount(typeof raw?.count === "number" ? raw.count : list.length);
-      // Initially use page-1 data
-      setAllAssessments(list);
-
-      // If more pages exist, fetch them in background
-      if (!Array.isArray(raw) && raw?.next) {
-        fetchRemainingPages(list, 2);
-      }
     } catch (error: any) {
       console.log("ASSESSMENTS ERROR:", JSON.stringify(error, null, 2));
       if (!silent)
@@ -211,7 +234,11 @@ export default function AssessmentsScreen() {
     const nextPage = page + 1;
     try {
       setLoadingMore(true);
-      const res = await getassessmentsService(activeExamId, nextPage);
+      const res = await getassessmentsService(
+        activeExamId,
+        nextPage,
+        statusQuery(filter)
+      );
       const raw: any = res?.data;
       const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
       setData((prev) => {
@@ -220,7 +247,6 @@ export default function AssessmentsScreen() {
       });
       setPage(nextPage);
       setHasMore(!Array.isArray(raw) && !!raw?.next);
-      if (typeof raw?.count === "number") setTotalCount(raw.count);
     } catch {
       setHasMore(false);
     } finally {
@@ -229,44 +255,42 @@ export default function AssessmentsScreen() {
     }
   };
 
-  const fetchRemainingPages = async (
-  initialData: any[],
-  startPage: number
-) => {
-  if (activeExamId == null) return;
+  // The visible list is filtered server-side per tab, so the tab count badges
+  // need the full unfiltered list separately. Pull every page once in the
+  // background and bucket them client-side. Independent of the active filter.
+  const fetchAllForCounts = async () => {
+    if (activeExamId == null) return;
 
-  let page = startPage;
-  let all = [...initialData];
+    let page = 1;
+    const all: any[] = [];
+    let serverCount: number | null = null;
 
-  try {
-    while (true) {
-      const res = await getassessmentsService(activeExamId, page);
-      const raw: any = res?.data;
+    try {
+      while (true) {
+        const res = await getassessmentsService(activeExamId, page);
+        const raw: any = res?.data;
+        if (page === 1 && typeof raw?.count === "number") serverCount = raw.count;
 
-      const list: any[] = Array.isArray(raw)
-        ? raw
-        : raw?.results || [];
+        const list: any[] = Array.isArray(raw) ? raw : raw?.results || [];
+        if (list.length === 0) break;
 
-      if (list.length === 0) break;
+        all.push(...list);
 
-      all.push(...list);
+        if (Array.isArray(raw) || !raw?.next) break;
 
-      if (Array.isArray(raw) || !raw?.next) break;
+        page++;
+      }
 
-      page++;
+      const unique = Array.from(
+        new Map(all.map((item) => [item.id, item])).values()
+      );
+
+      setAllAssessments(unique);
+      setAllCount(serverCount ?? unique.length);
+    } catch (err) {
+      console.log("Background count fetch failed", err);
     }
-
-    // Remove duplicates
-    const unique = Array.from(
-      new Map(all.map(item => [item.id, item])).values()
-    );
-
-    setAllAssessments(unique);
-
-  } catch (err) {
-    console.log("Background count fetch failed", err);
-  }
-};
+  };
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
@@ -275,8 +299,15 @@ export default function AssessmentsScreen() {
     if (distanceFromBottom < 400) loadMore();
   };
 
+  // Refetch the (server-filtered) list whenever the exam or active tab changes.
   useEffect(() => {
     fetchAssessments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeExamId, filter]);
+
+  // Pull the full unfiltered list once per exam for the tab count badges.
+  useEffect(() => {
+    fetchAllForCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeExamId]);
 
@@ -296,7 +327,9 @@ export default function AssessmentsScreen() {
     if (loading || refreshing || activeExamId == null) return;
     const now = Date.now();
     let next = Infinity;
-    for (const item of data) {
+    // Schedule against the full list so a boundary fires regardless of which tab
+    // is active (the visible list may be filtered down to a subset).
+    for (const item of allAssessments) {
       const start = new Date(item?.scheduled_at).getTime();
       if (isNaN(start)) continue;
       const end = start + (item?.total_duration_minutes ?? 0) * 60 * 1000;
@@ -313,10 +346,11 @@ export default function AssessmentsScreen() {
       // a stored attempt's deadline has actually passed.
       await submitAbandonedAttempt();
       fetchAssessments(false, true);
+      fetchAllForCounts();
     }, delay);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, loading, refreshing, activeExamId]);
+  }, [allAssessments, loading, refreshing, activeExamId]);
 
   // Deep-link from Home's "Upcoming live": open the tapped assessment's detail
   // (the register page), matching by id (else by name). The list is paginated,
@@ -397,6 +431,7 @@ export default function AssessmentsScreen() {
         onBack={() => {
           setSelected(null);
           fetchAssessments(true);
+          fetchAllForCounts();
         }}
       />
     );
@@ -409,46 +444,33 @@ export default function AssessmentsScreen() {
     return String(examId) === String(activeExamId);
   };
 
-  // Order: live first, then upcoming, then results. All tabs show every
-  // assessment for the exam (so the student can browse/register); only the Live
-  // filter is restricted to registered + live below.
+  // Display order: live first, then upcoming, then results/closed.
   const order: Record<LiveStatus, number> = { live: 0, upcoming: 1, results: 2 };
-  const allTests = allAssessments
-  .filter(matchesActiveExam)
-  .map((item) => ({
-    item,
-    status: deriveStatus(item),
-  }))
-  .sort((a, b) => order[a.status] - order[b.status]);
 
-  // Live filter = registered AND still-open live status. Uses the derived
-  // status (not the raw student_status) so a test whose window has closed drops
-  // out of "Live" even if the backend still reports it as live/in-progress.
-  const isLive = (t: { item: any; status: LiveStatus }) =>
-    Boolean(t.item?.is_registered) && t.status === "live";
-
+  // Tab count badges come from the full unfiltered list, bucketed by the same
+  // categories the backend filters on. "All" prefers the server's grand total.
+  const examScoped = allAssessments.filter(matchesActiveExam);
   const counts: Record<FilterValue, number> = {
-    // "All" reflects the server's total across all pages, not just what's loaded.
-    all: totalCount || allTests.length,
-    live: allTests.filter(isLive).length,
-    upcoming: allTests.filter((t) => t.status === "upcoming").length,
-    completed: allTests.filter((t) => t.status === "results").length,
+    all: allCount || examScoped.length,
+    live: 0,
+    upcoming: 0,
+    completed: 0,
+    missed: 0,
   };
+  for (const item of examScoped) {
+    const bucket = FILTER_OF_STATUS[(item?.student_status ?? "").toLowerCase()];
+    if (bucket) counts[bucket] += 1;
+  }
 
-  const visibleTests = data
-  .filter(matchesActiveExam)
-  .map((item) => ({
-    item,
-    status: deriveStatus(item),
-  }))
-  .sort((a, b) => order[a.status] - order[b.status]);
-
-  const tests =
-  filter === "all"
-    ? visibleTests
-    : filter === "live"
-      ? visibleTests.filter(isLive)
-      : visibleTests.filter((t) => t.status === FILTER_STATUS[filter]);
+  // The list is already filtered server-side for the active tab, so just sort
+  // what came back — no further client-side status filtering.
+  const tests = data
+    .filter(matchesActiveExam)
+    .map((item) => ({
+      item,
+      status: deriveStatus(item),
+    }))
+    .sort((a, b) => order[a.status] - order[b.status]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
@@ -464,7 +486,10 @@ export default function AssessmentsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => fetchAssessments(true)}
+            onRefresh={() => {
+              fetchAssessments(true);
+              fetchAllForCounts();
+            }}
             colors={["#6C63FF"]}
             tintColor="#6C63FF"
           />

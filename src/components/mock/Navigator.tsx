@@ -32,6 +32,10 @@ export default function MockExamNavigator({
   const [error, setError] = useState<string | null>(null);
   const [initialAnswers, setInitialAnswers] = useState<Record<string, string[]>>({});
   const [initialStatuses, setInitialStatuses] = useState<Record<string, QuestionStatus>>({});
+  // Absolute epoch-ms deadline from the attempt's server clock, when the
+  // questions endpoint returns started_at/expires_at — lets a resumed mock pick
+  // up the real remaining time rather than a fresh full-duration timer.
+  const [serverDeadlineMs, setServerDeadlineMs] = useState<number | null>(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadQuestions(); }, []);
@@ -160,6 +164,18 @@ export default function MockExamNavigator({
         });
       });
 
+      // Server clock for the running attempt, when present. `expires_at` is the
+      // wall-clock instant it's due; `started_at` is when it began. Align the
+      // exam duration to (expires - started) so the runner's time-taken math and
+      // deadline agree with the server.
+      const startedMs = Date.parse(raw?.started_at ?? '');
+      const expiresMs = Date.parse(raw?.expires_at ?? '');
+      const hasServerClock = Number.isFinite(expiresMs);
+      if (hasServerClock && Number.isFinite(startedMs)) {
+        examData.duration_minutes = Math.max(0, (expiresMs - startedMs) / 60000);
+      }
+      setServerDeadlineMs(hasServerClock ? expiresMs : null);
+
       setInitialAnswers(savedAnswers);
       setInitialStatuses(savedStatuses);
       setExam(examData);
@@ -210,6 +226,7 @@ export default function MockExamNavigator({
       exam={exam}
       initialAnswers={initialAnswers}
       initialStatuses={initialStatuses}
+      serverDeadlineMs={serverDeadlineMs}
       onSubmit={onSubmit}
       onBackToMocks={onBackToMocks}
     />
