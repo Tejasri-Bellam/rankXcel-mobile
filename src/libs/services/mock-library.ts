@@ -243,6 +243,10 @@ export interface MockTestResult {
   percentage: number;
   accuracy: number;
   time_taken_seconds: number;
+  correct_questions_count: number;
+  wrong_questions_count: number;
+  correct_questions_score: number;
+  wrong_questions_score: number;
   topic_breakdown: Record<string, MockTopicBreakdown>;
 }
 

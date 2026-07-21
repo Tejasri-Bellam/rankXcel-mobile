@@ -49,6 +49,9 @@ const isMultiSelect = (type: string | undefined) => {
   return t === 'MCQ_MULTIPLE' || t === 'MULTI_CORRECT' || t.includes('MULTI');
 };
 
+const isNumericalType = (type: string | undefined) =>
+  !!type && type.toUpperCase().includes('NUMERIC');
+
 const formatTime = (seconds: number) => {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -218,14 +221,30 @@ export default function MockExamScreen({
     selectedOpts: string[],
     markedForReview = false,
     timeSpent = 0,
+    isNumeric = false,
   ) => {
-    const ids = selectedOpts.map((v) => Number(v)).filter((n) => Number.isFinite(n));
-    const promise = submitMockAttemptResponseService(attemptId, qId, {
-      selected_choice_ids: ids,
-      numeric_answer: null,
-      is_marked_for_review: markedForReview,
-      time_spent_seconds: timeSpent,
-    }).catch((e) => console.log('SAVE ERROR:', e));
+    // NUMERICAL questions submit the typed value via numeric_answer; choice-based
+    // questions submit the selected option ids. Sending a typed number as a choice
+    // id makes the server reject it ("selected choices do not belong to this question").
+    const payload = isNumeric
+      ? {
+          numeric_answer:
+            selectedOpts[0] && selectedOpts[0].trim() !== '' ? selectedOpts[0].trim() : null,
+          selected_choice_ids: [],
+          is_marked_for_review: markedForReview,
+          time_spent_seconds: timeSpent,
+        }
+      : {
+          selected_choice_ids: selectedOpts
+            .map((v) => Number(v))
+            .filter((n) => Number.isFinite(n)),
+          numeric_answer: null,
+          is_marked_for_review: markedForReview,
+          time_spent_seconds: timeSpent,
+        };
+    const promise = submitMockAttemptResponseService(attemptId, qId, payload).catch((e) =>
+      console.log('SAVE ERROR:', e),
+    );
     pendingSaves.current.add(promise);
     promise.finally(() => pendingSaves.current.delete(promise));
     return promise;
@@ -238,7 +257,9 @@ export default function MockExamScreen({
     if (!currentQId) return;
     const spent = Math.max(0, timeTaken - qEnterRef.current);
     qEnterRef.current = timeTaken;
-    saveAnswerToServer(currentQId, selectedOptions, markedForReview, spent);
+    const isNumeric =
+      isNumericalType(activeQuestion?.type) || (activeQuestion?.options?.length ?? 0) === 0;
+    saveAnswerToServer(currentQId, selectedOptions, markedForReview, spent, isNumeric);
   };
 
   const handleOptionSelect = (optionId: string) => {

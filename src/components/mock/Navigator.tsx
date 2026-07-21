@@ -136,10 +136,18 @@ export default function MockExamNavigator({
       const savedStatuses: Record<string, QuestionStatus> = {};
       Object.entries(existing).forEach(([qId, val]: [string, any]) => {
         const ids: any[] = val?.selected_choice_ids ?? val?.selected_options ?? [];
-        if (Array.isArray(ids) && ids.length > 0)
+        // NUMERICAL questions persist a typed value rather than choice ids.
+        const numeric = val?.numeric_answer ?? val?.numeric_value ?? null;
+        let answered = false;
+        if (Array.isArray(ids) && ids.length > 0) {
           savedAnswers[qId] = ids.map((v: any) => String(v));
+          answered = true;
+        } else if (numeric !== null && numeric !== undefined && String(numeric).trim() !== '') {
+          savedAnswers[qId] = [String(numeric)];
+          answered = true;
+        }
         if (val?.is_marked_for_review) savedStatuses[qId] = 'marked';
-        else if (ids?.length > 0) savedStatuses[qId] = 'answered';
+        else if (answered) savedStatuses[qId] = 'answered';
       });
       examData.sections.forEach((s: any) => {
         (s.questions ?? []).forEach((q: any) => {
