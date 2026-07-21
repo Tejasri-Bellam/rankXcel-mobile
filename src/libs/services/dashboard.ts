@@ -22,9 +22,12 @@ export async function getExamStatsService(examId: number | string) {
 //   { accuracy_trend: [{ index, accuracy, type, submitted_at }], accuracy_delta,
 //     time_per_question_trend: [{ index, seconds, ... }], time_delta,
 //     percentile_trend: [{ index, percentile, ... }] }
-export async function getExamTrendsService(examId: number | string) {
-  return await genericGet(`/v1/exams/${examId}/trends/`, true);
-}
+export type TrendsFilter = 'all' | 'mock' | 'assessment';
+
+export const getExamTrendsService = (
+  examId: number | string,
+  type: TrendsFilter = 'all',
+) => genericGet(`/v1/exams/${examId}/trends/?type=${type}`, true);
 
 // GET /api/v1/exams/{exam_id}/weakest-nodes/
 // Lowest-accuracy topics for the active exam. Response is a flat array:

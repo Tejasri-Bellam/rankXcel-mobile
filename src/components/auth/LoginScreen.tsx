@@ -583,11 +583,23 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             {/* Footer terms */}
-            <Text style={styles.footerTerms}>
-              By continuing you agree to our{' '}
-              <Text style={styles.footerTermsLink}>Terms</Text> &{' '}
-              <Text style={styles.footerTermsLink}>Privacy</Text>.
-            </Text>
+              <Text style={styles.footerTerms}>
+                By continuing you agree to our{' '}
+                <Text
+                  style={styles.footerTermsLink}
+                  onPress={() => router.push({ pathname: '../legal', params: { tab: 'terms' } })}
+                >
+                  Terms
+                </Text>{' '}
+                &{' '}
+                <Text
+                  style={styles.footerTermsLink}
+                  onPress={() => router.push({ pathname: '../legal', params: { tab: 'privacy' } })}
+                >
+                  Privacy
+                </Text>
+                .
+              </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

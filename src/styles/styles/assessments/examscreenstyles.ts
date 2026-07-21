@@ -90,24 +90,24 @@ export const examScreenStyles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   markBtnActive: { borderColor: "#F59E0B", backgroundColor: "#FEF3C7" },
-  markText: { fontSize: 13, fontWeight: "600", color: "#9CA3AF" },
+  markText: { fontSize: 10, fontWeight: "600", color: "#9CA3AF" },
   markTextActive: { color: "#B45309" },
 
   // Question
   questionText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "700",
     color: "#1A1A2E",
-    lineHeight: 26,
-    marginBottom: 24,
+    lineHeight: 24,
+    marginBottom: 12,
   },
   questionImage: {
     width: "50%",
-    height: 100,
+    height: "50%",
     resizeMode: "contain",
     borderRadius: 8,
     alignSelf: "center",
-    marginBottom: 16,
+    marginBottom: 8,
   },
 
   // Assertion-Reason
@@ -150,7 +150,7 @@ export const examScreenStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    padding: 16,
+    padding: 10,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: "#E5E7EB",

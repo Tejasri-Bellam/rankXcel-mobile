@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
 import Toast, { useToast } from "@/src/components/common/Toast";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -9,11 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 
-import { COLORS, getScoreColor } from "@/src/styles/styles";
-import { analyticsScreenStyles as styles } from "@/src/styles/styles/home/analyticsscreenstyles";
+import HalfCircleProgress from "@/src/components/dashboard/HalfCircleProgress";
+import MiniLineChart from "@/src/components/home/MiniLineChart";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
 import {
@@ -21,11 +21,20 @@ import {
   getExamStatsService,
   getExamTrendsService,
   getWeakestNodesService,
+  TrendsFilter,
 } from "@/src/libs/services/dashboard";
-import HalfCircleProgress from "@/src/components/dashboard/HalfCircleProgress";
-import MiniLineChart from "@/src/components/home/MiniLineChart";
+import { COLORS, getScoreColor } from "@/src/styles/styles";
+import { analyticsScreenStyles as styles } from "@/src/styles/styles/home/analyticsscreenstyles";
 
 type StatsTab = "overview" | "heatmap" | "trends";
+
+
+
+const TRENDS_FILTERS: { key: TrendsFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'mock', label: 'Mocks' },
+  { key: 'assessment', label: 'Assessments' },
+];
 
 // Weak → Mastered mastery palette (matches the Heatmap legend): the standard
 // percentage scale — red <30, orange 30–39, yellow 40–59, green 60–100.
@@ -372,6 +381,7 @@ export default function AnalyticsScreen() {
   const [trends, setTrends] = useState<TrendsData>(EMPTY_TRENDS);
   const [weakestNodes, setWeakestNodes] = useState<WeakNode[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [trendsFilter, setTrendsFilter] = useState<TrendsFilter>('all');
   const { toast, showToast, hideToast } = useToast();
 
   const loadConsistency = useCallback(async () => {
@@ -399,13 +409,13 @@ export default function AnalyticsScreen() {
   const loadTrends = useCallback(async () => {
     if (activeExamId == null) return;
     try {
-      const res = await getExamTrendsService(activeExamId);
+      const res = await getExamTrendsService(activeExamId, trendsFilter);
       setTrends(normalizeTrends(res));
     } catch (err) {
       setTrends(EMPTY_TRENDS);
       showToast(getErrorMessage(err, "Couldn't load your stats."), "error");
     }
-  }, [activeExamId, showToast]);
+  }, [activeExamId, trendsFilter, showToast]);
 
   const loadWeakestNodes = useCallback(async () => {
     if (activeExamId == null) return;
@@ -610,46 +620,69 @@ export default function AnalyticsScreen() {
   );
 
   const renderTrends = () => {
-    const accDelta = seriesDelta(trends.accuracy);
-    const timeDelta = seriesDelta(trends.timePerQuestion);
-    return (
-      <>
-        <TrendCard
-          icon="stats-chart"
-          title="Accuracy trend"
-          caption={`Last ${trends.accuracy.values.length} sessions`}
-          pill={
-            accDelta != null
-              ? { text: `${accDelta > 0 ? "+" : ""}${accDelta}%`, good: accDelta >= 0 }
-              : null
-          }
-          data={trends.accuracy.values}
-          color={COLORS.green}
-        />
-        <TrendCard
-          icon="time-outline"
-          title="Time per question"
-          caption="Seconds · lower is better"
-          pill={
-            timeDelta != null
-              ? { text: `${timeDelta > 0 ? "+" : ""}${timeDelta}s`, good: timeDelta <= 0 }
-              : null
-          }
-          data={trends.timePerQuestion.values}
-          color={COLORS.primary}
-        />
-        <TrendCard
-          icon="trophy-outline"
-          title="Percentile vs peers"
-          caption="Your percentile across mocks & live exams."
-          captionBottom
-          pill={null}
-          data={trends.percentile.values}
-          color={COLORS.yellow}
-        />
-      </>
-    );
-  };
+  const accDelta = seriesDelta(trends.accuracy);
+  const timeDelta = seriesDelta(trends.timePerQuestion);
+  return (
+    <>
+      {/* Trends filter: All / Mocks / Assessments */}
+      <View style={styles.trendsFilterRow}>
+        {TRENDS_FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.key}
+            style={[
+              styles.trendsFilterChip,
+              trendsFilter === f.key && styles.trendsFilterChipActive,
+            ]}
+            onPress={() => setTrendsFilter(f.key)}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.trendsFilterText,
+                trendsFilter === f.key && styles.trendsFilterTextActive,
+              ]}
+            >
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TrendCard
+        icon="stats-chart"
+        title="Accuracy trend"
+        caption={`Last ${trends.accuracy.values.length} sessions`}
+        pill={
+          accDelta != null
+            ? { text: `${accDelta > 0 ? "+" : ""}${accDelta}%`, good: accDelta >= 0 }
+            : null
+        }
+        data={trends.accuracy.values}
+        color={COLORS.green}
+      />
+      <TrendCard
+        icon="time-outline"
+        title="Time per question"
+        caption="Seconds · lower is better"
+        pill={
+          timeDelta != null
+            ? { text: `${timeDelta > 0 ? "+" : ""}${timeDelta}s`, good: timeDelta <= 0 }
+            : null
+        }
+        data={trends.timePerQuestion.values}
+        color={COLORS.primary}
+      />
+      <TrendCard
+        icon="trophy-outline"
+        title="Percentile vs peers"
+        caption="Your percentile across mocks & live exams."
+        pill={null}
+        data={trends.percentile.values}
+        color={COLORS.yellow}
+      />
+    </>
+  );
+};
 
   if (isLoading && !dashboardData) {
     return (

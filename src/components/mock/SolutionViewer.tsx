@@ -292,24 +292,38 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               {/* Options */}
               {isNumericQ ? (
                 <View style={styles.numericReview}>
-                  <Text style={styles.numericReviewRow}>
-                    Your answer:{' '}
-                    <Text
-                      style={{
-                        fontWeight: '700',
-                        color: isCorrect ? '#15803D' : '#B91C1C',
-                      }}
-                    >
-                      {numericUser || '—'}
+                  {isCorrect ? (
+                    // Correct: only show what the user answered
+                    <Text style={styles.numericReviewRow}>
+                      Your answer:{' '}
+                      <Text style={{ fontWeight: '700', color: '#15803D' }}>
+                        {numericUser || '—'}
+                      </Text>
                     </Text>
-                  </Text>
-                  {!isCorrect && numericCorrect !== '' && (
+                  ) : isSkipped ? (
+                    // Skipped: nothing entered, just show the correct answer
                     <Text style={styles.numericReviewRow}>
                       Correct answer:{' '}
                       <Text style={{ fontWeight: '700', color: '#15803D' }}>
-                        {numericCorrect}
+                        {numericCorrect || '—'}
                       </Text>
                     </Text>
+                  ) : (
+                    // Wrong: show both, so the user can compare
+                    <>
+                      <Text style={styles.numericReviewRow}>
+                        Your answer:{' '}
+                        <Text style={{ fontWeight: '700', color: '#B91C1C' }}>
+                          {numericUser || '—'}
+                        </Text>
+                      </Text>
+                      <Text style={styles.numericReviewRow}>
+                        Correct answer:{' '}
+                        <Text style={{ fontWeight: '700', color: '#15803D' }}>
+                          {numericCorrect || '—'}
+                        </Text>
+                      </Text>
+                    </>
                   )}
                 </View>
               ) : (

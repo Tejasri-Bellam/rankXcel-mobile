@@ -1,10 +1,12 @@
 import {
+  AssessmentResult,
   assessmentSubmitService,
   updateAssessmentResponsesService,
-  AssessmentResult,
 } from "@/src/libs/services/assessments-attempts";
-import { stripHtml } from "@/src/libs/utils/html";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
+import { stripHtml } from "@/src/libs/utils/html";
+import { examScreenStyles as styles } from "@/src/styles/styles/assessments/examscreenstyles";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,6 +15,7 @@ import {
   AppStateStatus,
   BackHandler,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -23,7 +26,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { getassessmentsQuestionsService } from "../../libs/services/assessments";
 import {
   EXAM_BACKGROUND_GRACE_MS,
@@ -31,7 +33,6 @@ import {
   saveActiveAttempt,
 } from "../../libs/utils/examSession";
 import QuestionPalette, { PaletteStatus } from "../common/QuestionPalette";
-import { examScreenStyles as styles } from "@/src/styles/styles/assessments/examscreenstyles";
 
 interface Props {
   assessmentId: number;
@@ -756,6 +757,11 @@ export default function ExamScreen({
         </View>
       )}
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
       {/* Question content */}
       {activeQuestion ? (
         <ScrollView
@@ -894,7 +900,6 @@ export default function ExamScreen({
             </View>
           )}
 
-          <Text style={styles.swipeHint}>— Swipe to move between questions —</Text>
         </ScrollView>
       ) : (
         <View
@@ -948,6 +953,7 @@ export default function ExamScreen({
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
 
       {/* Question palette */}
       <QuestionPalette
@@ -978,7 +984,7 @@ export default function ExamScreen({
         >
           <View style={[styles.submitSheet, { paddingBottom: 24 + insets.bottom }]}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.submitSheetTitle}>Submit attempt?</Text>
+            <Text style={styles.submitSheetTitle}>Submit attmpt?</Text>
             <Text style={styles.submitSheetDesc}>
               You&apos;ve answered{" "}
               <Text style={{ fontWeight: "700" }}>
