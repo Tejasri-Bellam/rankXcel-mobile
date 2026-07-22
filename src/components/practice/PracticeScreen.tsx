@@ -520,8 +520,11 @@ export default function PracticeScreen() {
   // Topic list card + "Practice all" bar — shared by the topics drill-down
   // screen and the subject-less syllabus root (display_subject = false). Topics
   // with sub-topics drill in; leaf topics start practice directly.
-  const renderTopicRows = (subject: SubjectGroup) => (
+  const renderTopicRows = (subject: SubjectGroup) => {
+    const hasTopics = subject.chapters.length > 0;
+    return (
     <>
+      {hasTopics ? (
       <View style={styles.listCard}>
         {subject.chapters.map((topic, idx) => {
           const hasSubs = topic.topics.length > 0;
@@ -578,16 +581,23 @@ export default function PracticeScreen() {
           );
         })}
       </View>
-
-      {subject.chapters.length > 0 && (
-        <PracticeAllBar
-          label="Practice all topics"
-          onPress={() => handleAllTopicsPress(subject)}
-          onTest={() => handleAllTopicsPress(subject, true)}
-        />
+      ) : (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No topics listed yet</Text>
+        </View>
       )}
+
+      {/* Always offer practice/test across the whole subject. With no topics
+          listed we still send an empty `topicIds`, which the backend expands to
+          every topic under the subject. */}
+      <PracticeAllBar
+        label={hasTopics ? "Practice all topics" : "Practice this subject"}
+        onPress={() => handleAllTopicsPress(subject)}
+        onTest={() => handleAllTopicsPress(subject, true)}
+      />
     </>
-  );
+    );
+  };
 
   // Shared practice/test modal — reused across every screen.
   const practiceModal =

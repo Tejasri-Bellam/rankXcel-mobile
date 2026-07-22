@@ -17,7 +17,7 @@ export const IntroJson = () => {
         icon: 'trophy-outline',
         tint: '#FF5A3C',
         title: 'Compete & stay on streak',
-        sub: 'Live ranked tests, national leaderboards, XP, streaks and badges keep you coming back.',
+        sub: 'Live ranked tests, national leaderboards, streaks and badges keep you coming back.',
       },
     ] as const,
 

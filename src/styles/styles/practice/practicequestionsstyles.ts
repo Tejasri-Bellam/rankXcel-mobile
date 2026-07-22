@@ -46,7 +46,7 @@ export const practiceQuestionsStyles = StyleSheet.create({
   // Question
   qMetaRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     marginBottom: 12,
   },
@@ -56,6 +56,15 @@ export const practiceQuestionsStyles = StyleSheet.create({
     color: "#AAAAAA",
     letterSpacing: 1,
   },
+  qTypeBadge: {
+    alignSelf: "flex-start",
+    marginTop: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "#EEF0F4",
+  },
+  qTypeText: { fontSize: 11, fontWeight: "700", color: "#6C63FF" },
   marksRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   marksChip: {
     paddingHorizontal: 8,
@@ -99,6 +108,7 @@ export const practiceQuestionsStyles = StyleSheet.create({
 
   // Options
   optionsList: { gap: 10 },
+  multiHint: { fontSize: 12, fontWeight: "600", color: "#6C63FF", marginBottom: 2 },
   optRow: {
     flexDirection: "row",
     alignItems: "center",

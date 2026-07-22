@@ -14,9 +14,6 @@ const getFirstName = (fullName: string) => {
   return fullName.trim().split(" ")[0];
 };
 
-const formatNumber = (n: number) =>
-  n >= 1000 ? n.toLocaleString("en-US") : String(n);
-
 export default function Greeting({ user, dashboardData }: GreetingProps) {
   const firstName = getFirstName(user?.name ?? "");
 
@@ -24,8 +21,6 @@ export default function Greeting({ user, dashboardData }: GreetingProps) {
 
   // Gamification fields come from auth/me when available, otherwise we fall
   // back to data we do have so the row never renders empty.
-  const xp =
-    user?.xp ?? user?.total_xp ?? user?.points ?? user?.experience ?? null;
   const level = user?.level ?? user?.current_level ?? null;
   const rankTitle =
     user?.rank_title ?? user?.title ?? user?.badge ?? user?.tier ?? null;
@@ -42,16 +37,6 @@ export default function Greeting({ user, dashboardData }: GreetingProps) {
             {currentStreak}
           </Text>
         </View>
-
-        {/* XP — real when auth/me provides it */}
-        {xp != null && (
-          <View style={[styles.badge, { backgroundColor: COLORS.yellowLight }]}>
-            <Ionicons name="flash" size={13} color={COLORS.orange} />
-            <Text style={[styles.badgeText, { color: COLORS.orange }]}>
-              {formatNumber(Number(xp))} XP
-            </Text>
-          </View>
-        )}
 
         {/* Level / rank title */}
         {(level != null || rankTitle) && (

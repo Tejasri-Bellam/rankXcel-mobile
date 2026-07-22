@@ -27,7 +27,10 @@ type Screen = "settings" | "loading" | "questions" | "results";
 export type Difficulty = "easy" | "medium" | "hard" | "mixed";
 
 export interface AnswerState {
+  // Single-select MCQ / NUMERICAL answer (choice id or typed value).
   selected: string | null;
+  // MCQ_MULTIPLE selection — the ids of every option the student ticked.
+  selectedIds?: string[];
   markedForReview: boolean;
   answered: boolean;
   correct: boolean | null;
@@ -116,6 +119,27 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
     if (flagged) correctId = flagged.id;
   }
 
+  // MCQ_MULTIPLE: the full set of correct option ids. Prefer an explicit array,
+  // else collect every flagged choice, else fall back to the single id above.
+  const rawCorrectIds =
+    q.correct_choice_ids ??
+    q.correct_answers ??
+    q.correct_options ??
+    q.question?.correct_choice_ids ??
+    null;
+  let correctIds: string[] = Array.isArray(rawCorrectIds)
+    ? rawCorrectIds.map((v: any) => String(v?.id ?? v)).filter(Boolean)
+    : [];
+  if (correctIds.length === 0) {
+    correctIds = options
+      .filter((_o: any, i: number) => {
+        const orig = choicesRaw[i];
+        return orig?.is_correct === true || orig?.correct === true;
+      })
+      .map((o: any) => o.id);
+  }
+  if (correctIds.length === 0 && correctId != null) correctIds = [correctId];
+
   return {
     id: realId,
     text:
@@ -129,6 +153,7 @@ const normalizeQuestion = (q: any): PracticeApiQuestion | null => {
     type: q.question_type ?? q.type ?? q.question?.question_type ?? "MCQ",
     options,
     correctChoiceId: correctId,
+    correctChoiceIds: correctIds.length > 0 ? correctIds : null,
     correctAnswer:
       q.correct_answer ??
       q.correct_numeric_answer ??
@@ -342,6 +367,7 @@ export const PracticeExamFlow = ({
                   return {
                     ...q,
                     correctChoiceId: match.correctChoiceId ?? q.correctChoiceId,
+                    correctChoiceIds: match.correctChoiceIds ?? q.correctChoiceIds ?? null,
                     correctAnswer: match.correctAnswer ?? q.correctAnswer ?? null,
                     explanation: match.explanation || q.explanation,
                     explanationStructured:

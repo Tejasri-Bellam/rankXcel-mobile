@@ -118,7 +118,6 @@ export default function MockExamResults({
       setLoading(false);
     }
   };
-console.log('r', result);
 
   if (loading) {
     return (
@@ -173,7 +172,6 @@ console.log('r', result);
   const maxScore = num(result.max_score);
 
   const timeTaken = num(result.time_taken_seconds) || num(timeTakenSeconds);
-  const xp = 100 + correct * 10;
   const percentile = mock.percentile != null ? Math.round(num(mock.percentile)) : null;
 
   const verdict =
@@ -280,18 +278,14 @@ console.log('r', result);
             <Text style={styles.bannerScorePct}>%</Text>
           </View>
 
-          <Text style={styles.bannerScoreMarks}>
-            {totalScore} / {maxScore} marks
-          </Text>
-
           <Text style={styles.bannerSub}>
             {correct} of {totalQ} correct · {verdict}
           </Text>
 
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
-              <Ionicons name="flash" size={12} color="#fff" />
-              <Text style={styles.badgeText}>+{xp} XP</Text>
+              <Ionicons name="ribbon-outline" size={12} color="#fff" />
+              <Text style={styles.badgeText}>{totalScore}/{maxScore} marks</Text>
             </View>
             <View style={styles.badge}>
               <Ionicons name="time-outline" size={12} color="#fff" />

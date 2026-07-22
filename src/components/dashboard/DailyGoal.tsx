@@ -43,7 +43,7 @@ export default function DailyGoal({ dashboardData }: DailyGoalProps) {
 
       <Text style={styles.hint}>
         {remaining > 0
-          ? `${remaining} more to hit today's goal & +50 XP 🔥`
+          ? `${remaining} more to hit today's goal 🔥`
           : "Today's goal complete — nice work! 🎉"}
       </Text>
     </View>

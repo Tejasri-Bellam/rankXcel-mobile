@@ -138,12 +138,23 @@ export default function ExamResults({
   });
   const totalQ = correct + wrong + skipped || num(exam?.question_count) || 0;
 
-  // One accuracy value drives the circle and the Accuracy card so they agree.
+  // One accuracy value drives the Accuracy card.
   const accuracyPct =
     totalQ > 0 ? Math.round((correct / totalQ) * 100) : Math.round(num(result.accuracy));
 
+  // Score percentage (total_score / max_score) — headlines the hero banner.
+  const percentagePct =
+    result.percentage != null && !Number.isNaN(Number(result.percentage))
+      ? Math.round(num(result.percentage))
+      : num(result.max_score) > 0
+      ? Math.round((num(result.total_score) / num(result.max_score)) * 100)
+      : accuracyPct;
+
+  // Raw marks scored out of the maximum — surfaced on the hero banner.
+  const totalScore = num(result.total_score);
+  const maxScore = num(result.max_score);
+
   const timeTaken = num(result.time_taken_seconds) || num(timeTakenSeconds);
-  const xp = 100 + correct * 10;
 
   // Rank → percentile. With N participants and rank R, you beat
   // ((N - R) / N) of the field. Hidden until the window closes (rank null).
@@ -155,7 +166,7 @@ export default function ExamResults({
       : null;
 
   const verdict =
-    accuracyPct >= 80 ? 'Mastered' : accuracyPct >= 50 ? 'Good progress' : 'Needs work';
+    percentagePct >= 80 ? 'Mastered' : percentagePct >= 50 ? 'Good progress' : 'Needs work';
 
   // "Practice next" suggestions: flatten every node in topic_breakdown
   // (subject → topic → subtopic, each carrying its own name/accuracy) into one
@@ -253,7 +264,7 @@ export default function ExamResults({
           </Text>
 
           <View style={styles.bannerScoreWrap}>
-            <Text style={styles.bannerScore}>{accuracyPct}</Text>
+            <Text style={styles.bannerScore}>{percentagePct}</Text>
             <Text style={styles.bannerScorePct}>%</Text>
           </View>
 
@@ -263,8 +274,8 @@ export default function ExamResults({
 
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
-              <Ionicons name="flash" size={12} color="#fff" />
-              <Text style={styles.badgeText}>+{xp} XP</Text>
+              <Ionicons name="ribbon-outline" size={12} color="#fff" />
+              <Text style={styles.badgeText}>{totalScore}/{maxScore} marks</Text>
             </View>
             <View style={styles.badge}>
               <Ionicons name="time-outline" size={12} color="#fff" />

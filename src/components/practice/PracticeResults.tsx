@@ -21,6 +21,11 @@ import {
 } from "@/src/libs/services/mock-library";
 import { practiceResultsStyles as styles } from "@/src/styles/styles/practice/practiceresultsstyles";
 import { OPTION_LETTERS } from "@/src/libs/constants";
+import {
+  idSetsEqual,
+  isMultiSelectType,
+  isNumericalType,
+} from "@/src/libs/utils/questionType";
 
 interface Props {
   chapterName: string;
@@ -46,6 +51,13 @@ const firstId = (raw: any): string | null => {
   if (!arr.length) return null;
   const v = arr[0];
   return v == null ? null : String(v?.id ?? v);
+};
+
+// All ids from an array (of ids or {id} objects) or a scalar — used for the
+// MCQ_MULTIPLE correct set and the student's multi-selection.
+const allIds = (raw: any): string[] => {
+  const arr = Array.isArray(raw) ? raw : raw != null ? [raw] : [];
+  return arr.map((v: any) => String(v?.id ?? v)).filter(Boolean);
 };
 
 // Parse the /review/ response into the screen's existing view models so the
@@ -78,7 +90,8 @@ const parseReview = (
     }));
 
     const type = q.question_type ?? q.type ?? q.question?.question_type ?? "MCQ";
-    const numeric = !!type && String(type).toUpperCase().includes("NUMERIC");
+    const numeric = isNumericalType(type);
+    const multi = isMultiSelectType(type);
 
     // Correct answer — top-level arrays/flags or per-choice is_correct.
     let correctChoiceId =
@@ -88,12 +101,27 @@ const parseReview = (
           q.correct_choice_ids ??
           q.correct_choice_id,
       ) ?? null;
-    if (!correctChoiceId) {
-      const flagged = (Array.isArray(choicesRaw) ? choicesRaw : []).find(
-        (c: any) => c?.is_correct === true || c?.correct === true,
-      );
-      if (flagged) correctChoiceId = String(flagged.id);
+    // Full correct set for MCQ_MULTIPLE (falls back to the flagged choices, then
+    // the single id above).
+    let correctChoiceIds = allIds(
+      q.correct_choice_ids ?? q.correct_answers ?? q.correct_options,
+    );
+    if (correctChoiceIds.length === 0) {
+      correctChoiceIds = (Array.isArray(choicesRaw) ? choicesRaw : [])
+        .filter((c: any) => c?.is_correct === true || c?.correct === true)
+        .map((c: any) => String(c.id));
     }
+    if (!correctChoiceId) {
+      correctChoiceId = correctChoiceIds[0] ?? null;
+      if (!correctChoiceId) {
+        const flagged = (Array.isArray(choicesRaw) ? choicesRaw : []).find(
+          (c: any) => c?.is_correct === true || c?.correct === true,
+        );
+        if (flagged) correctChoiceId = String(flagged.id);
+      }
+    }
+    if (correctChoiceIds.length === 0 && correctChoiceId != null)
+      correctChoiceIds = [correctChoiceId];
     // change `const correctAnswer = ...` to `let`, then add the fallback:
     let correctAnswer =
       q.correct_answer ?? q.correct_numeric_answer ?? q.question?.correct_answer ?? null;
@@ -110,14 +138,17 @@ const parseReview = (
 
     // Student's answer.
     const ya = q.your_answer ?? q.response ?? q;
-    const selectedId = firstId(ya?.selected_choice_ids ?? ya?.selected_options);
+    const selectedIds = allIds(ya?.selected_choice_ids ?? ya?.selected_options);
+    const selectedId = selectedIds[0] ?? null;
     const numericAns = ya?.numeric_answer ?? q.numeric_answer ?? null;
     const selected = numeric
       ? numericAns != null
         ? String(numericAns)
         : null
       : selectedId;
-    const answered = selected != null && String(selected).trim() !== "";
+    const answered = multi
+      ? selectedIds.length > 0
+      : selected != null && String(selected).trim() !== "";
 
     // Correctness — prefer the server's flag, else derive from the key.
     let correct: boolean | null =
@@ -127,7 +158,9 @@ const parseReview = (
     if (correct == null && answered) {
       if (numeric && correctAnswer != null)
         correct = String(selected).trim() === String(correctAnswer).trim();
-      else if (!numeric && correctChoiceId != null)
+      else if (multi && correctChoiceIds.length > 0)
+        correct = idSetsEqual(selectedIds, correctChoiceIds);
+      else if (!numeric && !multi && correctChoiceId != null)
         correct = String(selected) === String(correctChoiceId);
     }
 
@@ -138,6 +171,7 @@ const parseReview = (
       type,
       options,
       correctChoiceId,
+      correctChoiceIds: correctChoiceIds.length > 0 ? correctChoiceIds : null,
       correctAnswer: correctAnswer != null ? String(correctAnswer) : null,
       explanation:
         q.explanation ?? q.solution ?? q.solution_text ?? q.question?.explanation ?? "",
@@ -145,7 +179,8 @@ const parseReview = (
       marksIncorrect: Number(q.marks_incorrect ?? q.question?.marks_incorrect ?? -1),
     });
     answers.push({
-      selected: answered ? String(selected) : null,
+      selected: answered && !multi ? String(selected) : null,
+      selectedIds: multi ? selectedIds : [],
       markedForReview: !!(q.is_marked_for_review ?? ya?.is_marked_for_review),
       answered,
       correct,
@@ -171,21 +206,27 @@ const formatTime = (s: number) => {
   return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 };
 
-const isNumericType = (t?: string): boolean =>
-  !!t && t.toUpperCase().includes("NUMERIC");
-
 type QStatus = "correct" | "wrong" | "skipped";
 
 // Resolve each question's outcome from the answer key carried back from the
 // session. Falls back to recomputing when correctness was left undetermined
 // during play (e.g. an API check that didn't return `is_correct`).
 const computeStatus = (q: PracticeApiQuestion, a?: AnswerState): QStatus => {
+  // MCQ_MULTIPLE: keyed on the tick set, not the single `selected` value.
+  if (isMultiSelectType(q.type)) {
+    const selIds = a?.selectedIds ?? [];
+    if (selIds.length === 0) return "skipped";
+    if (a?.correct === true) return "correct";
+    if (a?.correct === false) return "wrong";
+    const correctIds = q.correctChoiceIds ?? [];
+    return correctIds.length > 0 && idSetsEqual(selIds, correctIds) ? "correct" : "wrong";
+  }
   const sel = a?.selected ?? null;
   const answered = sel != null && !(typeof sel === "string" && sel.trim() === "");
   if (!answered) return "skipped";
   if (a?.correct === true) return "correct";
   if (a?.correct === false) return "wrong";
-  if (isNumericType(q.type)) {
+  if (isNumericalType(q.type)) {
     if (q.correctAnswer != null)
       return String(sel).trim() === String(q.correctAnswer).trim() ? "correct" : "wrong";
   } else if (q.correctChoiceId != null) {
@@ -269,8 +310,11 @@ const wrong = statuses.filter((s) => s === "wrong").length;
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
   const color = accColor(accuracy);
 
-  // DUMMY: no XP API yet — playful value derived from correct answers.
-  const xp = correct * 10;
+  // Raw marks from the server result (reflects negative marking, unlike the
+  // accuracy above). Only shown when the /result/ payload carries a maximum.
+  const totalScore = Number(apiResult?.total_score ?? 0);
+  const maxScore = Number(apiResult?.max_score ?? 0);
+  const hasScore = maxScore > 0;
 
   if (view === "review") {
     return (
@@ -295,6 +339,19 @@ const wrong = statuses.filter((s) => s === "wrong").length;
           {effQuestions.map((q, i) => {
             const ans = effAnswers[i];
             const userSel = ans?.selected ?? null;
+            const multi = isMultiSelectType(q.type);
+            // Sets driving the per-option highlight (single-select collapses to
+            // one id each).
+            const userSelIds = multi
+              ? ans?.selectedIds ?? []
+              : userSel != null
+              ? [String(userSel)]
+              : [];
+            const correctIds = multi
+              ? q.correctChoiceIds ?? []
+              : q.correctChoiceId != null
+              ? [String(q.correctChoiceId)]
+              : [];
             const qStatus = statuses[i];
             const status =
               qStatus === "correct"
@@ -302,7 +359,7 @@ const wrong = statuses.filter((s) => s === "wrong").length;
                 : qStatus === "wrong"
                 ? { label: "Wrong", color: "#DC2626", bg: "#FEE2E2", icon: "close" as const }
                 : { label: "Skipped", color: "#9CA3AF", bg: "#F3F4F6", icon: "remove" as const };
-            const numeric = isNumericType(q.type);
+            const numeric = isNumericalType(q.type);
 
             return (
               <View key={q.id} style={styles.reviewCard}>
@@ -348,9 +405,9 @@ const wrong = statuses.filter((s) => s === "wrong").length;
                   </View>
                 ) : (
                   q.options.map((opt, oi) => {
-                  const isCorrect = String(opt.id) === String(q.correctChoiceId);
+                  const isCorrect = correctIds.includes(String(opt.id));
                   const isUserWrong =
-                    String(opt.id) === String(userSel) && !isCorrect;
+                    userSelIds.includes(String(opt.id)) && !isCorrect;
                   const rowStyle = isCorrect
                     ? styles.optCorrect
                     : isUserWrong
@@ -457,13 +514,17 @@ const wrong = statuses.filter((s) => s === "wrong").length;
           </View>
         </View>
 
-        <View style={styles.xpBanner}>
-          <Ionicons name="flash" size={18} color="#F5A623" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.xpTitle}>+{xp} XP earned</Text>
-            <Text style={styles.xpSub}>Streak extended · keep it up!</Text>
+        {hasScore && (
+          <View style={styles.scoreBanner}>
+            <Ionicons name="ribbon-outline" size={18} color="#6C63FF" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.scoreBannerTitle}>{totalScore} / {maxScore} marks</Text>
+              <Text style={styles.scoreBannerSub}>
+                Your score on this {isTest ? "test" : "set"}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {submitting || apiLoading ? (
           <View style={styles.submittingRow}>

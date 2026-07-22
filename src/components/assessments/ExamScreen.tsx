@@ -5,6 +5,7 @@ import {
 } from "@/src/libs/services/assessments-attempts";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
 import { stripHtml } from "@/src/libs/utils/html";
+import { questionTypeLabel } from "@/src/libs/utils/questionType";
 import { examScreenStyles as styles } from "@/src/styles/styles/assessments/examscreenstyles";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
@@ -856,10 +857,17 @@ export default function ExamScreen({
           keyboardShouldPersistTaps="handled"
         >
           {/* Q label + Mark */}
-          <View style={styles.qMetaRow}>
-            <Text style={styles.qLabel}>
-              QUESTION {currentFlatIdx + 1} / {totalQ}
-            </Text>
+          <View style={[styles.qMetaRow, { alignItems: "flex-start" }]}>
+            <View>
+              <Text style={styles.qLabel}>
+                QUESTION {currentFlatIdx + 1} / {totalQ}
+              </Text>
+              <View style={{ alignSelf: "flex-start", marginTop: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: "#EEF0F4" }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#6C63FF" }}>
+                  {questionTypeLabel(activeQuestion.type)}
+                </Text>
+              </View>
+            </View>
             <View style={styles.marksRow}>
               <View style={[styles.marksChip, styles.marksChipPositive]}>
                 <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
@@ -957,6 +965,11 @@ export default function ExamScreen({
             </View>
           ) : (
             <View style={styles.optionsList}>
+              {isMultiSelectType(activeQuestion.type) && (
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#6C63FF", marginBottom: 2 }}>
+                  Select all that apply
+                </Text>
+              )}
               {activeQuestion.options?.map((option: any, index: number) => {
                 const isSelected = selectedOptions.includes(option.id);
                 const multi = isMultiSelectType(activeQuestion.type);

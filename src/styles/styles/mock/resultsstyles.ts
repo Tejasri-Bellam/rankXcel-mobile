@@ -63,7 +63,6 @@ export const resultsStyles = StyleSheet.create({
   bannerScoreWrap: { flexDirection: 'row', alignItems: 'flex-start' },
   bannerScore: { fontSize: 64, fontWeight: '900', color: '#fff', lineHeight: 70 },
   bannerScorePct: { fontSize: 24, fontWeight: '800', color: 'rgba(255,255,255,0.9)', marginTop: 8 },
-  bannerScoreMarks: { fontSize: 16, fontWeight: '800', color: '#fff', marginTop: 2, marginBottom: 4 },
   bannerSub: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.92)', marginBottom: 14 },
 
   badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },

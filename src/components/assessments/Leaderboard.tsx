@@ -34,9 +34,6 @@ interface YourResult {
   rank: number | null;
   percentage: number;
   topPercent: number | null;
-  // Optional — not in the current API response shape either, parsed
-  // defensively in case the backend adds it later.
-  xp: number | null;
 }
 
 interface LeaderboardData {
@@ -71,10 +68,6 @@ const normalizeLeaderboard = (res: any): LeaderboardData => {
         rank: yr.rank != null ? num(yr.rank) : null,
         percentage: num(yr.percentage ?? yr.score),
         topPercent: yr.top_percent != null ? num(yr.top_percent) : null,
-        xp:
-          yr.xp ?? yr.xp_earned ?? yr.points ?? yr.xp_points
-            ? num(yr.xp ?? yr.xp_earned ?? yr.points ?? yr.xp_points)
-            : null,
       }
     : null;
 
@@ -280,12 +273,6 @@ export default function Leaderboard({
                     {yourResult.percentage}%
                   </Text>
                 </View>
-                {/* {yourResult.xp != null && (
-                  <View style={lb.yourXpBadge}>
-                    <Ionicons name="flash" size={12} color="#FFFFFF" />
-                    <Text style={lb.yourXpText}>+{yourResult.xp} XP</Text>
-                  </View>
-                )} */}
               </View>
             </View>
           )}

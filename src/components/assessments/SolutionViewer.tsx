@@ -1,7 +1,6 @@
 import {
   askAssessmentTutorService,
   getassessmentReviewService,
-  getassessmentSolutionsService,
 } from '@/src/libs/services/assessments-attempts';
 import { stripHtml } from '@/src/libs/utils/html';
 import TutorModal from '@/src/components/common/TutorModal';
@@ -41,19 +40,6 @@ const correctIdsFor = (q: any): string[] => {
     .map((o: any) => String(o.id));
 };
 
-// Correct option ids, falling back to the per-question solution payload —
-// the review response often omits the correct flags for skipped questions.
-const correctIdsWithSolution = (q: any, sol: any): string[] => {
-  const fromQ = correctIdsFor(q);
-  if (fromQ.length > 0) return fromQ;
-  if (!sol) return [];
-  const top =
-    sol?.correct_answers ?? sol?.correct_options ?? sol?.correct_choice_ids ?? null;
-  if (Array.isArray(top) && top.length > 0)
-    return top.map((v: any) => String(v?.id ?? v));
-  return correctIdsFor(sol);
-};
-
 const selectedIdsFor = (q: any): string[] => {
   const raw =
     q?.your_answer?.selected_choice_ids ??
@@ -69,9 +55,8 @@ const choiceExplanationFor = (q: any): string | null => {
 };
 
 // Numeric correct answer, checking scalar fields first, then falling back to
-// the correct choice's `text` (mirrors correctIdsWithSolution's MCQ fallback),
-// then the per-question /solutions/ payload if the review response omits it.
-const numericAnswerWithSolution = (q: any, sol: any): string => {
+// the correct choice's `text` (mirrors correctIdsFor's MCQ fallback).
+const numericAnswerFor = (q: any): string => {
   const scalar = q?.correct_answer ?? q?.correct_numeric_answer ?? null;
   if (scalar != null && String(scalar).trim() !== '') return String(scalar).trim();
 
@@ -79,21 +64,11 @@ const numericAnswerWithSolution = (q: any, sol: any): string => {
     (c: any) => c?.is_correct === true || c?.correct === true,
   );
   const fromChoice = flagged?.text ?? flagged?.label;
-  if (fromChoice != null && String(fromChoice).trim() !== '') return String(fromChoice).trim();
-
-  if (!sol) return '';
-  const solScalar = sol?.correct_answer ?? sol?.correct_numeric_answer ?? null;
-  if (solScalar != null && String(solScalar).trim() !== '') return String(solScalar).trim();
-  const solFlagged = getChoices(sol).find(
-    (c: any) => c?.is_correct === true || c?.correct === true,
-  );
-  const solText = solFlagged?.text ?? solFlagged?.label;
-  return solText != null ? String(solText).trim() : '';
+  return fromChoice != null ? String(fromChoice).trim() : '';
 };
 
 export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
-  const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
   const [expandedExplanations, setExpandedExplanations] = useState<Record<string, boolean>>({});
@@ -114,25 +89,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
       const res = await getassessmentReviewService(attemptId);
       const data: any = res?.data ?? null;
       setReviewData(data);
-      if (data) {
-        const qs = data?.questions ?? [];
-        const results = await Promise.allSettled(
-          qs.map((q: any) => {
-            const qid = getQuestionId(q);
-            return qid != null
-              ? getassessmentSolutionsService(Number(qid))
-              : Promise.reject(new Error('no question id'));
-          })
-        );
-        const map: Record<string, any> = {};
-        qs.forEach((q: any, i: number) => {
-          const r = results[i];
-          const qid = getQuestionId(q);
-          if (qid != null && r.status === 'fulfilled' && (r.value as any)?.data)
-            map[String(qid)] = (r.value as any).data;
-        });
-        setSolutionsMap(map);
-      }
     } catch (err) {
       console.log('REVIEW ERROR:', err);
       showToast(getErrorMessage(err, "Couldn't load solutions."), 'error');
@@ -177,8 +133,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {questions.map((q: any, qIdx: number) => {
           const qid = getQuestionId(q);
-          const currentSolution = qid != null ? solutionsMap[String(qid)] : null;
-          const correctAnswers = correctIdsWithSolution(q, currentSolution);
+          const correctAnswers = correctIdsFor(q);
           const apiSelected = selectedIdsFor(q);
           const userAnswer =
             qid != null && answers[String(qid)]?.length ? answers[String(qid)] : apiSelected;
@@ -194,9 +149,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               '',
             ).trim()
             : '';
-          const numericCorrect = isNumericQ
-            ? numericAnswerWithSolution(q, currentSolution)
-            : '';
+          const numericCorrect = isNumericQ ? numericAnswerFor(q) : '';
 
           const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
 
@@ -215,8 +168,6 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
             (q?.outcome == null && !attempted);
 
           const explanation =
-            currentSolution?.explanation ??
-            currentSolution?.solution ??
             q?.explanation ??
             choiceExplanationFor(q);
 
@@ -308,6 +259,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                 sortedChoices.map((opt: any, idx: number) => {
                   const optId = String(opt?.id ?? opt?.value ?? idx);
                   const state = getOptState(optId);
+                  const selected = userAnswer.includes(optId);
                   const letter = String.fromCharCode(65 + idx);
                   const optLabel = stripHtml(opt?.text ?? opt?.label ?? '');
                   return (
@@ -344,12 +296,19 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                           <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
                         ) : null}
                       </View>
-                      {state === 'correct' && (
-                        <Ionicons name="checkmark" size={16} color="#22C55E" style={{ marginLeft: 'auto' }} />
-                      )}
-                      {state === 'wrong' && (
-                        <Ionicons name="close" size={16} color="#EF4444" style={{ marginLeft: 'auto' }} />
-                      )}
+                      <View style={styles.optTrailing}>
+                        {selected && (
+                          <View style={styles.youBadge}>
+                            <Text style={styles.youBadgeText}>Your answer</Text>
+                          </View>
+                        )}
+                        {state === 'correct' && (
+                          <Ionicons name="checkmark" size={16} color="#22C55E" />
+                        )}
+                        {state === 'wrong' && (
+                          <Ionicons name="close" size={16} color="#EF4444" />
+                        )}
+                      </View>
                     </View>
                   );
                 })
