@@ -98,13 +98,13 @@ const assessmentEndTime = (item: any): Date | null => {
 
 // The card pill mirrors the backend's raw student_status directly (completed →
 // "Completed", missed → "Missed", live → "Live", …). The one exception: once a
-// completed attempt's results have been published (`assessment_results` true),
+// completed attempt's results have been published (`is_results_published` true),
 // the pill reads "Results Out" instead of "Completed".
 const studentDisplayMeta = (
   item: any
 ): { label: string; color: string; bg: string } | null => {
   const status = (item?.student_status ?? "").toLowerCase();
-  if (status === "completed" && item?.assessment_results) {
+  if (status === "completed" && item?.is_results_published) {
     return LIVE_STATUS_META.results;
   }
   return studentStatusMeta(item?.student_status);

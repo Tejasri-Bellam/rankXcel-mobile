@@ -70,9 +70,9 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     : Date.now() >= examStart + (item?.total_duration_minutes ?? 0) * 60 * 1000;
 
   // Results (and the leaderboard) are gated on the backend's explicit
-  // `assessment_results` flag — the authoritative "results have been published"
+  // `is_results_published` flag — the authoritative "results have been published"
   // signal — rather than inferring it from the schedule having elapsed.
-  const resultsOut = item?.assessment_results === true;
+  const resultsOut = item?.is_results_published === true;
 
   // Status pill driven by the student's ACTUAL status (not the static
   // schedule-derived live/upcoming/results label). A submitted attempt reads
@@ -433,7 +433,7 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
     }
     if (status === "results") {
       // Personal results are viewable once the student has submitted AND the
-      // backend has published them (assessment_results). Submitted but not yet
+      // backend has published them (is_results_published). Submitted but not yet
       // published → awaiting; a missed (never submitted) test → inert "ended".
       if (isSubmitted && resultsOut) {
         return (
@@ -544,7 +544,7 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
 
         {renderPrimary()}
 
-        {/* Leaderboard shows once results are published (assessment_results). */}
+        {/* Leaderboard shows once results are published (is_results_published). */}
         {resultsOut && (
           <TouchableOpacity
             style={s.secondaryBtn}
