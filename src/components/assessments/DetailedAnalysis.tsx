@@ -121,7 +121,6 @@ export default function AssessmentDetailedAnalysis({
         showToast(getErrorMessage(analysisRes.reason, "Couldn't load the analysis."), "error");
       }
     } catch (err) {
-      console.log("ANALYSIS ERROR:", err);
       showToast(getErrorMessage(err, "Couldn't load the analysis."), "error");
     } finally {
       setLoading(false);

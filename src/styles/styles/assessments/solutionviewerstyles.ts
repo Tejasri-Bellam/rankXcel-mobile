@@ -118,6 +118,16 @@ export const solutionViewerStyles = StyleSheet.create({
   optLetterWrong: { backgroundColor: '#EF4444', borderColor: '#EF4444', color: '#fff' },
   optText: { flex: 1, fontSize: 14, color: '#1A1A2E', fontWeight: '500' },
 
+  // Trailing cluster on each option row: "Your answer" pill + outcome icon.
+  optTrailing: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
+  youBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: '#EEF0F4',
+  },
+  youBadgeText: { fontSize: 10, fontWeight: '700', color: '#6B7280', letterSpacing: 0.3 },
+
   numericRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
   numericBox: {
     flex: 1,

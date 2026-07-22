@@ -18,6 +18,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MockTestResult, submitMockAttemptResponseService, submitMockAttemptService } from '../../libs/services/mock-library';
 import { stripHtml } from '../../libs/utils/html';
+import { questionTypeLabel } from '@/src/libs/utils/questionType';
 import {
   EXAM_BACKGROUND_GRACE_MS,
   clearActiveAttempt,
@@ -482,10 +483,17 @@ export default function MockExamScreen({
         contentContainerStyle={styles.scrollContent}
       >
         {/* Q label + Mark */}
-        <View style={styles.qMetaRow}>
-          <Text style={styles.qLabel}>
-            QUESTION {currentFlatIdx + 1} / {totalQ}
-          </Text>
+        <View style={[styles.qMetaRow, { alignItems: 'flex-start' }]}>
+          <View>
+            <Text style={styles.qLabel}>
+              QUESTION {currentFlatIdx + 1} / {totalQ}
+            </Text>
+            <View style={{ alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#EEF0F4' }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#6C63FF' }}>
+                {questionTypeLabel(activeQuestion?.type)}
+              </Text>
+            </View>
+          </View>
           <View style={styles.marksRow}>
             <View style={[styles.marksChip, styles.marksChipPositive]}>
               <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
@@ -547,8 +555,14 @@ export default function MockExamScreen({
         {/* Options */}
         {(activeQuestion?.options?.length ?? 0) > 0 ? (
         <View style={styles.optionsList}>
+          {isMultiSelect(activeQuestion?.type) && (
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#6C63FF', marginBottom: 2 }}>
+              Select all that apply
+            </Text>
+          )}
           {(activeQuestion?.options ?? []).map((opt: any, idx: number) => {
             const isSelected = selectedOptions.includes(String(opt.id));
+            const multi = isMultiSelect(activeQuestion?.type);
             const optLabel = stripHtml(opt.text);
             return (
               <TouchableOpacity
@@ -557,9 +571,9 @@ export default function MockExamScreen({
                 onPress={() => handleOptionSelect(String(opt.id))}
                 activeOpacity={0.7}
               >
-                <View style={[styles.optLetter, isSelected && styles.optLetterSelected]}>
+                <View style={[styles.optLetter, multi && { borderRadius: 8 }, isSelected && styles.optLetterSelected]}>
                   <Text style={[styles.optLetterText, isSelected && styles.optLetterTextSelected]}>
-                    {String.fromCharCode(65 + idx)}
+                    {multi && isSelected ? '✓' : String.fromCharCode(65 + idx)}
                   </Text>
                 </View>
                 <View style={styles.optBody}>

@@ -330,6 +330,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               sortedChoices.map((opt: any, idx: number) => {
                 const optId = String(opt?.id ?? opt?.value ?? idx);
                 const state = getOptState(optId);
+                const selected = userAnswer.includes(optId);
                 const letter = String.fromCharCode(65 + idx);
                 const optLabel = stripHtml(opt?.text ?? opt?.label ?? '');
                 return (
@@ -366,12 +367,19 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                         <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
                       ) : null}
                     </View>
-                    {state === 'correct' && (
-                      <Ionicons name="checkmark" size={16} color="#22C55E" style={{ marginLeft: 'auto' }} />
-                    )}
-                    {state === 'wrong' && (
-                      <Ionicons name="close" size={16} color="#EF4444" style={{ marginLeft: 'auto' }} />
-                    )}
+                    <View style={styles.optTrailing}>
+                      {selected && (
+                        <View style={styles.youBadge}>
+                          <Text style={styles.youBadgeText}>Your answer</Text>
+                        </View>
+                      )}
+                      {state === 'correct' && (
+                        <Ionicons name="checkmark" size={16} color="#22C55E" />
+                      )}
+                      {state === 'wrong' && (
+                        <Ionicons name="close" size={16} color="#EF4444" />
+                      )}
+                    </View>
                   </View>
                 );
               })

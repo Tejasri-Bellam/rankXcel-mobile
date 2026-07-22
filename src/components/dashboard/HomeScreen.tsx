@@ -11,7 +11,7 @@ import { COLORS } from "@/src/styles/styles";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
 import Greeting from "./Greeting";
 import ExamReadiness from "./ExamReadiness";
-import DailyGoal from "./DailyGoal";
+// import DailyGoal from "./DailyGoal";
 import Continue from "./Continue";
 import StrengthBySubject from "./StrengthBySubject";
 import Upcoming from "./Upcoming";
@@ -80,7 +80,7 @@ export default function HomeScreen() {
             dashboardData={dashboardData}
             examName={activeExam?.name}
           />
-          <DailyGoal dashboardData={dashboardData} />
+          {/* <DailyGoal dashboardData={dashboardData} /> */}
           <Continue dashboardData={dashboardData} examId={activeExamId} />
           <StrengthBySubject dashboardData={dashboardData} />
           <Upcoming dashboardData={dashboardData} />

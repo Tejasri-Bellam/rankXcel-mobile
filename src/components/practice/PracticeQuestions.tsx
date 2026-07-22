@@ -27,6 +27,12 @@ import {
   submitMockAttemptResponseService,
 } from "@/src/libs/services/mock-library";
 import { stripHtml } from "@/src/libs/utils/html";
+import {
+  idSetsEqual,
+  isMultiSelectType,
+  isNumericalType,
+  questionTypeLabel,
+} from "@/src/libs/utils/questionType";
 import TutorModal, { ConversationApi } from "@/src/components/common/TutorModal";
 import ConfirmModal from "@/src/components/common/ConfirmModal";
 
@@ -49,6 +55,8 @@ export interface PracticeApiQuestion {
   type: string;
   options: { id: string; text: string; image?: string | null }[];
   correctChoiceId: string | null;
+  // MCQ_MULTIPLE: every correct option id. Null/absent for single-select.
+  correctChoiceIds?: string[] | null;
   // For NUMERICAL questions: the expected typed answer, shown in feedback.
   correctAnswer?: string | null;
   explanation: string;
@@ -57,11 +65,6 @@ export interface PracticeApiQuestion {
   marksIncorrect: number;
   selectedOptions?: any[] | null;
 }
-
-// NUMERICAL questions (QuestionTypeEnum) carry no choices — the student types
-// a value instead of picking an option.
-const isNumericalType = (type: string | undefined): boolean =>
-  !!type && type.toUpperCase().includes("NUMERIC");
 
 const extractCorrectAnswer = (body: any): string | null => {
   if (!body || typeof body !== "object") return null;
@@ -154,6 +157,25 @@ const extractCorrectChoiceId = (body: any): string | null => {
   return toIdString(body.correct_choice_id ?? body.correct_choice ?? body.correct_option_id ?? null);
 };
 
+// MCQ_MULTIPLE: pull the full set of correct ids from a save/response body.
+const extractCorrectChoiceIds = (body: any): string[] => {
+  if (!body || typeof body !== "object") return [];
+  const lists: unknown[] = [
+    body.correct_choice_ids,
+    body.correct_choices,
+    body.correct_options,
+    body.correct_answers,
+  ];
+  for (const list of lists) {
+    if (Array.isArray(list) && list.length > 0) {
+      const ids = list.map(toIdString).filter((v): v is string => v != null);
+      if (ids.length > 0) return ids;
+    }
+  }
+  const single = extractCorrectChoiceId(body);
+  return single != null ? [single] : [];
+};
+
 const extractExplanation = (body: any): string | null => {
   if (!body || typeof body !== "object") return null;
   const list = Array.isArray(body.correct_choices) ? body.correct_choices : null;
@@ -210,14 +232,21 @@ export default function PracticeQuestions({
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<AnswerState[]>(() =>
     questions.map((q) => {
-      const sel =
-        Array.isArray(q.selectedOptions) && q.selectedOptions.length > 0
-          ? String(q.selectedOptions[0])
-          : null;
+      const preSel = Array.isArray(q.selectedOptions)
+        ? q.selectedOptions.map((v: any) => String(v?.id ?? v)).filter(Boolean)
+        : [];
+      if (isMultiSelectType(q.type)) {
+        const answered = preSel.length > 0;
+        const correctIds = q.correctChoiceIds ?? [];
+        const correct =
+          answered && correctIds.length > 0 ? idSetsEqual(preSel, correctIds) : null;
+        return { selected: null, selectedIds: preSel, markedForReview: false, answered, correct };
+      }
+      const sel = preSel.length > 0 ? preSel[0] : null;
       const answered = sel != null;
       const correct =
         answered && q.correctChoiceId != null ? sel === q.correctChoiceId : null;
-      return { selected: sel, markedForReview: false, answered, correct };
+      return { selected: sel, selectedIds: [], markedForReview: false, answered, correct };
     })
   );
   const [totalSeconds, setTotalSeconds] = useState(0);
@@ -296,22 +325,26 @@ export default function PracticeQuestions({
 
   const saveResponse = (
     qId: number | string,
-    selected: string | null,
-    markedForReview = false,
-    numeric = false,
+    opts: {
+      choiceIds?: string[];
+      numericValue?: string | null;
+      numeric?: boolean;
+      markedForReview?: boolean;
+    },
   ) => {
+    const { choiceIds = [], numericValue = null, numeric = false, markedForReview = false } = opts;
     const elapsed = Math.max(0, Math.round((Date.now() - questionStartRef.current) / 1000));
     const payload = numeric
       ? {
-          numeric_answer: selected && selected.trim() !== "" ? selected.trim() : null,
+          numeric_answer: numericValue && numericValue.trim() !== "" ? numericValue.trim() : null,
           selected_choice_ids: [],
           is_marked_for_review: markedForReview,
           time_spent_seconds: elapsed,
         }
       : {
-          selected_choice_ids: selected
-            ? [Number(selected)].filter((n) => Number.isFinite(n))
-            : [],
+          selected_choice_ids: choiceIds
+            .map((c) => Number(c))
+            .filter((n) => Number.isFinite(n)),
           is_marked_for_review: markedForReview,
           time_spent_seconds: elapsed,
         };
@@ -325,12 +358,38 @@ export default function PracticeQuestions({
   };
 
   const isNumeric = isNumericalType(question.type);
+  const isMulti = isMultiSelectType(question.type);
+  const currentSelectedIds = current.selectedIds ?? [];
+
+  // Whether the current question has any answer entered (used to gate Check /
+  // Next / Submit). Numeric checks the typed value; multi checks the tick set.
+  const hasCurrentAnswer = isNumeric
+    ? !!current.selected && current.selected.trim() !== ""
+    : isMulti
+      ? currentSelectedIds.length > 0
+      : !!current.selected;
+
+  // The choice ids to persist for the current selection (empty for numeric).
+  const currentChoiceIds = isMulti
+    ? currentSelectedIds
+    : current.selected != null && String(current.selected).trim() !== ""
+      ? [String(current.selected)]
+      : [];
 
   const handleSelectOption = (optId: string) => {
     if (current.answered) return;
     setAnswers((prev) => {
       const next = [...prev];
-      next[currentIdx] = { ...next[currentIdx], selected: optId };
+      const cur = next[currentIdx];
+      if (isMulti) {
+        const existing = cur.selectedIds ?? [];
+        const updated = existing.includes(optId)
+          ? existing.filter((o) => o !== optId)
+          : [...existing, optId];
+        next[currentIdx] = { ...cur, selectedIds: updated };
+      } else {
+        next[currentIdx] = { ...cur, selected: optId };
+      }
       return next;
     });
   };
@@ -346,28 +405,34 @@ export default function PracticeQuestions({
   };
 
   const handleCheckAnswer = async () => {
-    const hasAnswer = isNumeric
-      ? !!current.selected && current.selected.trim() !== ""
-      : !!current.selected;
-    if (!hasAnswer || current.answered) return;
+    if (!hasCurrentAnswer || current.answered) return;
     const idx = currentIdx;
     const selected = current.selected as string;
+    const selectedIds = currentChoiceIds;
     setSavingIdx(idx);
     try {
-      const res = await saveResponse(question.id, selected, current.markedForReview, isNumeric);
+      const res = await saveResponse(
+        question.id,
+        isNumeric
+          ? { numeric: true, numericValue: selected, markedForReview: current.markedForReview }
+          : { choiceIds: selectedIds, markedForReview: current.markedForReview },
+      );
       if (res == null) return;
       const body = unwrap(res);
       const apiCorrectId = extractCorrectChoiceId(body);
+      const apiCorrectIds = extractCorrectChoiceIds(body);
       const apiCorrectAnswer = extractCorrectAnswer(body);
       const explanationRaw = extractExplanation(body);
       const structured = parseExplanation(explanationRaw);
 
-      if (apiCorrectId || apiCorrectAnswer || explanationRaw) {
+      if (apiCorrectId || apiCorrectIds.length > 0 || apiCorrectAnswer || explanationRaw) {
         setQuestionList((prev) => {
           const next = [...prev];
           next[idx] = {
             ...next[idx],
             correctChoiceId: apiCorrectId ?? next[idx].correctChoiceId,
+            correctChoiceIds:
+              apiCorrectIds.length > 0 ? apiCorrectIds : next[idx].correctChoiceIds ?? null,
             correctAnswer: apiCorrectAnswer ?? next[idx].correctAnswer ?? null,
             explanation: structured ? "" : (explanationRaw ?? next[idx].explanation),
             explanationStructured: structured ?? next[idx].explanationStructured ?? null,
@@ -383,9 +448,15 @@ export default function PracticeQuestions({
         const correct = apiCorrectAnswer ?? question.correctAnswer ?? null;
         finalCorrect =
           correct != null ? selected.trim() === String(correct).trim() : null;
+      } else if (isMulti) {
+        const effectiveCorrectIds =
+          apiCorrectIds.length > 0 ? apiCorrectIds : question.correctChoiceIds ?? [];
+        finalCorrect =
+          effectiveCorrectIds.length > 0 ? idSetsEqual(selectedIds, effectiveCorrectIds) : null;
       } else {
         const effectiveCorrectId = apiCorrectId ?? question.correctChoiceId;
-        finalCorrect = effectiveCorrectId != null ? selected === effectiveCorrectId : null;
+        finalCorrect =
+          effectiveCorrectId != null ? selectedIds[0] === effectiveCorrectId : null;
       }
 
       setAnswers((prev) => {
@@ -422,15 +493,18 @@ export default function PracticeQuestions({
       confirmFinish();
       return;
     }
-    const hasAnswer = isNumeric
-      ? !!current.selected && current.selected.trim() !== ""
-      : !!current.selected;
-    if (!current.answered && hasAnswer) {
+    if (!current.answered && hasCurrentAnswer) {
       const idx = currentIdx;
       const selected = current.selected as string;
+      const selectedIds = currentChoiceIds;
       setSavingIdx(idx);
       try {
-        await saveResponse(question.id, selected, current.markedForReview, isNumeric);
+        await saveResponse(
+          question.id,
+          isNumeric
+            ? { numeric: true, numericValue: selected, markedForReview: current.markedForReview }
+            : { choiceIds: selectedIds, markedForReview: current.markedForReview },
+        );
       } finally {
         setSavingIdx(null);
       }
@@ -446,12 +520,9 @@ export default function PracticeQuestions({
   // Final submit needs an explicit confirmation — mirrors the mock exam's submit
   // sheet. The timer-expiry path calls finishPractice() directly (no prompt).
   const confirmFinish = () => {
-    const hasAnswer = isNumeric
-      ? !!current.selected && current.selected.trim() !== ""
-      : !!current.selected;
     const answered =
       answers.filter((a) => a.answered).length +
-      (hasAnswer && !current.answered ? 1 : 0);
+      (hasCurrentAnswer && !current.answered ? 1 : 0);
     const allAnswered = answered >= questionList.length;
     setConfirm({
       kind: "submit",
@@ -468,17 +539,18 @@ export default function PracticeQuestions({
   // Persist the on-screen answer (test mode saves on submit, not per-question)
   // then end the session.
   const finalizeSubmit = async () => {
-    const hasAnswer = isNumeric
-      ? !!current.selected && current.selected.trim() !== ""
-      : !!current.selected;
-    if (isTest && !current.answered && hasAnswer) {
+    if (isTest && !current.answered && hasCurrentAnswer) {
       setSavingIdx(currentIdx);
       try {
         await saveResponse(
           question.id,
-          current.selected as string,
-          current.markedForReview,
-          isNumeric,
+          isNumeric
+            ? {
+                numeric: true,
+                numericValue: current.selected,
+                markedForReview: current.markedForReview,
+              }
+            : { choiceIds: currentChoiceIds, markedForReview: current.markedForReview },
         );
       } finally {
         setSavingIdx(null);
@@ -525,44 +597,56 @@ export default function PracticeQuestions({
     }
   };
 
+  // Per-option predicates — unified across single- and multi-select. For multi,
+  // an option is "selected" if it's in the tick set and "correct" if it's in the
+  // correct set; single-select collapses each set to its one id.
+  const correctIdSet = isMulti
+    ? question.correctChoiceIds ?? []
+    : question.correctChoiceId != null
+      ? [question.correctChoiceId]
+      : [];
+  const isOptSelected = (optId: string) =>
+    isMulti ? currentSelectedIds.includes(optId) : current.selected === optId;
+  const isOptCorrect = (optId: string) => correctIdSet.includes(optId);
+
   // Option styling
   const getOptStyle = (optId: string) => {
     if (!reveal) {
-      return [styles.optRow, current.selected === optId && styles.optSelected];
+      return [styles.optRow, isOptSelected(optId) && styles.optSelected];
     }
-    if (optId === question.correctChoiceId) return [styles.optRow, styles.optCorrect];
-    if (optId === current.selected) return [styles.optRow, styles.optWrong];
+    if (isOptCorrect(optId)) return [styles.optRow, styles.optCorrect];
+    if (isOptSelected(optId)) return [styles.optRow, styles.optWrong];
     return [styles.optRow, styles.optDimmed];
   };
 
   const getLetterStyle = (optId: string) => {
     if (!reveal) {
-      return [styles.optLetter, current.selected === optId && styles.optLetterSelected];
+      return [styles.optLetter, isOptSelected(optId) && styles.optLetterSelected];
     }
-    if (optId === question.correctChoiceId) return [styles.optLetter, styles.optLetterCorrect];
-    if (optId === current.selected) return [styles.optLetter, styles.optLetterWrong];
+    if (isOptCorrect(optId)) return [styles.optLetter, styles.optLetterCorrect];
+    if (isOptSelected(optId)) return [styles.optLetter, styles.optLetterWrong];
     return [styles.optLetter];
   };
 
   const getLetterTextStyle = (optId: string) => {
-    if (!reveal && current.selected === optId) return { color: "#fff" };
+    if (!reveal && isOptSelected(optId)) return { color: "#fff" };
     if (reveal) {
-      if (optId === question.correctChoiceId || optId === current.selected) return { color: "#fff" };
+      if (isOptCorrect(optId) || isOptSelected(optId)) return { color: "#fff" };
     }
     return { color: "#9CA3AF" };
   };
 
   const getOptTextStyle = (optId: string) => {
     if (!reveal) {
-      return [styles.optText, current.selected === optId && { color: '#6C63FF', fontWeight: "600" as const }];
+      return [styles.optText, isOptSelected(optId) && { color: '#6C63FF', fontWeight: "600" as const }];
     }
-    if (optId === question.correctChoiceId) return [styles.optText, { color: "#16A34A", fontWeight: "600" as const }];
-    if (optId === current.selected) return [styles.optText, { color: "#EF4444", fontWeight: "600" as const }];
+    if (isOptCorrect(optId)) return [styles.optText, { color: "#16A34A", fontWeight: "600" as const }];
+    if (isOptSelected(optId)) return [styles.optText, { color: "#EF4444", fontWeight: "600" as const }];
     return [styles.optText, { color: "#9CA3AF" }];
   };
 
-  const selectedOptObj = question.options.find((o) => o.id === current.selected);
-  const correctOptObj = question.options.find((o) => o.id === question.correctChoiceId);
+  // Correct option object(s), for the feedback box's "Correct answer:" line.
+  const correctOptObjs = question.options.filter((o) => correctIdSet.includes(o.id));
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
@@ -602,9 +686,14 @@ export default function PracticeQuestions({
         >
         {/* Question label + marks */}
         <View style={styles.qMetaRow}>
-          <Text style={styles.qLabel}>
-            QUESTION {currentIdx + 1} / {questionList.length}
-          </Text>
+          <View>
+            <Text style={styles.qLabel}>
+              QUESTION {currentIdx + 1} / {questionList.length}
+            </Text>
+            <View style={styles.qTypeBadge}>
+              <Text style={styles.qTypeText}>{questionTypeLabel(question.type)}</Text>
+            </View>
+          </View>
           <View style={styles.marksRow}>
             <View style={[styles.marksChip, styles.marksChipPositive]}>
               <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
@@ -661,6 +750,9 @@ export default function PracticeQuestions({
           ) : (
           /* Options */
           <View style={styles.optionsList}>
+            {isMulti && (
+              <Text style={styles.multiHint}>Select all that apply</Text>
+            )}
             {question.options.map((opt, idx) => (
               <TouchableOpacity
                 key={opt.id}
@@ -668,9 +760,17 @@ export default function PracticeQuestions({
                 onPress={() => handleSelectOption(opt.id)}
                 activeOpacity={current.answered ? 1 : 0.7}
               >
-                <View style={getLetterStyle(opt.id)}>
+                <View
+                  style={[
+                    getLetterStyle(opt.id),
+                    // Multi-select uses a rounded-square (checkbox) affordance.
+                    isMulti && { borderRadius: 8 },
+                  ]}
+                >
                   <Text style={[styles.optLetterText, getLetterTextStyle(opt.id)]}>
-                    {String.fromCharCode(65 + idx)}
+                    {isMulti && !reveal && isOptSelected(opt.id)
+                      ? "✓"
+                      : String.fromCharCode(65 + idx)}
                   </Text>
                 </View>
                 <View style={styles.optBody}>
@@ -685,10 +785,10 @@ export default function PracticeQuestions({
                     />
                   ) : null}
                 </View>
-                {reveal && opt.id === question.correctChoiceId && (
+                {reveal && isOptCorrect(opt.id) && (
                   <Ionicons name="checkmark" size={18} color="#22C55E" style={{ marginLeft: "auto" }} />
                 )}
-                {reveal && opt.id === current.selected && opt.id !== question.correctChoiceId && (
+                {reveal && isOptSelected(opt.id) && !isOptCorrect(opt.id) && (
                   <Ionicons name="close" size={18} color="#EF4444" style={{ marginLeft: "auto" }} />
                 )}
               </TouchableOpacity>
@@ -704,12 +804,12 @@ export default function PracticeQuestions({
                   {current.correct ? "✓  Correct!" : "✗  Incorrect"}
                 </Text>
               </View>
-              {!current.correct && selectedOptObj && correctOptObj && (
+              {!current.correct && correctOptObjs.length > 0 && (
                 <View style={styles.answerInfo}>
                   <Text style={styles.answerInfoText}>
-                    Correct answer:{" "}
+                    {correctOptObjs.length > 1 ? "Correct answers:" : "Correct answer:"}{" "}
                     <Text style={{ fontWeight: "700", color: "#16A34A" }}>
-                      {stripHtml(correctOptObj.text)}
+                      {correctOptObjs.map((o) => stripHtml(o.text)).join(", ")}
                     </Text>
                   </Text>
                 </View>
@@ -768,7 +868,18 @@ export default function PracticeQuestions({
 
       {/* Bottom bar */}
       <View
-        style={[styles.bottomBar, { position: "absolute", left: 0, right: 0, bottom: 0 }]}
+        style={[
+          styles.bottomBar,
+          {
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            // Clear the Android nav bar / iOS home indicator so the button
+            // isn't drawn underneath it.
+            paddingBottom: Math.max(insets.bottom, Platform.OS === "ios" ? 8 : 16),
+          },
+        ]}
         onLayout={(e) => {
           const h = e.nativeEvent.layout.height;
           setBottomBarHeight((prev) => Math.max(prev, h));
@@ -806,9 +917,9 @@ export default function PracticeQuestions({
           </View>
         ) : !current.answered ? (
           <TouchableOpacity
-            style={[styles.checkBtn, (!current.selected || savingIdx === currentIdx) && styles.checkBtnDisabled]}
+            style={[styles.checkBtn, (!hasCurrentAnswer || savingIdx === currentIdx) && styles.checkBtnDisabled]}
             onPress={handleCheckAnswer}
-            disabled={!current.selected || savingIdx === currentIdx}
+            disabled={!hasCurrentAnswer || savingIdx === currentIdx}
             activeOpacity={0.85}
           >
             {savingIdx === currentIdx ? (

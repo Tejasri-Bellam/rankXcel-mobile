@@ -143,16 +143,6 @@ export const leaderboardExtraStyles = StyleSheet.create({
   yourRankNum: { fontSize: 18, fontWeight: "800", color: "#FFFFFF" },
   yourLabel: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
   yourMeta: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 1 },
-  // yourXpBadge: {
-  //   flexDirection: "row",
-  //   alignItems: "center",
-  //   gap: 4,
-  //   backgroundColor: "rgba(255,255,255,0.16)",
-  //   borderRadius: 20,
-  //   paddingHorizontal: 10,
-  //   paddingVertical: 6,
-  // },
-  // yourXpText: { fontSize: 12, fontWeight: "800", color: "#FFFFFF" },
 
   // "TOP RANKS" section
   sectionRow: {

@@ -36,7 +36,7 @@ export const practiceResultsStyles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: "800", color: "#1A1A2E", marginTop: 4 },
   statLabel: { fontSize: 12, color: "#9CA3AF" },
 
-  xpBanner: {
+  scoreBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -46,8 +46,8 @@ export const practiceResultsStyles = StyleSheet.create({
     padding: 14,
     marginBottom: 20,
   },
-  xpTitle: { fontSize: 14, fontWeight: "700", color: "#1A1A2E" },
-  xpSub: { fontSize: 12, color: "#6B7280", marginTop: 1 },
+  scoreBannerTitle: { fontSize: 14, fontWeight: "700", color: "#1A1A2E" },
+  scoreBannerSub: { fontSize: 12, color: "#6B7280", marginTop: 1 },
 
   submittingRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
   submittingText: { fontSize: 12, color: "#9CA3AF" },
