@@ -242,7 +242,7 @@ const BackHeader = ({ title, onBack }: { title: string; onBack: () => void }) =>
   <>
     <View style={styles.topBar}>
       <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-        <Ionicons name="chevron-back" size={18} color="#6C63FF" />
+        <Ionicons name="chevron-back" size={14} color="#6C63FF" />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
     </View>
@@ -572,7 +572,7 @@ export default function PracticeScreen() {
                     )
                   }
                 />
-                <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+                <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
               </View>
             </TouchableOpacity>
           );
@@ -786,7 +786,7 @@ export default function PracticeScreen() {
                     {getStrengthLabel(subject.accuracy)}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+                <Ionicons name="chevron-forward" size={14} color="#D1D5DB" />
               </TouchableOpacity>
             ))}
             {subjectGroups.length === 0 && (

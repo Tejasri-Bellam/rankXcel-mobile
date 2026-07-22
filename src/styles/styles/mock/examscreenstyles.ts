@@ -72,25 +72,25 @@ export const examScreenStyles = StyleSheet.create({
     borderColor: '#F59E0B',
     backgroundColor: '#FEF3C7',
   },
-  markText: { fontSize: 13, fontWeight: '600', color: '#9CA3AF' },
+  markText: { fontSize: 10, fontWeight: '600', color: '#9CA3AF' },
   markTextActive: { color: '#B45309' },
 
   // Question
   questionText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1A1A2E',
-    lineHeight: 26,
-    marginBottom: 24,
+    lineHeight: 24,
+    marginBottom: 12,
   },
 
   // Images
   questionImage: {
     width: '100%',
     height: 200,
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: '#F3F4F6',
-    marginBottom: 24,
+    marginBottom: 8,
   },
   optImage: {
     width: '100%',
@@ -107,7 +107,7 @@ export const examScreenStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    padding: 16,
+    padding: 10,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#E5E7EB',
