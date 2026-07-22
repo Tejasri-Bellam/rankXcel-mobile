@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -167,6 +168,11 @@ export default function VerifyEmailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
+        <ScrollView
+      contentContainerStyle={{ flexGrow: 1 }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Text style={styles.logoText}>RX</Text>
@@ -244,6 +250,7 @@ export default function VerifyEmailScreen() {
             <Text style={styles.backLinkText}>← Back to registration</Text>
           </TouchableOpacity>
         </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );

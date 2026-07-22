@@ -445,7 +445,7 @@ export default function SignupScreen() {
               style={styles.backButton}
               onPress={() => router.push('/')}
             >
-              <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
+              <Ionicons name="chevron-back" size={20} color="#6C63FF" />
             </TouchableOpacity>
             <View style={countrySelectStyles.chip}>
               <Ionicons name="location-outline" size={16} color="#475569" />

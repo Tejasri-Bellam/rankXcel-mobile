@@ -263,14 +263,8 @@ export default function PracticeResults({
   const statuses = effQuestions.map((q, i) => computeStatus(q, effAnswers[i]));
   // Prefer the top-level counts the API now returns; fall back to the
   // per-question statuses computed from the review/local data.
-  const correct =
-    apiResult?.correct_questions_count != null
-      ? apiResult.correct_questions_count
-      : statuses.filter((s) => s === "correct").length;
-  const wrong =
-    apiResult?.wrong_questions_count != null
-      ? apiResult.wrong_questions_count
-      : statuses.filter((s) => s === "wrong").length;
+  const correct = statuses.filter((s) => s === "correct").length;
+const wrong = statuses.filter((s) => s === "wrong").length;
   const total = effQuestions.length;
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
   const color = accColor(accuracy);

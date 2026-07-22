@@ -6,12 +6,13 @@ import {
   Image,
   Platform,
   ScrollView,
+  KeyboardAvoidingView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AnswerState } from "./PracticeExamFlow";
 import {
@@ -226,7 +227,8 @@ export default function PracticeQuestions({
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
   const questionStartRef = useRef<number>(Date.now());
-
+  const insets = useSafeAreaInsets();
+  const [bottomBarHeight, setBottomBarHeight] = useState(0);
   useEffect(() => {
     intervalRef.current = setInterval(() => setTotalSeconds((s) => s + 1), 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
@@ -584,12 +586,20 @@ export default function PracticeQuestions({
       </View>
 
       {/* Body */}
-      <ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 20}
       >
+        <ScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: bottomBarHeight > 0 ? bottomBarHeight + insets.bottom + 12 : 24 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Question label + marks */}
         <View style={styles.qMetaRow}>
           <Text style={styles.qLabel}>
@@ -754,9 +764,16 @@ export default function PracticeQuestions({
           )}
         </Animated.View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Bottom bar */}
-      <View style={styles.bottomBar}>
+      <View
+        style={[styles.bottomBar, { position: "absolute", left: 0, right: 0, bottom: 0 }]}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          setBottomBarHeight((prev) => Math.max(prev, h));
+        }}
+      >
         {isTest ? (
           <View style={styles.navRow}>
             {currentIdx > 0 && (
@@ -797,7 +814,7 @@ export default function PracticeQuestions({
             {savingIdx === currentIdx ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.checkBtnText}>Check answer</Text>
+              <Text style={styles.checkBtnText}>Check Answer</Text>
             )}
           </TouchableOpacity>
         ) : (
@@ -825,6 +842,7 @@ export default function PracticeQuestions({
           </View>
         )}
       </View>
+
 
       {!isTest && (
         <TutorModal

@@ -13,13 +13,13 @@ export const practiceScreenStyles = StyleSheet.create({
     backgroundColor: "#F7F8FC",
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
     color: "#1A1A2E",
     marginBottom: 4,
   },
   pageSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#9CA3AF",
     lineHeight: 18,
   },
@@ -43,8 +43,8 @@ export const practiceScreenStyles = StyleSheet.create({
     elevation: 2,
   },
   subjectNameRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  subjectName: { fontSize: 16, fontWeight: "700", color: "#1A1A2E" },
-  subjectMeta: { fontSize: 13, color: "#9CA3AF", marginTop: 4 },
+  subjectName: { fontSize: 14, fontWeight: "700", color: "#1A1A2E" },
+  subjectMeta: { fontSize: 12, color: "#9CA3AF", marginTop: 4 },
 
   nodeInfo: { flex: 1 },
 
@@ -60,9 +60,9 @@ export const practiceScreenStyles = StyleSheet.create({
     gap: 2,
     alignSelf: "flex-start",
   },
-  backText: { fontSize: 15, fontWeight: "600", color: '#6C63FF' },
+  backText: { fontSize: 14, fontWeight: "600", color: '#6C63FF' },
   bigTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
     color: "#1A1A2E",
     paddingHorizontal: 20,
@@ -87,8 +87,8 @@ export const practiceScreenStyles = StyleSheet.create({
     elevation: 2,
   },
   bannerInfo: { flex: 1 },
-  bannerStatus: { fontSize: 17, fontWeight: "800", color: "#1A1A2E" },
-  bannerMeta: { fontSize: 13, color: "#9CA3AF", marginTop: 3 },
+  bannerStatus: { fontSize: 16, fontWeight: "800", color: "#1A1A2E" },
+  bannerMeta: { fontSize: 12, color: "#9CA3AF", marginTop: 3 },
 
   sectionLabel: {
     fontSize: 11,
@@ -122,7 +122,7 @@ export const practiceScreenStyles = StyleSheet.create({
   },
   listRowLast: { borderBottomWidth: 0 },
   listInfo: { flex: 1 },
-  listName: { fontSize: 15, fontWeight: "700", color: "#1A1A2E" },
+  listName: { fontSize: 14, fontWeight: "700", color: "#1A1A2E" },
   listMeta: { fontSize: 12, color: "#9CA3AF", marginTop: 3 },
   square: { width: 26, height: 26, borderRadius: 8 },
 
@@ -185,5 +185,5 @@ export const practiceScreenStyles = StyleSheet.create({
   },
   retryText: { color: "#fff", fontWeight: "700" },
   emptyState: { alignItems: "center", paddingVertical: 60 },
-  emptyText: { fontSize: 14, color: "#9CA3AF" },
+  emptyText: { fontSize: 12, color: "#9CA3AF" },
 });
