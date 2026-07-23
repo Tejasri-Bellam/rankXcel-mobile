@@ -376,7 +376,7 @@ export async function startMockTestService(
 }
 // Submit Mock
 export async function submitMockTestService(id: number | string) {
-  return await genericPost(`/v1/mock-tests/${id}/submit/`,{}, { isMultipart: false, useAccessToken: true}
+  return await genericPost(`/v1/mock-tests/${id}/submit/`,{}, { isMultipart: false, useAccessToken: true, timeout: 60000 }
 );
 }
 
@@ -386,6 +386,9 @@ export async function submitMockAttemptService(attemptId: number | string) {
   return await genericPost(`/v1/mock-test-attempts/${attemptId}/submit/`, {}, {
     isMultipart: false,
     useAccessToken: true,
+    // Submit triggers server-side scoring, which routinely takes longer than
+    // the default 15s and was timing out to a status-0 "network error".
+    timeout: 60000,
   });
 }
 

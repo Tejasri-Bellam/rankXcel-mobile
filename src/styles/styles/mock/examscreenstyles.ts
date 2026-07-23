@@ -356,6 +356,33 @@ export const examScreenStyles = StyleSheet.create({
   alignItems: 'center',
   justifyContent: 'center',
   backgroundColor: '#fff',
-  
+
 },
+
+  // Full-screen blocking overlay shown while the attempt is being submitted.
+  submittingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  submittingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 28,
+    paddingHorizontal: 28,
+    alignItems: 'center',
+    gap: 12,
+    minWidth: 220,
+  },
+  submittingText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A2E',
+  },
+  submittingHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
 });

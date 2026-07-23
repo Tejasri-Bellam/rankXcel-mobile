@@ -44,11 +44,17 @@ interface Props {
     answers: Record<string, string[]>,
     timeTaken: number,
     result?: MockTestResult | null,
+    // Set when the attempt was submitted automatically (not via the Submit
+    // button): the timer ran out ('timeup') or the app was left past the grace
+    // window ('inactivity'). Lets the destination surface a toast explaining it.
+    autoSubmitReason?: AutoSubmitReason,
   ) => void;
   onBackToMocks?: () => void;
 }
 
 type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
+
+export type AutoSubmitReason = 'timeup' | 'inactivity';
 
 const isMultiSelect = (type: string | undefined) => {
   if (!type) return false;
@@ -113,7 +119,7 @@ export default function MockExamScreen({
 
   // Always call the latest handleFinalSubmit from inside long-lived effects
   // (timer / AppState) without re-subscribing them on every render.
-  const finalSubmitRef = useRef<() => void>(() => {});
+  const finalSubmitRef = useRef<(autoReason?: AutoSubmitReason) => void>(() => {});
 
   // Establish the wall-clock deadline once the exam is ready, and register the
   // attempt so a killed app can be auto-submitted on next launch.
@@ -139,7 +145,7 @@ export default function MockExamScreen({
       const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
       setTimeLeft(left);
       setTimeTaken(totalSeconds - left);
-      if (left <= 0) finalSubmitRef.current();
+      if (left <= 0) finalSubmitRef.current('timeup');
       return left;
     };
     sync();
@@ -162,7 +168,7 @@ export default function MockExamScreen({
         // Submit once the grace window elapses even while still away.
         if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
         graceTimerRef.current = setTimeout(
-          () => finalSubmitRef.current(),
+          () => finalSubmitRef.current('inactivity'),
           EXAM_BACKGROUND_GRACE_MS,
         );
       } else if (next === 'active') {
@@ -174,7 +180,7 @@ export default function MockExamScreen({
         if (backgroundedAtRef.current != null) {
           const away = Date.now() - backgroundedAtRef.current;
           backgroundedAtRef.current = null;
-          if (away >= EXAM_BACKGROUND_GRACE_MS) finalSubmitRef.current();
+          if (away >= EXAM_BACKGROUND_GRACE_MS) finalSubmitRef.current('inactivity');
         }
       }
     });
@@ -278,6 +284,9 @@ export default function MockExamScreen({
   };
 
   const handleOptionSelect = (optionId: string) => {
+    // Once a submit is in flight the attempt is being finalized server-side —
+    // answers can no longer change, so ignore any further input.
+    if (submitting) return;
     if (!currentQId) return;
     const isMulti = isMultiSelect(activeQuestion?.type);
     const current = answers[currentQId] || [];
@@ -358,7 +367,7 @@ export default function MockExamScreen({
     return submitMockAttemptService(attemptId);
   };
 
-  const handleFinalSubmit = async () => {
+  const handleFinalSubmit = async (autoReason?: AutoSubmitReason) => {
     if (submitting) return;
     try {
       setSubmitting(true);
@@ -367,8 +376,7 @@ export default function MockExamScreen({
       const submitRes = await flushAndSubmit();
       await clearActiveAttempt();
       const result = (submitRes as any)?.data ?? (submitRes as any) ?? null;
-      onSubmit(answers, timeTaken, result);
-      console.log('ressss', answers, timeTaken, result);
+      onSubmit(answers, timeTaken, result, autoReason);
 
     } catch (err) {
       console.log('SUBMIT ERROR:', err);
@@ -693,7 +701,7 @@ export default function MockExamScreen({
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.submitNowBtn}
-                onPress={handleFinalSubmit}
+                onPress={() => handleFinalSubmit()}
                 disabled={submitting}
                 activeOpacity={0.85}
               >
@@ -739,6 +747,18 @@ export default function MockExamScreen({
               }))
         }
       />
+
+      {/* Submitting overlay — blocks all interaction (answering, navigating)
+          while the attempt is finalized server-side, which can take a while. */}
+      <Modal visible={submitting} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.submittingOverlay}>
+          <View style={styles.submittingCard}>
+            <ActivityIndicator size="large" color="#6C63FF" />
+            <Text style={styles.submittingText}>Submitting your test…</Text>
+            <Text style={styles.submittingHint}>Please don&apos;t close the app.</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

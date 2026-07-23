@@ -20,7 +20,17 @@ import {
 import MockExamNavigator from './Navigator';
 import MockExamResults from './Results';
 import MockSolutionViewer from './SolutionViewer';
+import Toast, { useToast } from '../common/Toast';
+import type { AutoSubmitReason } from './ExamScreen';
 import { detailsStyles as styles } from '@/src/styles/styles/mock/detailsstyles';
+
+// Copy shown when the attempt was submitted for the student (not via the
+// Submit button) — the timer ran out, or they left the app past the grace
+// window. Surfaced as a toast on the results screen so it isn't a silent jump.
+const AUTO_SUBMIT_MESSAGE: Record<AutoSubmitReason, string> = {
+  timeup: "Time's up! Your mock test was submitted automatically.",
+  inactivity: 'You left the test, so it was submitted automatically.',
+};
 
 type MockView = 'detail' | 'exam' | 'results' | 'solutions';
 
@@ -53,6 +63,7 @@ export default function MockDetails({ mock, onBack, initialView = 'detail', init
   const [submittedResult, setSubmittedResult] = useState<MockTestResult | null>(null);
   const [timeTaken, setTimeTaken] = useState(0);
   const [mockData] = useState<MockTest>(mock);
+  const { toast, showToast, hideToast } = useToast();
 
   useEffect(() => {
     router.setParams({ mockId: String(mockData.id), view: currentView });
@@ -189,11 +200,16 @@ const handleRetake = async () => {
         mockId={mockData.id}
         attemptId={attemptId}
         durationMinutes={mockData.total_duration_minutes ?? 60}
-        onSubmit={(answers, seconds, result) => {
+        onSubmit={(answers, seconds, result, autoSubmitReason) => {
           setSubmittedAnswers(answers);
           setTimeTaken(seconds);
           setSubmittedResult(result ?? null);
           setCurrentView('results');
+          // Auto-submit (timer expiry / left the app) is not user-initiated —
+          // tell the student why they landed on the results screen.
+          if (autoSubmitReason) {
+            showToast(AUTO_SUBMIT_MESSAGE[autoSubmitReason], 'info');
+          }
         }}
         onBackToMocks={onBack}
       />
@@ -202,17 +218,20 @@ const handleRetake = async () => {
 
   if (currentView === 'results') {
     return (
-      <MockExamResults
-        mockId={mockData.id}
-        attemptId={resultAttemptId}
-        mock={mockData}
-        answers={submittedAnswers}
-        timeTakenSeconds={timeTaken}
-        initialResult={submittedResult}
-        onBack={onBack}
-        onViewSolutions={() => setCurrentView('solutions')}
-        onDone={onBack}
-      />
+      <>
+        <MockExamResults
+          mockId={mockData.id}
+          attemptId={resultAttemptId}
+          mock={mockData}
+          answers={submittedAnswers}
+          timeTakenSeconds={timeTaken}
+          initialResult={submittedResult}
+          onBack={onBack}
+          onViewSolutions={() => setCurrentView('solutions')}
+          onDone={onBack}
+        />
+        <Toast {...toast} onHide={hideToast} />
+      </>
     );
   }
 

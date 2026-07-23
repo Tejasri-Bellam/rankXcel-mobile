@@ -57,7 +57,7 @@ export default function ExamReadiness({
     <TouchableOpacity
       activeOpacity={0.9}
       style={styles.card}
-      onPress={() => router.push("/analytics")}
+      onPress={() => router.replace("/analytics")}
     >
       <CircleProgress
         size={104}
