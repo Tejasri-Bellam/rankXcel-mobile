@@ -501,6 +501,7 @@ export default function SignupScreen() {
                 clearFieldError('fullName');
               }}
               error={fieldErrors.fullName}
+              editable={!loading && socialLoading === null}
             />
 
             <InputField
@@ -516,6 +517,7 @@ export default function SignupScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               error={fieldErrors.email}
+              editable={!loading && socialLoading === null}
             />
 
             <InputField
@@ -533,6 +535,7 @@ export default function SignupScreen() {
               error={fieldErrors.mobileNumber}
               hint="10 digit mobile number"
               maxLength={10}
+              editable={!loading && socialLoading === null}
             />
 
             <InputField
@@ -547,6 +550,7 @@ export default function SignupScreen() {
               }}
               password
               error={fieldErrors.password}
+              editable={!loading && socialLoading === null}
             />
 
             <InputField
@@ -561,12 +565,14 @@ export default function SignupScreen() {
               }}
               password
               error={fieldErrors.confirmPassword}
+              editable={!loading && socialLoading === null}
             />
 
             <TouchableOpacity
               style={styles.checkboxContainer}
               onPress={() => setAgreeTerms(!agreeTerms)}
               activeOpacity={0.8}
+              disabled={loading || socialLoading !== null}
             >
               <View
                 style={[styles.checkbox, agreeTerms && styles.checkboxChecked]}
