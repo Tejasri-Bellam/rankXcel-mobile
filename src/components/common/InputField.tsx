@@ -44,6 +44,7 @@ export default function InputField({
   style,
   secureTextEntry,
   placeholderTextColor = '#9CA3AF',
+  editable = true,
   ...rest
 }: InputFieldProps) {
   const [hidden, setHidden] = useState(true);
@@ -73,7 +74,8 @@ export default function InputField({
         {!!prefix && <Text style={styles.inputPrefix}>{prefix}</Text>}
 
         <TextInput
-          style={[styles.input, style]}
+          editable={editable}
+          style={[styles.input, style,  editable === false && { opacity: 0.6 },]}
           placeholderTextColor={placeholderTextColor}
           secureTextEntry={isSecure}
           {...rest}
