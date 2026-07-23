@@ -25,6 +25,8 @@ interface InputFieldProps extends TextInputProps {
   error?: string;
   // Helper text shown below the field when there's no error.
   hint?: string;
+  // Static text rendered before the input, e.g. a "+91" dial code.
+  prefix?: string;
   // Adds a show/hide toggle for password fields (forces secureTextEntry).
   password?: boolean;
   containerStyle?: ViewStyle;
@@ -36,6 +38,7 @@ export default function InputField({
   icon,
   error,
   hint,
+  prefix,
   password = false,
   containerStyle,
   style,
@@ -66,6 +69,8 @@ export default function InputField({
             style={styles.inputIcon}
           />
         )}
+
+        {!!prefix && <Text style={styles.inputPrefix}>{prefix}</Text>}
 
         <TextInput
           style={[styles.input, style]}

@@ -223,7 +223,9 @@ export default function SignupScreen() {
       const payload = {
         name: fullName,
         email: email.trim().toLowerCase(),
-        phone: mobileNumber,
+        // The input collects the bare 10-digit number; the API expects the
+        // full number with the +91 dial code.
+        phone: `+91${mobileNumber.trim()}`,
         password,
         confirm_password: confirmPassword,
       };
@@ -520,6 +522,7 @@ export default function SignupScreen() {
               label="Mobile number"
               required
               icon="call-outline"
+              prefix="+91"
               placeholder="9876543210"
               value={mobileNumber}
               onChangeText={(t) => {
@@ -577,11 +580,15 @@ export default function SignupScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* Primary button */}
+            {/* Primary button — stays disabled until the user agrees to the
+                Terms of Service and Privacy Policy. */}
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[
+                styles.primaryButton,
+                !agreeTerms && styles.primaryButtonDisabled,
+              ]}
               onPress={handleSignup}
-              disabled={loading || socialLoading !== null}
+              disabled={!agreeTerms || loading || socialLoading !== null}
               activeOpacity={0.85}
             >
               <Text style={styles.primaryButtonText}>

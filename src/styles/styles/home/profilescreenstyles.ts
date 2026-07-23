@@ -94,6 +94,16 @@ backText: {
     top: 12,
     zIndex: 1,
   },
+  // Static "+91" dial code shown between the phone icon and the input text.
+  inputPrefix: {
+    position: 'absolute',
+    left: 32,
+    top: 12,
+    zIndex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textMedium,
+  },
   textInput: {
     backgroundColor: COLORS.inputBg,
     borderRadius: 10,

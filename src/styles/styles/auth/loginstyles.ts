@@ -201,6 +201,12 @@ export const loginStyles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+  // Greyed-out look while the terms checkbox is unticked.
+  primaryButtonDisabled: {
+    backgroundColor: '#C7C4F4',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
