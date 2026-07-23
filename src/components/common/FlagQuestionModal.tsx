@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -75,194 +76,199 @@ export default function FlagQuestionModal({
 
   useEffect(() => {
     if (visible) {
-        scrollRef.current?.scrollTo({ y: 0, animated: false });
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
     }
-    }, [visible]);
+  }, [visible]);
 
   const isChoiceIssue = issueType === "CHOICE";
-  const isOtherIssue = issueType === "OTHER";
-  const descRequired = isOtherIssue;
+const descRequired = true;
+const hasChoices = (choices?.length ?? 0) > 0;
+
 
   const isValid =
-    !!issueType &&
-    (!isChoiceIssue || !!selectedChoiceId) &&
-    (!descRequired || description.trim().length > 0);
+  !!issueType &&
+  (!isChoiceIssue || !hasChoices || !!selectedChoiceId) &&
+  (!descRequired || description.trim().length > 0);
 
   const handleSubmit = async () => {
-    if (!isValid || submitting || !issueType || questionId == null) return;
-    try {
-      setSubmitting(true);
-      const payload: QuestionReportPayloadWithOptionalChoice = {
-        issue_type: issueType,
-        description: description.trim() || undefined,
-      };
-      if (isChoiceIssue && selectedChoiceId) {
-        payload.choice = Number(selectedChoiceId);
-      }
-      await reportQuestionService(questionId, payload);
-      reset();
-      onSubmitted?.();
-      onClose();
-    } catch (e) {
-      console.log("FLAG QUESTION ERROR:", e);
-      setSubmitting(false);
+  if (!isValid || submitting || !issueType || questionId == null) return;
+  try {
+    setSubmitting(true);
+    const payload: QuestionReportPayloadWithOptionalChoice = {
+      issue_type: issueType,
+      description: description.trim(),
+    };
+    if (isChoiceIssue && hasChoices && selectedChoiceId) {
+      payload.choice = Number(selectedChoiceId);
     }
-  };
+    await reportQuestionService(questionId, payload);
+    reset();
+    onSubmitted?.();
+    onClose();
+  } catch (e: any) {
+    console.log(
+      "FLAG QUESTION ERROR:",
+      JSON.stringify(e?.response?.data ?? e?.message ?? e, null, 2),
+    );
+    Alert.alert("Error", "Could not submit your report. Please try again.");
+    setSubmitting(false);
+  }
+};
 
   return (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-    <KeyboardAvoidingView
-      style={styles.overlay}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-    >
-      <View style={styles.card}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={styles.flagBadge}>
-              <Ionicons name="flag" size={16} color="#F59E0B" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>
-                Flag Question{questionNumber ? ` ${questionNumber}` : ""}
-              </Text>
-              <Text style={styles.subtitle}>
-                Tell us what&apos;s wrong — our team will review it.
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity onPress={handleClose} style={styles.closeBtn} activeOpacity={0.7}>
-            <Ionicons name="close" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          ref={scrollRef}
-          style={styles.body}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.sectionLabel}>WHAT&apos;S THE ISSUE?</Text>
-          <View style={{ gap: 8, marginBottom: 6 }}>
-            {ISSUE_TYPES.map((opt) => {
-              const selected = issueType === opt.value;
-              return (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[styles.radioRow, selected && styles.radioRowSelected]}
-                  onPress={() => {
-                    setIssueType(opt.value);
-                    if (opt.value !== "CHOICE") setSelectedChoiceId(null);
-                  }}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
-                    {selected && <View style={styles.radioInner} />}
-                  </View>
-                  <Text style={[styles.radioText, selected && styles.radioTextSelected]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {isChoiceIssue && (
-            <View style={{ marginTop: 10, marginBottom: 6 }}>
-              <Text style={styles.sectionLabel}>
-                WHICH CHOICE? <Text style={styles.requiredText}>(required)</Text>
-              </Text>
-              <View style={{ gap: 8 }}>
-                {(choices ?? []).map((c) => {
-                  const selected = selectedChoiceId === c.id;
-                  return (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[styles.choiceRow, selected && styles.choiceRowSelected]}
-                      onPress={() => setSelectedChoiceId(c.id)}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[styles.choiceLetter, selected && styles.choiceLetterSelected]}>
-                        <Text style={[styles.choiceLetterText, selected && styles.choiceLetterTextSelected]}>
-                          {c.label}
-                        </Text>
-                      </View>
-                      <Text style={[styles.choiceText, selected && styles.choiceTextSelected]} numberOfLines={2}>
-                        {c.text}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        <View style={styles.card}>
+          {/* Header */}
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
+              <View style={styles.flagBadge}>
+                <Ionicons name="flag" size={16} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.title}>
+                  Flag Question{questionNumber ? ` ${questionNumber}` : ""}
+                </Text>
+                <Text style={styles.subtitle}>
+                  Tell us what&apos;s wrong — our team will review it.
+                </Text>
               </View>
             </View>
-          )}
-
-          <View style={{ marginTop: 12 }}>
-            <Text style={styles.sectionLabel}>
-              ADDITIONAL DETAILS{" "}
-              <Text style={descRequired ? styles.requiredText : styles.optionalText}>
-                {descRequired ? "(required)" : "(optional)"}
-              </Text>
-            </Text>
-            <TextInput
-              style={styles.textarea}
-              placeholder="Describe the issue briefly..."
-              placeholderTextColor="#B0B3BD"
-              value={description}
-              onChangeText={(t) => setDescription(t.slice(0, MAX_DESC))}
-              multiline
-              numberOfLines={4}
-              maxLength={MAX_DESC}
-              textAlignVertical="top"
-              // Scroll the textarea (and the footer below it) up above the
-              // keyboard once it gains focus — otherwise it's the last thing
-              // in the ScrollView and the keyboard covers it and the footer.
-              onFocus={() =>
-                setTimeout(
-                  () => scrollRef.current?.scrollToEnd({ animated: true }),
-                  150,
-                )
-              }
-            />
-            <Text style={styles.charCount}>
-              {description.length}/{MAX_DESC}
-            </Text>
+            <TouchableOpacity onPress={handleClose} style={styles.closeBtn} activeOpacity={0.7}>
+              <Ionicons name="close" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
           </View>
-        </ScrollView>
 
-        {/* Footer */}
-        <View style={styles.footerRow}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.body}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.sectionLabel}>WHAT&apos;S THE ISSUE?</Text>
+            <View style={{ gap: 8, marginBottom: 6 }}>
+              {ISSUE_TYPES.map((opt) => {
+                const selected = issueType === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.radioRow, selected && styles.radioRowSelected]}
+                    onPress={() => {
+                      setIssueType(opt.value);
+                      if (opt.value !== "CHOICE") setSelectedChoiceId(null);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
+                      {selected && <View style={styles.radioInner} />}
+                    </View>
+                    <Text style={[styles.radioText, selected && styles.radioTextSelected]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {isChoiceIssue && hasChoices && (
+  <View style={{ marginTop: 10, marginBottom: 6 }}>
+    <Text style={styles.sectionLabel}>
+      WHICH CHOICE? <Text style={styles.requiredText}>(required)</Text>
+    </Text>
+    <View style={{ gap: 8 }}>
+      {(choices ?? []).map((c) => {
+        const selected = selectedChoiceId === c.id;
+        return (
           <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={handleClose}
-            disabled={submitting}
+            key={c.id}
+            style={[styles.choiceRow, selected && styles.choiceRowSelected]}
+            onPress={() => setSelectedChoiceId(c.id)}
             activeOpacity={0.75}
           >
-            <Text style={styles.cancelText}>Cancel</Text>
+            <View style={[styles.choiceLetter, selected && styles.choiceLetterSelected]}>
+              <Text style={[styles.choiceLetterText, selected && styles.choiceLetterTextSelected]}>
+                {c.label}
+              </Text>
+            </View>
+            <Text style={[styles.choiceText, selected && styles.choiceTextSelected]} numberOfLines={2}>
+              {c.text}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.submitBtn, !isValid && styles.submitBtnDisabled]}
-            onPress={handleSubmit}
-            disabled={!isValid || submitting}
-            activeOpacity={0.85}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="flag" size={14} color={isValid ? "#fff" : "#9CA3AF"} />
-                <Text style={[styles.submitText, !isValid && styles.submitTextDisabled]}>
-                  Submit Flag
+        );
+      })}
+    </View>
+  </View>
+)}
+
+            <View style={{ marginTop: 12 }}>
+              <Text style={styles.sectionLabel}>
+                ADDITIONAL DETAILS{" "}
+                <Text style={descRequired ? styles.requiredText : styles.optionalText}>
+                  {descRequired ? "(required)" : "(optional)"}
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
+              </Text>
+              <TextInput
+                style={styles.textarea}
+                placeholder="Describe the issue briefly..."
+                placeholderTextColor="#B0B3BD"
+                value={description}
+                onChangeText={(t) => setDescription(t.slice(0, MAX_DESC))}
+                multiline
+                numberOfLines={4}
+                maxLength={MAX_DESC}
+                textAlignVertical="top"
+                // Scroll the textarea (and the footer below it) up above the
+                // keyboard once it gains focus — otherwise it's the last thing
+                // in the ScrollView and the keyboard covers it and the footer.
+                onFocus={() =>
+                  setTimeout(
+                    () => scrollRef.current?.scrollToEnd({ animated: true }),
+                    150,
+                  )
+                }
+              />
+              <Text style={styles.charCount}>
+                {description.length}/{MAX_DESC}
+              </Text>
+            </View>
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={styles.footerRow}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={handleClose}
+              disabled={submitting}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.submitBtn, !isValid && styles.submitBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={!isValid || submitting}
+              activeOpacity={0.85}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="flag" size={14} color={isValid ? "#fff" : "#9CA3AF"} />
+                  <Text style={[styles.submitText, !isValid && styles.submitTextDisabled]}>
+                    Submit Flag
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
-  </Modal>
-);
+      </KeyboardAvoidingView>
+    </Modal>
+  );
 }
 
 // Local type alias so `choice` can be added conditionally without `any`.

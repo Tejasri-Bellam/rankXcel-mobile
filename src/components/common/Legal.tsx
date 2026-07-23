@@ -89,7 +89,7 @@ export default function LegalScreen() {
           onPress={() => router.back()}
           activeOpacity={0.8}
         >
-          <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
+          <Ionicons name="chevron-back" size={20} color="#6C63FF" />
         </TouchableOpacity>
       </View>
 
