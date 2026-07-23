@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Toast, { useToast } from "@/src/components/common/Toast";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { getassessmentsService } from "@/src/libs/services/assessments";
+import { getassessmentsService, getAssessmentByIdService } from "@/src/libs/services/assessments";
 import { submitAbandonedAttempt } from "@/src/libs/utils/examSession";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
@@ -152,6 +152,10 @@ export default function AssessmentsScreen() {
     tab?: string;
     openId?: string;
     openName?: string;
+    // Notification deep-link extras: open the target directly in a sub-view
+    // ("results") for a specific attempt instead of the register page.
+    view?: string;
+    attemptId?: string;
   }>();
   // The deep-link target we've already resolved (id/name), so we don't re-open
   // it — while still allowing a *new* deep-link to be handled.
@@ -163,6 +167,12 @@ export default function AssessmentsScreen() {
   const [selected, setSelected] = useState<{ item: any; status: LiveStatus } | null>(
     null
   );
+  // Sub-view/attempt to open the deep-linked detail on (notification →
+  // results of a specific attempt). Cleared alongside `selected`.
+  const [deepLinkOpts, setDeepLinkOpts] = useState<{
+    view?: "results";
+    attemptId?: number;
+  } | null>(null);
   const [filter, setFilter] = useState<FilterValue>("all");
   // Bumped on a timer so time-based labels / statuses re-derive without a refetch.
   const [, setNow] = useState(() => Date.now());
@@ -352,6 +362,49 @@ export default function AssessmentsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allAssessments, loading, refreshing, activeExamId]);
 
+  // Fast path for a results deep-link (notification): fetch the assessment by
+  // id and open its results immediately — no waiting for the paginated list.
+  // The results screen loads everything from the attempt id anyway; once the
+  // list arrives, `fresh` (below) swaps in the full student item. On failure
+  // the slow list-match effect still resolves the same params.
+  const fastPathTriedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const { openId, view, attemptId } = params;
+    if (!openId || view !== "results") return;
+    const key = String(openId);
+    if (handledOpenKeyRef.current === key) return;
+    if (fastPathTriedRef.current === key) return; // failed once — leave it to the slow path
+    fastPathTriedRef.current = key;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res: any = await getAssessmentByIdService(openId);
+        const item = res?.data ?? res ?? null;
+        if (cancelled || !item || item.id == null) return;
+        // The list-match effect may have resolved this while we were fetching.
+        if (handledOpenKeyRef.current === key) return;
+        handledOpenKeyRef.current = key;
+        const aId = Number(attemptId);
+        setDeepLinkOpts({
+          view: "results",
+          attemptId: Number.isFinite(aId) && aId > 0 ? aId : undefined,
+        });
+        setSelected({ item, status: deriveStatus(item) });
+        router.setParams({
+          openId: undefined,
+          openName: undefined,
+          view: undefined,
+          attemptId: undefined,
+        } as any);
+      } catch {
+        // e.g. 403/404 — the slow list-match below takes over.
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.openId, params.view, params.attemptId, router]);
+
   // Deep-link from Home's "Upcoming live": open the tapped assessment's detail
   // (the register page), matching by id (else by name). The list is paginated,
   // so if it's not on the loaded pages yet, keep paging until we find it.
@@ -376,7 +429,21 @@ export default function AssessmentsScreen() {
 
     if (match) {
       handledOpenKeyRef.current = key;
-      router.setParams({ openId: undefined, openName: undefined } as any);
+      const aId = Number(params.attemptId);
+      setDeepLinkOpts(
+        params.view === "results"
+          ? {
+              view: "results",
+              attemptId: Number.isFinite(aId) && aId > 0 ? aId : undefined,
+            }
+          : null
+      );
+      router.setParams({
+        openId: undefined,
+        openName: undefined,
+        view: undefined,
+        attemptId: undefined,
+      } as any);
       setSelected({ item: match, status: deriveStatus(match) });
       return;
     }
@@ -390,7 +457,12 @@ export default function AssessmentsScreen() {
     // Exhausted every page without a match — stop trying for this target.
     if (!hasMore) {
       handledOpenKeyRef.current = key;
-      router.setParams({ openId: undefined, openName: undefined } as any);
+      router.setParams({
+        openId: undefined,
+        openName: undefined,
+        view: undefined,
+        attemptId: undefined,
+      } as any);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -407,6 +479,7 @@ export default function AssessmentsScreen() {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (selected) {
         setSelected(null);
+        setDeepLinkOpts(null);
         return true;
       }
       return false;
@@ -428,12 +501,28 @@ export default function AssessmentsScreen() {
       <LiveTestDetail
         item={fresh}
         status={deriveStatus(fresh)}
+        initialView={deepLinkOpts?.view}
+        initialAttemptId={deepLinkOpts?.attemptId}
         onBack={() => {
           setSelected(null);
+          setDeepLinkOpts(null);
           fetchAssessments(true);
           fetchAllForCounts();
         }}
       />
+    );
+  }
+
+  // A deep-link target is still being resolved — hold on a loader instead of
+  // flashing the list before the redirect lands. Params are cleared once the
+  // target opens (or can't be found), which dismisses this.
+  if (params.openId || params.openName) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={[]}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#6C63FF" />
+        </View>
+      </SafeAreaView>
     );
   }
 

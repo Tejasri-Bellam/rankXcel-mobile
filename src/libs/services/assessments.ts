@@ -23,6 +23,13 @@ export async function getassessmentsIdService(id: number) {
   return await genericGet(`/v1/student/assessments/${id}/attempts/`, true);
 }
 
+// Assessment detail by id — GET /v1/assessments/{id}/. No student fields
+// (is_registered / latest_attempt_id), so it's only used as the fast path for
+// notification deep-links into results, where the attempt id is already known.
+export async function getAssessmentByIdService(id: number | string) {
+  return await genericGet(`/v1/assessments/${id}/`, true);
+}
+
 // Get Questions
 export async function getassessmentsQuestionsService(id: number) {
   return await genericGet(`/v1/student/assessments/${id}/questions/`,true);

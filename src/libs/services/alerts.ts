@@ -20,6 +20,18 @@ export async function markAlertReadService(id: number | string) {
   );
 }
 
+// PATCH /v1/alerts/{id}/ — partial-update a single alert (e.g. { is_read: true }).
+// Used when tapping an alert: mark it read before redirecting to its target.
+export async function updateAlertService(
+  id: number | string,
+  body: Record<string, any>
+) {
+  return await genericPatch(`/v1/alerts/${id}/`, body, {
+    isMultipart: false,
+    useAccessToken: true,
+  });
+}
+
 // POST /v1/alerts/read-all/ — mark all alerts as read (empty body)
 export async function markAllAlertsReadService() {
   return await genericPatch(

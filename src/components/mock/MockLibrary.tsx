@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   getMockTestsService,
+  getMockTestByIdService,
   ExamObject,
   SubjectObject,
   TestType,
@@ -165,6 +167,23 @@ export default function MockLibrary({
 }: MockLibraryProps = {}) {
   const { activeExamId } = useTargetExam();
   const onHeaderScroll = useHeaderScrollHandler();
+  const router = useRouter();
+  // Deep-link (e.g. from a notification): open a specific mock's detail or
+  // results directly. `attemptId` targets a specific attempt's results.
+  const params = useLocalSearchParams<{
+    openMockId?: string;
+    view?: string;
+    attemptId?: string;
+  }>();
+  const handledDeepLinkRef = useRef<string | null>(null);
+  const [deepLink, setDeepLink] = useState<{
+    mock: MockTest;
+    view: 'detail' | 'results';
+    attemptId: number | null;
+  } | null>(null);
+  // True while the deep-linked mock is being fetched — shows a loader instead
+  // of flashing the library list before the redirect lands.
+  const [deepLinkResolving, setDeepLinkResolving] = useState(false);
 
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -224,6 +243,41 @@ export default function MockLibrary({
 
   useEffect(() => { loadMocks(); }, [loadMocks]);
 
+  // Deep-link from a notification: fetch the mock by id (it may be on any page
+  // of the paginated list) and open its detail — or its results when the alert
+  // carries an attempt id (RESULT_PUBLISHED).
+  useEffect(() => {
+    const { openMockId, view, attemptId } = params;
+    if (!openMockId) return;
+    if (handledDeepLinkRef.current === String(openMockId)) return;
+    handledDeepLinkRef.current = String(openMockId);
+
+    let cancelled = false;
+    setDeepLinkResolving(true);
+    (async () => {
+      try {
+        const res: any = await getMockTestByIdService(openMockId);
+        const mock: MockTest | null = res?.data ?? res ?? null;
+        if (cancelled || !mock || mock.id == null) return;
+        const aId = Number(attemptId);
+        setDeepLink({
+          mock,
+          view: view === 'results' ? 'results' : 'detail',
+          attemptId: Number.isFinite(aId) && aId > 0 ? aId : null,
+        });
+      } catch {
+        // Mock unavailable (deleted/forbidden) — stay on the library list.
+      } finally {
+        if (!cancelled) {
+          setDeepLinkResolving(false);
+          router.setParams({ openMockId: undefined, view: undefined, attemptId: undefined } as any);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.openMockId, params.view, params.attemptId]);
+
   // Auto-submit a timed-out mock and refresh the list. Mocks are self-paced, so
   // their deadline isn't in the list data — it lives in the stored active
   // attempt. On foreground (a reopen), submit any abandoned attempt then refetch
@@ -265,10 +319,11 @@ export default function MockLibrary({
       if (requestVisible) { setRequestVisible(false); return true; }
       if (resumeMock) { setResumeMock(null); return true; }
       if (selectedMock) { setSelectedMock(null); return true; }
+      if (deepLink) { setDeepLink(null); return true; }
       return false;
     });
     return () => sub.remove();
-  }, [requestVisible, resumeMock, selectedMock]);
+  }, [requestVisible, resumeMock, selectedMock, deepLink]);
 
   const visibleMocks = allMocks
     // Only show the requested test type — the API sometimes ignores the
@@ -307,6 +362,29 @@ export default function MockLibrary({
       <MockDetails
         mock={selectedMock}
         onBack={() => { setSelectedMock(null); loadMocks(true); }}
+      />
+    );
+  }
+
+  // Deep-linked mock still being fetched — loader instead of the list flash.
+  if (deepLinkResolving) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={[]}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#6C63FF" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Notification deep-link target — detail, or results for a specific attempt.
+  if (deepLink) {
+    return (
+      <MockDetails
+        mock={deepLink.mock}
+        initialView={deepLink.view}
+        initialAttemptId={deepLink.attemptId}
+        onBack={() => { setDeepLink(null); loadMocks(true); }}
       />
     );
   }
