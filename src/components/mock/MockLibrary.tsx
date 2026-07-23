@@ -32,14 +32,23 @@ import { mockLibraryStyles as styles } from '@/src/styles/styles/mock/mocklibrar
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-// Pull `{ results, next }` out of a (possibly nested) paginated API response.
-const extractPage = <T,>(response: any): { results: T[]; next: string | null } => {
+// Pull `{ results, next, count }` out of a (possibly nested) paginated API
+// response. `count` is the server-side total across all pages (null when the
+// response isn't paginated).
+const extractPage = <T,>(
+  response: any,
+): { results: T[]; next: string | null; count: number | null } => {
   const body = response?.data ?? response;
-  if (Array.isArray(body)) return { results: body, next: null };
-  if (Array.isArray(body?.results)) return { results: body.results, next: body.next ?? null };
+  if (Array.isArray(body)) return { results: body, next: null, count: body.length };
+  if (Array.isArray(body?.results))
+    return { results: body.results, next: body.next ?? null, count: body.count ?? null };
   if (Array.isArray(body?.data?.results))
-    return { results: body.data.results, next: body.data.next ?? null };
-  return { results: [], next: null };
+    return {
+      results: body.data.results,
+      next: body.data.next ?? null,
+      count: body.data.count ?? null,
+    };
+  return { results: [], next: null, count: null };
 };
 
 const isExamObject = (v: MockTest['exam']): v is ExamObject =>
@@ -186,6 +195,8 @@ export default function MockLibrary({
   const [deepLinkResolving, setDeepLinkResolving] = useState(false);
 
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
+  // Server-side total across all pages (the paginated response's `count`).
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -209,8 +220,9 @@ export default function MockLibrary({
       else setLoading(true);
       setError(null);
       const response = await getMockTestsService(activeExamId ?? undefined, testType, 1);
-      const { results, next } = extractPage<MockTest>(response);
+      const { results, next, count } = extractPage<MockTest>(response);
       setAllMocks(results);
+      setTotalCount(count);
       setPage(1);
       setHasMore(!!next);
     } catch (err) {
@@ -409,7 +421,14 @@ export default function MockLibrary({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.pageTitle}>{title}</Text>
+            <View style={styles.pageTitleRow}>
+              <Text style={styles.pageTitle}>{title}</Text>
+              {totalCount != null && (
+                <View style={styles.pageCountBadge}>
+                  <Text style={styles.pageCountText}>{totalCount}</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.pageSubtitle}>{subtitle}</Text>
           </View>
           {showBuild && (
@@ -424,7 +443,8 @@ export default function MockLibrary({
           )}
         </View>
 
-        {/* Tabs */}
+        {/* Tabs — each shows its mock count; "+" while more pages remain,
+            since the paginated list may not be fully loaded yet. */}
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'student' && styles.tabActive]}
@@ -434,6 +454,24 @@ export default function MockLibrary({
             <Text style={[styles.tabText, activeTab === 'student' && styles.tabTextActive]}>
               My Mocks
             </Text>
+            {!loading && (
+              <View
+                style={[
+                  styles.tabCountBadge,
+                  activeTab === 'student' && styles.tabCountBadgeActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabCountText,
+                    activeTab === 'student' && styles.tabCountTextActive,
+                  ]}
+                >
+                  {studentMocks.length}
+                  {hasMore ? '+' : ''}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'official' && styles.tabActive]}
@@ -443,6 +481,24 @@ export default function MockLibrary({
             <Text style={[styles.tabText, activeTab === 'official' && styles.tabTextActive]}>
               Official Mocks
             </Text>
+            {!loading && (
+              <View
+                style={[
+                  styles.tabCountBadge,
+                  activeTab === 'official' && styles.tabCountBadgeActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabCountText,
+                    activeTab === 'official' && styles.tabCountTextActive,
+                  ]}
+                >
+                  {officialMocks.length}
+                  {hasMore ? '+' : ''}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
