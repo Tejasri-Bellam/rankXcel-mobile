@@ -35,6 +35,7 @@ import {
 } from "@/src/libs/utils/questionType";
 import TutorModal, { ConversationApi } from "@/src/components/common/TutorModal";
 import ConfirmModal from "@/src/components/common/ConfirmModal";
+import FlagQuestionModal from "@/src/components/common/FlagQuestionModal";
 
 export interface ExplanationStep {
   number: number;
@@ -256,6 +257,7 @@ export default function PracticeQuestions({
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
   const questionStartRef = useRef<number>(Date.now());
+  const [showFlagModal, setShowFlagModal] = useState(false);
   const insets = useSafeAreaInsets();
   const [bottomBarHeight, setBottomBarHeight] = useState(0);
   useEffect(() => {
@@ -694,19 +696,28 @@ export default function PracticeQuestions({
               <Text style={styles.qTypeText}>{questionTypeLabel(question.type)}</Text>
             </View>
           </View>
-          <View style={styles.marksRow}>
-            <View style={[styles.marksChip, styles.marksChipPositive]}>
-              <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
-                +{question.marksCorrect ?? 4}
-              </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View style={styles.marksRow}>
+              <View style={[styles.marksChip, styles.marksChipPositive]}>
+                <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
+                  +{question.marksCorrect ?? 4}
+                </Text>
+              </View>
+              <View style={[styles.marksChip, styles.marksChipNegative]}>
+                <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
+                  {Number(question.marksIncorrect ?? -1) > 0
+                    ? `-${question.marksIncorrect}`
+                    : (question.marksIncorrect ?? -1)}
+                </Text>
+              </View>
             </View>
-            <View style={[styles.marksChip, styles.marksChipNegative]}>
-              <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
-                {Number(question.marksIncorrect ?? -1) > 0
-                  ? `-${question.marksIncorrect}`
-                  : (question.marksIncorrect ?? -1)}
-              </Text>
-            </View>
+            <TouchableOpacity
+              style={styles.flagBtn}
+              onPress={() => setShowFlagModal(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="flag-outline" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -976,6 +987,21 @@ export default function PracticeQuestions({
         loading={finishing}
         onCancel={() => setConfirm(null)}
         onConfirm={runConfirm}
+      />
+      <FlagQuestionModal
+        visible={showFlagModal}
+        onClose={() => setShowFlagModal(false)}
+        questionId={question?.id}
+        questionNumber={currentIdx + 1}
+        choices={
+          isNumeric
+            ? []
+            : question.options.map((o, idx) => ({
+                id: o.id,
+                label: String.fromCharCode(65 + idx),
+                text: stripHtml(o.text),
+              }))
+        }
       />
     </SafeAreaView>
   );

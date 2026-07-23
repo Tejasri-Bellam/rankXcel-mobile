@@ -34,6 +34,7 @@ import {
   saveActiveAttempt,
 } from "../../libs/utils/examSession";
 import QuestionPalette, { PaletteStatus } from "../common/QuestionPalette";
+import FlagQuestionModal from "../common/FlagQuestionModal";
 
 interface Props {
   assessmentId: number;
@@ -132,6 +133,7 @@ export default function ExamScreen({
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
+  const [showFlagModal, setShowFlagModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Set once the attempt is submitted. The runner stays mounted behind the
   // success popup while the parent redirects home, so this freezes the countdown
@@ -859,43 +861,43 @@ export default function ExamScreen({
           {/* Q label + Mark */}
           <View style={[styles.qMetaRow, { alignItems: "flex-start" }]}>
             <View>
-              <Text style={styles.qLabel}>
-                QUESTION {currentFlatIdx + 1} / {totalQ}
-              </Text>
+              <Text style={styles.qLabel}>QUESTION {currentFlatIdx + 1} / {totalQ}</Text>
               <View style={{ alignSelf: "flex-start", marginTop: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: "#EEF0F4" }}>
                 <Text style={{ fontSize: 11, fontWeight: "700", color: "#6C63FF" }}>
                   {questionTypeLabel(activeQuestion.type)}
                 </Text>
               </View>
             </View>
-            <View style={styles.marksRow}>
-              <View style={[styles.marksChip, styles.marksChipPositive]}>
-                <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
-                  +{activeQuestion.marks_correct}
-                </Text>
+
+            <View style={styles.rightActionsRow}>
+              <View style={styles.marksRow}>
+                <View style={[styles.marksChip, styles.marksChipPositive]}>
+                  <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
+                    +{activeQuestion.marks_correct}
+                  </Text>
+                </View>
+                <View style={[styles.marksChip, styles.marksChipNegative]}>
+                  <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
+                    {activeQuestion.marks_incorrect > 0 ? `-${activeQuestion.marks_incorrect}` : activeQuestion.marks_incorrect}
+                  </Text>
+                </View>
               </View>
-              <View style={[styles.marksChip, styles.marksChipNegative]}>
-                <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
-                  {activeQuestion.marks_incorrect > 0
-                    ? `-${activeQuestion.marks_incorrect}`
-                    : activeQuestion.marks_incorrect}
+
+              <TouchableOpacity style={styles.flagBtn} onPress={() => setShowFlagModal(true)} activeOpacity={0.75}>
+                <Ionicons name="flag-outline" size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.markBtn, isMarked && styles.markBtnActive]}
+                onPress={handleMarkForReview}
+                activeOpacity={0.75}
+              >
+                <Ionicons name={isMarked ? "bookmark" : "bookmark-outline"} size={14} color={isMarked ? "#F59E0B" : "#9CA3AF"} />
+                <Text style={[styles.markText, isMarked && styles.markTextActive]}>
+                  {isMarked ? "Marked" : "Mark"}
                 </Text>
-              </View>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={[styles.markBtn, isMarked && styles.markBtnActive]}
-              onPress={handleMarkForReview}
-              activeOpacity={0.75}
-            >
-              <Ionicons
-                name={isMarked ? "bookmark" : "bookmark-outline"}
-                size={14}
-                color={isMarked ? "#F59E0B" : "#9CA3AF"}
-              />
-              <Text style={[styles.markText, isMarked && styles.markTextActive]}>
-                {isMarked ? "Marked" : "Mark"}
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Image-only questions (e.g. a bare structure) have no text — skip
@@ -1137,6 +1139,21 @@ export default function ExamScreen({
           </View>
         </TouchableOpacity>
       </Modal>
+      <FlagQuestionModal
+        visible={showFlagModal}
+        onClose={() => setShowFlagModal(false)}
+        questionId={activeQuestion?.id}
+        questionNumber={currentFlatIdx + 1}
+        choices={
+          isNumericalType(activeQuestion?.type)
+            ? []
+            : (activeQuestion?.options ?? []).map((o: any, idx: number) => ({
+                id: o.id,
+                label: String.fromCharCode(65 + idx),
+                text: stripHtml(o.text),
+              }))
+        }
+      />
     </SafeAreaView>
   );
 }

@@ -256,4 +256,15 @@ export const practiceQuestionsStyles = StyleSheet.create({
     paddingVertical: 15,
   },
   nextBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+
+flagBtn: {
+  width: 30,
+  height: 28,
+  borderRadius: 10,
+  borderWidth: 1.5,
+  borderColor: "#E5E7EB",
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#fff",
+},
 });

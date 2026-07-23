@@ -25,6 +25,7 @@ import {
   saveActiveAttempt,
 } from '../../libs/utils/examSession';
 import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
+import FlagQuestionModal from '../common/FlagQuestionModal';
 import ConfirmModal from '../common/ConfirmModal';
 
 interface Props {
@@ -97,6 +98,7 @@ export default function MockExamScreen({
   const [answers, setAnswers] = useState<Record<string, string[]>>(initialAnswers ?? {});
   const [qStatuses, setQStatuses] = useState<Record<string, QuestionStatus>>(initialStatuses ?? {});
   const [showPalette, setShowPalette] = useState(false);
+  const [showFlagModal, setShowFlagModal] = useState(false);
   const [showSubmitSheet, setShowSubmitSheet] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -485,59 +487,49 @@ export default function MockExamScreen({
         {/* Q label + Mark */}
         <View style={[styles.qMetaRow, { alignItems: 'flex-start' }]}>
           <View>
-            <Text style={styles.qLabel}>
-              QUESTION {currentFlatIdx + 1} / {totalQ}
-            </Text>
+            <Text style={styles.qLabel}>QUESTION {currentFlatIdx + 1} / {totalQ}</Text>
             <View style={{ alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#EEF0F4' }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#6C63FF' }}>
                 {questionTypeLabel(activeQuestion?.type)}
               </Text>
             </View>
           </View>
-          <View style={styles.marksRow}>
-            <View style={[styles.marksChip, styles.marksChipPositive]}>
-              <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
-                +{activeQuestion?.marks_correct}
-              </Text>
+
+          <View style={styles.rightActionsRow}>
+            <View style={styles.marksRow}>
+              <View style={[styles.marksChip, styles.marksChipPositive]}>
+                <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
+                  +{activeQuestion?.marks_correct}
+                </Text>
+              </View>
+              {(() => {
+                const marksWrong = Number(activeQuestion?.marks_incorrect);
+                const isNegative = marksWrong < 0;
+                return (
+                  <View style={[styles.marksChip, isNegative ? styles.marksChipNegative : styles.marksChipWarning]}>
+                    <Text style={[styles.marksChipText, isNegative ? styles.marksChipTextNegative : styles.marksChipTextWarning]}>
+                      {activeQuestion?.marks_incorrect}
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
-            {(() => {
-              const marksWrong = Number(activeQuestion?.marks_incorrect);
-              const isNegative = marksWrong < 0;
-              return (
-                <View
-                  style={[
-                    styles.marksChip,
-                    isNegative ? styles.marksChipNegative : styles.marksChipWarning,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.marksChipText,
-                      isNegative
-                        ? styles.marksChipTextNegative
-                        : styles.marksChipTextWarning,
-                    ]}
-                  >
-                    {activeQuestion?.marks_incorrect}
-                  </Text>
-                </View>
-              );
-            })()}
+
+            <TouchableOpacity style={styles.flagBtn} onPress={() => setShowFlagModal(true)} activeOpacity={0.75}>
+              <Ionicons name="flag-outline" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.markBtn, isMarked && styles.markBtnActive]}
+              onPress={handleMarkForReview}
+              activeOpacity={0.75}
+            >
+              <Ionicons name={isMarked ? 'bookmark' : 'bookmark-outline'} size={14} color={isMarked ? '#F59E0B' : '#9CA3AF'} />
+              <Text style={[styles.markText, isMarked && styles.markTextActive]}>
+                {isMarked ? 'Marked' : 'Mark'}
+              </Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={[styles.markBtn, isMarked && styles.markBtnActive]}
-            onPress={handleMarkForReview}
-            activeOpacity={0.75}
-          >
-            <Ionicons
-              name={isMarked ? 'bookmark' : 'bookmark-outline'}
-              size={14}
-              color={isMarked ? '#F59E0B' : '#9CA3AF'}
-            />
-            <Text style={[styles.markText, isMarked && styles.markTextActive]}>
-              {isMarked ? 'Marked' : 'Mark'}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Question text */}
@@ -731,6 +723,21 @@ export default function MockExamScreen({
         loading={submitting}
         onCancel={() => setShowExitConfirm(false)}
         onConfirm={confirmExit}
+      />
+      <FlagQuestionModal
+        visible={showFlagModal}
+        onClose={() => setShowFlagModal(false)}
+        questionId={currentQId}
+        questionNumber={currentFlatIdx + 1}
+        choices={
+          (activeQuestion?.options?.length ?? 0) === 0
+            ? []
+            : (activeQuestion?.options ?? []).map((o: any, idx: number) => ({
+                id: String(o.id),
+                label: String.fromCharCode(65 + idx),
+                text: stripHtml(o.text),
+              }))
+        }
       />
     </SafeAreaView>
   );
