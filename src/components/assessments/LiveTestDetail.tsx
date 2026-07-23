@@ -108,9 +108,13 @@ export default function LiveTestDetail({
 
   // Never deep-link into "exam" — sitting the test must go through the detail
   // page's enter flow (which starts/fetches the attempt properly).
-  const [view, setView] = useState<View_>(
-    initialView && initialView !== "exam" ? initialView : "detail"
-  );
+  const rootView: View_ =
+    initialView && initialView !== "exam" ? initialView : "detail";
+  // When deep-linked straight to a sub-view (e.g. "results" from a
+  // notification), that sub-view is the ROOT: backing out of it returns to the
+  // caller (onBack → pops back to notifications/origin) instead of drilling
+  // down to the detail/register page the user never came through.
+  const [view, setView] = useState<View_>(rootView);
   const [attemptId, setAttemptId] = useState<number>(
     initialAttemptId ?? item?.latest_attempt_id
   );
@@ -205,7 +209,9 @@ export default function LiveTestDetail({
         // (via the X or Submit button) to leave the exam.
         return true;
       }
-      if (view !== "detail") {
+      // At the root sub-view (usually "detail", or "results" when deep-linked):
+      // hand back to the caller. Otherwise drill back down to the detail page.
+      if (view !== rootView) {
         setView("detail");
         return true;
       }
@@ -373,7 +379,9 @@ export default function LiveTestDetail({
         exam={item}
         answers={submittedAnswers}
         timeTakenSeconds={timeTaken}
-        onBack={() => setView("detail")}
+        // If results is the deep-linked root, its back returns to the caller;
+        // otherwise it drills back to the detail page.
+        onBack={() => (rootView === "results" ? onBack() : setView("detail"))}
         onViewSolutions={() => setView("solutions")}
       />
     );

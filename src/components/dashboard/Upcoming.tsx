@@ -22,7 +22,7 @@ export default function Upcoming({ dashboardData }: UpcomingProps) {
         </View>
         <TouchableOpacity
           onPress={() =>
-            router.push({
+            router.replace({
               pathname: "/assessments",
               params: { tab: "upcoming" },
             })

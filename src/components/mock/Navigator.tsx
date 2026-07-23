@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
 import { ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MockExamScreen from './ExamScreen';
+import MockExamScreen, { AutoSubmitReason } from './ExamScreen';
 import { getMockAttemptQuestionsService, MockTestResult } from '../../libs/services/mock-library';
 import { navigatorStyles } from '@/src/styles/styles/mock/navigatorstyles';
 
@@ -14,6 +14,7 @@ interface Props {
     answers: Record<string, string[]>,
     timeTakenSeconds: number,
     result?: MockTestResult | null,
+    autoSubmitReason?: AutoSubmitReason,
   ) => void;
   onBackToMocks?: () => void;
 }

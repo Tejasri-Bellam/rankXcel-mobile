@@ -398,7 +398,7 @@ export default function ExamResults({
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.keepGoingBtn}
-            onPress={() => router.push('/practice')}
+            onPress={() => router.replace('/practice')}
             activeOpacity={0.85}
           >
             <Ionicons name="eye-outline" size={16} color="#fff" />

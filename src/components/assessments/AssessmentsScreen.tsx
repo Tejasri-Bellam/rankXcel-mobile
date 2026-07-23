@@ -167,6 +167,11 @@ export default function AssessmentsScreen() {
   const [selected, setSelected] = useState<{ item: any; status: LiveStatus } | null>(
     null
   );
+  // True when `selected` was opened via a deep-link (a notification or the
+  // dashboard's "Upcoming live" — both `router.push` here). Backing out then
+  // pops back to the caller (e.g. the notifications screen) rather than
+  // revealing the assessments list the user never navigated through.
+  const [fromDeepLink, setFromDeepLink] = useState(false);
   // Sub-view/attempt to open the deep-linked detail on (notification →
   // results of a specific attempt). Cleared alongside `selected`.
   const [deepLinkOpts, setDeepLinkOpts] = useState<{
@@ -390,6 +395,7 @@ export default function AssessmentsScreen() {
           view: "results",
           attemptId: Number.isFinite(aId) && aId > 0 ? aId : undefined,
         });
+        setFromDeepLink(true);
         setSelected({ item, status: deriveStatus(item) });
         router.setParams({
           openId: undefined,
@@ -444,6 +450,7 @@ export default function AssessmentsScreen() {
         view: undefined,
         attemptId: undefined,
       } as any);
+      setFromDeepLink(true);
       setSelected({ item: match, status: deriveStatus(match) });
       return;
     }
@@ -475,17 +482,33 @@ export default function AssessmentsScreen() {
     router,
   ]);
 
+  // Close the open detail. When it was reached via a deep-link (notification /
+  // dashboard push), pop back to the caller instead of falling back to the
+  // list — a screen the user never navigated through. If there's nothing to pop
+  // back to (e.g. app opened straight onto this deep-link), go to the root.
+  const closeSelected = () => {
+    if (fromDeepLink) {
+      if (router.canGoBack()) router.back();
+      else router.replace("/dashboard");
+      return;
+    }
+    setSelected(null);
+    setDeepLinkOpts(null);
+    fetchAssessments(true);
+    fetchAllForCounts();
+  };
+
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (selected) {
-        setSelected(null);
-        setDeepLinkOpts(null);
+        closeSelected();
         return true;
       }
       return false;
     });
     return () => sub.remove();
-  }, [selected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, fromDeepLink]);
 
   if (selected) {
     // Render from the freshest copy of this test in `data` (kept current by the
@@ -503,12 +526,7 @@ export default function AssessmentsScreen() {
         status={deriveStatus(fresh)}
         initialView={deepLinkOpts?.view}
         initialAttemptId={deepLinkOpts?.attemptId}
-        onBack={() => {
-          setSelected(null);
-          setDeepLinkOpts(null);
-          fetchAssessments(true);
-          fetchAllForCounts();
-        }}
+        onBack={closeSelected}
       />
     );
   }
@@ -652,7 +670,10 @@ export default function AssessmentsScreen() {
                   key={String(item.id)}
                   style={[styles.card, isLive && styles.cardLive]}
                   activeOpacity={0.85}
-                  onPress={() => setSelected({ item, status })}
+                  onPress={() => {
+                    setFromDeepLink(false);
+                    setSelected({ item, status });
+                  }}
                 >
                   {ss && (
                     <View style={styles.cardTopRow}>

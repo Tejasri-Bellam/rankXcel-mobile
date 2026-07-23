@@ -326,15 +326,26 @@ export default function MockLibrary({
     };
   }, [loadMocks]);
 
+  // Close the notification deep-link view. The mock was reached by `router.push`
+  // from the notifications screen, so pop back there rather than revealing the
+  // library list the user never navigated through. Nothing to pop (app opened
+  // straight onto the deep-link) → go to the root.
+  const closeDeepLink = () => {
+    setDeepLink(null);
+    if (router.canGoBack()) router.back();
+    else router.replace('/dashboard');
+  };
+
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (requestVisible) { setRequestVisible(false); return true; }
       if (resumeMock) { setResumeMock(null); return true; }
       if (selectedMock) { setSelectedMock(null); return true; }
-      if (deepLink) { setDeepLink(null); return true; }
+      if (deepLink) { closeDeepLink(); return true; }
       return false;
     });
     return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestVisible, resumeMock, selectedMock, deepLink]);
 
   const visibleMocks = allMocks
@@ -396,7 +407,7 @@ export default function MockLibrary({
         mock={deepLink.mock}
         initialView={deepLink.view}
         initialAttemptId={deepLink.attemptId}
-        onBack={() => { setDeepLink(null); loadMocks(true); }}
+        onBack={closeDeepLink}
       />
     );
   }

@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     slug: "rankXcel-mobile",
     version: appVersion,
     orientation: "portrait",
-    icon: "./assets/images/image.png",
+    icon: "./assets/images/icon-square.png",
     scheme: appScheme,
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
@@ -42,10 +42,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       package: packageName,
       versionCode: appVersionCode,
       adaptiveIcon: {
-        backgroundColor: "#E6F4FE",
-        foregroundImage: "./assets/images/image.png",
-        backgroundImage: "./assets/images/image.png",
-        monochromeImage: "./assets/images/image.png",
+        backgroundColor: "#212121",
+        foregroundImage: "./assets/images/icon-square.png",
+        backgroundImage: "./assets/images/icon-square.png",
+        monochromeImage: "./assets/images/icon-square.png",
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
@@ -76,7 +76,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         "expo-splash-screen",
         {
-          image: "./assets/images/image.png",
+          image: "./assets/images/icon-square.png",
           imageWidth: 200,
           resizeMode: "contain",
           backgroundColor: "#ffffff",

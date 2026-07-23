@@ -72,7 +72,7 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
           <Ionicons name="locate" size={16} color={COLORS.primary} />
           <Text style={styles.sectionTitle}>Continue practising</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push("/practice")}>
+        <TouchableOpacity onPress={() => router.replace("/practice")}>
           <Text style={styles.link}>Syllabus ›</Text>
         </TouchableOpacity>
       </View>
