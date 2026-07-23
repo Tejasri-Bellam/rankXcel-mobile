@@ -17,10 +17,12 @@ const SectionHeader = ({ title, subtitle }: { title: string; subtitle: string })
 
 // Labeled Input
 const LabeledInput = ({
-  label, value, onChangeText, maxLength, placeholder, keyboardType, disabled = false, error,
+  label, value, onChangeText, maxLength, placeholder, keyboardType, disabled = false, error, prefix,
 }: {
   label: string; value: string; onChangeText: (t: string) => void;
   maxLength?: number; placeholder?: string; keyboardType?: any; disabled?: boolean; error?: string;
+  // Static text rendered before the input, e.g. a "+91" dial code.
+  prefix?: string;
 }) => (
   <View style={profileStyles.inputGroup}>
     <Text style={profileStyles.inputLabel}>{label}</Text>
@@ -28,8 +30,12 @@ const LabeledInput = ({
       {label === 'Phone Number' && (
         <Ionicons name="call-outline" size={15} color={COLORS.textLight} style={profileStyles.inputIcon} />
       )}
+      {!!prefix && <Text style={profileStyles.inputPrefix}>{prefix}</Text>}
       <TextInput
-        style={[profileStyles.textInput, label === 'Phone Number' && { paddingLeft: 32 }]}
+        style={[
+          profileStyles.textInput,
+          label === 'Phone Number' && { paddingLeft: prefix ? 62 : 32 },
+        ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -88,7 +94,9 @@ export default function ProfileScreen() {
         : `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim();
       setname(fullName);
       setEmail(userData?.email || '');
-      setPhone(userData?.phone || '');
+      // The API stores the full number with the +91 dial code; the input only
+      // edits the bare 10-digit part (the +91 renders as a static prefix).
+      setPhone((userData?.phone || '').replace(/^\+91/, ''));
     } catch (err) {
       Alert.alert('Error', getErrorMessage(err, 'Failed to load profile data'));
     } finally {
@@ -106,9 +114,11 @@ export default function ProfileScreen() {
       setSaveLoading(true);
       setPersonalErrors({});
 
+      // Re-attach the +91 dial code the API expects (the input holds only the
+      // bare 10-digit number).
       const payload = {
         name: name.trim(),
-        phone,
+        phone: phone.trim() ? `+91${phone.trim()}` : '',
       };
 
       await updateMeService(payload);
@@ -244,7 +254,7 @@ export default function ProfileScreen() {
         <View style={profileStyles.card}>
           <SectionHeader title="Personal Information" subtitle="Update your name and contact details." />
           <LabeledInput label="Full Name" value={name} onChangeText={(t) => { setname(t); setPersonalErrors((p) => ({ ...p, name: undefined, form: undefined })); }} placeholder="Your full name" error={personalErrors.name} />
-          <LabeledInput maxLength={10} label="Phone Number" value={phone} onChangeText={(t) => { setPhone(t); setPersonalErrors((p) => ({ ...p, phone: undefined, form: undefined })); }} placeholder="9876543210" keyboardType="phone-pad" error={personalErrors.phone} />
+          <LabeledInput maxLength={10} label="Phone Number" prefix="+91" value={phone} onChangeText={(t) => { setPhone(t); setPersonalErrors((p) => ({ ...p, phone: undefined, form: undefined })); }} placeholder="9876543210" keyboardType="phone-pad" error={personalErrors.phone} />
           {!!personalErrors.form && <Text style={profileStyles.fieldError}>{personalErrors.form}</Text>}
           <TouchableOpacity style={profileStyles.saveBtn} onPress={handleSavePersonal} disabled={saveLoading}>
             {saveLoading

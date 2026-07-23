@@ -34,6 +34,12 @@ export const inputFieldStyles = StyleSheet.create({
   inputIcon: {
     marginRight: 8,
   },
+  inputPrefix: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+    marginRight: 6,
+  },
   input: {
     flex: 1,
     fontSize: 14,
