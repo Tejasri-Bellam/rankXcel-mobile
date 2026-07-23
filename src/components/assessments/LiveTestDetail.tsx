@@ -32,13 +32,17 @@ import {
 
 export type { LiveStatus };
 
+type View_ = "detail" | "leaderboard" | "exam" | "results" | "solutions";
+
 interface Props {
   item: any;
   status: LiveStatus;
   onBack: () => void;
+  // Notification deep-link: open straight on a sub-view (e.g. "results") for a
+  // specific attempt instead of the detail/register page.
+  initialView?: View_;
+  initialAttemptId?: number;
 }
-
-type View_ = "detail" | "leaderboard" | "exam" | "results" | "solutions";
 
 // "2026-06-14T19:00:00Z" → "Sun 14 Jun, 7:00 PM"
 const formatWhen = (iso?: string | null): string => {
@@ -57,7 +61,13 @@ const formatWhen = (iso?: string | null): string => {
 
 const formatCount = (n: number) => n.toLocaleString("en-US");
 
-export default function LiveTestDetail({ item, status, onBack }: Props) {
+export default function LiveTestDetail({
+  item,
+  status,
+  onBack,
+  initialView,
+  initialAttemptId,
+}: Props) {
   const meta = LIVE_STATUS_META[status];
   const assessmentId: number = item?.id;
 
@@ -96,8 +106,14 @@ export default function LiveTestDetail({ item, status, onBack }: Props) {
       ? { label: "Completed", color: "#2563EB", bg: "#EAF1FF", live: false }
       : meta;
 
-  const [view, setView] = useState<View_>("detail");
-  const [attemptId, setAttemptId] = useState<number>(item?.latest_attempt_id);
+  // Never deep-link into "exam" — sitting the test must go through the detail
+  // page's enter flow (which starts/fetches the attempt properly).
+  const [view, setView] = useState<View_>(
+    initialView && initialView !== "exam" ? initialView : "detail"
+  );
+  const [attemptId, setAttemptId] = useState<number>(
+    initialAttemptId ?? item?.latest_attempt_id
+  );
   const [submittedAnswers, setSubmittedAnswers] = useState<
     Record<string, string[]>
   >({});

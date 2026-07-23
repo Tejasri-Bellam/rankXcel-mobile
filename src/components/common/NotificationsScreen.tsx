@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 
 import { COLORS } from "@/src/styles/styles";
 import BottomNav from "./BottomNav";
-import { deleteAlertService, getAlertsService, markAlertReadService, markAllAlertsReadService } from "@/src/libs/services/alerts";
+import { deleteAlertService, getAlertsService, markAllAlertsReadService, updateAlertService } from "@/src/libs/services/alerts";
 
 // Types
 type AlertItem = {
@@ -139,11 +139,50 @@ export default function NotificationsScreen() {
     );
 
     try {
-      await markAlertReadService(item.id);
+      // PATCH /v1/alerts/{id}/ — partial update marks the alert read.
+      await updateAlertService(item.id, { is_read: true });
     } catch {
       // If API fails, reload from server
       fetchAlerts(true);
     }
+  };
+
+  // Tapping an alert marks it read, then redirects to its target screen based
+  // on the ids in `data` (never `action_url` — those are web paths):
+  //   mock_test_attempt_id  → that mock's results
+  //   assessment_attempt_id → that assessment's results
+  //   mock_test_id          → the mock's detail in the library
+  //   assessment_id         → the assessment's detail (register page)
+  const handleAlertPress = (item: AlertItem) => {
+    handleMarkRead(item);
+
+    const data = item.data ?? {};
+    const mockId = Number(data.mock_test_id);
+    const mockAttemptId = Number(data.mock_test_attempt_id);
+    const assessmentId = Number(data.assessment_id);
+    const assessmentAttemptId = Number(data.assessment_attempt_id);
+
+    if (mockId > 0) {
+      router.push({
+        pathname: "/mock-library",
+        params:
+          mockAttemptId > 0
+            ? { openMockId: String(mockId), view: "results", attemptId: String(mockAttemptId) }
+            : { openMockId: String(mockId) },
+      });
+      return;
+    }
+
+    if (assessmentId > 0) {
+      router.push({
+        pathname: "/assessments",
+        params:
+          assessmentAttemptId > 0
+            ? { openId: String(assessmentId), view: "results", attemptId: String(assessmentAttemptId) }
+            : { openId: String(assessmentId) },
+      });
+    }
+    // No recognisable target ids → just mark read (nothing to open).
   };
 
   const handleMarkAllRead = async () => {
@@ -253,7 +292,7 @@ export default function NotificationsScreen() {
             <NotifCard
               key={item.id}
               item={item}
-              onPress={() => handleMarkRead(item)}
+              onPress={() => handleAlertPress(item)}
               onDelete={() => handleDelete(item)}
             />
           ))}

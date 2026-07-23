@@ -28,6 +28,9 @@ interface Props {
   mock: MockTest;
   onBack: () => void;
   initialView?: MockView;
+  // Seed the attempt id (notification deep-link to a specific attempt's
+  // results) instead of falling back to the mock's latest_attempt_id.
+  initialAttemptId?: number | string | null;
 }
 
 const formatDuration = (mins: number | null | undefined): string => {
@@ -39,12 +42,13 @@ const formatDuration = (mins: number | null | undefined): string => {
   return `${m}`;
 };
 
-export default function MockDetails({ mock, onBack, initialView = 'detail' }: Props) {
+export default function MockDetails({ mock, onBack, initialView = 'detail', initialAttemptId = null }: Props) {
   const [currentView, setCurrentView] = useState<MockView>(initialView);
   const [startLoading, setStartLoading] = useState(false);
   // Attempt id from the /start/ response; drives the attempt-based questions,
-  // response-save and submit endpoints.
-  const [attemptId, setAttemptId] = useState<number | string | null>(null);
+  // response-save and submit endpoints. Seeded from `initialAttemptId` when
+  // deep-linking straight into a specific attempt's results.
+  const [attemptId, setAttemptId] = useState<number | string | null>(initialAttemptId);
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
   const [submittedResult, setSubmittedResult] = useState<MockTestResult | null>(null);
   const [timeTaken, setTimeTaken] = useState(0);
