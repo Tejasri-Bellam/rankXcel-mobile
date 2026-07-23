@@ -71,7 +71,7 @@ export const examScreenStyles = StyleSheet.create({
     marginBottom: 14,
   },
   qLabel: { fontSize: 11, fontWeight: "700", color: "#9CA3AF", letterSpacing: 1 },
-  marksRow: { flexDirection: "row", alignItems: "center", gap: 6, marginLeft: "auto", marginRight: 10 },
+  marksRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   marksChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1 },
   marksChipPositive: { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" },
   marksChipNegative: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
@@ -270,4 +270,21 @@ export const examScreenStyles = StyleSheet.create({
     paddingVertical: 15,
   },
   submitNowText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  rightActionsRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,          // <- this is the gap between marks / flag / mark
+  marginLeft: "auto",
+},
+
+  flagBtn: {
+  width: 34,
+  height: 34,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#E5E7EB",
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#fff",
+},
 });
