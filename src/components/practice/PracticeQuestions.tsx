@@ -530,7 +530,7 @@ export default function PracticeQuestions({
       kind: "submit",
       title: isTest ? "Submit test?" : "Submit practice?",
       message: `You've answered ${answered} of ${questionList.length}. You can't change answers after submitting.`,
-      confirmLabel: isTest ? "Submit now" : "View results",
+      confirmLabel: "Submit now",
       // "Keep going" only makes sense while questions remain; once everything is
       // answered the dismiss action is just "Cancel".
       cancelLabel: allAnswered ? "Cancel" : "Keep going",
@@ -697,20 +697,24 @@ export default function PracticeQuestions({
             </View>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <View style={styles.marksRow}>
-              <View style={[styles.marksChip, styles.marksChipPositive]}>
-                <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
-                  +{question.marksCorrect ?? 4}
-                </Text>
+            {/* Marks chips only apply to test mode — practice isn't scored
+                with +/- marks, so hide them there. */}
+            {isTest && (
+              <View style={styles.marksRow}>
+                <View style={[styles.marksChip, styles.marksChipPositive]}>
+                  <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
+                    +{question.marksCorrect ?? 4}
+                  </Text>
+                </View>
+                <View style={[styles.marksChip, styles.marksChipNegative]}>
+                  <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
+                    {Number(question.marksIncorrect ?? -1) > 0
+                      ? `-${question.marksIncorrect}`
+                      : (question.marksIncorrect ?? -1)}
+                  </Text>
+                </View>
               </View>
-              <View style={[styles.marksChip, styles.marksChipNegative]}>
-                <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
-                  {Number(question.marksIncorrect ?? -1) > 0
-                    ? `-${question.marksIncorrect}`
-                    : (question.marksIncorrect ?? -1)}
-                </Text>
-              </View>
-            </View>
+            )}
             <TouchableOpacity
               style={styles.flagBtn}
               onPress={() => setShowFlagModal(true)}
@@ -957,7 +961,7 @@ export default function PracticeQuestions({
               activeOpacity={0.85}
             >
               <Text style={styles.nextBtnText} numberOfLines={1}>
-                {isLast ? "View Results" : "Next question"}
+                {isLast ? "Submit" : "Next question"}
               </Text>
               <Ionicons name="arrow-forward" size={16} color="#fff" />
             </TouchableOpacity>

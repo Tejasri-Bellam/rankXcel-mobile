@@ -16,7 +16,23 @@ export const mockLibraryStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerText: { flex: 1, marginRight: 12 },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: '#1A1A2E', marginBottom: 4 },
+  pageTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  pageTitle: { fontSize: 28, fontWeight: '800', color: '#1A1A2E' },
+  pageCountBadge: {
+    minWidth: 26,
+    height: 24,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    backgroundColor: '#EEF0FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageCountText: { fontSize: 12, fontWeight: '700', color: '#6C63FF' },
   pageSubtitle: { fontSize: 13, color: '#9CA3AF', lineHeight: 18 },
 
   tabBar: {
@@ -32,8 +48,10 @@ export const mockLibraryStyles = StyleSheet.create({
     flex: 1,
     paddingVertical: 6,
     borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
   tabActive: {
     backgroundColor: '#FFFFFF',
@@ -45,6 +63,18 @@ export const mockLibraryStyles = StyleSheet.create({
   },
   tabText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
   tabTextActive: { color: '#1A1A2E', fontWeight: '700' },
+  tabCountBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: '#DDDDE6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabCountBadgeActive: { backgroundColor: '#EEF0FE' },
+  tabCountText: { fontSize: 10, fontWeight: '700', color: '#6B7280' },
+  tabCountTextActive: { color: '#6C63FF' },
 
   cardList: { paddingHorizontal: 16, gap: 12 },
 
