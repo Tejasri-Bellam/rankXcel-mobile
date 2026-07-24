@@ -162,9 +162,6 @@ const normalizeSyllabus = (
   const displaySubjects = items.some((it: any) => Array.isArray(it?.topics));
 
   if (!displaySubjects) {
-    // Topics-only: no subject in the payload. The exam still has a subject (the
-    // practice flow resolves it via /options/subjects/), so leave subjectName
-    // empty and let the flow fall back to the exam's sole subject.
     const chapters = items.map((topic: any) => normalizeTopic(topic, ""));
     return {
       subjects: [{ id: 0, name: "", chapters, accuracy: null, topicCount: chapters.length }],
@@ -761,8 +758,6 @@ export default function PracticeScreen() {
             </TouchableOpacity>
           </View>
         ) : !displaySubjects ? (
-          // Subjects hidden (display_subject = false): the syllabus root is the
-          // topics list itself — there's a single synthetic subject holding them.
           <View style={styles.screenContent}>
             {subjectGroups[0] && subjectGroups[0].chapters.length > 0 ? (
               renderTopicRows(subjectGroups[0])
@@ -772,7 +767,7 @@ export default function PracticeScreen() {
               </View>
             )}
           </View>
-        ) : (
+        ) : ( 
           <View style={styles.cardList}>
             {subjectGroups.map((subject, idx) => (
               <TouchableOpacity

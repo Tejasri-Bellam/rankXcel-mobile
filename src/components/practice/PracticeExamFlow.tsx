@@ -250,11 +250,8 @@ export const PracticeExamFlow = ({
       // no subject name to match on, but the exam still has a single subject —
       // fall back to it so the session can be created.
       const matchedSubject =
-        subjects.find(
-          (s: any) =>
-            String(s?.name ?? "").toLowerCase() ===
-            chapter.subjectName.toLowerCase(),
-        ) ?? (subjects.length === 1 ? subjects[0] : undefined);
+      subjects.find((s: any) => String(s?.name ?? "").toLowerCase() === chapter.subjectName.toLowerCase())
+      ?? (subjects.length === 1 ? subjects[0] : undefined);
       if (!matchedSubject?.id)
         throw new Error(
           chapter.subjectName
