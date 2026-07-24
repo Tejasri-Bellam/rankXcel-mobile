@@ -697,24 +697,20 @@ export default function PracticeQuestions({
             </View>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            {/* Marks chips only apply to test mode — practice isn't scored
-                with +/- marks, so hide them there. */}
-            {isTest && (
-              <View style={styles.marksRow}>
-                <View style={[styles.marksChip, styles.marksChipPositive]}>
-                  <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
-                    +{question.marksCorrect ?? 4}
-                  </Text>
-                </View>
-                <View style={[styles.marksChip, styles.marksChipNegative]}>
-                  <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
-                    {Number(question.marksIncorrect ?? -1) > 0
-                      ? `-${question.marksIncorrect}`
-                      : (question.marksIncorrect ?? -1)}
-                  </Text>
-                </View>
+            <View style={styles.marksRow}>
+              <View style={[styles.marksChip, styles.marksChipPositive]}>
+                <Text style={[styles.marksChipText, styles.marksChipTextPositive]}>
+                  +{question.marksCorrect ?? 4}
+                </Text>
               </View>
-            )}
+              <View style={[styles.marksChip, styles.marksChipNegative]}>
+                <Text style={[styles.marksChipText, styles.marksChipTextNegative]}>
+                  {Number(question.marksIncorrect ?? -1) > 0
+                    ? `-${question.marksIncorrect}`
+                    : (question.marksIncorrect ?? -1)}
+                </Text>
+              </View>
+            </View>
             <TouchableOpacity
               style={styles.flagBtn}
               onPress={() => setShowFlagModal(true)}

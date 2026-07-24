@@ -248,6 +248,13 @@ export default function PracticeResults({
   onBackToHub,
 }: Props) {
   const [view, setView] = useState<"results" | "review">("results");
+  // Tracks which question's explanation panel is open on the review screen
+  // (keyed by question id), mirroring SolutionViewer's collapsible "Why" box.
+  const [expandedExplanations, setExpandedExplanations] = useState<Record<string, boolean>>({});
+
+  const toggleExplanation = (key: string) => {
+    setExpandedExplanations((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   // Android hardware back mirrors the in-screen back buttons: the review screen
   // returns to results, and the results screen leaves the flow.
@@ -319,22 +326,21 @@ const wrong = statuses.filter((s) => s === "wrong").length;
   if (view === "review") {
     return (
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.topBar}>
+        <View style={styles.reviewHeader}>
           <TouchableOpacity
             style={styles.backBtn}
             onPress={() => setView("results")}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={20} color="#6C63FF" />
+            <Ionicons name="chevron-back" size={18} color="#6C63FF" />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
+          <Text style={styles.reviewHeaderTitle}>Review</Text>
         </View>
-        <Text style={styles.pageTitle}>Review</Text>
 
         <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.reviewContent}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.reviewScrollContent}
         >
           {effQuestions.map((q, i) => {
             const ans = effAnswers[i];
@@ -353,102 +359,157 @@ const wrong = statuses.filter((s) => s === "wrong").length;
               ? [String(q.correctChoiceId)]
               : [];
             const qStatus = statuses[i];
-            const status =
-              qStatus === "correct"
-                ? { label: "Correct", color: "#16A34A", bg: "#DCFCE7", icon: "checkmark" as const }
-                : qStatus === "wrong"
-                ? { label: "Wrong", color: "#DC2626", bg: "#FEE2E2", icon: "close" as const }
-                : { label: "Skipped", color: "#9CA3AF", bg: "#F3F4F6", icon: "remove" as const };
             const numeric = isNumericalType(q.type);
+            const explKey = String(q.id ?? i);
+            const isOpen = !!expandedExplanations[explKey];
 
             return (
-              <View key={q.id} style={styles.reviewCard}>
-                <View style={styles.reviewHeadRow}>
-                  <Text style={styles.qTag}>Q{i + 1}</Text>
-                  <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
-                    <Ionicons name={status.icon} size={12} color={status.color} />
-                    <Text style={[styles.statusPillText, { color: status.color }]}>
-                      {status.label}
-                    </Text>
-                  </View>
+              <View key={q.id} style={styles.questionCard}>
+                {/* Q label + outcome */}
+                <View style={styles.qCardHeader}>
+                  <Text style={styles.qCardNum}>Q{i + 1}</Text>
+                  {qStatus === "skipped" ? (
+                    <View style={styles.outcomeBadge}>
+                      <Text style={styles.outcomeBadgeText}>— Skipped</Text>
+                    </View>
+                  ) : qStatus === "correct" ? (
+                    <View style={[styles.outcomeBadge, styles.outcomeBadgeCorrect]}>
+                      <Ionicons name="checkmark" size={12} color="#22C55E" />
+                      <Text style={[styles.outcomeBadgeText, { color: "#22C55E" }]}>
+                        Correct
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.outcomeBadge, styles.outcomeBadgeWrong]}>
+                      <Ionicons name="close" size={12} color="#EF4444" />
+                      <Text style={[styles.outcomeBadgeText, { color: "#EF4444" }]}>
+                        Wrong
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
-                <Text style={styles.reviewQText}>{q.text}</Text>
+                <Text style={styles.qCardText}>{q.text}</Text>
 
                 {q.image ? (
-                  <Image source={{ uri: q.image }} style={styles.reviewQImage} resizeMode="contain" />
+                  <Image source={{ uri: q.image }} style={styles.qCardImage} resizeMode="contain" />
                 ) : null}
 
                 {numeric ? (
-                  <View style={styles.numericReview}>
-                    <Text style={styles.numericReviewRow}>
-                      Your answer:{" "}
-                      <Text
-                        style={{
-                          fontWeight: "700",
-                          color: qStatus === "correct" ? "#15803D" : "#B91C1C",
-                        }}
-                      >
-                        {userSel != null && String(userSel).trim() !== ""
-                          ? String(userSel)
-                          : "—"}
-                      </Text>
-                    </Text>
-                    {qStatus !== "correct" && q.correctAnswer != null && (
-                      <Text style={styles.numericReviewRow}>
-                        Correct answer:{" "}
-                        <Text style={{ fontWeight: "700", color: "#15803D" }}>
-                          {String(q.correctAnswer)}
+                  <View style={styles.numericAnswerBlock}>
+                    {qStatus === "correct" ? (
+                      <Text style={styles.numericAnswerLine}>
+                        <Text style={styles.numericAnswerLabel}>Your answer: </Text>
+                        <Text style={styles.numericAnswerValueCorrect}>
+                          {userSel != null && String(userSel).trim() !== ""
+                            ? String(userSel)
+                            : "—"}
                         </Text>
                       </Text>
+                    ) : qStatus === "skipped" ? (
+                      <Text style={styles.numericAnswerLine}>
+                        <Text style={styles.numericAnswerLabel}>Correct answer: </Text>
+                        <Text style={styles.numericAnswerValueCorrect}>
+                          {q.correctAnswer != null ? String(q.correctAnswer) : "—"}
+                        </Text>
+                      </Text>
+                    ) : (
+                      <>
+                        <Text style={styles.numericAnswerLine}>
+                          <Text style={styles.numericAnswerLabel}>Your answer: </Text>
+                          <Text style={styles.numericAnswerValueWrong}>
+                            {userSel != null && String(userSel).trim() !== ""
+                              ? String(userSel)
+                              : "—"}
+                          </Text>
+                        </Text>
+                        {q.correctAnswer != null && (
+                          <Text style={styles.numericAnswerLine}>
+                            <Text style={styles.numericAnswerLabel}>Correct answer: </Text>
+                            <Text style={styles.numericAnswerValueCorrect}>
+                              {String(q.correctAnswer)}
+                            </Text>
+                          </Text>
+                        )}
+                      </>
                     )}
                   </View>
                 ) : (
                   q.options.map((opt, oi) => {
-                  const isCorrect = correctIds.includes(String(opt.id));
-                  const isUserWrong =
-                    userSelIds.includes(String(opt.id)) && !isCorrect;
-                  const rowStyle = isCorrect
-                    ? styles.optCorrect
-                    : isUserWrong
-                    ? styles.optWrong
-                    : styles.optNeutral;
-                  const textStyle = isCorrect
-                    ? { color: "#15803D" }
-                    : isUserWrong
-                    ? { color: "#B91C1C" }
-                    : { color: "#1A1A2E" };
-                  return (
-                    <View key={opt.id} style={[styles.optRow, rowStyle]}>
-                      <Text style={[styles.optLetter, textStyle]}>
-                        {OPTION_LETTERS[oi] ?? oi + 1}
-                      </Text>
-                      <View style={styles.optBody}>
-                        {opt.text ? (
-                          <Text style={[styles.optText, textStyle]} numberOfLines={3}>
-                            {opt.text}
-                          </Text>
-                        ) : null}
-                        {opt.image ? (
-                          <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
-                        ) : null}
+                    const isCorrect = correctIds.includes(String(opt.id));
+                    const isSelected = userSelIds.includes(String(opt.id));
+                    const isUserWrong = isSelected && !isCorrect;
+                    return (
+                      <View
+                        key={opt.id}
+                        style={[
+                          styles.optRow,
+                          isCorrect && styles.optRowCorrect,
+                          isUserWrong && styles.optRowWrong,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.optLetter,
+                            isCorrect && styles.optLetterCorrect,
+                            isUserWrong && styles.optLetterWrong,
+                          ]}
+                        >
+                          {OPTION_LETTERS[oi] ?? oi + 1}
+                        </Text>
+                        <View style={styles.optBody}>
+                          {opt.text ? (
+                            <Text
+                              style={[
+                                styles.optText,
+                                isCorrect && { color: "#166534", fontWeight: "600" },
+                                isUserWrong && { color: "#991B1B", fontWeight: "600" },
+                              ]}
+                              numberOfLines={3}
+                            >
+                              {opt.text}
+                            </Text>
+                          ) : null}
+                          {opt.image ? (
+                            <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
+                          ) : null}
+                        </View>
+                        <View style={styles.optTrailing}>
+                          {isSelected && (
+                            <View style={styles.youBadge}>
+                              <Text style={styles.youBadgeText}>Your answer</Text>
+                            </View>
+                          )}
+                          {isCorrect ? (
+                            <Ionicons name="checkmark" size={16} color="#22C55E" />
+                          ) : isUserWrong ? (
+                            <Ionicons name="close" size={16} color="#EF4444" />
+                          ) : null}
+                        </View>
                       </View>
-                      {isCorrect ? (
-                        <Ionicons name="checkmark" size={16} color="#16A34A" />
-                      ) : isUserWrong ? (
-                        <Ionicons name="close" size={16} color="#DC2626" />
-                      ) : null}
-                    </View>
-                  );
+                    );
                   })
                 )}
 
                 {q.explanation ? (
                   <View style={styles.whyBox}>
-                    <Text style={styles.whyText}>
-                      <Text style={styles.whyLabel}>Why: </Text>
-                      {q.explanation}
-                    </Text>
+                    <TouchableOpacity
+                      style={styles.whyToggleRow}
+                      activeOpacity={0.7}
+                      onPress={() => toggleExplanation(explKey)}
+                    >
+                      <Text style={styles.whyToggleLabel}>Explanation</Text>
+                      <Ionicons
+                        name={isOpen ? "chevron-up" : "chevron-down"}
+                        size={16}
+                        color="#6C63FF"
+                      />
+                    </TouchableOpacity>
+                    {isOpen && (
+                      <View style={styles.whyBody}>
+                        <Text style={styles.whyText}>{q.explanation}</Text>
+                      </View>
+                    )}
                   </View>
                 ) : null}
               </View>

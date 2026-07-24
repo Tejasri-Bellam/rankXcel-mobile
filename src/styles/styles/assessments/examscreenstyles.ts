@@ -52,6 +52,46 @@ export const examScreenStyles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  // Subject tabs row — sits directly below the dark header, one tab per
+  // section, showing that section's answered/total count. Tapping a tab
+  // jumps to that section's first question.
+  subjectTabsRow: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F1F4",
+  },
+  subjectTab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  subjectTabActive: {
+    borderBottomColor: "#6C63FF",
+  },
+  subjectTabName: {
+    fontSize: 12.5,
+    fontWeight: "600",
+    color: "#9CA3AF",
+  },
+  subjectTabNameActive: {
+    color: "#6C63FF",
+    fontWeight: "700",
+  },
+  subjectTabCount: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#C7CBD3",
+    marginTop: 2,
+    fontVariant: ["tabular-nums"] as any,
+  },
+  subjectTabCountActive: {
+    color: "#6C63FF",
+  },
+
   // Tab switch warning
   tabWarningBanner: {
     flexDirection: "row",

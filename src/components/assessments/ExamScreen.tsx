@@ -737,7 +737,7 @@ export default function ExamScreen({
   const summary = getSubmitSummary();
 
   // Flat question list (with section/index mapping) drives the palette, the
-  // header progress bar, the Q n/total label and the submit copy.
+  // header progress bar, and the submit copy.
   const flatQuestions = exam.sections.flatMap((s: any, si: number) =>
     (s.questions ?? []).map((q: any, qi: number) => ({ q, si, qi })),
   );
@@ -780,12 +780,27 @@ export default function ExamScreen({
     return "#E5E7EB";
   });
 
+  // Per-section answered/total counts, driving the subject tab row.
+  const sectionCounts = exam.sections.map((s: any) => {
+    const qs = s.questions ?? [];
+    const answeredCount = qs.filter(
+      (q: any) => (answers[q.id] || []).length > 0,
+    ).length;
+    return { total: qs.length, answered: answeredCount };
+  });
+
   const handlePaletteJump = (idx: number) => {
     const target = flatQuestions[idx];
     if (!target) return;
     setActiveSectionIdx(target.si);
     setActiveQIdx(target.qi);
     setShowPalette(false);
+  };
+
+  const handleSubjectTabPress = (si: number) => {
+    if (si === activeSectionIdx) return;
+    setActiveSectionIdx(si);
+    setActiveQIdx(0);
   };
 
   return (
@@ -807,7 +822,9 @@ export default function ExamScreen({
           <Text style={styles.headerTitle} numberOfLines={1}>
             {exam?.name ?? "Assessment"}
           </Text>
-          <Text style={styles.headerSub}>Live · Sample</Text>
+          <Text style={styles.headerSub} numberOfLines={1}>
+            Assessment · {activeSection?.name ?? ""}
+          </Text>
           {/* Progress bar */}
           <View style={styles.progressBar}>
             {progressSegs.map((color: string, i: number) => (
@@ -828,6 +845,35 @@ export default function ExamScreen({
         >
           <Ionicons name="menu-outline" size={20} color="#555" />
         </TouchableOpacity>
+      </View>
+
+      {/* Subject tabs — one per section, showing that section's answered/total
+          count; tapping jumps to the first question of that section. */}
+      <View style={styles.subjectTabsRow}>
+        {exam.sections.map((s: any, si: number) => {
+          const active = si === activeSectionIdx;
+          const counts = sectionCounts[si];
+          return (
+            <TouchableOpacity
+              key={s.id ?? si}
+              style={[styles.subjectTab, active && styles.subjectTabActive]}
+              onPress={() => handleSubjectTabPress(si)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[styles.subjectTabName, active && styles.subjectTabNameActive]}
+                numberOfLines={1}
+              >
+                {s.name}
+              </Text>
+              <Text
+                style={[styles.subjectTabCount, active && styles.subjectTabCountActive]}
+              >
+                {counts.answered}/{counts.total}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Tab switch warning */}
@@ -861,7 +907,9 @@ export default function ExamScreen({
           {/* Q label + Mark */}
           <View style={[styles.qMetaRow, { alignItems: "flex-start" }]}>
             <View>
-              <Text style={styles.qLabel}>QUESTION {currentFlatIdx + 1} / {totalQ}</Text>
+              <Text style={styles.qLabel}>
+                QUESTION {activeQIdx + 1} / {activeSection.questions.length}
+              </Text>
               <View style={{ alignSelf: "flex-start", marginTop: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: "#EEF0F4" }}>
                 <Text style={{ fontSize: 11, fontWeight: "700", color: "#6C63FF" }}>
                   {questionTypeLabel(activeQuestion.type)}
@@ -1157,4 +1205,3 @@ export default function ExamScreen({
     </SafeAreaView>
   );
 }
-
