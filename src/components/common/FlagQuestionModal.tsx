@@ -18,6 +18,7 @@ import {
   QuestionReportIssueType,
   reportQuestionService,
 } from "@/src/libs/services/questionReports";
+import Toast, { useToast } from "@/src/components/common/Toast";
 
 export interface FlagChoiceOption {
   id: string;
@@ -58,6 +59,8 @@ export default function FlagQuestionModal({
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const { toast, showToast, hideToast } = useToast();
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -105,6 +108,7 @@ const hasChoices = (choices?.length ?? 0) > 0;
     reset();
     onSubmitted?.();
     onClose();
+    showToast("Thanks! Your report has been submitted.", "success");
   } catch (e: any) {
     console.log(
       "FLAG QUESTION ERROR:",
@@ -116,6 +120,7 @@ const hasChoices = (choices?.length ?? 0) > 0;
 };
 
   return (
+    <>
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={styles.overlay}
@@ -268,6 +273,8 @@ const hasChoices = (choices?.length ?? 0) > 0;
         </View>
       </KeyboardAvoidingView>
     </Modal>
+    <Toast {...toast} onHide={hideToast} />
+    </>
   );
 }
 
