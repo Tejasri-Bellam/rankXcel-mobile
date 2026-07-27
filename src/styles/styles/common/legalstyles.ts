@@ -1,128 +1,37 @@
 import { StyleSheet } from 'react-native';
 
+const PRIMARY = '#4F46E5';
+const TEXT_DARK = '#0F0E2C';
+const TEXT_GRAY = '#6B7280';
+
 export const legalStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#EAF1FB',
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8 },
 
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 22,
-    marginTop: 12,
-  },
-  backButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
+  title: { fontSize: 26, fontWeight: '800', color: TEXT_DARK, marginBottom: 6 },
+  subtitle: { fontSize: 13, color: TEXT_GRAY, marginBottom: 24, lineHeight: 19 },
 
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    paddingHorizontal: 22,
-  },
-  brandIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 12,
-    backgroundColor: '#6C63FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  brandText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
+  section: { marginBottom: 22 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: TEXT_DARK, marginBottom: 6 },
+  sectionBody: { fontSize: 13.5, lineHeight: 21, color: TEXT_GRAY },
 
-  title: {
-    fontSize: 23,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginTop: 14,
-    paddingHorizontal: 22,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 4,
-    paddingHorizontal: 22,
-  },
-
+  /* Tabs (kept, restyled to match marketing tab look) */
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#DCE6F4',
+    backgroundColor: '#F3F2FA',
     borderRadius: 12,
     padding: 4,
-    marginTop: 16,
-    marginHorizontal: 22,
+    marginBottom: 24,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  tab: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },
   tabActive: {
     backgroundColor: '#FFFFFF',
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  tabTextActive: {
-    color: '#0F172A',
-  },
-
-  scroll: {
-    flex: 1,
-    marginTop: 16,
-  },
-  scrollContent: {
-    paddingHorizontal: 22,
-    paddingBottom: 24,
-  },
-
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowRadius: 3,
     elevation: 1,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 6,
-  },
-  sectionBody: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#475569',
-  },
+  tabText: { fontSize: 13, fontWeight: '600', color: TEXT_GRAY },
+  tabTextActive: { color: TEXT_DARK },
 });

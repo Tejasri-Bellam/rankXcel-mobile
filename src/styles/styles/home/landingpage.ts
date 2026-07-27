@@ -247,9 +247,9 @@ export const homeStyles = StyleSheet.create({
   testimonialSub: { fontSize: 12, color: TEXT_GRAY, marginTop: 1 },
 
   /* ── CTA ── */
-  ctaSection: { backgroundColor: NAVY, paddingHorizontal: 24, paddingVertical: 48, alignItems: 'center' },
-  ctaTitle: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', textAlign: 'center', marginBottom: 12 },
-  ctaSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.65)', textAlign: 'center', marginBottom: 26, lineHeight: 21 },
+  ctaSection: { backgroundColor: '#ffffff', paddingHorizontal: 24, paddingVertical: 48, alignItems: 'center', },
+  ctaTitle: { fontSize: 26, fontWeight: '800', color: '#000000', textAlign: 'center', marginBottom: 12 },
+  ctaSubtitle: { fontSize: 14, color: 'rgba(0,0,0,0.65)', textAlign: 'center', marginBottom: 26, lineHeight: 21 },
   ctaButton: {
     backgroundColor: PRIMARY,
     paddingVertical: 15,
