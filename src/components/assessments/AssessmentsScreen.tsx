@@ -74,11 +74,6 @@ const deriveStatus = (item: any): LiveStatus => {
   // Prefer the authoritative server status; fall back to schedule-based timing.
   const mapped = mapStudentStatus(item?.student_status);
   if (mapped) {
-    // The scheduled window is the source of truth for whether a test is still
-    // open. The backend can keep reporting "live"/"in_progress" past the end
-    // time when an attempt was never submitted — but a closed window is results,
-    // never live. This is what stops a stale "Resume" button (and the "Live"
-    // pill) showing after the assessment has actually ended.
     if (mapped === "live" && windowEnded) return "results";
     return mapped;
   }
@@ -96,10 +91,7 @@ const assessmentEndTime = (item: any): Date | null => {
   return new Date(start + (item?.total_duration_minutes ?? 0) * 60 * 1000);
 };
 
-// The card pill mirrors the backend's raw student_status directly (completed →
-// "Completed", missed → "Missed", live → "Live", …). The one exception: once a
-// completed attempt's results have been published (`is_results_published` true),
-// the pill reads "Results Out" instead of "Completed".
+
 const studentDisplayMeta = (
   item: any
 ): { label: string; color: string; bg: string } | null => {
@@ -511,12 +503,6 @@ export default function AssessmentsScreen() {
   }, [selected, fromDeepLink]);
 
   if (selected) {
-    // Render from the freshest copy of this test in `data` (kept current by the
-    // 30s tick and the boundary refetch) and re-derive its status each render,
-    // rather than the frozen snapshot captured at tap time. Otherwise a test
-    // that goes live — or that the student just registered for — while its
-    // detail is open keeps showing "Registered"/"Upcoming" instead of "Enter
-    // live test" until a manual pull-to-refresh.
     const fresh =
       data.find((it) => String(it?.id) === String(selected.item?.id)) ??
       selected.item;
@@ -531,9 +517,7 @@ export default function AssessmentsScreen() {
     );
   }
 
-  // A deep-link target is still being resolved — hold on a loader instead of
-  // flashing the list before the redirect lands. Params are cleared once the
-  // target opens (or can't be found), which dismisses this.
+
   if (params.openId || params.openName) {
     return (
       <SafeAreaView style={styles.safeArea} edges={[]}>
