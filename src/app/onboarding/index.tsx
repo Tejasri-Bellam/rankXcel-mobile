@@ -1,3 +1,3 @@
-import IntroCarousel from '@/src/components/onboarding/IntroCarousel';
+import LandingPage from "@/src/components/home/LandingPage";
 
-export default IntroCarousel;
+export default LandingPage;
