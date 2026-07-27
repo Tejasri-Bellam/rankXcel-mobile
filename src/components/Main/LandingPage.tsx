@@ -3,10 +3,11 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { homeData } from '../json/landingpage';
 import { homeStyles } from '@/src/styles/styles/home/landingpage';
+import Footer from './Footer';
 
 export default function LandingPage() {
   const router = useRouter();
-  const { header, hero, popularCourses, howItWorks, levelingCard, testimonial, ctaSection, footer } = homeData;
+  const { header, hero, popularCourses, howItWorks, levelingCard, testimonial, ctaSection } = homeData;
 
   return (
     <View style={homeStyles.container}>
@@ -109,11 +110,17 @@ export default function LandingPage() {
         <View style={homeStyles.sectionWrap}>
           <View style={homeStyles.sectionHeaderRow}>
             <Text style={homeStyles.sectionTitleLeft}>{popularCourses.title}</Text>
-            <Text style={homeStyles.sectionViewAll}>{popularCourses.viewAll}</Text>
+            <TouchableOpacity onPress={() => router.push('/courses')}>
+              <Text style={homeStyles.sectionViewAll}>{popularCourses.viewAll}</Text>
+            </TouchableOpacity>
           </View>
           <View style={homeStyles.courseGrid}>
             {popularCourses.list.map((course) => (
-              <View style={homeStyles.courseCard} key={course.title}>
+              <TouchableOpacity
+                style={homeStyles.courseCard}
+                key={course.title}
+                onPress={() => router.push({ pathname: '/courses/[slug]', params: { slug: course.slug } })}
+              >
                 <View style={homeStyles.courseCardTopRow}>
                   <View style={homeStyles.courseIconBox}>
                     <Text style={homeStyles.courseIcon}>{course.icon}</Text>
@@ -128,11 +135,7 @@ export default function LandingPage() {
                   <Text style={homeStyles.courseMetaText}>★ {course.rating}</Text>
                   <Text style={homeStyles.courseMetaText}>👤 {course.learners}</Text>
                 </View>
-                <View style={homeStyles.coursePriceRow}>
-                  <Text style={homeStyles.courseOldPrice}>{course.oldPrice}</Text>
-                  <Text style={homeStyles.courseFreeText}>FREE</Text>
-                </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -195,28 +198,7 @@ export default function LandingPage() {
         </View>
 
         {/* Footer */}
-        <View style={homeStyles.footer}>
-          <View style={homeStyles.footerLogoRow}>
-            <View style={homeStyles.footerLogoIcon}>
-              <Text style={homeStyles.footerLogoIconText}>⚡</Text>
-            </View>
-            <Text style={homeStyles.footerLogoText}>{footer.logoText}</Text>
-          </View>
-          <Text style={homeStyles.footerDescription}>{footer.desc}</Text>
-
-          <View style={homeStyles.footerColumnsRow}>
-            {footer.columns.map((col) => (
-              <View style={homeStyles.footerColumn} key={col.heading}>
-                <Text style={homeStyles.footerHeading}>{col.heading}</Text>
-                {col.links.map((link) => (
-                  <Text style={homeStyles.footerLink} key={link}>{link}</Text>
-                ))}
-              </View>
-            ))}
-          </View>
-
-          <Text style={homeStyles.copyright}>{footer.copyright}</Text>
-        </View>
+        <Footer />
 
       </ScrollView>
     </View>

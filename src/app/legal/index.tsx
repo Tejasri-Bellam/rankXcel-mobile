@@ -1,3 +1,3 @@
-import LegalScreen from '@/src/components/common/Legal';
+import LegalScreen from '@/src/components/Main/Legal';
 
 export default LegalScreen;

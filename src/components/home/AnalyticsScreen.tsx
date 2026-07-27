@@ -674,8 +674,8 @@ export default function AnalyticsScreen() {
       />
       <TrendCard
         icon="trophy-outline"
-        title="Percentile vs peers"
-        caption="Your percentile across mocks & live exams."
+        title="Percentile vs Peers"
+        caption="Your percentile across live exams."
         pill={null}
         data={trends.percentile.values}
         color={COLORS.yellow}
