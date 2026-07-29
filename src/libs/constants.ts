@@ -37,7 +37,9 @@ export const STUDENT_STATUS_META: Record<string, StatusMeta> = {
 export const LIVE_STATUS_META: Record<LiveStatus, StatusMeta> = {
   upcoming: { label: "Upcoming", color: "#3B82F6", bg: "#EAF1FF" },
   live: { label: "Live now", color: "#EF4444", bg: "#FFECEC", live: true },
-  results: { label: "Results out", color: "#6B7280", bg: "#F1F2F5" },
+  // Indigo rather than the grey used by missed/expired/closed — results being
+  // published is something to act on, not a dead end.
+  results: { label: "Results out", color: "#4F46E5", bg: "#EEF0FE" },
 };
 
 // ExamDetails status banner.
