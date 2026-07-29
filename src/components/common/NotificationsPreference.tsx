@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Toast, { useToast } from "@/src/components/common/Toast";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
@@ -56,6 +57,12 @@ const DEFAULT_PREFS: NotificationPreferences = {
   offers_and_news: false,
 };
 
+// Local cache key. Some backend responses (offers_and_news in particular)
+// don't consistently echo back every field on GET, so we keep a local copy
+// of the last known-good state to avoid silently resetting toggles the
+// user already set, purely because the server response omitted the key.
+const PREFS_CACHE_KEY = "notification_prefs_cache";
+
 export default function NotificationPreferencesScreen() {
   const router = useRouter();
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
@@ -68,12 +75,28 @@ export default function NotificationPreferencesScreen() {
 
   const loadPrefs = async () => {
     setLoading(true);
+
+    // Hydrate from local cache first so a remount doesn't flash back to
+    // DEFAULT_PREFS for any field the server response might not include.
+    try {
+      const cached = await AsyncStorage.getItem(PREFS_CACHE_KEY);
+      if (cached) setPrefs((prev) => ({ ...prev, ...JSON.parse(cached) }));
+    } catch {
+      // Cache read failure is non-fatal — fall through to server state.
+    }
+
     try {
       const res: any = await getNotificationPreferencesService();
       const data = res?.data;
-      if (data) setPrefs((prev) => ({ ...prev, ...data }));
+      if (data) {
+        setPrefs((prev) => {
+          const merged = { ...prev, ...data };
+          AsyncStorage.setItem(PREFS_CACHE_KEY, JSON.stringify(merged)).catch(() => {});
+          return merged;
+        });
+      }
     } catch (err) {
-      // Non-fatal — defaults stay, toggles still work optimistically.
+      // Non-fatal — cached/default state stays, toggles still work optimistically.
       showToast(getErrorMessage(err, "Couldn't load your notification preferences."), "error");
     } finally {
       setLoading(false);
@@ -82,14 +105,17 @@ export default function NotificationPreferencesScreen() {
 
   const handleToggle = async (key: PrefKey, value: boolean) => {
     const previous = prefs;
+    const next = { ...prefs, [key]: value };
     // Optimistic update. On failure, revert the local value directly —
     // do NOT re-fetch from the server in the catch block (that pattern
     // caused the revert bug on the notifications bell screen).
-    setPrefs((p) => ({ ...p, [key]: value }));
+    setPrefs(next);
+    AsyncStorage.setItem(PREFS_CACHE_KEY, JSON.stringify(next)).catch(() => {});
     try {
       await updateNotificationPreferencesService({ [key]: value });
     } catch {
       setPrefs(previous);
+      AsyncStorage.setItem(PREFS_CACHE_KEY, JSON.stringify(previous)).catch(() => {});
       Alert.alert("Error", "Couldn't update this preference. Please try again.");
     }
   };
