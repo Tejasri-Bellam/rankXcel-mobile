@@ -17,6 +17,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import PracticeQuestions, { PracticeApiQuestion } from "./PracticeQuestions";
 import PracticeResults from "./PracticeResults";
 import { ChapterItem, extractErrorMessage } from "./PracticeScreen";
@@ -413,6 +414,11 @@ export const PracticeExamFlow = ({
       statusBarTranslucent
       onRequestClose={handleAndroidBack}
     >
+      {/* A Modal is a separate native view hierarchy, so the root
+          SafeAreaProvider's insets don't reach inside it — on iOS every
+          SafeAreaView in here measured 0 and the header ran under the status
+          bar. Its own provider re-measures against the modal's window. */}
+      <SafeAreaProvider>
       {screen === "settings" && (
         <PracticeSettingsModal
           chapterName={chapter.name}
@@ -461,6 +467,7 @@ export const PracticeExamFlow = ({
           onBackToHub={onCompleted ?? onClose}
         />
       )}
+      </SafeAreaProvider>
     </Modal>
   );
 };

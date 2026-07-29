@@ -2,7 +2,11 @@ import { Stack, usePathname, useGlobalSearchParams, router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { AppState, BackHandler, Platform, StatusBar, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import { COLORS } from "@/src/styles/styles";
 import Header from "@/src/components/common/Header";
@@ -47,6 +51,7 @@ const HOME_ROUTE = "/dashboard";
 
 function AppShell() {
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const { view } = useGlobalSearchParams<{ view?: string }>();
   const [profileOpen, setProfileOpen] = useState(false);
   const { reset: resetTargetExam } = useTargetExam();
@@ -193,6 +198,17 @@ function AppShell() {
 
       {showTabs && <BottomNav />}
 
+      {/* Bottom safe-area inset, painted here rather than by the root
+          SafeAreaView so it can match whatever sits above it — white under the
+          tab bar (otherwise the home-indicator strip reads as a stray band of
+          page background below the tabs), page background elsewhere. */}
+      <View
+        style={{
+          height: insets.bottom,
+          backgroundColor: showTabs ? COLORS.white : COLORS.background,
+        }}
+      />
+
       <ProfileSidebar
         visible={profileOpen}
         onClose={() => setProfileOpen(false)}
@@ -207,7 +223,10 @@ export default function Layout() {
       <SafeAreaProvider>
         <TargetExamProvider>
           <HeaderScrollProvider>
+            {/* The bottom inset is handled inside AppShell (below the tab bar)
+                so it can be painted to match the bar. */}
             <SafeAreaView
+              edges={["top", "left", "right"]}
               style={{ flex: 1, backgroundColor: COLORS.background }}
             >
               <AppShell />
