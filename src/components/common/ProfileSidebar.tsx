@@ -6,6 +6,7 @@ import {
   Animated,
   Dimensions,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -115,6 +116,13 @@ const getInitials = (name: string, email: string) => {
   const parts = src.split(" ").filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return src.slice(0, 2).toUpperCase();
+};
+
+// Runs `fn` once a dismissing Modal has actually left the screen. Android tears
+// modals down synchronously, so it runs inline there.
+const afterDismiss = (fn: () => void) => {
+  if (Platform.OS === "ios") setTimeout(fn, 300);
+  else fn();
 };
 
 export default function ProfileSidebar({ visible, onClose }: Props) {
@@ -391,9 +399,15 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
       // the previous student's activeExamId and sees their data.
       reset();
       setLoggingOut(false);
+      // iOS gives every Modal its own window. Dismissing the confirm dialog and
+      // the sidebar while the route is replaced underneath them leaves one of
+      // those windows on top of the landing page — invisible, but eating every
+      // touch and scroll. Tear them down one step at a time, then navigate.
       setLogoutOpen(false);
-      onClose();
-      router.replace("/");
+      afterDismiss(() => {
+        onClose();
+        afterDismiss(() => router.replace("/"));
+      });
     }
   };
 

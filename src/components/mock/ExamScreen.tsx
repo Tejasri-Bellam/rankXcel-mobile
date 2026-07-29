@@ -755,8 +755,13 @@ export default function MockExamScreen({
       />
 
       {/* Submitting overlay — blocks all interaction (answering, navigating)
-          while the attempt is finalized server-side, which can take a while. */}
-      <Modal visible={submitting} transparent animationType="fade" statusBarTranslucent>
+          while the attempt is finalized server-side, which can take a while.
+          Deliberately NOT a <Modal>: `submitting` stays true right through
+          onSubmit(), which unmounts this screen for the results view, and on
+          iOS tearing down a visible modal that way leaves its window on top
+          swallowing every touch on the results screen. An in-tree overlay
+          disappears with the screen. */}
+      {submitting && (
         <View style={styles.submittingOverlay}>
           <View style={styles.submittingCard}>
             <ActivityIndicator size="large" color="#6C63FF" />
@@ -764,7 +769,7 @@ export default function MockExamScreen({
             <Text style={styles.submittingHint}>Please don&apos;t close the app.</Text>
           </View>
         </View>
-      </Modal>
+      )}
     </SafeAreaView>
   );
 }

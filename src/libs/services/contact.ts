@@ -4,7 +4,9 @@ export interface ContactPayload {
   name: string;
   email: string;
   phone: string;
-  country: number;
+  // Catalogue id resolved from the detected country — the form has no country
+  // field, so it's omitted when detection fails rather than blocking the send.
+  country?: number;
   message: string;
 }
 

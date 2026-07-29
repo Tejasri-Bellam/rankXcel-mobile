@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { legalStyles as styles } from '@/src/styles/styles/common/legalstyles';
 import PageHeader from './PageHeader';
 import MarketingFooter from './Footer';
 import { sendContactMessageService } from '@/src/libs/services/contact';
+import { resolveDetectedCountry } from '@/src/libs/services/countries';
 
 export default function ContactScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [country, setCountry] = useState(''); // TODO: swap for your country picker component; sending as numeric id
   const [message, setMessage] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; email?: string; phone?: string; country?: string; message?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; email?: string; phone?: string; message?: string }>({});
   const [submitting, setSubmitting] = useState(false);
+
+  // The country isn't asked for — it's detected via GET /v1/get_country/ and
+  // matched against the countries master, and only its id is submitted.
+  const countryIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const resolved = await resolveDetectedCountry();
+        if (active && resolved) countryIdRef.current = resolved.id;
+      } catch {
+        // Non-fatal — the message still sends without a country.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const validate = () => {
     const next: typeof errors = {};
@@ -20,7 +40,7 @@ export default function ContactScreen() {
     if (!email.trim()) next.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) next.email = 'Enter a valid email';
     if (!phone.trim()) next.phone = 'Phone number is required';
-    if (!country.trim() || isNaN(Number(country))) next.country = 'Country is required';
+    else if (!/^\d{10}$/.test(phone.trim())) next.phone = 'Enter a valid 10 digit mobile number';
     if (!message.trim()) next.message = 'Message is required';
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -30,21 +50,36 @@ export default function ContactScreen() {
     if (!validate() || submitting) return;
     setSubmitting(true);
     try {
+      // Detection on mount may still be in flight (or have failed) — try once
+      // more here so a fast submit still carries the country.
+      if (countryIdRef.current == null) {
+        try {
+          const resolved = await resolveDetectedCountry();
+          if (resolved) countryIdRef.current = resolved.id;
+        } catch {
+          // Ignore — send without it.
+        }
+      }
       await sendContactMessageService({
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim(),
-        country: Number(country),
+        // The API stores the full number with the dial code; the input holds
+        // only the bare 10 digits.
+        phone: `+91${phone.trim()}`,
+        ...(countryIdRef.current != null ? { country: countryIdRef.current } : {}),
         message: message.trim(),
       });
       setName('');
       setEmail('');
       setPhone('');
-      setCountry('');
       setMessage('');
       setErrors({});
-      Alert.alert('Message sent', "We'll get back to you soon.");
-    } catch (e) {
+      // Back to the landing page once the message is away — replace so Back
+      // doesn't drop the user onto the form they just submitted.
+      Alert.alert('Message sent', "We'll get back to you soon.", [
+        { text: 'OK', onPress: () => router.replace('/onboarding') },
+      ]);
+    } catch {
       Alert.alert('Something went wrong', 'Please try again in a moment.');
     } finally {
       setSubmitting(false);
@@ -98,28 +133,21 @@ export default function ContactScreen() {
 
         <View style={{ marginBottom: 12 }}>
           <Text style={labelStyle}>Phone number</Text>
-          <TextInput
-            style={fieldStyle(errors.phone)}
-            placeholder="e.g. 9990001111"
-            placeholderTextColor="#9CA3AF"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
+          <View style={[fieldStyle(errors.phone), { flexDirection: 'row', alignItems: 'center', paddingVertical: 0 }]}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151', marginRight: 8 }}>+91</Text>
+            <TextInput
+              style={{ flex: 1, fontSize: 14, color: '#0F0E2C', paddingVertical: 14 }}
+              placeholder="9876543210"
+              placeholderTextColor="#9CA3AF"
+              value={phone}
+              // The input holds the bare 10 digits; the +91 dial code is a
+              // static prefix and is re-attached on submit (same as signup).
+              onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
+              keyboardType="phone-pad"
+              maxLength={10}
+            />
+          </View>
           {errors.phone ? <Text style={errorStyle}>{errors.phone}</Text> : null}
-        </View>
-
-        <View style={{ marginBottom: 12 }}>
-          <Text style={labelStyle}>Country</Text>
-          <TextInput
-            style={fieldStyle(errors.country)}
-            placeholder="India"
-            placeholderTextColor="#9CA3AF"
-            value={country}
-            onChangeText={setCountry}
-            keyboardType="number-pad"
-          />
-          {errors.country ? <Text style={errorStyle}>{errors.country}</Text> : null}
         </View>
 
         <View style={{ marginBottom: 16 }}>
@@ -141,6 +169,8 @@ export default function ContactScreen() {
             paddingVertical: 15,
             borderRadius: 12,
             alignItems: 'center',
+            // Breathing room before the marketing footer below.
+            marginBottom: 28,
           }}
           onPress={handleSubmit}
           disabled={submitting}

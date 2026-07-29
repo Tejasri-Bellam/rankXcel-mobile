@@ -14,13 +14,13 @@ type TabItem = {
 const TABS: TabItem[] = [
   { label: "Home", route: "/dashboard", icon: "home-outline", iconActive: "home" },
   { label: "Syllabus", route: "/practice", icon: "list-outline", iconActive: "list" },
+  { label: "Live", route: "/assessments", icon: "radio-outline", iconActive: "radio" },
   {
     label: "Mocks",
     route: "/mock-library",
     icon: "document-text-outline",
     iconActive: "document-text",
   },
-  { label: "Live", route: "/assessments", icon: "radio-outline", iconActive: "radio" },
   {
     label: "Stats",
     route: "/analytics",

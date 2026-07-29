@@ -359,8 +359,15 @@ export const examScreenStyles = StyleSheet.create({
 },
 
   // Full-screen blocking overlay shown while the attempt is being submitted.
+  // Rendered in-tree (not in a Modal), so it has to fill the screen itself.
   submittingOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
+    elevation: 20,
     backgroundColor: 'rgba(17, 24, 39, 0.55)',
     alignItems: 'center',
     justifyContent: 'center',

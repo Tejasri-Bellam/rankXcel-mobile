@@ -35,6 +35,50 @@ export async function getCountryService() {
   return await genericGet("/v1/get_country/", true);
 }
 
+// Unwraps the countries master into a plain array — the endpoint has been seen
+// returning both a bare list and a paginated/wrapped object.
+export function countryListFrom(payload: any): any[] {
+  return Array.isArray(payload)
+    ? payload
+    : (payload?.results ?? payload?.data ?? payload?.countries ?? []);
+}
+
+// The country to submit with a form: detected via GET /v1/get_country/, then
+// matched against the countries master (by id, then ISO code, then name) so the
+// id we send is a catalogue id the backend accepts. Returns null when the
+// country can't be determined; the caller decides whether that's fatal.
+export async function resolveDetectedCountry(): Promise<{
+  id: number;
+  name: string;
+} | null> {
+  const detectedRes: any = await getCountryService();
+  const detected = normalizeUserCountry(detectedRes?.data);
+  if (!detected) return null;
+
+  const norm = (v: any) => String(v ?? "").trim().toLowerCase();
+  let match: any = null;
+  try {
+    const list = countryListFrom((await getCountriesService())?.data);
+    match =
+      list.find((c: any) => String(c?.id) === String(detected.id)) ??
+      (detected.isoCode2
+        ? list.find(
+            (c: any) => norm(c?.iso_code_2 ?? c?.iso_code) === norm(detected.isoCode2),
+          )
+        : undefined) ??
+      list.find(
+        (c: any) => norm(c?.name ?? c?.country_name ?? c?.label) === norm(detected.name),
+      ) ??
+      null;
+  } catch {
+    // Catalogue lookup is best-effort — fall back to the detected id below.
+  }
+
+  const id = Number(match?.id ?? detected.id);
+  if (!Number.isFinite(id)) return null;
+  return { id, name: match?.name ?? match?.country_name ?? detected.name };
+}
+
 // Normalizes the get_country payload (the wrapped { country: {...} } shape, or
 // a bare country object) into the fields the app uses.
 export function normalizeUserCountry(
