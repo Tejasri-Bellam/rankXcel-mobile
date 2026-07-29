@@ -3,8 +3,8 @@ import Toast, { useToast } from '@/src/components/common/Toast';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -21,7 +21,9 @@ import {
   sendConversationMessageService,
   startMockQuestionConversationService,
 } from '../../libs/services/mock-library';
-import { stripHtml } from '../../libs/utils/html';
+import { hasRichContent } from '../../libs/utils/richContent';
+import { numericAnswersEqual } from '../../libs/utils/numericAnswer';
+import RichContent from '../common/RichContent';
 import TutorModal, { ConversationApi } from '@/src/components/common/TutorModal';
 
 interface Props {
@@ -84,8 +86,6 @@ const numericAnswerWithSolution = (q: any, sol: any): string => {
   return solText != null ? String(solText).trim() : '';
 };
 
-// Strip parentheses/commas/whitespace so "(1200)" and "1200" compare equal.
-const normalizeNumeric = (v: string): string => v.replace(/[(),\s]/g, '');
 
 
 const selectedIdsFor = (q: any): string[] => {
@@ -197,8 +197,18 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
         <Text style={styles.headerTitle}>Review</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {questions.map((q: any, qIdx: number) => {
+      <FlatList
+        data={questions}
+        keyExtractor={(_item: any, index: number) => String(index)}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        // A paper can run to 90 questions and each card can hold several KaTeX
+        // WebViews (question + every option). A ScrollView would mount them all
+        // at once; FlatList keeps only the cards near the viewport alive.
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        windowSize={5}
+        renderItem={({ item: q, index: qIdx }: { item: any; index: number }) => {
           const qid = getQuestionId(q);
           const currentSolution = qid != null ? solutionsMap[String(qid)] : null;
           const correctAnswers = correctIdsWithSolution(q, currentSolution);
@@ -209,37 +219,36 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
           const questionType = q?.question_type ?? q?.type ?? 'MCQ';
           const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
 
-          const numericUser = isNumericQ
-            ? String(
-                (qid != null && answers[String(qid)]?.[0]) ??
-                  q?.your_answer?.numeric_answer ??
-                  q?.numeric_answer ??
-                  '',
-              ).trim()
-            : '';
+          // The server's numeric_answer is what was actually graded, so it wins
+          // over the locally-held answer from this session.
+          const rawNumericUser =
+            q?.your_answer?.numeric_answer ??
+            q?.numeric_answer ??
+            (qid != null ? answers[String(qid)]?.[0] : undefined);
+          const numericUser =
+            isNumericQ && rawNumericUser != null ? String(rawNumericUser).trim() : '';
           const numericCorrect = isNumericQ ? numericAnswerWithSolution(q, currentSolution) : '';
 
-         const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
+          const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
 
-          // NUMERIC questions: the /review/ endpoint's `outcome` field is
-          // unreliable — it reports "skipped" even when answered and scored
-          // (the /result/ totals already count these correctly). So numeric
-          // correctness is always derived locally, never from `q?.outcome`.
-          const isCorrect = isNumericQ
-            ? attempted &&
-              numericCorrect !== '' &&
-              normalizeNumeric(numericUser) === normalizeNumeric(numericCorrect)
-            : q?.outcome === 'correct' ||
-              (q?.outcome == null &&
-                userAnswer.length > 0 &&
-                correctAnswers.length === userAnswer.length &&
-                correctAnswers.every((a: string) => userAnswer.includes(a)));
+          // `outcome` is the server's verdict — it already accounts for the
+          // grading tolerance on NUMERICAL questions, so trust it whenever it is
+          // decisive. It is only re-derived locally when the field is missing or
+          // says "skipped" for a question that was in fact answered (a known
+          // quirk of /review/ on numeric questions; /result/ totals count them).
+          const outcome = String(q?.outcome ?? '').toLowerCase();
+          const outcomeIsGraded =
+            outcome === 'correct' || outcome === 'wrong' || outcome === 'incorrect';
 
-          const isSkipped = isNumericQ
-            ? !attempted
-            : q?.outcome === 'skipped' ||
-              q?.outcome === 'unattempted' ||
-              (q?.outcome == null && !attempted);
+          const derivedCorrect = isNumericQ
+            ? attempted && numericAnswersEqual(numericUser, numericCorrect)
+            : userAnswer.length > 0 &&
+              correctAnswers.length === userAnswer.length &&
+              correctAnswers.every((a: string) => userAnswer.includes(a));
+
+          const isCorrect = outcomeIsGraded ? outcome === 'correct' : derivedCorrect;
+
+          const isSkipped = outcomeIsGraded ? false : !attempted;
 
           const explanation =
             currentSolution?.explanation ??
@@ -282,7 +291,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               </View>
 
               {/* Question text */}
-              <Text style={styles.qCardText}>{stripHtml(questionText)}</Text>
+              <RichContent html={questionText} style={styles.qCardText} />
 
               {/* Question image */}
               {q?.image ? (
@@ -332,7 +341,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                 const state = getOptState(optId);
                 const selected = userAnswer.includes(optId);
                 const letter = String.fromCharCode(65 + idx);
-                const optLabel = stripHtml(opt?.text ?? opt?.label ?? '');
+                const optHtml = opt?.text ?? opt?.label ?? '';
                 return (
                   <View
                     key={optId}
@@ -352,16 +361,15 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                       {letter}
                     </Text>
                     <View style={styles.optBody}>
-                      {optLabel ? (
-                        <Text
+                      {hasRichContent(optHtml) ? (
+                        <RichContent
+                          html={optHtml}
                           style={[
                             styles.optText,
                             state === 'correct' && { color: '#166534', fontWeight: '600' },
                             state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
                           ]}
-                        >
-                          {optLabel}
-                        </Text>
+                        />
                       ) : null}
                       {opt?.image ? (
                         <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
@@ -388,14 +396,15 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               {/* Why / explanation */}
               {explanation && (
                 <View style={styles.whyBox}>
-                  <Text style={styles.whyText}>
-                    <Text style={styles.whyLabel}>Why: </Text>
-                    {typeof explanation === 'string'
-                      ? stripHtml(explanation)
-                      : explanation?.summary
-                      ? stripHtml(explanation.summary)
-                      : 'See explanation above.'}
-                  </Text>
+                  <Text style={styles.whyLabel}>Why:</Text>
+                  {typeof explanation === 'string' || explanation?.summary ? (
+                    <RichContent
+                      html={typeof explanation === 'string' ? explanation : explanation.summary}
+                      style={styles.whyText}
+                    />
+                  ) : (
+                    <Text style={styles.whyText}>See explanation above.</Text>
+                  )}
                 </View>
               )}
 
@@ -403,15 +412,16 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               <TouchableOpacity
                 style={styles.askTutorBtn}
                 activeOpacity={0.8}
-                onPress={() => setTutorQ({ id: qid, text: stripHtml(questionText) })}
+                // Raw HTML: TutorModal renders it through RichContent.
+                onPress={() => setTutorQ({ id: qid, text: questionText })}
               >
                 <Ionicons name="sparkles" size={13} color='#6C63FF' />
                 <Text style={styles.askTutorText}>Ask the AI tutor</Text>
               </TouchableOpacity>
             </View>
           );
-        })}
-      </ScrollView>
+        }}
+      />
 
       <TutorModal
         visible={tutorQ !== null}

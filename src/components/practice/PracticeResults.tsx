@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   BackHandler,
   Image,
   ScrollView,
@@ -11,6 +12,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
+import RichContent from "@/src/components/common/RichContent";
+import { hasRichContent } from "@/src/libs/utils/richContent";
+import { numericAnswersEqual } from "@/src/libs/utils/numericAnswer";
 import { AnswerState } from "./PracticeExamFlow";
 import { PracticeApiQuestion } from "./PracticeQuestions";
 import { getScoreColor } from "@/src/styles/styles";
@@ -157,7 +161,7 @@ const parseReview = (
         : null;
     if (correct == null && answered) {
       if (numeric && correctAnswer != null)
-        correct = String(selected).trim() === String(correctAnswer).trim();
+        correct = numericAnswersEqual(selected, correctAnswer);
       else if (multi && correctChoiceIds.length > 0)
         correct = idSetsEqual(selectedIds, correctChoiceIds);
       else if (!numeric && !multi && correctChoiceId != null)
@@ -228,7 +232,7 @@ const computeStatus = (q: PracticeApiQuestion, a?: AnswerState): QStatus => {
   if (a?.correct === false) return "wrong";
   if (isNumericalType(q.type)) {
     if (q.correctAnswer != null)
-      return String(sel).trim() === String(q.correctAnswer).trim() ? "correct" : "wrong";
+      return numericAnswersEqual(sel, q.correctAnswer) ? "correct" : "wrong";
   } else if (q.correctChoiceId != null) {
     return String(sel) === String(q.correctChoiceId) ? "correct" : "wrong";
   }
@@ -338,11 +342,19 @@ const wrong = statuses.filter((s) => s === "wrong").length;
           <Text style={styles.reviewHeaderTitle}>Review</Text>
         </View>
 
-        <ScrollView
+        <FlatList
+          data={effQuestions}
+          keyExtractor={(_item, index) => String(index)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.reviewScrollContent}
-        >
-          {effQuestions.map((q, i) => {
+          ListFooterComponent={<View style={{ height: 20 }} />}
+          // A paper can run to 90 questions and each card can hold several
+          // KaTeX WebViews (question + every option). A ScrollView would mount
+          // them all at once; FlatList keeps only the cards near the viewport.
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          renderItem={({ item: q, index: i }) => {
             const ans = effAnswers[i];
             const userSel = ans?.selected ?? null;
             const multi = isMultiSelectType(q.type);
@@ -389,7 +401,7 @@ const wrong = statuses.filter((s) => s === "wrong").length;
                   )}
                 </View>
 
-                <Text style={styles.qCardText}>{q.text}</Text>
+                <RichContent html={q.text} style={styles.qCardText} />
 
                 {q.image ? (
                   <Image source={{ uri: q.image }} style={styles.qCardImage} resizeMode="contain" />
@@ -458,17 +470,16 @@ const wrong = statuses.filter((s) => s === "wrong").length;
                           {OPTION_LETTERS[oi] ?? oi + 1}
                         </Text>
                         <View style={styles.optBody}>
-                          {opt.text ? (
-                            <Text
+                          {hasRichContent(opt.text) ? (
+                            <RichContent
+                              html={opt.text}
                               style={[
                                 styles.optText,
                                 isCorrect && { color: "#166534", fontWeight: "600" },
                                 isUserWrong && { color: "#991B1B", fontWeight: "600" },
                               ]}
                               numberOfLines={3}
-                            >
-                              {opt.text}
-                            </Text>
+                            />
                           ) : null}
                           {opt.image ? (
                             <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
@@ -507,16 +518,15 @@ const wrong = statuses.filter((s) => s === "wrong").length;
                     </TouchableOpacity>
                     {isOpen && (
                       <View style={styles.whyBody}>
-                        <Text style={styles.whyText}>{q.explanation}</Text>
+                        <RichContent html={q.explanation} style={styles.whyText} />
                       </View>
                     )}
                   </View>
                 ) : null}
               </View>
             );
-          })}
-          <View style={{ height: 20 }} />
-        </ScrollView>
+          }}
+        />
       </SafeAreaView>
     );
   }

@@ -51,7 +51,6 @@ export default function CoursesScreen() {
               <View style={s.courseListMetaRow}>
                 <Text style={s.courseListMetaText}>★ {course.rating}</Text>
                 <Text style={s.courseListMetaText}>👤 {course.learners}</Text>
-                <Text style={s.courseListPriceFree}>FREE</Text>
               </View>
             </TouchableOpacity>
           ))}

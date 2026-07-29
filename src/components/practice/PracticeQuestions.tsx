@@ -26,7 +26,9 @@ import {
   startMockQuestionConversationService,
   submitMockAttemptResponseService,
 } from "@/src/libs/services/mock-library";
-import { stripHtml } from "@/src/libs/utils/html";
+import { hasRichContent } from "@/src/libs/utils/richContent";
+import { numericAnswersEqual } from "@/src/libs/utils/numericAnswer";
+import RichContent from "@/src/components/common/RichContent";
 import {
   idSetsEqual,
   isMultiSelectType,
@@ -448,8 +450,7 @@ export default function PracticeQuestions({
         finalCorrect = body.is_correct;
       } else if (isNumeric) {
         const correct = apiCorrectAnswer ?? question.correctAnswer ?? null;
-        finalCorrect =
-          correct != null ? selected.trim() === String(correct).trim() : null;
+        finalCorrect = correct != null ? numericAnswersEqual(selected, correct) : null;
       } else if (isMulti) {
         const effectiveCorrectIds =
           apiCorrectIds.length > 0 ? apiCorrectIds : question.correctChoiceIds ?? [];
@@ -723,7 +724,9 @@ export default function PracticeQuestions({
 
         <Animated.View style={{ opacity: fadeAnim }}>
           {/* Question text */}
-          <Text style={styles.qText}>{stripHtml(question.text)}</Text>
+          {hasRichContent(question.text) ? (
+            <RichContent html={question.text} style={styles.qText} />
+          ) : null}
 
           {/* Question image */}
           {question.image ? (
@@ -785,8 +788,10 @@ export default function PracticeQuestions({
                   </Text>
                 </View>
                 <View style={styles.optBody}>
-                  {stripHtml(opt.text) ? (
-                    <Text style={getOptTextStyle(opt.id)}>{stripHtml(opt.text)}</Text>
+                  {/* Inside the TouchableOpacity: RichContent keeps any WebView
+                      non-interactive so the tap still selects the option. */}
+                  {hasRichContent(opt.text) ? (
+                    <RichContent html={opt.text} style={getOptTextStyle(opt.id)} />
                   ) : null}
                   {opt.image ? (
                     <Image
@@ -817,12 +822,21 @@ export default function PracticeQuestions({
               </View>
               {!current.correct && correctOptObjs.length > 0 && (
                 <View style={styles.answerInfo}>
-                  <Text style={styles.answerInfoText}>
-                    {correctOptObjs.length > 1 ? "Correct answers:" : "Correct answer:"}{" "}
-                    <Text style={{ fontWeight: "700", color: "#16A34A" }}>
-                      {correctOptObjs.map((o) => stripHtml(o.text)).join(", ")}
+                  <View style={styles.answerInfoRow}>
+                    <Text style={styles.answerInfoText}>
+                      {correctOptObjs.length > 1 ? "Correct answers:" : "Correct answer:"}{" "}
                     </Text>
-                  </Text>
+                    {correctOptObjs.map((o, i) => (
+                      <React.Fragment key={o.id ?? i}>
+                        {i > 0 ? <Text style={styles.answerInfoValue}>, </Text> : null}
+                        <RichContent
+                          html={o.text}
+                          style={styles.answerInfoValue}
+                          containerStyle={styles.answerInfoValueBox}
+                        />
+                      </React.Fragment>
+                    ))}
+                  </View>
                 </View>
               )}
               {!current.correct && isNumeric && !!question.correctAnswer && (
@@ -844,22 +858,32 @@ export default function PracticeQuestions({
                   {question.explanationStructured ? (
                     <>
                       {!!question.explanationStructured.summary && (
-                        <Text style={styles.explText}>{stripHtml(question.explanationStructured.summary)}</Text>
+                        <RichContent html={question.explanationStructured.summary} style={styles.explText} />
                       )}
                       {(question.explanationStructured.steps ?? []).map((step) => (
                         <View key={step.number} style={{ marginTop: 6 }}>
-                          <Text style={styles.explStepHead}>Step {step.number}. {stripHtml(step.heading)}</Text>
-                          <Text style={styles.explText}>{stripHtml(step.explanation)}</Text>
+                          {/* The step number and its heading read as one line;
+                              the heading is HTML and may contain math. */}
+                          <View style={styles.explStepHeadRow}>
+                            <Text style={styles.explStepHead}>Step {step.number}. </Text>
+                            <RichContent
+                              html={step.heading}
+                              style={styles.explStepHead}
+                              containerStyle={styles.explStepHeadText}
+                            />
+                          </View>
+                          <RichContent html={step.explanation} style={styles.explText} />
                         </View>
                       ))}
                       {!!question.explanationStructured.conclusion && (
-                        <Text style={[styles.explText, { marginTop: 8, fontWeight: "700", color: "#1A1A2E" }]}>
-                          {stripHtml(question.explanationStructured.conclusion)}
-                        </Text>
+                        <RichContent
+                          html={question.explanationStructured.conclusion}
+                          style={[styles.explText, { marginTop: 8, fontWeight: "700", color: "#1A1A2E" }]}
+                        />
                       )}
                     </>
                   ) : (
-                    <Text style={styles.explText}>{stripHtml(question.explanation)}</Text>
+                    <RichContent html={question.explanation} style={styles.explText} />
                   )}
                   <TouchableOpacity
                     style={styles.askTutorBtn}
@@ -999,7 +1023,9 @@ export default function PracticeQuestions({
             : question.options.map((o, idx) => ({
                 id: o.id,
                 label: String.fromCharCode(65 + idx),
-                text: stripHtml(o.text),
+                // Raw HTML: the modal renders it through RichContent so an
+                // equation-only option is not listed as its LaTeX source.
+                text: o.text,
               }))
         }
       />

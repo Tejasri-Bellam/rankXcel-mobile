@@ -4,7 +4,8 @@ import {
   updateAssessmentResponsesService,
 } from "@/src/libs/services/assessments-attempts";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
-import { stripHtml } from "@/src/libs/utils/html";
+import { hasRichContent } from "@/src/libs/utils/richContent";
+import RichContent from "@/src/components/common/RichContent";
 import { questionTypeLabel } from "@/src/libs/utils/questionType";
 import { examScreenStyles as styles } from "@/src/styles/styles/assessments/examscreenstyles";
 import { Ionicons } from "@expo/vector-icons";
@@ -949,11 +950,9 @@ export default function ExamScreen({
           </View>
 
           {/* Image-only questions (e.g. a bare structure) have no text — skip
-              the empty <Text> so it doesn't reserve a blank line above the image. */}
-          {!!stripHtml(activeQuestion.text ?? "").trim() && (
-            <Text style={styles.questionText}>
-              {stripHtml(activeQuestion.text ?? "")}
-            </Text>
+              the empty block so it doesn't reserve a blank line above the image. */}
+          {hasRichContent(activeQuestion.text) && (
+            <RichContent html={activeQuestion.text} style={styles.questionText} />
           )}
           {activeQuestion.image && (
             <Image source={{ uri: activeQuestion.image }} style={styles.questionImage} />
@@ -965,17 +964,13 @@ export default function ExamScreen({
               {!!activeQuestion.assertion_text && (
                 <View style={styles.arCard}>
                   <Text style={styles.arLabel}>Assertion (A)</Text>
-                  <Text style={styles.arText}>
-                    {stripHtml(activeQuestion.assertion_text)}
-                  </Text>
+                  <RichContent html={activeQuestion.assertion_text} style={styles.arText} />
                 </View>
               )}
               {!!activeQuestion.reason_text && (
                 <View style={styles.arCard}>
                   <Text style={styles.arLabel}>Reason (R)</Text>
-                  <Text style={styles.arText}>
-                    {stripHtml(activeQuestion.reason_text)}
-                  </Text>
+                  <RichContent html={activeQuestion.reason_text} style={styles.arText} />
                 </View>
               )}
             </>
@@ -1049,9 +1044,12 @@ export default function ExamScreen({
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.optText, isSelected && styles.optTextSelected]}>
-                        {stripHtml(option.text)}
-                      </Text>
+                      {/* Renders inside the TouchableOpacity; RichContent keeps
+                          any WebView non-interactive so the tap still selects. */}
+                      <RichContent
+                        html={option.text}
+                        style={[styles.optText, isSelected && styles.optTextSelected]}
+                      />
 
                       {option.image && (
                         <Image source={{ uri: option.image }} style={styles.optImage} />
@@ -1198,7 +1196,9 @@ export default function ExamScreen({
             : (activeQuestion?.options ?? []).map((o: any, idx: number) => ({
                 id: o.id,
                 label: String.fromCharCode(65 + idx),
-                text: stripHtml(o.text),
+                // Raw HTML: the modal renders it through RichContent so an
+                // equation-only option is not listed as its LaTeX source.
+                text: o.text,
               }))
         }
       />

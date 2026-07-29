@@ -137,7 +137,6 @@ export const examScreenStyles = StyleSheet.create({
   optText: { flex: 1, fontSize: 15, color: '#1A1A2E', fontWeight: '500' },
   optTextSelected: { color: '#6C63FF', fontWeight: '600' },
 
-  swipeHint: { textAlign: 'center', fontSize: 12, color: '#D1D5DB', marginTop: 20 },
 
   // Bottom bar
   bottomBar: {

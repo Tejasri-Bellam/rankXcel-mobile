@@ -19,10 +19,12 @@ import {
   reportQuestionService,
 } from "@/src/libs/services/questionReports";
 import Toast, { useToast } from "@/src/components/common/Toast";
+import RichContent from "@/src/components/common/RichContent";
 
 export interface FlagChoiceOption {
   id: string;
   label: string;
+  /** Raw option HTML — display only, rendered through `RichContent`. */
   text: string;
 }
 
@@ -84,23 +86,25 @@ export default function FlagQuestionModal({
   }, [visible]);
 
   const isChoiceIssue = issueType === "CHOICE";
-const descRequired = true;
 const hasChoices = (choices?.length ?? 0) > 0;
 
 
+  // The issue type (and the offending choice, for CHOICE reports) is all that's
+  // required — the free-text description is optional.
   const isValid =
   !!issueType &&
-  (!isChoiceIssue || !hasChoices || !!selectedChoiceId) &&
-  (!descRequired || description.trim().length > 0);
+  (!isChoiceIssue || !hasChoices || !!selectedChoiceId);
 
   const handleSubmit = async () => {
   if (!isValid || submitting || !issueType || questionId == null) return;
   try {
     setSubmitting(true);
+    const trimmedDescription = description.trim();
     const payload: QuestionReportPayloadWithOptionalChoice = {
       issue_type: issueType,
-      description: description.trim(),
     };
+    // Omit the key entirely when nothing was typed rather than sending "".
+    if (trimmedDescription !== "") payload.description = trimmedDescription;
     if (isChoiceIssue && hasChoices && selectedChoiceId) {
       payload.choice = Number(selectedChoiceId);
     }
@@ -199,9 +203,12 @@ const hasChoices = (choices?.length ?? 0) > 0;
                 {c.label}
               </Text>
             </View>
-            <Text style={[styles.choiceText, selected && styles.choiceTextSelected]} numberOfLines={2}>
-              {c.text}
-            </Text>
+            <RichContent
+              html={c.text}
+              style={[styles.choiceText, selected && styles.choiceTextSelected]}
+              containerStyle={styles.choiceTextBox}
+              numberOfLines={2}
+            />
           </TouchableOpacity>
         );
       })}
@@ -212,9 +219,7 @@ const hasChoices = (choices?.length ?? 0) > 0;
             <View style={{ marginTop: 12 }}>
               <Text style={styles.sectionLabel}>
                 ADDITIONAL DETAILS{" "}
-                <Text style={descRequired ? styles.requiredText : styles.optionalText}>
-                  {descRequired ? "(required)" : "(optional)"}
-                </Text>
+                <Text style={styles.optionalText}>(optional)</Text>
               </Text>
               <TextInput
                 style={styles.textarea}
@@ -383,6 +388,7 @@ const styles = StyleSheet.create({
   choiceLetterText: { fontSize: 11, fontWeight: "700", color: "#6B7280" },
   choiceLetterTextSelected: { color: "#fff" },
   choiceText: { flex: 1, fontSize: 13, fontWeight: "500", color: "#374151" },
+  choiceTextBox: { flex: 1 },
   choiceTextSelected: { color: "#B45309", fontWeight: "600" },
   textarea: {
     borderWidth: 1.5,

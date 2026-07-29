@@ -175,6 +175,10 @@ export const solutionViewerStyles = StyleSheet.create({
   whySummary: { fontSize: 13, color: '#1A1A2E', lineHeight: 20, marginBottom: 10 },
   whyStepBlock: { marginBottom: 10 },
   whyStepHeading: { fontSize: 12.5, fontWeight: '700', color: '#6C63FF', marginBottom: 2 },
+  // "Step 3." and the heading itself sit on one line; the heading is HTML and
+  // may contain inline math, so it renders as its own node beside the number.
+  whyStepHeadingRow: { flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap' },
+  whyStepHeadingText: { flexShrink: 1 },
   whyStepText: { fontSize: 13, color: '#6B7280', lineHeight: 19 },
   whyConclusion: {
     fontSize: 13,

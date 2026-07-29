@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { stripHtml } from "@/src/libs/utils/html";
+import RichContent from "@/src/components/common/RichContent";
 import { tutorModalStyles as styles } from "@/src/styles/styles/common/tutormodalstyles";
 import { TUTOR_QUICK_PROMPTS as QUICK_PROMPTS } from "@/src/libs/constants";
 
@@ -50,6 +50,7 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   questionId?: number | string;
+  /** Raw question HTML — display only, rendered through `RichContent`. */
   questionText?: string;
   // Single-shot tutor endpoint (assessments). Returns the raw response.
   ask?: (payload: TutorPayload) => Promise<any>;
@@ -336,7 +337,7 @@ export default function TutorModal({
             {!!questionText && (
               <View style={styles.questionCard}>
                 <Text style={styles.questionLabel}>QUESTION</Text>
-                <Text style={styles.questionText}>{stripHtml(questionText)}</Text>
+                <RichContent html={questionText} style={styles.questionText} />
               </View>
             )}
 

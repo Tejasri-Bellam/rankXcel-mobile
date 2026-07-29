@@ -126,7 +126,9 @@ export const solutionViewerStyles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: '#6C63FF',
   },
-  whyLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A2E' },
+  // Sits on its own line above the explanation: the explanation is HTML and may
+  // contain inline math, so it can no longer be interpolated into this Text.
+  whyLabel: { fontSize: 13, fontWeight: '700', color: '#1A1A2E', marginBottom: 2 },
   whyText: { fontSize: 13, color: '#6B7280', lineHeight: 20 },
   askTutorBtn: {
     flexDirection: 'row',
