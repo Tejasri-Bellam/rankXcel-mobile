@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import RichContent from "@/src/components/common/RichContent";
 import { tutorModalStyles as styles } from "@/src/styles/styles/common/tutormodalstyles";
 import { TUTOR_QUICK_PROMPTS as QUICK_PROMPTS } from "@/src/libs/constants";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export interface TutorPayload {
   question_id?: number | string;
@@ -308,9 +309,11 @@ export default function TutorModal({
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent={false}>
-      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTitleRow}>
@@ -435,7 +438,7 @@ export default function TutorModal({
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
