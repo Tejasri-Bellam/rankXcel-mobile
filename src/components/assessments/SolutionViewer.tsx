@@ -3,6 +3,7 @@ import {
   getassessmentReviewService,
 } from '@/src/libs/services/assessments-attempts';
 import { hasRichContent } from '@/src/libs/utils/richContent';
+import { numericAnswersEqual } from '@/src/libs/utils/numericAnswer';
 import RichContent from '@/src/components/common/RichContent';
 import TutorModal from '@/src/components/common/TutorModal';
 import { Ionicons } from '@expo/vector-icons';
@@ -152,31 +153,36 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
           const questionType = q?.question_type ?? q?.type ?? 'MCQ';
           const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
 
-          const numericUser = isNumericQ
-            ? String(
-              (qid != null && answers[String(qid)]?.[0]) ??
-              q?.your_answer?.numeric_answer ??
-              q?.numeric_answer ??
-              '',
-            ).trim()
-            : '';
+          // The server's numeric_answer is what was actually graded, so it wins
+          // over the locally-held answer from this session.
+          const rawNumericUser =
+            q?.your_answer?.numeric_answer ??
+            q?.numeric_answer ??
+            (qid != null ? answers[String(qid)]?.[0] : undefined);
+          const numericUser =
+            isNumericQ && rawNumericUser != null ? String(rawNumericUser).trim() : '';
           const numericCorrect = isNumericQ ? numericAnswerFor(q) : '';
 
           const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
 
-          const isCorrect =
-            q?.outcome === 'correct' ||
-            (q?.outcome == null &&
-              (isNumericQ
-                ? attempted && numericCorrect !== '' && numericUser === numericCorrect
-                : userAnswer.length > 0 &&
-                correctAnswers.length === userAnswer.length &&
-                correctAnswers.every((a: string) => userAnswer.includes(a))));
+          // `outcome` is the server's verdict — it already accounts for the
+          // grading tolerance on NUMERICAL questions, so trust it whenever it is
+          // decisive. It is only re-derived locally when the field is missing or
+          // says "skipped" for a question that was in fact answered (a known
+          // quirk of /review/ on numeric questions).
+          const outcome = String(q?.outcome ?? '').toLowerCase();
+          const outcomeIsGraded =
+            outcome === 'correct' || outcome === 'wrong' || outcome === 'incorrect';
 
-          const isSkipped =
-            q?.outcome === 'skipped' ||
-            q?.outcome === 'unattempted' ||
-            (q?.outcome == null && !attempted);
+          const derivedCorrect = isNumericQ
+            ? attempted && numericAnswersEqual(numericUser, numericCorrect)
+            : userAnswer.length > 0 &&
+              correctAnswers.length === userAnswer.length &&
+              correctAnswers.every((a: string) => userAnswer.includes(a));
+
+          const isCorrect = outcomeIsGraded ? outcome === 'correct' : derivedCorrect;
+
+          const isSkipped = outcomeIsGraded ? false : !attempted;
 
           const explanation =
             q?.explanation ??

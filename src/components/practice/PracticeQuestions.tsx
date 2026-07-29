@@ -27,6 +27,7 @@ import {
   submitMockAttemptResponseService,
 } from "@/src/libs/services/mock-library";
 import { hasRichContent } from "@/src/libs/utils/richContent";
+import { numericAnswersEqual } from "@/src/libs/utils/numericAnswer";
 import RichContent from "@/src/components/common/RichContent";
 import {
   idSetsEqual,
@@ -449,8 +450,7 @@ export default function PracticeQuestions({
         finalCorrect = body.is_correct;
       } else if (isNumeric) {
         const correct = apiCorrectAnswer ?? question.correctAnswer ?? null;
-        finalCorrect =
-          correct != null ? selected.trim() === String(correct).trim() : null;
+        finalCorrect = correct != null ? numericAnswersEqual(selected, correct) : null;
       } else if (isMulti) {
         const effectiveCorrectIds =
           apiCorrectIds.length > 0 ? apiCorrectIds : question.correctChoiceIds ?? [];

@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import RichContent from "@/src/components/common/RichContent";
 import { hasRichContent } from "@/src/libs/utils/richContent";
+import { numericAnswersEqual } from "@/src/libs/utils/numericAnswer";
 import { AnswerState } from "./PracticeExamFlow";
 import { PracticeApiQuestion } from "./PracticeQuestions";
 import { getScoreColor } from "@/src/styles/styles";
@@ -160,7 +161,7 @@ const parseReview = (
         : null;
     if (correct == null && answered) {
       if (numeric && correctAnswer != null)
-        correct = String(selected).trim() === String(correctAnswer).trim();
+        correct = numericAnswersEqual(selected, correctAnswer);
       else if (multi && correctChoiceIds.length > 0)
         correct = idSetsEqual(selectedIds, correctChoiceIds);
       else if (!numeric && !multi && correctChoiceId != null)
@@ -231,7 +232,7 @@ const computeStatus = (q: PracticeApiQuestion, a?: AnswerState): QStatus => {
   if (a?.correct === false) return "wrong";
   if (isNumericalType(q.type)) {
     if (q.correctAnswer != null)
-      return String(sel).trim() === String(q.correctAnswer).trim() ? "correct" : "wrong";
+      return numericAnswersEqual(sel, q.correctAnswer) ? "correct" : "wrong";
   } else if (q.correctChoiceId != null) {
     return String(sel) === String(q.correctChoiceId) ? "correct" : "wrong";
   }

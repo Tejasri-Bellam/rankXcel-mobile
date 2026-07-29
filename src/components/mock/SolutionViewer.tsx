@@ -22,6 +22,7 @@ import {
   startMockQuestionConversationService,
 } from '../../libs/services/mock-library';
 import { hasRichContent } from '../../libs/utils/richContent';
+import { numericAnswersEqual } from '../../libs/utils/numericAnswer';
 import RichContent from '../common/RichContent';
 import TutorModal, { ConversationApi } from '@/src/components/common/TutorModal';
 
@@ -85,8 +86,6 @@ const numericAnswerWithSolution = (q: any, sol: any): string => {
   return solText != null ? String(solText).trim() : '';
 };
 
-// Strip parentheses/commas/whitespace so "(1200)" and "1200" compare equal.
-const normalizeNumeric = (v: string): string => v.replace(/[(),\s]/g, '');
 
 
 const selectedIdsFor = (q: any): string[] => {
@@ -220,37 +219,36 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
           const questionType = q?.question_type ?? q?.type ?? 'MCQ';
           const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
 
-          const numericUser = isNumericQ
-            ? String(
-                (qid != null && answers[String(qid)]?.[0]) ??
-                  q?.your_answer?.numeric_answer ??
-                  q?.numeric_answer ??
-                  '',
-              ).trim()
-            : '';
+          // The server's numeric_answer is what was actually graded, so it wins
+          // over the locally-held answer from this session.
+          const rawNumericUser =
+            q?.your_answer?.numeric_answer ??
+            q?.numeric_answer ??
+            (qid != null ? answers[String(qid)]?.[0] : undefined);
+          const numericUser =
+            isNumericQ && rawNumericUser != null ? String(rawNumericUser).trim() : '';
           const numericCorrect = isNumericQ ? numericAnswerWithSolution(q, currentSolution) : '';
 
-         const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
+          const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
 
-          // NUMERIC questions: the /review/ endpoint's `outcome` field is
-          // unreliable — it reports "skipped" even when answered and scored
-          // (the /result/ totals already count these correctly). So numeric
-          // correctness is always derived locally, never from `q?.outcome`.
-          const isCorrect = isNumericQ
-            ? attempted &&
-              numericCorrect !== '' &&
-              normalizeNumeric(numericUser) === normalizeNumeric(numericCorrect)
-            : q?.outcome === 'correct' ||
-              (q?.outcome == null &&
-                userAnswer.length > 0 &&
-                correctAnswers.length === userAnswer.length &&
-                correctAnswers.every((a: string) => userAnswer.includes(a)));
+          // `outcome` is the server's verdict — it already accounts for the
+          // grading tolerance on NUMERICAL questions, so trust it whenever it is
+          // decisive. It is only re-derived locally when the field is missing or
+          // says "skipped" for a question that was in fact answered (a known
+          // quirk of /review/ on numeric questions; /result/ totals count them).
+          const outcome = String(q?.outcome ?? '').toLowerCase();
+          const outcomeIsGraded =
+            outcome === 'correct' || outcome === 'wrong' || outcome === 'incorrect';
 
-          const isSkipped = isNumericQ
-            ? !attempted
-            : q?.outcome === 'skipped' ||
-              q?.outcome === 'unattempted' ||
-              (q?.outcome == null && !attempted);
+          const derivedCorrect = isNumericQ
+            ? attempted && numericAnswersEqual(numericUser, numericCorrect)
+            : userAnswer.length > 0 &&
+              correctAnswers.length === userAnswer.length &&
+              correctAnswers.every((a: string) => userAnswer.includes(a));
+
+          const isCorrect = outcomeIsGraded ? outcome === 'correct' : derivedCorrect;
+
+          const isSkipped = outcomeIsGraded ? false : !attempted;
 
           const explanation =
             currentSolution?.explanation ??
