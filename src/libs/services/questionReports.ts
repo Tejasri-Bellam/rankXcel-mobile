@@ -17,4 +17,4 @@ export interface QuestionReportPayload {
 export const reportQuestionService = (
   questionId: number | string,
   payload: QuestionReportPayload,
-) => genericPost(`/v1/questions/${questionId}/reports/`, payload, true);
+) => genericPost(`/v1/questions/${questionId}/reports/`, payload, { useAccessToken: true });

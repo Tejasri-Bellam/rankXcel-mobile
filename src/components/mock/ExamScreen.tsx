@@ -625,8 +625,6 @@ export default function MockExamScreen({
             <Text style={styles.fillBlankHint}>Decimal values are accepted (up to 2 decimal places).</Text>
           </View>
         )}
-
-        <Text style={styles.swipeHint}>— Swipe to move between questions —</Text>
       </ScrollView>
 
       {/* Bottom bar */}

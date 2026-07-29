@@ -86,23 +86,25 @@ export default function FlagQuestionModal({
   }, [visible]);
 
   const isChoiceIssue = issueType === "CHOICE";
-const descRequired = true;
 const hasChoices = (choices?.length ?? 0) > 0;
 
 
+  // The issue type (and the offending choice, for CHOICE reports) is all that's
+  // required — the free-text description is optional.
   const isValid =
   !!issueType &&
-  (!isChoiceIssue || !hasChoices || !!selectedChoiceId) &&
-  (!descRequired || description.trim().length > 0);
+  (!isChoiceIssue || !hasChoices || !!selectedChoiceId);
 
   const handleSubmit = async () => {
   if (!isValid || submitting || !issueType || questionId == null) return;
   try {
     setSubmitting(true);
+    const trimmedDescription = description.trim();
     const payload: QuestionReportPayloadWithOptionalChoice = {
       issue_type: issueType,
-      description: description.trim(),
     };
+    // Omit the key entirely when nothing was typed rather than sending "".
+    if (trimmedDescription !== "") payload.description = trimmedDescription;
     if (isChoiceIssue && hasChoices && selectedChoiceId) {
       payload.choice = Number(selectedChoiceId);
     }
@@ -217,9 +219,7 @@ const hasChoices = (choices?.length ?? 0) > 0;
             <View style={{ marginTop: 12 }}>
               <Text style={styles.sectionLabel}>
                 ADDITIONAL DETAILS{" "}
-                <Text style={descRequired ? styles.requiredText : styles.optionalText}>
-                  {descRequired ? "(required)" : "(optional)"}
-                </Text>
+                <Text style={styles.optionalText}>(optional)</Text>
               </Text>
               <TextInput
                 style={styles.textarea}
