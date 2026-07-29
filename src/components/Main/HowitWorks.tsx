@@ -27,7 +27,7 @@ export default function HowItWorksScreen() {
           ))}
         </View>
 
-        <TouchableOpacity style={s.primaryBtnFull} onPress={() => router.push('/courses/index')}>
+        <TouchableOpacity style={s.primaryBtnFull} onPress={() => router.push('../courses')}>
           <Text style={s.primaryBtnFullText}>Browse courses →</Text>
         </TouchableOpacity>
       </View>
