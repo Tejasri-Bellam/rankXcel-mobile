@@ -175,6 +175,11 @@ export const practiceQuestionsStyles = StyleSheet.create({
   feedbackTitle: { fontSize: 16, fontWeight: "800" },
   answerInfo: { marginBottom: 10 },
   answerInfoText: { fontSize: 13, color: "#6B7280" },
+  // The correct answer is option HTML and may be an equation, so it renders as
+  // its own node beside the label rather than as interpolated text.
+  answerInfoRow: { flexDirection: "row", alignItems: "flex-start", flexWrap: "wrap" },
+  answerInfoValue: { fontSize: 13, fontWeight: "700", color: "#16A34A" },
+  answerInfoValueBox: { flexShrink: 1 },
   explBox: {
     backgroundColor: "rgba(255,255,255,0.75)",
     borderRadius: 12,
@@ -194,6 +199,9 @@ export const practiceQuestionsStyles = StyleSheet.create({
     color: "#6C63FF",
     marginBottom: 2,
   },
+  // "Step 3." and the heading share a line; the heading may contain math.
+  explStepHeadRow: { flexDirection: "row", alignItems: "flex-start", flexWrap: "wrap" },
+  explStepHeadText: { flexShrink: 1 },
   askTutorBtn: {
     flexDirection: "row",
     alignItems: "center",

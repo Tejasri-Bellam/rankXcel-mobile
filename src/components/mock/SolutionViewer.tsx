@@ -3,8 +3,8 @@ import Toast, { useToast } from '@/src/components/common/Toast';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -21,7 +21,8 @@ import {
   sendConversationMessageService,
   startMockQuestionConversationService,
 } from '../../libs/services/mock-library';
-import { stripHtml } from '../../libs/utils/html';
+import { hasRichContent } from '../../libs/utils/richContent';
+import RichContent from '../common/RichContent';
 import TutorModal, { ConversationApi } from '@/src/components/common/TutorModal';
 
 interface Props {
@@ -197,8 +198,18 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
         <Text style={styles.headerTitle}>Review</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {questions.map((q: any, qIdx: number) => {
+      <FlatList
+        data={questions}
+        keyExtractor={(_item: any, index: number) => String(index)}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        // A paper can run to 90 questions and each card can hold several KaTeX
+        // WebViews (question + every option). A ScrollView would mount them all
+        // at once; FlatList keeps only the cards near the viewport alive.
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        windowSize={5}
+        renderItem={({ item: q, index: qIdx }: { item: any; index: number }) => {
           const qid = getQuestionId(q);
           const currentSolution = qid != null ? solutionsMap[String(qid)] : null;
           const correctAnswers = correctIdsWithSolution(q, currentSolution);
@@ -282,7 +293,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               </View>
 
               {/* Question text */}
-              <Text style={styles.qCardText}>{stripHtml(questionText)}</Text>
+              <RichContent html={questionText} style={styles.qCardText} />
 
               {/* Question image */}
               {q?.image ? (
@@ -332,7 +343,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                 const state = getOptState(optId);
                 const selected = userAnswer.includes(optId);
                 const letter = String.fromCharCode(65 + idx);
-                const optLabel = stripHtml(opt?.text ?? opt?.label ?? '');
+                const optHtml = opt?.text ?? opt?.label ?? '';
                 return (
                   <View
                     key={optId}
@@ -352,16 +363,15 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                       {letter}
                     </Text>
                     <View style={styles.optBody}>
-                      {optLabel ? (
-                        <Text
+                      {hasRichContent(optHtml) ? (
+                        <RichContent
+                          html={optHtml}
                           style={[
                             styles.optText,
                             state === 'correct' && { color: '#166534', fontWeight: '600' },
                             state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
                           ]}
-                        >
-                          {optLabel}
-                        </Text>
+                        />
                       ) : null}
                       {opt?.image ? (
                         <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
@@ -388,14 +398,15 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               {/* Why / explanation */}
               {explanation && (
                 <View style={styles.whyBox}>
-                  <Text style={styles.whyText}>
-                    <Text style={styles.whyLabel}>Why: </Text>
-                    {typeof explanation === 'string'
-                      ? stripHtml(explanation)
-                      : explanation?.summary
-                      ? stripHtml(explanation.summary)
-                      : 'See explanation above.'}
-                  </Text>
+                  <Text style={styles.whyLabel}>Why:</Text>
+                  {typeof explanation === 'string' || explanation?.summary ? (
+                    <RichContent
+                      html={typeof explanation === 'string' ? explanation : explanation.summary}
+                      style={styles.whyText}
+                    />
+                  ) : (
+                    <Text style={styles.whyText}>See explanation above.</Text>
+                  )}
                 </View>
               )}
 
@@ -403,15 +414,16 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               <TouchableOpacity
                 style={styles.askTutorBtn}
                 activeOpacity={0.8}
-                onPress={() => setTutorQ({ id: qid, text: stripHtml(questionText) })}
+                // Raw HTML: TutorModal renders it through RichContent.
+                onPress={() => setTutorQ({ id: qid, text: questionText })}
               >
                 <Ionicons name="sparkles" size={13} color='#6C63FF' />
                 <Text style={styles.askTutorText}>Ask the AI tutor</Text>
               </TouchableOpacity>
             </View>
           );
-        })}
-      </ScrollView>
+        }}
+      />
 
       <TutorModal
         visible={tutorQ !== null}

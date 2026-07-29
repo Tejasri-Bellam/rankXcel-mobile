@@ -14,6 +14,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { submitAbandonedAttempt } from "../libs/utils/examSession";
 import { clearUserSession } from "../libs/storage";
 import { setSessionExpiredHandler } from "../libs/session";
+import { installKatexAssets } from "../libs/katex/katexAssets";
 
 const HEADER_ROUTES = [
   "/dashboard",
@@ -99,6 +100,15 @@ function AppShell() {
       if (next === "active") submitAbandonedAttempt();
     });
     return () => sub.remove();
+  }, []);
+
+  // Copy the KaTeX renderer page and its fonts to disk while the user is still
+  // on the dashboard, so the first question with an equation renders typeset on
+  // its very first frame. Idempotent — later launches just stat one file.
+  useEffect(() => {
+    installKatexAssets().catch(() => {
+      // Non-fatal: RichContent retries on mount.
+    });
   }, []);
 
   // Keep the latest values in a ref so the hardware-back handler can be

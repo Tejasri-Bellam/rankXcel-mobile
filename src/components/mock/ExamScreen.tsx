@@ -17,7 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MockTestResult, submitMockAttemptResponseService, submitMockAttemptService } from '../../libs/services/mock-library';
-import { stripHtml } from '../../libs/utils/html';
+import { hasRichContent } from '../../libs/utils/richContent';
+import RichContent from '../common/RichContent';
 import { questionTypeLabel } from '@/src/libs/utils/questionType';
 import {
   EXAM_BACKGROUND_GRACE_MS,
@@ -541,7 +542,9 @@ export default function MockExamScreen({
         </View>
 
         {/* Question text */}
-        <Text style={styles.questionText}>{stripHtml(activeQuestion?.text ?? '')}</Text>
+        {hasRichContent(activeQuestion?.text) ? (
+          <RichContent html={activeQuestion?.text} style={styles.questionText} />
+        ) : null}
 
         {/* Question image */}
         {activeQuestion?.image ? (
@@ -563,7 +566,7 @@ export default function MockExamScreen({
           {(activeQuestion?.options ?? []).map((opt: any, idx: number) => {
             const isSelected = selectedOptions.includes(String(opt.id));
             const multi = isMultiSelect(activeQuestion?.type);
-            const optLabel = stripHtml(opt.text);
+            const optHtml = opt.text ?? '';
             return (
               <TouchableOpacity
                 key={String(opt.id)}
@@ -577,10 +580,13 @@ export default function MockExamScreen({
                   </Text>
                 </View>
                 <View style={styles.optBody}>
-                  {optLabel ? (
-                    <Text style={[styles.optText, isSelected && styles.optTextSelected]}>
-                      {optLabel}
-                    </Text>
+                  {/* Inside the TouchableOpacity: RichContent keeps any WebView
+                      non-interactive so the tap still selects the option. */}
+                  {hasRichContent(optHtml) ? (
+                    <RichContent
+                      html={optHtml}
+                      style={[styles.optText, isSelected && styles.optTextSelected]}
+                    />
                   ) : null}
                   {opt.image ? (
                     <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
@@ -743,7 +749,9 @@ export default function MockExamScreen({
             : (activeQuestion?.options ?? []).map((o: any, idx: number) => ({
                 id: String(o.id),
                 label: String.fromCharCode(65 + idx),
-                text: stripHtml(o.text),
+                // Raw HTML: the modal renders it through RichContent so an
+                // equation-only option is not listed as its LaTeX source.
+                text: o.text,
               }))
         }
       />

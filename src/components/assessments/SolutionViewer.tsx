@@ -2,7 +2,8 @@ import {
   askAssessmentTutorService,
   getassessmentReviewService,
 } from '@/src/libs/services/assessments-attempts';
-import { stripHtml } from '@/src/libs/utils/html';
+import { hasRichContent } from '@/src/libs/utils/richContent';
+import RichContent from '@/src/components/common/RichContent';
 import TutorModal from '@/src/components/common/TutorModal';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -10,8 +11,8 @@ import Toast, { useToast } from '@/src/components/common/Toast';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -130,8 +131,18 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
         <Text style={styles.headerTitle}>Review</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {questions.map((q: any, qIdx: number) => {
+      <FlatList
+        data={questions}
+        keyExtractor={(_item: any, index: number) => String(index)}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        // A paper can run to 90 questions and each card can hold several KaTeX
+        // WebViews (question + every option). A ScrollView would mount them all
+        // at once; FlatList keeps only the cards near the viewport alive.
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        windowSize={5}
+        renderItem={({ item: q, index: qIdx }: { item: any; index: number }) => {
           const qid = getQuestionId(q);
           const correctAnswers = correctIdsFor(q);
           const apiSelected = selectedIdsFor(q);
@@ -208,18 +219,18 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               {!!q?.assertion_text && (
                 <View style={styles.arCard}>
                   <Text style={styles.arLabel}>Assertion (A)</Text>
-                  <Text style={styles.arText}>{stripHtml(q.assertion_text)}</Text>
+                  <RichContent html={q.assertion_text} style={styles.arText} />
                 </View>
               )}
               {!!q?.reason_text && (
                 <View style={styles.arCard}>
                   <Text style={styles.arLabel}>Reason (R)</Text>
-                  <Text style={styles.arText}>{stripHtml(q.reason_text)}</Text>
+                  <RichContent html={q.reason_text} style={styles.arText} />
                 </View>
               )}
 
               {/* Question text */}
-              <Text style={styles.qCardText}>{stripHtml(questionText)}</Text>
+              <RichContent html={questionText} style={styles.qCardText} />
 
               {/* Question image */}
               {q?.image ? (
@@ -261,7 +272,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                   const state = getOptState(optId);
                   const selected = userAnswer.includes(optId);
                   const letter = String.fromCharCode(65 + idx);
-                  const optLabel = stripHtml(opt?.text ?? opt?.label ?? '');
+                  const optHtml = opt?.text ?? opt?.label ?? '';
                   return (
                     <View
                       key={optId}
@@ -281,16 +292,15 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                         {letter}
                       </Text>
                       <View style={styles.optBody}>
-                        {optLabel ? (
-                          <Text
+                        {hasRichContent(optHtml) ? (
+                          <RichContent
+                            html={optHtml}
                             style={[
                               styles.optText,
                               state === 'correct' && { color: '#166534', fontWeight: '600' },
                               state === 'wrong' && { color: '#991B1B', fontWeight: '600' },
                             ]}
-                          >
-                            {optLabel}
-                          </Text>
+                          />
                         ) : null}
                         {opt?.image ? (
                           <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
@@ -350,31 +360,41 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                         {steps && steps.length > 0 ? (
                           <>
                             {exp?.summary ? (
-                              <Text style={styles.whySummary}>{stripHtml(exp.summary)}</Text>
+                              <RichContent html={exp.summary} style={styles.whySummary} />
                             ) : null}
                             {steps.map((s: any, i: number) => (
                               <View key={s?.step_number ?? i} style={styles.whyStepBlock}>
-                                <Text style={styles.whyStepHeading}>
-                                  Step {s?.step_number ?? i + 1}
-                                  {s?.heading ? `. ${stripHtml(s.heading)}` : ''}
-                                </Text>
+                                {/* The step number and its heading read as one
+                                    line; the heading is HTML and can hold math. */}
+                                <View style={styles.whyStepHeadingRow}>
+                                  <Text style={styles.whyStepHeading}>
+                                    Step {s?.step_number ?? i + 1}
+                                    {s?.heading ? '. ' : ''}
+                                  </Text>
+                                  {s?.heading ? (
+                                    <RichContent
+                                      html={s.heading}
+                                      style={styles.whyStepHeading}
+                                      containerStyle={styles.whyStepHeadingText}
+                                    />
+                                  ) : null}
+                                </View>
                                 {s?.explanation ? (
-                                  <Text style={styles.whyStepText}>{stripHtml(s.explanation)}</Text>
+                                  <RichContent html={s.explanation} style={styles.whyStepText} />
                                 ) : null}
                               </View>
                             ))}
                             {exp?.conclusion ? (
-                              <Text style={styles.whyConclusion}>{stripHtml(exp.conclusion)}</Text>
+                              <RichContent html={exp.conclusion} style={styles.whyConclusion} />
                             ) : null}
                           </>
+                        ) : typeof exp === 'string' || exp?.summary ? (
+                          <RichContent
+                            html={typeof exp === 'string' ? exp : exp.summary}
+                            style={styles.whyText}
+                          />
                         ) : (
-                          <Text style={styles.whyText}>
-                            {typeof exp === 'string'
-                              ? stripHtml(exp)
-                              : exp?.summary
-                                ? stripHtml(exp.summary)
-                                : 'See explanation above.'}
-                          </Text>
+                          <Text style={styles.whyText}>See explanation above.</Text>
                         )}
                       </View>
                     )}
@@ -383,8 +403,8 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               })()}
             </View>
           );
-        })}
-      </ScrollView>
+        }}
+      />
 
       <TutorModal
         visible={tutorQ !== null}

@@ -19,10 +19,12 @@ import {
   reportQuestionService,
 } from "@/src/libs/services/questionReports";
 import Toast, { useToast } from "@/src/components/common/Toast";
+import RichContent from "@/src/components/common/RichContent";
 
 export interface FlagChoiceOption {
   id: string;
   label: string;
+  /** Raw option HTML — display only, rendered through `RichContent`. */
   text: string;
 }
 
@@ -199,9 +201,12 @@ const hasChoices = (choices?.length ?? 0) > 0;
                 {c.label}
               </Text>
             </View>
-            <Text style={[styles.choiceText, selected && styles.choiceTextSelected]} numberOfLines={2}>
-              {c.text}
-            </Text>
+            <RichContent
+              html={c.text}
+              style={[styles.choiceText, selected && styles.choiceTextSelected]}
+              containerStyle={styles.choiceTextBox}
+              numberOfLines={2}
+            />
           </TouchableOpacity>
         );
       })}
@@ -383,6 +388,7 @@ const styles = StyleSheet.create({
   choiceLetterText: { fontSize: 11, fontWeight: "700", color: "#6B7280" },
   choiceLetterTextSelected: { color: "#fff" },
   choiceText: { flex: 1, fontSize: 13, fontWeight: "500", color: "#374151" },
+  choiceTextBox: { flex: 1 },
   choiceTextSelected: { color: "#B45309", fontWeight: "600" },
   textarea: {
     borderWidth: 1.5,
