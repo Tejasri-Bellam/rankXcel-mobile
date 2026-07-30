@@ -205,8 +205,9 @@ export default function MockLibrary({
   const [resumeMock, setResumeMock] = useState<MockTest | null>(null);
   const [requestVisible, setRequestVisible] = useState(false);
 
-  // Tabs — split mocks into student-generated vs official.
-  const [activeTab, setActiveTab] = useState<'student' | 'official'>('student');
+  // Tabs — split mocks into official vs student-generated. Official is first in
+  // the bar, so it's also the one selected on open.
+  const [activeTab, setActiveTab] = useState<'student' | 'official'>('official');
 
   // Pagination — the list endpoint is paginated; pull the next page when the
   // user taps "Load more".
@@ -370,6 +371,13 @@ export default function MockLibrary({
     }
   }, [mocks.length, hasMore, loading, refreshing, loadingMore, loadMore]);
 
+  // A page request is in flight, or the auto-fill above is about to start one.
+  // The last clause covers the gap between one page landing and the next request
+  // going out — that gap is what made the tail flicker between the spinner and
+  // the "Load more" pill while the tab was topping up.
+  const fetchingMore =
+    loadingMore || refreshing || (hasMore && mocks.length < 10);
+
   if (resumeMock) {
     return (
       <MockDetails
@@ -458,33 +466,6 @@ export default function MockLibrary({
             since the paginated list may not be fully loaded yet. */}
         <View style={styles.tabBar}>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'student' && styles.tabActive]}
-            onPress={() => setActiveTab('student')}
-            activeOpacity={0.75}
-          >
-            <Text style={[styles.tabText, activeTab === 'student' && styles.tabTextActive]}>
-              My Mocks
-            </Text>
-            {!loading && (
-              <View
-                style={[
-                  styles.tabCountBadge,
-                  activeTab === 'student' && styles.tabCountBadgeActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tabCountText,
-                    activeTab === 'student' && styles.tabCountTextActive,
-                  ]}
-                >
-                  {studentMocks.length}
-                  {hasMore ? '+' : ''}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
             style={[styles.tab, activeTab === 'official' && styles.tabActive]}
             onPress={() => setActiveTab('official')}
             activeOpacity={0.75}
@@ -506,6 +487,33 @@ export default function MockLibrary({
                   ]}
                 >
                   {officialMocks.length}
+                  {hasMore ? '+' : ''}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'student' && styles.tabActive]}
+            onPress={() => setActiveTab('student')}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.tabText, activeTab === 'student' && styles.tabTextActive]}>
+              My Mocks
+            </Text>
+            {!loading && (
+              <View
+                style={[
+                  styles.tabCountBadge,
+                  activeTab === 'student' && styles.tabCountBadgeActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabCountText,
+                    activeTab === 'student' && styles.tabCountTextActive,
+                  ]}
+                >
+                  {studentMocks.length}
                   {hasMore ? '+' : ''}
                 </Text>
               </View>
@@ -542,27 +550,35 @@ export default function MockLibrary({
                 }}
               />
             ))}
-            {mocks.length === 0 && (
+            {/* "Nothing here" only once the pages have actually run out — the
+                auto-fill may still be pulling this tab's first mocks. */}
+            {mocks.length === 0 && !fetchingMore && !hasMore && (
               <View style={styles.emptyState}>
                 <Ionicons name="document-text-outline" size={40} color="#D1D5DB" />
                 <Text style={styles.emptyText}>No mock tests found</Text>
               </View>
             )}
 
-            {/* Load more */}
-            {hasMore && mocks.length > 0 && (
-              <TouchableOpacity
-                style={styles.loadMoreBtn}
-                onPress={loadMore}
-                disabled={loadingMore}
-                activeOpacity={0.75}
-              >
-                {loadingMore ? (
-                  <ActivityIndicator size="small" color="#6C63FF" />
-                ) : (
+            {/* A page is on its way (auto-fill or a tap): plain spinner, no
+                button. The button-with-a-spinner-inside made the pill flicker
+                between label and spinner on every page while the list grew. */}
+            {fetchingMore ? (
+              <View style={styles.loadMoreSpinner}>
+                <ActivityIndicator size="small" color="#6C63FF" />
+              </View>
+            ) : (
+              // Only offer the button once the tab is topped up — below that the
+              // auto-fill fetches on its own, so a button would just race it.
+              hasMore &&
+              mocks.length >= 10 && (
+                <TouchableOpacity
+                  style={styles.loadMoreBtn}
+                  onPress={loadMore}
+                  activeOpacity={0.75}
+                >
                   <Text style={styles.loadMoreText}>Load more</Text>
-                )}
-              </TouchableOpacity>
+                </TouchableOpacity>
+              )
             )}
           </View>
         )}

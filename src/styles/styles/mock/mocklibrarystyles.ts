@@ -91,6 +91,15 @@ export const mockLibraryStyles = StyleSheet.create({
     borderColor: '#6C63FF',
   },
   loadMoreText: { fontSize: 13, fontWeight: '700', color: '#6C63FF' },
+  // Stands in for the Load more button while a page is being fetched — same
+  // vertical rhythm, no bordered pill to flicker.
+  loadMoreSpinner: {
+    marginTop: 8,
+    alignSelf: 'center',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   mockCard: {
     backgroundColor: '#FFFFFF',
