@@ -742,6 +742,10 @@ export default function PracticeQuestions({
             <View>
               <Text style={styles.numericLabel}>Enter your answer</Text>
               <TextInput
+                // Keyed per question so moving between two numeric questions
+                // remounts the field instead of reusing the previous one's
+                // native view (which kept the cursor/keyboard on it).
+                key={`numeric-${question.id}`}
                 style={[
                   styles.numericInput,
                   reveal &&

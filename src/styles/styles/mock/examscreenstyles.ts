@@ -360,6 +360,8 @@ export const examScreenStyles = StyleSheet.create({
 
   // Full-screen blocking overlay shown while the attempt is being submitted.
   // Rendered in-tree (not in a Modal), so it has to fill the screen itself.
+  // Opaque, not a translucent scrim — the question underneath showing through
+  // half-dimmed looked like a rendering glitch.
   submittingOverlay: {
     position: 'absolute',
     top: 0,
@@ -368,19 +370,11 @@ export const examScreenStyles = StyleSheet.create({
     bottom: 0,
     zIndex: 20,
     elevation: 20,
-    backgroundColor: 'rgba(17, 24, 39, 0.55)',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
-  },
-  submittingCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    paddingVertical: 28,
-    paddingHorizontal: 28,
-    alignItems: 'center',
     gap: 12,
-    minWidth: 220,
   },
   submittingText: {
     fontSize: 15,
