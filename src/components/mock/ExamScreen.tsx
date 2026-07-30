@@ -113,6 +113,14 @@ export default function MockExamScreen({
 
   const [isInputFocused, setIsInputFocused] = useState(false);
 
+  // The focus ring is component state, not per-question, so it would otherwise
+  // carry over: answer one numeric question, move to the next, and its empty
+  // field still renders as focused/selected. Remounting the field (see its
+  // `key`) never fires onBlur, so clear the flag whenever the question changes.
+  useEffect(() => {
+    setIsInputFocused(false);
+  }, [activeSectionIdx, activeQIdx]);
+
 
   // `timeTaken` value when the on-screen question became active, so each saved
   // response carries the seconds spent on that question (see commitCurrentAnswer).
@@ -414,11 +422,14 @@ export default function MockExamScreen({
     if (submitting) return;
     try {
       setSubmitting(true);
+      // Close every sheet BEFORE the request, not after it — otherwise the
+      // "Exit test?" dialog sits on top of the submitting overlay for the whole
+      // round trip, still showing its Cancel button.
+      setShowExitConfirm(false);
       setShowSubmitSheet(false);
       setShowPalette(false);
       await flushAndSubmit();
       await clearActiveAttempt();
-      setShowExitConfirm(false);
       onBackToMocks?.();
     } catch (err) {
       console.log('SUBMIT ERROR:', err);
@@ -616,6 +627,10 @@ export default function MockExamScreen({
             <Text style={styles.fillBlankLabel}>Enter your answer (numeric value):</Text>
             <View style={[styles.fillBlankBox, isInputFocused && styles.fillBlankBoxFocused]}>
               <TextInput
+                // Keyed per question so moving between two numeric questions
+                // remounts the field instead of reusing the previous one's
+                // native view (which kept the cursor/keyboard on it).
+                key={`numeric-${currentQId}`}
                 style={styles.fillBlankInput}
                 placeholder="e.g. 3.14"
                 placeholderTextColor="#C7CAD1"
@@ -778,11 +793,9 @@ export default function MockExamScreen({
           disappears with the screen. */}
       {submitting && (
         <View style={styles.submittingOverlay}>
-          <View style={styles.submittingCard}>
-            <ActivityIndicator size="large" color="#6C63FF" />
-            <Text style={styles.submittingText}>Submitting your test…</Text>
-            <Text style={styles.submittingHint}>Please don&apos;t close the app.</Text>
-          </View>
+          <ActivityIndicator size="large" color="#6C63FF" />
+          <Text style={styles.submittingText}>Submitting your test…</Text>
+          <Text style={styles.submittingHint}>Please don&apos;t close the app.</Text>
         </View>
       )}
     </SafeAreaView>
