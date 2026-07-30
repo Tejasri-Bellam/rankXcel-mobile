@@ -392,7 +392,19 @@ export default function PracticeQuestions({
           : [...existing, optId];
         next[currentIdx] = { ...cur, selectedIds: updated };
       } else {
-        next[currentIdx] = { ...cur, selected: optId };
+        // Test mode: tap the selected option again to deselect it.
+        if (isTest) {
+          next[currentIdx] = {
+            ...cur,
+            selected: cur.selected === optId ? null : optId,
+          };
+        } else {
+          // Practice mode: keep existing behavior.
+          next[currentIdx] = {
+            ...cur,
+            selected: optId,
+          };
+        }
       }
       return next;
     });

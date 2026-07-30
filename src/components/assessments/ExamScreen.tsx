@@ -571,12 +571,17 @@ export default function ExamScreen({
     const current = answers[qId] || [];
 
     let newSelection: string[];
+
     if (isMulti) {
+      // Multi-select: toggle each option
       newSelection = current.includes(optionId)
         ? current.filter((o) => o !== optionId)
         : [...current, optionId];
     } else {
-      newSelection = [optionId];
+      // Single-select: clicking the selected option deselects it
+      newSelection = current.includes(optionId)
+        ? []
+        : [optionId];
     }
 
     // Optimistically update local state first for snappy UX

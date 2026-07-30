@@ -293,26 +293,41 @@ export default function MockExamScreen({
   };
 
   const handleOptionSelect = (optionId: string) => {
-    // Once a submit is in flight the attempt is being finalized server-side —
-    // answers can no longer change, so ignore any further input.
-    if (submitting) return;
-    if (!currentQId) return;
-    const isMulti = isMultiSelect(activeQuestion?.type);
-    const current = answers[currentQId] || [];
-    const newSel = isMulti
-      ? current.includes(optionId)
-        ? current.filter((o) => o !== optionId)
-        : [...current, optionId]
+  if (submitting) return;
+  if (!currentQId) return;
+
+  const isMulti = isMultiSelect(activeQuestion?.type);
+  const current = answers[currentQId] || [];
+
+  let newSel: string[];
+
+  if (isMulti) {
+    // Toggle selection for multi-correct questions
+    newSel = current.includes(optionId)
+      ? current.filter((o) => o !== optionId)
+      : [...current, optionId];
+  } else {
+    // Toggle selection for single-correct questions
+    newSel = current.includes(optionId)
+      ? []
       : [optionId];
-    setAnswers((prev) => ({ ...prev, [currentQId]: newSel }));
-    setQStatuses((prev) => ({
-      ...prev,
-      [currentQId]:
-        prev[currentQId] === 'marked' ? 'marked' : newSel.length > 0 ? 'answered' : 'not_answered',
-    }));
-    // Answer is persisted to the server on navigation (Next/Prev/jump) and on
-    // submit — see commitCurrentAnswer — not on every tap.
-  };
+  }
+
+  setAnswers((prev) => ({
+    ...prev,
+    [currentQId]: newSel,
+  }));
+
+  setQStatuses((prev) => ({
+    ...prev,
+    [currentQId]:
+      prev[currentQId] === 'marked'
+        ? 'marked'
+        : newSel.length > 0
+        ? 'answered'
+        : 'not_answered',
+  }));
+};
 
   const handleMarkForReview = () => {
     if (!currentQId) return;
