@@ -33,6 +33,19 @@ export const solutionViewerStyles = StyleSheet.create({
     marginBottom: 12,
   },
   qCardNum: { fontSize: 13, fontWeight: '700', color: '#9CA3AF' },
+  // Outcome badge + flag button, grouped to the right of the Q label.
+  qCardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Flag icon in the card header, right of the outcome badge.
+  flagBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
   outcomeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -120,13 +133,19 @@ export const solutionViewerStyles = StyleSheet.create({
 
   // Trailing cluster on each option row: "Your answer" pill + outcome icon.
   optTrailing: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
+  // Floats in the option's top-right corner — out of the flow, so it doesn't
+  // squeeze the option text or change the row's height.
   youBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    position: 'absolute',
+    top: 4,
+    right: 6,
+    zIndex: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
     backgroundColor: '#EEF0F4',
   },
-  youBadgeText: { fontSize: 10, fontWeight: '700', color: '#6B7280', letterSpacing: 0.3 },
+  youBadgeText: { fontSize: 7.5, fontWeight: '700', color: '#6B7280', letterSpacing: 0.1 },
 
   numericRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
   numericBox: {

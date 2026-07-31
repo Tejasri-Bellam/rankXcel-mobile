@@ -317,7 +317,7 @@ function NotifCard({
 }) {
   return (
     <TouchableOpacity
-      style={[styles.card, !item.is_read && styles.cardUnread]}
+      style={[styles.card, item.is_read && styles.cardRead]}
       activeOpacity={0.75}
       onPress={onPress}
     >
@@ -449,7 +449,9 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  cardUnread: {
+  // Read notifications are the tinted ones; unread keep the plain white card
+  // (plus their blue dot) so they stand out against them.
+  cardRead: {
     backgroundColor: "#F0F4FF",
   },
   iconWrap: {

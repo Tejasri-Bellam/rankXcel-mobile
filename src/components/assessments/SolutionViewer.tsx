@@ -6,6 +6,8 @@ import { hasRichContent } from '@/src/libs/utils/richContent';
 import { numericAnswersEqual } from '@/src/libs/utils/numericAnswer';
 import RichContent from '@/src/components/common/RichContent';
 import TutorModal from '@/src/components/common/TutorModal';
+import FlagQuestionModal, { FlagChoiceOption } from '@/src/components/common/FlagQuestionModal';
+import QuestionReportHistory from '@/src/components/common/QuestionReportHistory';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
 import Toast, { useToast } from '@/src/components/common/Toast';
@@ -73,6 +75,12 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
+  // Question being flagged from the review card (null = form closed).
+  const [flagQ, setFlagQ] = useState<{
+    id?: string | number;
+    number: number;
+    choices: FlagChoiceOption[];
+  } | null>(null);
   const [expandedExplanations, setExpandedExplanations] = useState<Record<string, boolean>>({});
   const { toast, showToast, hideToast } = useToast();
 
@@ -204,21 +212,51 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
               {/* Q label + outcome */}
               <View style={styles.qCardHeader}>
                 <Text style={styles.qCardNum}>Q{qIdx + 1}</Text>
-                {isSkipped ? (
-                  <View style={styles.outcomeBadge}>
-                    <Text style={styles.outcomeBadgeText}>— Skipped</Text>
-                  </View>
-                ) : isCorrect ? (
-                  <View style={[styles.outcomeBadge, styles.outcomeBadgeCorrect]}>
-                    <Ionicons name="checkmark" size={12} color="#22C55E" />
-                    <Text style={[styles.outcomeBadgeText, { color: '#22C55E' }]}>Correct</Text>
-                  </View>
-                ) : (
-                  <View style={[styles.outcomeBadge, styles.outcomeBadgeWrong]}>
-                    <Ionicons name="close" size={12} color="#EF4444" />
-                    <Text style={[styles.outcomeBadgeText, { color: '#EF4444' }]}>Wrong</Text>
-                  </View>
-                )}
+                <View style={styles.qCardHeaderRight}>
+                  {isSkipped ? (
+                    <View style={styles.outcomeBadge}>
+                      <Text style={styles.outcomeBadgeText}>— Skipped</Text>
+                    </View>
+                  ) : isCorrect ? (
+                    <View style={[styles.outcomeBadge, styles.outcomeBadgeCorrect]}>
+                      <Ionicons name="checkmark" size={12} color="#22C55E" />
+                      <Text style={[styles.outcomeBadgeText, { color: '#22C55E' }]}>Correct</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.outcomeBadge, styles.outcomeBadgeWrong]}>
+                      <Ionicons name="close" size={12} color="#EF4444" />
+                      <Text style={[styles.outcomeBadgeText, { color: '#EF4444' }]}>Wrong</Text>
+                    </View>
+                  )}
+                  {/* Flag this question — same form as the exam screen's flag. */}
+                  <TouchableOpacity
+                    style={styles.flagBtn}
+                    onPress={() =>
+                      setFlagQ({
+                        id: qid,
+                        number: qIdx + 1,
+                        // NUMERICAL questions have no real options — their
+                        // single "choice" just carries the answer, so don't
+                        // offer it as something to report.
+                        choices: isNumericQ
+                          ? []
+                          : sortedChoices.map((o: any, idx: number) => ({
+                              id: String(o?.id ?? idx),
+                              label: String.fromCharCode(65 + idx),
+                              text: o?.text ?? o?.label ?? '',
+                            })),
+                      })
+                    }
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Ionicons
+                      name={q?.is_flagged ? 'flag' : 'flag-outline'}
+                      size={15}
+                      color={q?.is_flagged ? '#F59E0B' : '#9CA3AF'}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Assertion-Reason statements */}
@@ -312,12 +350,14 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                           <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
                         ) : null}
                       </View>
+                      {/* Pinned to the option's top-right corner so it never
+                          eats into the width available to the option text. */}
+                      {selected && (
+                        <View style={styles.youBadge}>
+                          <Text style={styles.youBadgeText}>Your answer</Text>
+                        </View>
+                      )}
                       <View style={styles.optTrailing}>
-                        {selected && (
-                          <View style={styles.youBadge}>
-                            <Text style={styles.youBadgeText}>Your answer</Text>
-                          </View>
-                        )}
                         {state === 'correct' && (
                           <Ionicons name="checkmark" size={16} color="#22C55E" />
                         )}
@@ -407,6 +447,10 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
                   </View>
                 );
               })()}
+
+              {/* Anything this student already flagged on this question, with
+                  the team's resolution. Renders nothing when there's none. */}
+              <QuestionReportHistory reports={q?.reports} />
             </View>
           );
         }}
@@ -418,6 +462,16 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
         questionId={tutorQ?.id}
         questionText={tutorQ?.text}
         ask={(payload) => askAssessmentTutorService(attemptId, payload)}
+      />
+      <FlagQuestionModal
+        visible={flagQ !== null}
+        onClose={() => setFlagQ(null)}
+        questionId={flagQ?.id}
+        questionNumber={flagQ?.number}
+        choices={flagQ?.choices}
+        // Pull the review again so the new report shows up in the history below
+        // the question straight away.
+        onSubmitted={() => loadReview()}
       />
       <Toast {...toast} onHide={hideToast} />
     </SafeAreaView>

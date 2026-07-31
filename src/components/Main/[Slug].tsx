@@ -1,24 +1,64 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { marketingStyles as s } from '@/src/styles/styles/marketing/shared';
 import { CATALOG } from '../json/catalog';
 import { COURSES } from '../json/courses';
 import PageHeader from './PageHeader';
 import MarketingFooter from './Footer';
+import { CmsFeaturedExam, getCmsFeaturedExamService } from '@/src/libs/services/cms';
 
 type Tab = 'syllabus' | 'included' | 'faqs';
 
 export default function CourseDetailScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  // The route is /courses/{id}: a CMS exam id for API-backed courses, or one of
+  // the static catalogue slugs ("iit-jee") for the fallback content.
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [tab, setTab] = useState<Tab>('syllabus');
   const [openFaq, setOpenFaq] = useState(0);
 
-  const catalogCourse = slug ? CATALOG[slug] : undefined;
-  const course = slug ? COURSES[slug] : undefined;
+  const isNumericId = !!id && /^\d+$/.test(String(id));
+  // Static catalogue entry, keyed by slug — only for the non-numeric route.
+  const catalogCourse = !isNumericId && id ? CATALOG[id] : undefined;
+  const course = !isNumericId && id ? COURSES[id] : undefined;
 
-  if (!catalogCourse) {
+  const [cmsExam, setCmsExam] = useState<CmsFeaturedExam | null>(null);
+  const [loading, setLoading] = useState(isNumericId);
+
+  useEffect(() => {
+    if (!isNumericId) {
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    (async () => {
+      try {
+        const res = await getCmsFeaturedExamService(id);
+        if (active && res?.data) setCmsExam(res.data);
+      } catch {
+        // Non-fatal — the static catalogue below still renders.
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [id, isNumericId]);
+
+  if (loading && !catalogCourse) {
+    return (
+      <ScrollView style={s.page}>
+        <PageHeader />
+        <View style={[s.section, { alignItems: 'center', paddingVertical: 60 }]}>
+          <ActivityIndicator size="large" color="#4F46E5" />
+        </View>
+      </ScrollView>
+    );
+  }
+
+  if (!catalogCourse && !cmsExam) {
     return (
       <ScrollView style={s.page}>
         <PageHeader />
@@ -32,6 +72,17 @@ export default function CourseDetailScreen() {
 
   const mockCount = course?.mocks?.length;
   const subjectList = course?.subjects || course?.topics;
+
+  // CMS wins wherever it has the field; the static catalogue fills the rest
+  // (accent colour, emoji, rating/learners — none of which the API carries).
+  const cmsSubjects = (cmsExam?.subjects ?? []).filter(
+    (subject) => subject?.display_subject !== false,
+  );
+  const title = cmsExam?.name ?? catalogCourse?.name ?? '';
+  const tagline =
+    cmsExam?.description?.trim() || course?.tagline || catalogCourse?.blurb || '';
+  const accent = catalogCourse?.color ?? '#4F46E5';
+  const emoji = catalogCourse?.emoji ?? '📘';
 
   const whatsIncluded = [
     { icon: 'grid-outline', title: 'Full adaptive syllabus', desc: 'Every topic & sub-topic, with a live strength map.' },
@@ -55,24 +106,44 @@ export default function CourseDetailScreen() {
       <PageHeader
         breadcrumb={[
             { label: 'Courses', onPress: () => router.push('/courses') },
-            { label: catalogCourse.name },
+            { label: title },
         ]}
         />
 
-      <View style={[s.courseHeroBand, { backgroundColor: `${catalogCourse.color}0F` }]}>
+      <View style={[s.courseHeroBand, { backgroundColor: `${accent}0F` }]}>
         <View style={s.courseHeroRow}>
-          <View style={[s.courseHeroIconBox, { backgroundColor: `${catalogCourse.color}22` }]}>
-            <Text style={s.courseHeroIconText}>{catalogCourse.emoji}</Text>
+          <View style={[s.courseHeroIconBox, { backgroundColor: `${accent}22` }]}>
+            <Text style={s.courseHeroIconText}>{emoji}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.courseHeroTitle}>{catalogCourse.name}</Text>
-            <Text style={s.courseHeroTagline}>{course?.tagline || catalogCourse.blurb}</Text>
+            <Text style={s.courseHeroTitle}>{title}</Text>
+            {!!tagline && <Text style={s.courseHeroTagline}>{tagline}</Text>}
           </View>
         </View>
         <View style={s.courseHeroMetaRow}>
-          <Text style={s.courseHeroMetaText}>★ {catalogCourse.rating} rating</Text>
-          <Text style={s.courseHeroMetaText}>👤 {catalogCourse.learners} learners</Text>
-          {subjectList && <Text style={s.courseHeroMetaText}>☰ {subjectList.length} subjects</Text>}
+          {cmsExam ? (
+            <>
+              {cmsExam.total_duration_minutes != null && (
+                <Text style={s.courseHeroMetaText}>
+                  ⏱ {cmsExam.total_duration_minutes} min
+                </Text>
+              )}
+              {cmsExam.total_marks != null && (
+                <Text style={s.courseHeroMetaText}>🎯 {cmsExam.total_marks} marks</Text>
+              )}
+              {cmsSubjects.length > 0 && (
+                <Text style={s.courseHeroMetaText}>☰ {cmsSubjects.length} subjects</Text>
+              )}
+            </>
+          ) : (
+            <>
+              <Text style={s.courseHeroMetaText}>★ {catalogCourse?.rating} rating</Text>
+              <Text style={s.courseHeroMetaText}>👤 {catalogCourse?.learners} learners</Text>
+              {subjectList && (
+                <Text style={s.courseHeroMetaText}>☰ {subjectList.length} subjects</Text>
+              )}
+            </>
+          )}
         </View>
       </View>
 
@@ -91,7 +162,26 @@ export default function CourseDetailScreen() {
         {/* Syllabus */}
         {tab === 'syllabus' && (
           <View>
-            {subjectList ? (
+            {cmsSubjects.length > 0 ? (
+              <>
+                {cmsSubjects.map((subject) => (
+                  <View style={s.syllabusRow} key={subject.id}>
+                    <Text style={s.syllabusIcon}>📘</Text>
+                    <Text style={s.syllabusName}>{subject.name}</Text>
+                    <Text style={s.syllabusTopics}>
+                      {subject.topics?.length ?? 0} topics
+                      {subject.questions_count != null
+                        ? ` · ${subject.questions_count} Qs`
+                        : ''}
+                    </Text>
+                  </View>
+                ))}
+                <View style={s.sampleBanner}>
+                  <Ionicons name="eye-outline" size={16} color="#4F46E5" />
+                  <Text style={s.sampleBannerText}>Try a few sample questions free before you subscribe.</Text>
+                </View>
+              </>
+            ) : subjectList ? (
               <>
                 {subjectList.map((subj) => (
                   <View style={s.syllabusRow} key={subj.name}>
@@ -111,7 +201,7 @@ export default function CourseDetailScreen() {
                   <Ionicons name="book-outline" size={26} color="#4F46E5" />
                 </View>
                 <Text style={s.previewFallbackTitle}>Syllabus preview</Text>
-                <Text style={s.previewFallbackDesc}>{catalogCourse.blurb}</Text>
+                <Text style={s.previewFallbackDesc}>{tagline}</Text>
               </View>
             )}
           </View>
