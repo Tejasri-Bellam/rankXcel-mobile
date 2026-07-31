@@ -169,6 +169,30 @@ export const homeStyles = StyleSheet.create({
   courseOldPrice: { fontSize: 12, color: '#B0AEC0', textDecorationLine: 'line-through' },
   courseFreeText: { fontSize: 13, fontWeight: '700', color: GREEN },
 
+  /* ── Featured exam (CMS) — rendered inside the hero's card slot ── */
+  featuredName: { fontSize: 17, fontWeight: '800', color: TEXT_DARK, marginTop: 4 },
+  featuredDesc: { fontSize: 13, color: TEXT_GRAY, lineHeight: 19, marginTop: 6 },
+  featuredMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  featuredMetaChip: {
+    backgroundColor: LAVENDER_BG,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  featuredMetaText: { fontSize: 11.5, fontWeight: '600', color: PRIMARY },
+  featuredSubjectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F0F7',
+    paddingTop: 10,
+    marginTop: 10,
+  },
+  featuredSubjectName: { fontSize: 13.5, fontWeight: '700', color: TEXT_DARK, flexShrink: 1 },
+  featuredSubjectMeta: { fontSize: 11.5, color: TEXT_GRAY },
+
   /* ── How it works ── */
   howGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   howCard: {

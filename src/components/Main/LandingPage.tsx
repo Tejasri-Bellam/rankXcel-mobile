@@ -1,13 +1,79 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { homeData } from '../json/landingpage';
 import { homeStyles } from '@/src/styles/styles/home/landingpage';
 import Footer from './Footer';
+import {
+  CmsExamRef,
+  CmsFeaturedExam,
+  CmsHomePage,
+  cmsListFrom,
+  getCmsFeaturedExamService,
+  getCmsFeaturedExamsService,
+  getCmsHomePagesService,
+  pickHomePageForCountry,
+} from '@/src/libs/services/cms';
+import { resolveDetectedCountry } from '@/src/libs/services/countries';
 
 export default function LandingPage() {
   const router = useRouter();
   const { header, hero, popularCourses, howItWorks, levelingCard, testimonial, ctaSection } = homeData;
+
+  // CMS content. Everything here is optional — each section falls back to the
+  // static copy in json/landingpage.ts when the API has nothing for us.
+  const [homePage, setHomePage] = useState<CmsHomePage | null>(null);
+  const [featuredExam, setFeaturedExam] = useState<CmsFeaturedExam | null>(null);
+  const [cmsExams, setCmsExams] = useState<CmsExamRef[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      // The home page is country-scoped, so detect the country first; the exam
+      // list doesn't depend on it, so both requests go out together.
+      const [countryRes, pagesRes, examsRes] = await Promise.allSettled([
+        resolveDetectedCountry(),
+        getCmsHomePagesService(),
+        getCmsFeaturedExamsService(),
+      ]);
+      if (!active) return;
+
+      if (examsRes.status === 'fulfilled') {
+        setCmsExams(cmsListFrom<CmsExamRef>(examsRes.value?.data));
+      }
+
+      if (pagesRes.status !== 'fulfilled') return;
+      const countryId =
+        countryRes.status === 'fulfilled' ? countryRes.value?.id ?? null : null;
+      const page = pickHomePageForCountry(
+        cmsListFrom<CmsHomePage>(pagesRes.value?.data),
+        countryId,
+      );
+      if (!page) return;
+      setHomePage(page);
+
+      const examId = page.featured_exam?.id;
+      if (examId == null) return;
+      try {
+        const detail = await getCmsFeaturedExamService(examId);
+        if (active && detail?.data) setFeaturedExam(detail.data);
+      } catch {
+        // Non-fatal — the hero still renders without the exam block.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Hero copy: CMS when present, otherwise the static three-line headline.
+  const heroTitle = homePage?.title?.trim() || null;
+  const heroDescription = homePage?.description?.trim() || hero.description;
+  const examSubjects = (featuredExam?.subjects ?? []).filter(
+    (s) => s?.display_subject !== false,
+  );
+  // Popular courses: CMS exams when the endpoint returns any, else static.
+  const useCmsCourses = cmsExams.length > 0;
 
   return (
     <View style={homeStyles.container}>
@@ -38,9 +104,13 @@ export default function LandingPage() {
           </View>
 
           <Text style={homeStyles.heroTitle}>
-            {hero.titleLine1}{'\n'}{hero.titleLine2}{'\n'}{hero.titleLine3}
+            {heroTitle ?? (
+              <>
+                {hero.titleLine1}{'\n'}{hero.titleLine2}{'\n'}{hero.titleLine3}
+              </>
+            )}
           </Text>
-          <Text style={homeStyles.heroDescription}>{hero.description}</Text>
+          <Text style={homeStyles.heroDescription}>{heroDescription}</Text>
 
           <TouchableOpacity style={homeStyles.primaryBtn} onPress={() => router.push('/auth/sign-up')}>
             <Text style={homeStyles.primaryBtnText}>{hero.primaryBtn}</Text>
@@ -62,7 +132,62 @@ export default function LandingPage() {
             ))}
           </View>
 
-          {/* Readiness card */}
+          {/* The CMS featured exam takes this slot; the static readiness card
+              is the fallback when the CMS has no exam for this country. */}
+          {featuredExam ? (
+            <TouchableOpacity
+              style={homeStyles.readinessCard}
+              activeOpacity={0.85}
+              onPress={() =>
+                router.push({
+                  pathname: '/courses/[id]',
+                  params: { id: String(featuredExam.id) },
+                })
+              }
+            >
+              <Text style={homeStyles.readinessLabel}>FEATURED EXAM</Text>
+              <Text style={homeStyles.featuredName}>{featuredExam.name}</Text>
+              {!!featuredExam.description?.trim() && (
+                <Text style={homeStyles.featuredDesc}>{featuredExam.description}</Text>
+              )}
+
+              <View style={homeStyles.featuredMetaRow}>
+                {featuredExam.total_duration_minutes != null && (
+                  <View style={homeStyles.featuredMetaChip}>
+                    <Text style={homeStyles.featuredMetaText}>
+                      ⏱ {featuredExam.total_duration_minutes} min
+                    </Text>
+                  </View>
+                )}
+                {featuredExam.total_marks != null && (
+                  <View style={homeStyles.featuredMetaChip}>
+                    <Text style={homeStyles.featuredMetaText}>
+                      🎯 {featuredExam.total_marks} marks
+                    </Text>
+                  </View>
+                )}
+                {examSubjects.length > 0 && (
+                  <View style={homeStyles.featuredMetaChip}>
+                    <Text style={homeStyles.featuredMetaText}>
+                      📚 {examSubjects.length} subjects
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {examSubjects.map((subject) => (
+                <View key={subject.id} style={homeStyles.featuredSubjectRow}>
+                  <Text style={homeStyles.featuredSubjectName}>{subject.name}</Text>
+                  <Text style={homeStyles.featuredSubjectMeta}>
+                    {subject.topics?.length ?? 0} topics
+                    {subject.questions_count != null
+                      ? ` · ${subject.questions_count} Qs`
+                      : ''}
+                  </Text>
+                </View>
+              ))}
+            </TouchableOpacity>
+          ) : (
           <View style={homeStyles.readinessCard}>
             <View style={homeStyles.readinessPillsRow}>
               <View style={homeStyles.readinessPill}>
@@ -104,6 +229,7 @@ export default function LandingPage() {
               </View>
             ))}
           </View>
+          )}
         </View>
 
         {/* Popular courses */}
@@ -114,12 +240,45 @@ export default function LandingPage() {
               <Text style={homeStyles.sectionViewAll}>{popularCourses.viewAll}</Text>
             </TouchableOpacity>
           </View>
+          {useCmsCourses ? (
+            // The list endpoint only carries id/name/code — no blurb, rating or
+            // learner count — so those lines are left out rather than faked.
+            <View style={homeStyles.courseGrid}>
+              {cmsExams.map((exam) => (
+                <TouchableOpacity
+                  style={homeStyles.courseCard}
+                  key={String(exam.id)}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/courses/[id]',
+                      params: { id: String(exam.id) },
+                    })
+                  }
+                >
+                  <View style={homeStyles.courseCardTopRow}>
+                    <View style={homeStyles.courseIconBox}>
+                      <Text style={homeStyles.courseIcon}>📘</Text>
+                    </View>
+                    <View style={homeStyles.courseTag}>
+                      <Text style={homeStyles.courseTagText}>FREE</Text>
+                    </View>
+                  </View>
+                  <Text style={homeStyles.courseTitle}>{exam.name}</Text>
+                  <Text style={homeStyles.courseDesc}>
+                    {exam.code?.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
           <View style={homeStyles.courseGrid}>
             {popularCourses.list.map((course) => (
               <TouchableOpacity
                 style={homeStyles.courseCard}
                 key={course.title}
-                onPress={() => router.push({ pathname: '/courses/[slug]', params: { slug: course.slug } })}
+                // Static cards keep their slug — the detail screen treats a
+                // non-numeric route param as a catalogue key.
+                onPress={() => router.push({ pathname: '/courses/[id]', params: { id: course.slug } })}
               >
                 <View style={homeStyles.courseCardTopRow}>
                   <View style={homeStyles.courseIconBox}>
@@ -138,6 +297,7 @@ export default function LandingPage() {
               </TouchableOpacity>
             ))}
           </View>
+          )}
         </View>
 
         {/* How it works */}

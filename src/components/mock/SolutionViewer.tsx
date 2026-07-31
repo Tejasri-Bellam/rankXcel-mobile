@@ -25,6 +25,8 @@ import { hasRichContent } from '../../libs/utils/richContent';
 import { numericAnswersEqual } from '../../libs/utils/numericAnswer';
 import RichContent from '../common/RichContent';
 import TutorModal, { ConversationApi } from '@/src/components/common/TutorModal';
+import FlagQuestionModal, { FlagChoiceOption } from '@/src/components/common/FlagQuestionModal';
+import QuestionReportHistory from '@/src/components/common/QuestionReportHistory';
 
 interface Props {
   mockId: number | string;
@@ -103,6 +105,12 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [tutorQ, setTutorQ] = useState<{ id?: string | number; text: string } | null>(null);
+  // Question being flagged from the review card (null = form closed).
+  const [flagQ, setFlagQ] = useState<{
+    id?: string | number;
+    number: number;
+    choices: FlagChoiceOption[];
+  } | null>(null);
   const { toast, showToast, hideToast } = useToast();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -273,6 +281,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
               {/* Q label + outcome */}
               <View style={styles.qCardHeader}>
                 <Text style={styles.qCardNum}>Q{qIdx + 1}</Text>
+                <View style={styles.qCardHeaderRight}>
                 {isSkipped ? (
                   <View style={styles.outcomeBadge}>
                     <Text style={styles.outcomeBadgeText}>— Skipped</Text>
@@ -288,6 +297,35 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                     <Text style={[styles.outcomeBadgeText, { color: '#EF4444' }]}>Wrong</Text>
                   </View>
                 )}
+                {/* Flag this question — same form as the exam screen's flag. */}
+                <TouchableOpacity
+                  style={styles.flagBtn}
+                  onPress={() =>
+                    setFlagQ({
+                      id: qid,
+                      number: qIdx + 1,
+                      // NUMERICAL questions have no real options — their single
+                      // "choice" just carries the answer, so don't offer it as
+                      // something to report.
+                      choices: isNumericQ
+                        ? []
+                        : sortedChoices.map((o: any, idx: number) => ({
+                            id: String(o?.id ?? idx),
+                            label: String.fromCharCode(65 + idx),
+                            text: o?.text ?? o?.label ?? '',
+                          })),
+                    })
+                  }
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons
+                    name={q?.is_flagged ? 'flag' : 'flag-outline'}
+                    size={15}
+                    color={q?.is_flagged ? '#F59E0B' : '#9CA3AF'}
+                  />
+                </TouchableOpacity>
+                </View>
               </View>
 
               {/* Question text */}
@@ -375,12 +413,14 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                         <Image source={{ uri: opt.image }} style={styles.optImage} resizeMode="contain" />
                       ) : null}
                     </View>
+                    {/* Pinned to the option's top-right corner so it never
+                        eats into the width available to the option text. */}
+                    {selected && (
+                      <View style={styles.youBadge}>
+                        <Text style={styles.youBadgeText}>Your answer</Text>
+                      </View>
+                    )}
                     <View style={styles.optTrailing}>
-                      {selected && (
-                        <View style={styles.youBadge}>
-                          <Text style={styles.youBadgeText}>Your answer</Text>
-                        </View>
-                      )}
                       {state === 'correct' && (
                         <Ionicons name="checkmark" size={16} color="#22C55E" />
                       )}
@@ -418,6 +458,10 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
                 <Ionicons name="sparkles" size={13} color='#6C63FF' />
                 <Text style={styles.askTutorText}>Ask the AI tutor</Text>
               </TouchableOpacity>
+
+              {/* Anything this student already flagged on this question, with
+                  the team's resolution. Renders nothing when there's none. */}
+              <QuestionReportHistory reports={q?.reports} />
             </View>
           );
         }}
@@ -429,6 +473,16 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
         questionId={tutorQ?.id}
         questionText={tutorQ?.text}
         conversation={tutorConversation}
+      />
+      <FlagQuestionModal
+        visible={flagQ !== null}
+        onClose={() => setFlagQ(null)}
+        questionId={flagQ?.id}
+        questionNumber={flagQ?.number}
+        choices={flagQ?.choices}
+        // Pull the review again so the new report shows up in the history below
+        // the question straight away.
+        onSubmitted={() => loadReview()}
       />
       <Toast {...toast} onHide={hideToast} />
     </SafeAreaView>
