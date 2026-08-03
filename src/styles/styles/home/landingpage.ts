@@ -16,7 +16,8 @@ export const homeStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    gap: 8,
+    paddingHorizontal: 14,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#EEF0F5',
@@ -33,15 +34,18 @@ export const homeStyles = StyleSheet.create({
   },
   logoIconText: { color: '#FFFFFF', fontSize: 15 },
   logoText: { fontSize: 18, fontWeight: '700', color: TEXT_DARK },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  loginText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 },
+  // Compact override for the country chip — the landing header carries four
+  // elements, so it can't afford the picker's default padding.
+  headerCountryChip: { paddingHorizontal: 8, paddingVertical: 6, gap: 4 },
+  loginText: { fontSize: 12, color: '#374151', fontWeight: '500' },
   signupBtn: {
     backgroundColor: PRIMARY,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
   },
-  signupText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  signupText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
 
   /* ── Hero ── */
   heroSection: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 32, backgroundColor: '#FFFFFF' },
@@ -78,7 +82,7 @@ export const homeStyles = StyleSheet.create({
 
   /* Hero stats row */
   heroStatsRow: { flexDirection: 'row', marginBottom: 26 },
-  heroStatItem: { flex: 1, alignItems: 'flex-start' },
+  heroStatItem: { flex: 1, alignItems: 'center' },
   heroStatDivider: { width: 1, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
   heroStatValue: { fontSize: 20, fontWeight: '800', color: PRIMARY, marginBottom: 2 },
   heroStatLabel: { fontSize: 11, color: TEXT_GRAY },
@@ -95,6 +99,29 @@ export const homeStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 16,
     elevation: 4,
+  },
+  // Shown when the CMS has no home page for the selected country.
+  noContentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#EEF0F5',
+    alignItems: 'center',
+    marginBottom: 22,
+  },
+  noContentTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: TEXT_DARK,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  noContentText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   readinessPillsRow: { flexDirection: 'row', gap: 8, marginBottom: 18, flexWrap: 'wrap' },
   readinessPill: {

@@ -73,6 +73,37 @@ export function cmsListFrom<T>(payload: any): T[] {
     : (payload?.results ?? payload?.data ?? []);
 }
 
+// Featured exams scoped to one country. The list endpoint isn't country-aware,
+// so this filters on the `country` each enriched detail carries; rows without a
+// detail yet (or whose detail call failed) have no country and stay in, rather
+// than blinking out of the list.
+export function filterExamsByCountry<T extends { country?: CmsCountry | null }>(
+  exams: T[],
+  countryId?: number | string | null,
+): T[] {
+  if (countryId == null) return exams;
+  return exams.filter(
+    (e) => e.country == null || String(e.country.id) === String(countryId),
+  );
+}
+
+// Fetches the featured-exam list, then each exam's detail (subjects, question
+// counts, country) so callers can scope and describe them. Rows whose detail
+// fails fall back to the bare list entry.
+export async function getCmsFeaturedExamsWithDetails(): Promise<
+  CmsFeaturedExam[]
+> {
+  const res = await getCmsFeaturedExamsService();
+  const refs = cmsListFrom<CmsExamRef>(res?.data);
+  const details = await Promise.allSettled(
+    refs.map((e) => getCmsFeaturedExamService(e.id)),
+  );
+  return refs.map((ref, i) => {
+    const r = details[i];
+    return r.status === "fulfilled" && r.value?.data ? r.value.data : ref;
+  });
+}
+
 // The home page for the visitor's country, falling back to the first entry so
 // an unrecognised country still gets copy rather than a blank hero.
 export function pickHomePageForCountry(

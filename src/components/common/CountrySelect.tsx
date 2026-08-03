@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
+  StyleProp,
   Text,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
@@ -63,23 +65,40 @@ const Flag = ({ url, size = 18 }: { url?: string; size?: number }) => {
 };
 
 interface Props {
-  // Notifies the parent when the user picks a country (e.g. so login can scope
-  // its data fetch to it).
+  // Fired both when the initial selection resolves and when the user picks a
+  // country, so callers can treat it as the single source of truth for "the
+  // country this screen is scoped to".
   onChange?: (country: CountryOption) => void;
+  // Country to fall back on when nothing has been saved yet — e.g. the one
+  // detected from the device via /v1/get_country/. May arrive late; the initial
+  // selection re-resolves when it does (until the user picks something).
+  preferredCountryId?: number | string | null;
+  style?: StyleProp<ViewStyle>;
 }
 
-// Compact country picker for the auth header. Loads the catalogue from the
-// countries API, restores any previously chosen region, and persists the
+// Compact country picker for the auth/landing headers. Loads the catalogue from
+// the countries API, restores any previously chosen region, and persists the
 // selection (region + regionCountryId) so the rest of the app stays in sync.
-export default function CountrySelect({ onChange }: Props) {
+export default function CountrySelect({
+  onChange,
+  preferredCountryId,
+  style,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [selected, setSelected] = useState<CountryOption | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load the country list once, then resolve the initial selection: a saved
-  // region if present, else India, else the first country.
+  // Callers pass an inline onChange; keep it in a ref so it can be called from
+  // the resolve effect without re-running it on every parent render.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  // Once the user picks explicitly, a late-arriving preferred country must not
+  // move the selection back out from under them.
+  const userPicked = useRef(false);
+
+  // Load the country list once.
   useEffect(() => {
     let active = true;
     (async () => {
@@ -91,26 +110,7 @@ export default function CountrySelect({ onChange }: Props) {
         const list: any[] = Array.isArray(payload)
           ? payload
           : payload?.results ?? payload?.data ?? payload?.countries ?? [];
-        const mapped = list.map(normalizeCountry);
-        if (!active) return;
-        setCountries(mapped);
-
-        const [savedRegion, savedId] = await Promise.all([
-          AsyncStorage.getItem("region"),
-          AsyncStorage.getItem("regionCountryId"),
-        ]);
-        const saved = savedRegion ? JSON.parse(savedRegion) : null;
-        const initial =
-          mapped.find((c) => savedId && String(c.id) === String(savedId)) ??
-          mapped.find(
-            (c) =>
-              saved?.name &&
-              c.name.toLowerCase() === String(saved.name).toLowerCase()
-          ) ??
-          mapped.find((c) => c.name.toLowerCase() === "india") ??
-          mapped[0] ??
-          null;
-        if (active && initial) setSelected(initial);
+        if (active) setCountries(list.map(normalizeCountry));
       } catch (err) {
         if (active) setError(getErrorMessage(err, "Couldn't load countries."));
       } finally {
@@ -122,7 +122,43 @@ export default function CountrySelect({ onChange }: Props) {
     };
   }, []);
 
+  // Resolve the initial selection: a saved region if present, else the caller's
+  // preferred (detected) country, else India, else the first country.
+  useEffect(() => {
+    if (countries.length === 0 || userPicked.current) return;
+    let active = true;
+    (async () => {
+      const [savedRegion, savedId] = await Promise.all([
+        AsyncStorage.getItem("region"),
+        AsyncStorage.getItem("regionCountryId"),
+      ]);
+      const saved = savedRegion ? JSON.parse(savedRegion) : null;
+      const initial =
+        countries.find((c) => savedId && String(c.id) === String(savedId)) ??
+        countries.find(
+          (c) =>
+            saved?.name &&
+            c.name.toLowerCase() === String(saved.name).toLowerCase()
+        ) ??
+        countries.find(
+          (c) =>
+            preferredCountryId != null &&
+            String(c.id) === String(preferredCountryId)
+        ) ??
+        countries.find((c) => c.name.toLowerCase() === "india") ??
+        countries[0] ??
+        null;
+      if (!active || !initial || userPicked.current) return;
+      setSelected(initial);
+      onChangeRef.current?.(initial);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [countries, preferredCountryId]);
+
   const handleSelect = async (country: CountryOption) => {
+    userPicked.current = true;
     setSelected(country);
     setOpen(false);
     try {
@@ -147,7 +183,7 @@ export default function CountrySelect({ onChange }: Props) {
   return (
     <>
       <TouchableOpacity
-        style={styles.chip}
+        style={[styles.chip, style]}
         activeOpacity={0.85}
         onPress={() => setOpen(true)}
       >

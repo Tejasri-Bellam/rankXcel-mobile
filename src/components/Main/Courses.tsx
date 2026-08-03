@@ -13,25 +13,44 @@ import { marketingStyles as s } from '@/src/styles/styles/marketing/shared';
 import PageHeader from './PageHeader';
 import { CATALOG } from '../json/catalog';
 import MarketingFooter from './Footer';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  CmsExamRef,
-  cmsListFrom,
-  getCmsFeaturedExamsService,
+  CmsFeaturedExam,
+  filterExamsByCountry,
+  getCmsFeaturedExamsWithDetails,
 } from '@/src/libs/services/cms';
+import { resolveDetectedCountry } from '@/src/libs/services/countries';
 
 export default function CoursesScreen() {
   const [query, setQuery] = useState('');
-  // Exams from the CMS. Empty (API down / nothing published) → the static
-  // catalogue is rendered instead.
-  const [exams, setExams] = useState<CmsExamRef[]>([]);
+  // Exams from the CMS, each enriched with its detail so the list can be scoped
+  // to a country. Empty (API down / nothing published) → the static catalogue
+  // is rendered instead.
+  const [exams, setExams] = useState<CmsFeaturedExam[]>([]);
+  // The country this catalogue is for: the region saved by the country picker,
+  // else the detected one.
+  const [country, setCountry] = useState<{
+    id: number | string;
+    name: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const res = await getCmsFeaturedExamsService();
-        if (active) setExams(cmsListFrom<CmsExamRef>(res?.data));
+        const [savedId, savedRegion] = await Promise.all([
+          AsyncStorage.getItem('regionCountryId'),
+          AsyncStorage.getItem('region'),
+        ]);
+        const saved = savedRegion ? JSON.parse(savedRegion) : null;
+        const picked = savedId
+          ? { id: savedId, name: saved?.name ?? '' }
+          : await resolveDetectedCountry().catch(() => null);
+        if (active && picked) setCountry(picked);
+
+        const list = await getCmsFeaturedExamsWithDetails();
+        if (active) setExams(list);
       } catch {
         // Non-fatal — fall through to the static catalogue.
       } finally {
@@ -44,19 +63,25 @@ export default function CoursesScreen() {
   }, []);
 
   const needle = query.trim().toLowerCase();
-  const cmsCourses = exams.filter((e) =>
+  const countryExams = filterExamsByCountry(exams, country?.id);
+  const cmsCourses = countryExams.filter((e) =>
     (e?.name ?? '').toLowerCase().includes(needle),
   );
   const staticCourses = Object.values(CATALOG).filter((c) =>
     c.name.toLowerCase().includes(needle),
   );
-  const useCms = exams.length > 0;
+  const useCms = countryExams.length > 0;
+  // The CMS has exams, just none for this country — say so rather than falling
+  // back to the static (India) catalogue.
+  const noCoursesForCountry = exams.length > 0 && countryExams.length === 0;
 
   return (
     <ScrollView style={s.page} showsVerticalScrollIndicator={false}>
       <PageHeader />
       <View style={s.section}>
-        <Text style={s.h1}>Courses in India</Text>
+        <Text style={s.h1}>
+          {country?.name ? `Courses in ${country.name}` : 'Courses'}
+        </Text>
         <Text style={s.h1Subtitle}>Pick an exam to see its syllabus, samples & pricing.</Text>
 
         <View style={s.searchBar}>
@@ -74,6 +99,11 @@ export default function CoursesScreen() {
           <View style={{ paddingVertical: 40, alignItems: 'center' }}>
             <ActivityIndicator size="large" color="#4F46E5" />
           </View>
+        ) : noCoursesForCountry ? (
+          <Text style={s.h1Subtitle}>
+            No courses for {country?.name} yet. They&apos;ll show up here once
+            they&apos;re published.
+          </Text>
         ) : useCms ? (
           <View style={s.courseListGrid}>
             {cmsCourses.map((exam) => (

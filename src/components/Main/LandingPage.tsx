@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { homeData } from '../json/landingpage';
 import { homeStyles } from '@/src/styles/styles/home/landingpage';
@@ -9,6 +9,7 @@ import {
   CmsFeaturedExam,
   CmsHomePage,
   cmsListFrom,
+  filterExamsByCountry,
   getCmsFeaturedExamService,
   getCmsFeaturedExamsService,
   getCmsHomePagesService,
@@ -16,6 +17,7 @@ import {
 } from '@/src/libs/services/cms';
 import { resolveDetectedCountry } from '@/src/libs/services/countries';
 import BrandLogo from '../common/BrandLogo';
+import CountrySelect from '../common/CountrySelect';
 
 // Real counts read better grouped ("1,979") than in the static "2.1Cr" style.
 const formatStat = (n: number): string => n.toLocaleString('en-IN');
@@ -26,11 +28,22 @@ export default function LandingPage() {
 
   // CMS content. Everything here is optional — each section falls back to the
   // static copy in json/landingpage.ts when the API has nothing for us.
-  const [homePage, setHomePage] = useState<CmsHomePage | null>(null);
+  // `pages` holds every country's home page; the one shown follows the country
+  // picked in the header. null = still loading.
+  const [pages, setPages] = useState<CmsHomePage[] | null>(null);
   const [featuredExam, setFeaturedExam] = useState<CmsFeaturedExam | null>(null);
   // Popular courses. The list endpoint only returns id/name/code, so each row
   // is enriched with its detail (subjects + question counts) for the card.
   const [cmsExams, setCmsExams] = useState<CmsFeaturedExam[]>([]);
+  // The country the page is scoped to: detected on first load, then whatever
+  // the header picker reports.
+  const [country, setCountry] = useState<{
+    id: number | string;
+    name: string;
+  } | null>(null);
+  const [detectedCountryId, setDetectedCountryId] = useState<
+    number | string | null
+  >(null);
 
   useEffect(() => {
     let active = true;
@@ -63,18 +76,46 @@ export default function LandingPage() {
         }
       }
 
-      if (pagesRes.status !== 'fulfilled') return;
-      const countryId =
-        countryRes.status === 'fulfilled' ? countryRes.value?.id ?? null : null;
-      const page = pickHomePageForCountry(
-        cmsListFrom<CmsHomePage>(pagesRes.value?.data),
-        countryId,
-      );
-      if (!page) return;
-      setHomePage(page);
+      // Seeds the picker when the visitor has no saved region yet.
+      if (countryRes.status === 'fulfilled' && countryRes.value?.id != null) {
+        setDetectedCountryId(countryRes.value.id);
+      }
 
-      const examId = page.featured_exam?.id;
-      if (examId == null) return;
+      setPages(
+        pagesRes.status === 'fulfilled'
+          ? cmsListFrom<CmsHomePage>(pagesRes.value?.data)
+          : [],
+      );
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // The home page for the selected country. Once a country is known the match
+  // is strict — a country the CMS has nothing for shows the empty state rather
+  // than another country's content. With no country at all (detection failed
+  // and the picker hasn't resolved) fall back to the first page.
+  const homePage = useMemo<CmsHomePage | null>(() => {
+    if (!pages) return null;
+    if (country == null) return pickHomePageForCountry(pages, null);
+    return (
+      pages.find((p) => String(p?.country?.id) === String(country.id)) ?? null
+    );
+  }, [pages, country]);
+
+  // Nothing published for the country the visitor picked.
+  const noContent = pages != null && country != null && homePage == null;
+
+  // Featured exam follows the selected country's home page.
+  useEffect(() => {
+    const examId = homePage?.featured_exam?.id;
+    if (examId == null) {
+      setFeaturedExam(null);
+      return;
+    }
+    let active = true;
+    (async () => {
       try {
         const detail = await getCmsFeaturedExamService(examId);
         if (active && detail?.data) setFeaturedExam(detail.data);
@@ -85,7 +126,7 @@ export default function LandingPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [homePage?.featured_exam?.id]);
 
   // Hero copy: CMS when present, otherwise the static three-line headline.
   const heroTitle = homePage?.title?.trim() || null;
@@ -104,8 +145,18 @@ export default function LandingPage() {
     }
     return stat;
   });
-  // Popular courses: CMS exams when the endpoint returns any, else static.
-  const useCmsCourses = cmsExams.length > 0;
+  // Popular courses are country-scoped too. The list endpoint isn't, so filter
+  // on the country each enriched detail carries. Rows whose detail hasn't landed
+  // (or failed) have no country yet and stay visible rather than blinking out.
+  const countryExams = useMemo(
+    () => filterExamsByCountry(cmsExams, country?.id),
+    [cmsExams, country],
+  );
+  // CMS exams when this country has any, else the static cards. When the CMS
+  // has exams but none here, say so instead of falling back to another
+  // country's static list.
+  const useCmsCourses = countryExams.length > 0;
+  const noCoursesForCountry = cmsExams.length > 0 && countryExams.length === 0;
 
   return (
     <View style={homeStyles.container}>
@@ -121,23 +172,45 @@ export default function LandingPage() {
             <TouchableOpacity style={homeStyles.signupBtn} onPress={() => router.push('/auth/sign-up')}>
               <Text style={homeStyles.signupText}>{header.signupText}</Text>
             </TouchableOpacity>
+            {/* Picks which country's content this page shows. */}
+            <CountrySelect
+              style={homeStyles.headerCountryChip}
+              preferredCountryId={detectedCountryId}
+              onChange={(c) => setCountry({ id: c.id, name: c.name })}
+            />
           </View>
         </View>
 
         {/* Hero */}
         <View style={homeStyles.heroSection}>
-          <View style={homeStyles.badge}>
-            <Text style={homeStyles.badgeText}>✦ {hero.badge}</Text>
-          </View>
+          {noContent ? (
+            // The CMS has nothing published for the picked country. The sign-up
+            // CTAs below still stand — it's the country's content that's missing.
+            <View style={homeStyles.noContentCard}>
+              <Text style={homeStyles.noContentTitle}>
+                No content for {country?.name} yet
+              </Text>
+              <Text style={homeStyles.noContentText}>
+                We haven&apos;t published exam content for this region. Pick
+                another country from the header to see what&apos;s available.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View style={homeStyles.badge}>
+                <Text style={homeStyles.badgeText}>✦ {hero.badge}</Text>
+              </View>
 
-          <Text style={homeStyles.heroTitle}>
-            {heroTitle ?? (
-              <>
-                {hero.titleLine1}{'\n'}{hero.titleLine2}{'\n'}{hero.titleLine3}
-              </>
-            )}
-          </Text>
-          <Text style={homeStyles.heroDescription}>{heroDescription}</Text>
+              <Text style={homeStyles.heroTitle}>
+                {heroTitle ?? (
+                  <>
+                    {hero.titleLine1}{'\n'}{hero.titleLine2}{'\n'}{hero.titleLine3}
+                  </>
+                )}
+              </Text>
+              <Text style={homeStyles.heroDescription}>{heroDescription}</Text>
+            </>
+          )}
 
           <TouchableOpacity style={homeStyles.primaryBtn} onPress={() => router.push('/auth/sign-up')}>
             <Text style={homeStyles.primaryBtnText}>{hero.primaryBtn}</Text>
@@ -146,6 +219,8 @@ export default function LandingPage() {
             <Text style={homeStyles.outlineBtnText}>{hero.secondaryBtn}</Text>
           </TouchableOpacity>
 
+          {!noContent && (
+          <>
           {/* Stats row */}
           <View style={homeStyles.heroStatsRow}>
             {heroStats.map((stat, i) => (
@@ -257,21 +332,35 @@ export default function LandingPage() {
             ))}
           </View>
           )}
+          </>
+          )}
         </View>
 
         {/* Popular courses */}
         <View style={homeStyles.sectionWrap}>
           <View style={homeStyles.sectionHeaderRow}>
             <Text style={homeStyles.sectionTitleLeft}>{popularCourses.title}</Text>
-            <TouchableOpacity onPress={() => router.push('/courses')}>
-              <Text style={homeStyles.sectionViewAll}>{popularCourses.viewAll}</Text>
-            </TouchableOpacity>
+            {!noCoursesForCountry && (
+              <TouchableOpacity onPress={() => router.push('/courses')}>
+                <Text style={homeStyles.sectionViewAll}>{popularCourses.viewAll}</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {useCmsCourses ? (
+          {noCoursesForCountry ? (
+            <View style={homeStyles.noContentCard}>
+              <Text style={homeStyles.noContentTitle}>
+                No courses for {country?.name} yet
+              </Text>
+              <Text style={homeStyles.noContentText}>
+                Courses for this region will show up here once they&apos;re
+                published.
+              </Text>
+            </View>
+          ) : useCmsCourses ? (
             // One card per row: icon + Featured pill, name, subject names, then
             // a footer with the subject/question counts and the price.
             <View>
-              {cmsExams.map((exam) => {
+              {countryExams.map((exam) => {
                 const subjects = (exam.subjects ?? []).filter(
                   (subject) => subject?.display_subject !== false,
                 );

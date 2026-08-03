@@ -26,7 +26,9 @@ export default function BrandLogo({ onPress, style }: Props) {
       <View style={styles.icon}>
         <Text style={styles.iconText}>⚡</Text>
       </View>
-      <Text style={styles.text}>{BRAND}</Text>
+      <Text style={styles.text} numberOfLines={1}>
+        {BRAND}
+      </Text>
     </>
   );
 
@@ -49,8 +51,11 @@ const styles: any = {
   // No alignSelf here — inside the row-direction headers that would push the
   // mark to the top. Column callers (the auth screens) pass it themselves to
   // keep the tap target off the empty space beside the wordmark.
-  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  // flexShrink lets the wordmark truncate instead of pushing the rest of a
+  // crowded header (country picker, Log in, Sign up) off-screen.
+  row: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
   icon: {
+    flexShrink: 0,
     width: 30,
     height: 30,
     borderRadius: 8,

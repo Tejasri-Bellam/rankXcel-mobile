@@ -16,7 +16,6 @@ export const homeData = {
     secondaryBtn: "See how it works",
     stats: [
       { value: "12L+", label: "learners" },
-      { value: "4.8★", label: "avg rating" },
       { value: "2.1Cr", label: "questions solved" },
     ],
     readinessCard: {
@@ -111,9 +110,9 @@ export const homeData = {
     title: "Learning that feels like leveling up.",
     desc: "Earn XP, keep your streak, climb the leaderboard, and unlock badges as you master each topic.",
     pills: [
-      { icon: "⚡", label: "Daily XP" },
+      // { icon: "⚡", label: "Daily XP" },
       { icon: "🔥", label: "Streaks" },
-      { icon: "🎖️", label: "Badges" },
+      // { icon: "🎖️", label: "Badges" },
       { icon: "🏆", label: "Live ranks" },
     ],
   },
