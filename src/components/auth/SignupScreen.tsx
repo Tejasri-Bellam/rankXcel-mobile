@@ -39,7 +39,7 @@ import {
   getNonFieldError,
 } from '@/src/components/auth/authForm';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BRAND } from '@/src/libs/constants';
+import BrandLogo from '../common/BrandLogo';
 
 type LoginRegion = {
   name: string;
@@ -457,13 +457,11 @@ export default function SignupScreen() {
             </View>
           </View>
 
-          {/* Brand */}
-          <View style={styles.brandRow}>
-            <View style={styles.brandIcon}>
-              <Ionicons name="flash" size={22} color="#FFFFFF" />
-            </View>
-            <Text style={styles.brandText}>{BRAND}</Text>
-          </View>
+          {/* Brand — tapping it returns to the landing page */}
+          <BrandLogo
+            style={[styles.brandRow, { alignSelf: 'flex-start' }]}
+            onPress={() => router.replace('/onboarding')}
+          />
 
           {/* Headings */}
           <Text style={styles.title}>Create account</Text>

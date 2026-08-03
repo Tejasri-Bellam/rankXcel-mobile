@@ -15,6 +15,7 @@ import {
   pickHomePageForCountry,
 } from '@/src/libs/services/cms';
 import { resolveDetectedCountry } from '@/src/libs/services/countries';
+import BrandLogo from '../common/BrandLogo';
 
 // Real counts read better grouped ("1,979") than in the static "2.1Cr" style.
 const formatStat = (n: number): string => n.toLocaleString('en-IN');
@@ -112,12 +113,7 @@ export default function LandingPage() {
 
         {/* Header */}
         <View style={homeStyles.header}>
-          <View style={homeStyles.logoRow}>
-            <View style={homeStyles.logoIcon}>
-              <Text style={homeStyles.logoIconText}>⚡</Text>
-            </View>
-            <Text style={homeStyles.logoText}>{header.logoText}</Text>
-          </View>
+          <BrandLogo />
           <View style={homeStyles.headerRight}>
             <TouchableOpacity onPress={() => router.push('/auth/login')}>
               <Text style={homeStyles.loginText}>{header.loginText}</Text>

@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { getMeService } from '@/src/libs/services/profile';
 import { useHeaderScroll } from '@/src/libs/context/HeaderScrollContext';
 import { getAlertsUnreadCountService, getAlertsService } from '@/src/libs/services/alerts';
+import BrandLogo from './BrandLogo';
 
 type HeaderProps = {
   onProfilePress: () => void;
@@ -98,6 +99,8 @@ export default function Header({ onProfilePress }: HeaderProps) {
 
   return (
     <View style={[styles.header, scrolled ? styles.headerScrolled : styles.headerTransparent]}>
+      <BrandLogo onPress={() => router.replace("/dashboard")} />
+
       <View style={styles.headerRight}>
         <TouchableOpacity
           style={styles.notifBtn}
@@ -134,7 +137,7 @@ const styles: any = {
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
