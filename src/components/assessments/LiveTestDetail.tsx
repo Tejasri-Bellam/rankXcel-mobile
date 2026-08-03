@@ -22,6 +22,7 @@ import SolutionViewer from "./SolutionViewer";
 import Leaderboard from "./Leaderboard";
 import SubmitSuccessModal from "./SubmitSuccessModal";
 import { liveTestDetailStyles as s } from "@/src/styles/styles/assessments/livetestdetailstyles";
+import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import {
   LiveStatus,
   LIVE_STATUS_META,
@@ -70,6 +71,11 @@ export default function LiveTestDetail({
 }: Props) {
   const meta = LIVE_STATUS_META[status];
   const assessmentId: number = item?.id;
+
+  // PASS_FAIL exams aren't ranked — the leaderboard (and every rank-flavoured
+  // bit of copy) is hidden for them.
+  const { getExamScoring } = useTargetExam();
+  const { isPassFail, passMarks } = getExamScoring(item?.exam?.id);
 
   // The scheduled test window: results — and the leaderboard — only become
   // meaningful once it has fully elapsed. A submitted attempt before then is
@@ -327,7 +333,7 @@ export default function LiveTestDetail({
   };
 
   // ── Sub-views ──────────────────────────────────────────────────────────────
-  if (view === "leaderboard") {
+  if (view === "leaderboard" && !isPassFail) {
     return(
     <Leaderboard
     assessmentId={assessmentId}
@@ -543,7 +549,9 @@ export default function LiveTestDetail({
 
         <Text style={s.description}>
           {item?.description ||
-            "A simultaneous, ranked test. Everyone sits the same paper at the same time — results and your national rank publish right after."}
+            (isPassFail
+              ? "A simultaneous test. Everyone sits the same paper at the same time — your results publish right after."
+              : "A simultaneous, ranked test. Everyone sits the same paper at the same time — results and your national rank publish right after.")}
         </Text>
 
         <View style={s.infoCard}>
@@ -564,12 +572,24 @@ export default function LiveTestDetail({
             label="Registered"
             value={formatCount(participants)}
           />
+          {/* The bar to clear — PASS_FAIL exams only. */}
+          {passMarks != null && (
+            <>
+              <View style={s.divider} />
+              <InfoRow
+                icon="flag-outline"
+                label="Pass marks"
+                value={String(passMarks)}
+              />
+            </>
+          )}
         </View>
 
         {renderPrimary()}
 
-        {/* Leaderboard shows once results are published (is_results_published). */}
-        {resultsOut && (
+        {/* Leaderboard shows once results are published (is_results_published),
+            and never for unranked (PASS_FAIL) exams. */}
+        {resultsOut && !isPassFail && (
           <TouchableOpacity
             style={s.secondaryBtn}
             onPress={() => setView("leaderboard")}

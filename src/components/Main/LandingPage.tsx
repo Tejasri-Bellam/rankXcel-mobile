@@ -16,6 +16,9 @@ import {
 } from '@/src/libs/services/cms';
 import { resolveDetectedCountry } from '@/src/libs/services/countries';
 
+// Real counts read better grouped ("1,979") than in the static "2.1Cr" style.
+const formatStat = (n: number): string => n.toLocaleString('en-IN');
+
 export default function LandingPage() {
   const router = useRouter();
   const { header, hero, popularCourses, howItWorks, levelingCard, testimonial, ctaSection } = homeData;
@@ -89,6 +92,17 @@ export default function LandingPage() {
   const examSubjects = (featuredExam?.subjects ?? []).filter(
     (s) => s?.display_subject !== false,
   );
+  // Hero stats: the CMS's real platform totals where it sends them, falling
+  // back to the static headline figures for anything it doesn't (the rating).
+  const heroStats = hero.stats.map((stat) => {
+    if (stat.label === 'learners' && homePage?.users_count != null) {
+      return { ...stat, value: formatStat(homePage.users_count) };
+    }
+    if (stat.label === 'questions solved' && homePage?.questions_count != null) {
+      return { value: formatStat(homePage.questions_count), label: 'questions' };
+    }
+    return stat;
+  });
   // Popular courses: CMS exams when the endpoint returns any, else static.
   const useCmsCourses = cmsExams.length > 0;
 
@@ -138,13 +152,13 @@ export default function LandingPage() {
 
           {/* Stats row */}
           <View style={homeStyles.heroStatsRow}>
-            {hero.stats.map((stat, i) => (
+            {heroStats.map((stat, i) => (
               <React.Fragment key={stat.label}>
                 <View style={homeStyles.heroStatItem}>
                   <Text style={homeStyles.heroStatValue}>{stat.value}</Text>
                   <Text style={homeStyles.heroStatLabel}>{stat.label}</Text>
                 </View>
-                {i < hero.stats.length - 1 && <View style={homeStyles.heroStatDivider} />}
+                {i < heroStats.length - 1 && <View style={homeStyles.heroStatDivider} />}
               </React.Fragment>
             ))}
           </View>

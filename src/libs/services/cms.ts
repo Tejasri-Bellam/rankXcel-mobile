@@ -25,6 +25,9 @@ export interface CmsHomePage {
   title: string;
   description: string;
   featured_exam: CmsExamRef | null;
+  // Live platform totals for this country — drive the hero stats row.
+  users_count?: number | null;
+  questions_count?: number | null;
 }
 
 export interface CmsExamSubject {

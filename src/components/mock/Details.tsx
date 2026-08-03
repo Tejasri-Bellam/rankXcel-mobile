@@ -23,6 +23,7 @@ import MockSolutionViewer from './SolutionViewer';
 import Toast, { useToast } from '../common/Toast';
 import type { AutoSubmitReason } from './ExamScreen';
 import { detailsStyles as styles } from '@/src/styles/styles/mock/detailsstyles';
+import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 
 // Copy shown when the attempt was submitted for the student (not via the
 // Submit button) — the timer ran out, or they left the app past the grace
@@ -64,6 +65,15 @@ export default function MockDetails({ mock, onBack, initialView = 'detail', init
   const [timeTaken, setTimeTaken] = useState(0);
   const [mockData] = useState<MockTest>(mock);
   const { toast, showToast, hideToast } = useToast();
+
+  // PASS_FAIL exams are scored against a fixed pass mark — surface it here in
+  // place of the (ranked-only) last-score tile.
+  const { getExamScoring } = useTargetExam();
+  const { isPassFail, passMarks } = getExamScoring(
+    typeof mockData.exam === 'object' && mockData.exam !== null
+      ? mockData.exam.id
+      : mockData.exam
+  );
 
   useEffect(() => {
     router.setParams({ mockId: String(mockData.id), view: currentView });
@@ -305,13 +315,23 @@ const handleRetake = async () => {
             <Text style={styles.statValue}>{formatDuration(mockData.total_duration_minutes)}</Text>
             <Text style={styles.statLabel}>minutes</Text>
           </View>
-          {/* Last score — backend doesn't return this yet, so it's a static
-              placeholder until the field is available. */}
-          <View style={styles.statCard}>
-            <Ionicons name="disc-outline" size={20} color="#6C63FF" />
-            <Text style={styles.statValue}>75%</Text>
-            <Text style={styles.statLabel}>last score</Text>
-          </View>
+          {/* PASS_FAIL exams show the mark to clear; ranked exams keep the last
+              score (a static placeholder — the backend doesn't return it yet). */}
+          {isPassFail ? (
+            passMarks != null ? (
+              <View style={styles.statCard}>
+                <Ionicons name="flag-outline" size={20} color="#6C63FF" />
+                <Text style={styles.statValue}>{passMarks}</Text>
+                <Text style={styles.statLabel}>pass marks</Text>
+              </View>
+            ) : null
+          ) : (
+            <View style={styles.statCard}>
+              <Ionicons name="disc-outline" size={20} color="#6C63FF" />
+              <Text style={styles.statValue}>75%</Text>
+              <Text style={styles.statLabel}>last score</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 

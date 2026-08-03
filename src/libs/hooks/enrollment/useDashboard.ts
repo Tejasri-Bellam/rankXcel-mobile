@@ -123,8 +123,11 @@ export function useDashboard(enabled: boolean = true): UseDashboardResult {
     if (activeExamId != null) {
       fetchDashboard(activeExamId);
     } else if (!examsLoading) {
-      // Exams finished loading but there's no active exam to fetch for — stop
-      // the dashboard spinner so we don't hang on an empty state.
+      // Exams finished loading but there's no active exam to fetch for (e.g. the
+      // user switched to a country they have no target exam in) — drop the
+      // previous exam's data so its details can't linger on screen, and stop the
+      // spinner so we don't hang on an empty state.
+      setDashboardData(null);
       setDashboardLoading(false);
     }
   }, [activeExamId, examsLoading, fetchDashboard]);

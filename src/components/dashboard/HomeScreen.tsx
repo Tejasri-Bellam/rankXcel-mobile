@@ -4,8 +4,10 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 
 import { COLORS } from "@/src/styles/styles";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
@@ -30,6 +32,7 @@ export default function HomeScreen() {
     refresh,
   } = useDashboard();
 
+  const router = useRouter();
   const [refreshing, setRefreshing] = React.useState(false);
 
   // Drive the shared header's background: transparent at the top, solid once
@@ -58,6 +61,22 @@ export default function HomeScreen() {
       ) : error && !dashboardData ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : activeExamId == null ? (
+        // No target exam for the selected country — show nothing from the
+        // previously selected exam, just the way back in.
+        <View style={styles.centered}>
+          <Text style={styles.emptyTitle}>No course in this region</Text>
+          <Text style={styles.errorText}>
+            You haven&apos;t added a target exam for the country you selected.
+          </Text>
+          <TouchableOpacity
+            style={styles.emptyBtn}
+            onPress={() => router.push("/set-goal")}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.emptyBtnText}>Add a target exam</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView
@@ -102,4 +121,18 @@ const styles: any = {
     textAlign: "center",
     paddingHorizontal: 32,
   },
+  emptyTitle: {
+    color: COLORS.textDark,
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  emptyBtn: {
+    marginTop: 16,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyBtnText: { color: COLORS.white, fontSize: 14, fontWeight: "700" },
 };
