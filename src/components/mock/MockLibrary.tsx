@@ -27,6 +27,8 @@ import { useHeaderScrollHandler } from '@/src/libs/context/HeaderScrollContext';
 import MockDetails from './Details';
 import RequestMockModal from './RequestMock';
 import { getActiveAttempt, submitAbandonedAttempt } from '@/src/libs/utils/examSession';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getExamsListService } from '@/src/libs/services/profile';
 import { mockLibraryStyles as styles } from '@/src/styles/styles/mock/mocklibrarystyles';
 
 
@@ -195,8 +197,6 @@ export default function MockLibrary({
   const [deepLinkResolving, setDeepLinkResolving] = useState(false);
 
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
-  // Server-side total across all pages (the paginated response's `count`).
-  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -208,6 +208,36 @@ export default function MockLibrary({
   // Tabs — split mocks into official vs student-generated. Official is first in
   // the bar, so it's also the one selected on open.
   const [activeTab, setActiveTab] = useState<'student' | 'official'>('official');
+
+  // Exam ids offered in the student's country. `/v1/mock-tests/` takes no
+  // country filter (only `page`), so with no target exam selected it returns
+  // every country's mocks — they're scoped against this set instead. Null means
+  // "couldn't determine", in which case nothing is filtered out.
+  const [countryExamIds, setCountryExamIds] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        // Persisted from /get_country/ at login, and on every region switch.
+        const countryId = await AsyncStorage.getItem('regionCountryId');
+        if (!countryId) return;
+        const res = await getExamsListService(countryId);
+        const { results } = extractPage<{ id: number | string }>(res);
+        const ids = new Set(
+          results.map((e) => String(e?.id)).filter((id) => id && id !== 'undefined'),
+        );
+        if (active && ids.size > 0) setCountryExamIds(ids);
+      } catch {
+        // Leave unfiltered rather than risk hiding the whole library.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // Re-read after a region switch — that resets the target exams, and with
+    // them the active exam.
+  }, [activeExamId]);
 
   // Pagination — the list endpoint is paginated; pull the next page when the
   // user taps "Load more".
@@ -221,9 +251,8 @@ export default function MockLibrary({
       else setLoading(true);
       setError(null);
       const response = await getMockTestsService(activeExamId ?? undefined, testType, 1);
-      const { results, next, count } = extractPage<MockTest>(response);
+      const { results, next } = extractPage<MockTest>(response);
       setAllMocks(results);
-      setTotalCount(count);
       setPage(1);
       setHasMore(!!next);
     } catch (err) {
@@ -354,9 +383,15 @@ export default function MockLibrary({
     // test_type query param and returns both PRACTICE_TEST and MOCK_TEST.
     .filter((m) => !m.test_type || m.test_type === testType)
     .filter((m) => {
-      if (activeExamId == null) return true;
       const eid = getExamId(m.exam);
-      return eid == null || String(eid) === String(activeExamId);
+      // Can't tell which exam it belongs to — keep it rather than hide it.
+      if (eid == null) return true;
+      // A target exam is selected: the list came from that exam's endpoint, so
+      // it's already country-correct; drop anything else that slipped through.
+      if (activeExamId != null) return String(eid) === String(activeExamId);
+      // No target exam: the list is the unscoped /v1/mock-tests/, which mixes
+      // every country. Keep only exams offered in the student's country.
+      return countryExamIds == null || countryExamIds.has(String(eid));
     });
 
   const studentMocks = visibleMocks.filter((m) => !m.is_official);
@@ -442,9 +477,15 @@ export default function MockLibrary({
           <View style={styles.headerText}>
             <View style={styles.pageTitleRow}>
               <Text style={styles.pageTitle}>{title}</Text>
-              {totalCount != null && (
+              {/* Counts what's actually on screen, not the server's `count` —
+                  that total spans every country/test type, so it kept showing a
+                  number for a country with no mocks. "+" while pages remain. */}
+              {!loading && (
                 <View style={styles.pageCountBadge}>
-                  <Text style={styles.pageCountText}>{totalCount}</Text>
+                  <Text style={styles.pageCountText}>
+                    {visibleMocks.length}
+                    {hasMore ? '+' : ''}
+                  </Text>
                 </View>
               )}
             </View>

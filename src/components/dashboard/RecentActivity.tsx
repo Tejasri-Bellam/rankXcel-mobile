@@ -64,9 +64,6 @@ export default function RecentActivity({ dashboardData }: RecentActivityProps) {
   const router = useRouter();
 
   const activity = dashboardData?.recent_activity ?? [];
-
-  if (!activity.length) return null;
-
   const rows = activity.slice(0, MAX_ROWS);
 
   return (
@@ -81,6 +78,12 @@ export default function RecentActivity({ dashboardData }: RecentActivityProps) {
         </TouchableOpacity>
       </View>
 
+      {rows.length === 0 ? (
+        <View style={[styles.card, styles.emptyCard]}>
+          <Ionicons name="time-outline" size={22} color={COLORS.textLight} />
+          <Text style={styles.emptyText}>No activity yet.</Text>
+        </View>
+      ) : (
       <View style={styles.card}>
         {rows.map((item, index) => {
           const pct = Math.round(item.percentage ?? 0);
@@ -108,6 +111,7 @@ export default function RecentActivity({ dashboardData }: RecentActivityProps) {
           );
         })}
       </View>
+      )}
     </View>
   );
 }
@@ -157,4 +161,14 @@ const styles: any = {
   rowTitle: { fontSize: 13, fontWeight: "600", color: COLORS.textDark },
   rowSub: { fontSize: 11, color: COLORS.textLight, marginTop: 2 },
   rowPct: { fontSize: 14, fontWeight: "800" },
+  // Mirrors the Upcoming section's empty card so the dashboard reads the same
+  // wherever a section has nothing to show.
+  emptyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 22,
+    gap: 8,
+  },
+  emptyText: { fontSize: 13, color: COLORS.textLight },
 };

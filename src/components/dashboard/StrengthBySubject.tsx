@@ -19,8 +19,6 @@ export default function StrengthBySubject({
 
   const subjects = dashboardData?.strength_by_subject ?? [];
 
-  if (!subjects.length) return null;
-
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -33,6 +31,12 @@ export default function StrengthBySubject({
         </TouchableOpacity>
       </View>
 
+      {subjects.length === 0 ? (
+        <View style={[styles.card, styles.emptyCard]}>
+          <Ionicons name="stats-chart-outline" size={22} color={COLORS.textLight} />
+          <Text style={styles.emptyText}>No subject data yet.</Text>
+        </View>
+      ) : (
       <View style={styles.card}>
         {subjects.map((item, index) => {
           const pct = Math.round(item.accuracy ?? 0);
@@ -64,6 +68,7 @@ export default function StrengthBySubject({
           );
         })}
       </View>
+      )}
     </View>
   );
 }
@@ -110,4 +115,14 @@ const styles: any = {
     overflow: "hidden",
   },
   barFill: { height: 7, borderRadius: 5 },
+  // Mirrors the Upcoming section's empty card so the dashboard reads the same
+  // wherever a section has nothing to show.
+  emptyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 22,
+    gap: 8,
+  },
+  emptyText: { fontSize: 13, color: COLORS.textLight },
 };
