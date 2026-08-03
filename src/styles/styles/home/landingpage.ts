@@ -169,6 +169,35 @@ export const homeStyles = StyleSheet.create({
   courseOldPrice: { fontSize: 12, color: '#B0AEC0', textDecorationLine: 'line-through' },
   courseFreeText: { fontSize: 13, fontWeight: '700', color: GREEN },
 
+  /* ── Popular courses, CMS exams — one full-width card per row ── */
+  examCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  examCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  examFeaturedPill: {
+    backgroundColor: LAVENDER_BG,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  examFeaturedText: { fontSize: 11.5, fontWeight: '700', color: PRIMARY },
+  examCardTitle: { fontSize: 16, fontWeight: '800', color: TEXT_DARK },
+  examCardSubjects: { fontSize: 12.5, color: TEXT_GRAY, lineHeight: 18, marginTop: 4 },
+  examCardDivider: { height: 1, backgroundColor: '#F1F0F7', marginVertical: 12 },
+  examCardFooter: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  examCardMeta: { fontSize: 12, color: TEXT_GRAY, fontWeight: '600' },
+  examCardFree: { fontSize: 13, fontWeight: '800', color: GREEN, marginLeft: 'auto' },
+
   /* ── Featured exam (CMS) — rendered inside the hero's card slot ── */
   featuredName: { fontSize: 17, fontWeight: '800', color: TEXT_DARK, marginTop: 4 },
   featuredDesc: { fontSize: 13, color: TEXT_GRAY, lineHeight: 19, marginTop: 6 },

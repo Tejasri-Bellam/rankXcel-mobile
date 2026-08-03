@@ -24,7 +24,9 @@ export default function LandingPage() {
   // static copy in json/landingpage.ts when the API has nothing for us.
   const [homePage, setHomePage] = useState<CmsHomePage | null>(null);
   const [featuredExam, setFeaturedExam] = useState<CmsFeaturedExam | null>(null);
-  const [cmsExams, setCmsExams] = useState<CmsExamRef[]>([]);
+  // Popular courses. The list endpoint only returns id/name/code, so each row
+  // is enriched with its detail (subjects + question counts) for the card.
+  const [cmsExams, setCmsExams] = useState<CmsFeaturedExam[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -39,7 +41,22 @@ export default function LandingPage() {
       if (!active) return;
 
       if (examsRes.status === 'fulfilled') {
-        setCmsExams(cmsListFrom<CmsExamRef>(examsRes.value?.data));
+        const refs = cmsListFrom<CmsExamRef>(examsRes.value?.data);
+        setCmsExams(refs);
+        // Then fill in each card's subjects/question count. Cards render from
+        // the bare list meanwhile, so a slow (or failed) detail call just
+        // leaves those lines off rather than holding up the section.
+        const details = await Promise.allSettled(
+          refs.map((e) => getCmsFeaturedExamService(e.id)),
+        );
+        if (active) {
+          setCmsExams(
+            refs.map((ref, i) => {
+              const r = details[i];
+              return r.status === 'fulfilled' && r.value?.data ? r.value.data : ref;
+            }),
+          );
+        }
       }
 
       if (pagesRes.status !== 'fulfilled') return;
@@ -241,34 +258,64 @@ export default function LandingPage() {
             </TouchableOpacity>
           </View>
           {useCmsCourses ? (
-            // The list endpoint only carries id/name/code — no blurb, rating or
-            // learner count — so those lines are left out rather than faked.
-            <View style={homeStyles.courseGrid}>
-              {cmsExams.map((exam) => (
-                <TouchableOpacity
-                  style={homeStyles.courseCard}
-                  key={String(exam.id)}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/courses/[id]',
-                      params: { id: String(exam.id) },
-                    })
-                  }
-                >
-                  <View style={homeStyles.courseCardTopRow}>
-                    <View style={homeStyles.courseIconBox}>
-                      <Text style={homeStyles.courseIcon}>📘</Text>
+            // One card per row: icon + Featured pill, name, subject names, then
+            // a footer with the subject/question counts and the price.
+            <View>
+              {cmsExams.map((exam) => {
+                const subjects = (exam.subjects ?? []).filter(
+                  (subject) => subject?.display_subject !== false,
+                );
+                const questionCount = subjects.reduce(
+                  (total, subject) => total + (subject.questions_count ?? 0),
+                  0,
+                );
+                return (
+                  <TouchableOpacity
+                    style={homeStyles.examCard}
+                    key={String(exam.id)}
+                    activeOpacity={0.85}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/courses/[id]',
+                        params: { id: String(exam.id) },
+                      })
+                    }
+                  >
+                    <View style={homeStyles.examCardTopRow}>
+                      <View style={homeStyles.courseIconBox}>
+                        <Text style={homeStyles.courseIcon}>🎯</Text>
+                      </View>
+                      <View style={homeStyles.examFeaturedPill}>
+                        <Text style={homeStyles.examFeaturedText}>✨ Featured</Text>
+                      </View>
                     </View>
-                    <View style={homeStyles.courseTag}>
-                      <Text style={homeStyles.courseTagText}>FREE</Text>
+
+                    <Text style={homeStyles.examCardTitle}>{exam.name}</Text>
+                    {subjects.length > 0 && (
+                      <Text style={homeStyles.examCardSubjects} numberOfLines={2}>
+                        {subjects.map((subject) => subject.name).join(' · ')}
+                      </Text>
+                    )}
+
+                    <View style={homeStyles.examCardDivider} />
+
+                    <View style={homeStyles.examCardFooter}>
+                      {subjects.length > 0 && (
+                        <Text style={homeStyles.examCardMeta}>
+                          📖 {subjects.length}{' '}
+                          {subjects.length === 1 ? 'subject' : 'subjects'}
+                        </Text>
+                      )}
+                      {questionCount > 0 && (
+                        <Text style={homeStyles.examCardMeta}>
+                          ✓ {questionCount} questions
+                        </Text>
+                      )}
+                      <Text style={homeStyles.examCardFree}>FREE</Text>
                     </View>
-                  </View>
-                  <Text style={homeStyles.courseTitle}>{exam.name}</Text>
-                  <Text style={homeStyles.courseDesc}>
-                    {exam.code?.toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           ) : (
           <View style={homeStyles.courseGrid}>
@@ -351,7 +398,7 @@ export default function LandingPage() {
         {/* CTA */}
         <View style={homeStyles.ctaSection}>
           <Text style={homeStyles.ctaTitle}>{ctaSection.title}</Text>
-          <Text style={homeStyles.ctaSubtitle}>{ctaSection.subtitle}</Text>
+          {/* <Text style={homeStyles.ctaSubtitle}>{ctaSection.subtitle}</Text> */}
           <TouchableOpacity style={homeStyles.ctaButton} onPress={() => router.push('/auth/sign-up')}>
             <Text style={homeStyles.ctaButtonText}>{ctaSection.button}</Text>
           </TouchableOpacity>

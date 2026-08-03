@@ -17,6 +17,8 @@ export default function CourseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [tab, setTab] = useState<Tab>('syllabus');
   const [openFaq, setOpenFaq] = useState(0);
+  // Syllabus accordion — every subject starts collapsed.
+  const [expandedSubjects, setExpandedSubjects] = useState<Record<number, boolean>>({});
 
   const isNumericId = !!id && /^\d+$/.test(String(id));
   // Static catalogue entry, keyed by slug — only for the non-numeric route.
@@ -78,6 +80,10 @@ export default function CourseDetailScreen() {
   const cmsSubjects = (cmsExam?.subjects ?? []).filter(
     (subject) => subject?.display_subject !== false,
   );
+  const cmsQuestionCount = cmsSubjects.reduce(
+    (total, subject) => total + (subject.questions_count ?? 0),
+    0,
+  );
   const title = cmsExam?.name ?? catalogCourse?.name ?? '';
   const tagline =
     cmsExam?.description?.trim() || course?.tagline || catalogCourse?.blurb || '';
@@ -134,6 +140,9 @@ export default function CourseDetailScreen() {
               {cmsSubjects.length > 0 && (
                 <Text style={s.courseHeroMetaText}>☰ {cmsSubjects.length} subjects</Text>
               )}
+              {cmsQuestionCount > 0 && (
+                <Text style={s.courseHeroMetaText}>✓ {cmsQuestionCount} questions</Text>
+              )}
             </>
           ) : (
             <>
@@ -164,18 +173,65 @@ export default function CourseDetailScreen() {
           <View>
             {cmsSubjects.length > 0 ? (
               <>
-                {cmsSubjects.map((subject) => (
-                  <View style={s.syllabusRow} key={subject.id}>
-                    <Text style={s.syllabusIcon}>📘</Text>
-                    <Text style={s.syllabusName}>{subject.name}</Text>
-                    <Text style={s.syllabusTopics}>
-                      {subject.topics?.length ?? 0} topics
-                      {subject.questions_count != null
-                        ? ` · ${subject.questions_count} Qs`
-                        : ''}
-                    </Text>
-                  </View>
-                ))}
+                <Text style={s.sylSubtitle}>
+                  Organised into subjects → topics → sub-topics.
+                </Text>
+                {cmsSubjects.map((subject) => {
+                  const open = expandedSubjects[subject.id] === true;
+                  const topics = subject.topics ?? [];
+                  return (
+                    <View style={s.sylCard} key={subject.id}>
+                      <TouchableOpacity
+                        style={s.sylHeaderRow}
+                        activeOpacity={0.75}
+                        onPress={() =>
+                          setExpandedSubjects((prev) => ({
+                            ...prev,
+                            [subject.id]: !prev[subject.id],
+                          }))
+                        }
+                      >
+                        <Ionicons
+                          name={open ? 'chevron-down' : 'chevron-forward'}
+                          size={16}
+                          color="#9CA3AF"
+                        />
+                        <Text style={s.sylSubjectName}>{subject.name}</Text>
+                        <Text style={s.sylMeta}>
+                          {topics.length} topics
+                          {subject.questions_count != null
+                            ? ` · ${subject.questions_count} Qs`
+                            : ''}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {open && (
+                        <View style={s.sylBody}>
+                          {topics.length === 0 ? (
+                            <Text style={s.sylEmptyTopics}>
+                              Topics for this subject are being added.
+                            </Text>
+                          ) : (
+                            topics.map((topic: any) => (
+                              <View style={s.sylTopicBlock} key={topic.id}>
+                                <Text style={s.sylTopicName}>{topic.name}</Text>
+                                {(topic.subtopics ?? []).length > 0 && (
+                                  <View style={s.sylChipRow}>
+                                    {topic.subtopics.map((sub: any) => (
+                                      <View style={s.sylChip} key={sub.id}>
+                                        <Text style={s.sylChipText}>{sub.name}</Text>
+                                      </View>
+                                    ))}
+                                  </View>
+                                )}
+                              </View>
+                            ))
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
                 <View style={s.sampleBanner}>
                   <Ionicons name="eye-outline" size={16} color="#4F46E5" />
                   <Text style={s.sampleBannerText}>Try a few sample questions free before you subscribe.</Text>

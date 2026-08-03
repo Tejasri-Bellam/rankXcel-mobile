@@ -80,26 +80,26 @@ export const homeData = {
   howItWorks: {
     title: "How RankXcel works",
     steps: [
+      // {
+      //   no: 1,
+      //   icon: "🎯",
+      //   title: "Take a diagnostic",
+      //   desc: "We map your strengths across every topic in minutes.",
+      // },
       {
         no: 1,
-        icon: "🎯",
-        title: "Take a diagnostic",
-        desc: "We map your strengths across every topic in minutes.",
-      },
-      {
-        no: 2,
         icon: "🔁",
         title: "Practice your weak spots",
         desc: "Adaptive questions with instant explanations, every day.",
       },
       {
-        no: 3,
+        no: 2,
         icon: "📄",
         title: "Mock the real exam",
         desc: "Full-length, timed mocks that mirror the actual paper.",
       },
       {
-        no: 4,
+        no: 3,
         icon: "📊",
         title: "Track your readiness",
         desc: "A live gauge tells you exactly when you're ready.",
