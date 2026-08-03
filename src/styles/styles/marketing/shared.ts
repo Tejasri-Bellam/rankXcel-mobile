@@ -125,6 +125,44 @@ export const marketingStyles = StyleSheet.create({
   },
   sampleBannerText: { flex: 1, fontSize: 12, color: PRIMARY, fontWeight: '600' },
 
+  /* CMS syllabus — collapsible subject → topics → sub-topics */
+  sylSubtitle: { fontSize: 13, color: TEXT_GRAY, marginBottom: 14 },
+  sylCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFEEF5',
+    borderRadius: 14,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  sylHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  sylSubjectName: { flex: 1, fontSize: 15, fontWeight: '700', color: TEXT_DARK },
+  sylMeta: { fontSize: 12, color: TEXT_GRAY },
+  sylBody: {
+    borderTopWidth: 1,
+    borderTopColor: '#F1F0F7',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  sylTopicBlock: { marginBottom: 12 },
+  sylTopicName: { fontSize: 13.5, fontWeight: '700', color: TEXT_DARK, marginBottom: 8 },
+  sylChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  sylChip: {
+    backgroundColor: LAVENDER_BG,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  sylChipText: { fontSize: 12, fontWeight: '600', color: TEXT_GRAY },
+  sylEmptyTopics: { fontSize: 12.5, color: TEXT_GRAY, paddingBottom: 12 },
+
   /* Fallback preview (no full detail) */
   previewFallback: { alignItems: 'center', paddingVertical: 30 },
   previewFallbackIconWrap: {
