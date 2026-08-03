@@ -504,7 +504,7 @@ export default function AnalyticsScreen() {
     .slice(0, 6);
 
   // Tapping a weak node jumps into Practice for that topic (same deep-link the
-  // dashboard's "Continue practising" uses — opens the practice setup modal).
+  // dashboard's "Recommended for you" uses — opens the practice setup modal).
   const startPracticeForNode = (node: {
     name: string;
     subject: string;

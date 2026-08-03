@@ -49,8 +49,6 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
     if (items.length >= MAX_ITEMS) break;
   }
 
-  if (!items.length) return null;
-
   const startPractice = (item: PracticeItem) => {
     if (examId == null) return;
     router.push({
@@ -70,12 +68,19 @@ export default function Continue({ dashboardData, examId }: ContinueProps) {
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <Ionicons name="locate" size={16} color={COLORS.primary} />
-          <Text style={styles.sectionTitle}>Continue practising</Text>
+          <Text style={styles.sectionTitle}>Recommended for you</Text>
         </View>
         <TouchableOpacity onPress={() => router.replace("/practice")}>
           <Text style={styles.link}>Syllabus ›</Text>
         </TouchableOpacity>
       </View>
+
+      {items.length === 0 && (
+        <View style={[styles.card, styles.emptyCard]}>
+          <Ionicons name="locate-outline" size={22} color={COLORS.textLight} />
+          <Text style={styles.emptyText}>Nothing to practise yet.</Text>
+        </View>
+      )}
 
       {items.map((item, index) => {
         const palette = subjectStyle[item.subject] ?? fallbackStyle;
@@ -171,4 +176,13 @@ const styles: any = {
     paddingVertical: 7,
   },
   practiceBtnText: { fontSize: 12, fontWeight: "700", color: COLORS.primary },
+  // Mirrors the Upcoming section's empty card so the dashboard reads the same
+  // wherever a section has nothing to show.
+  emptyCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 22,
+    gap: 8,
+  },
+  emptyText: { fontSize: 13, color: COLORS.textLight },
 };
