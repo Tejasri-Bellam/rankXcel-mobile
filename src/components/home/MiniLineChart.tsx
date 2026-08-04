@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LayoutChangeEvent, StyleSheet, View } from "react-native";
+import { LayoutChangeEvent, StyleSheet, Text, View } from "react-native";
 
 interface SeriesConfig {
   data: number[];
@@ -17,7 +17,17 @@ interface Props {
   height?: number;
   lineWidth?: number;
   padRatio?: number;
+  /** Print each point's value above its dot (single-series charts only). */
+  showValues?: boolean;
+  /** How a value is rendered when showValues is on — e.g. `${v}%`. */
+  formatValue?: (value: number, index: number) => string;
+  /** One x-axis caption per point; thinned automatically when they'd collide. */
+  labels?: (string | null | undefined)[];
 }
+
+const VALUE_SPACE = 16; // headroom above the plot for the value captions
+const LABEL_SPACE = 18; // strip below the plot for the x-axis captions
+const CAPTION_W = 52; // fixed width so captions can be centred on their dot
 
 export default function MiniLineChart({
   data,
@@ -27,6 +37,9 @@ export default function MiniLineChart({
   height = 120,
   lineWidth = 3,
   padRatio = 0.15,
+  showValues = false,
+  formatValue = (v) => String(v),
+  labels,
 }: Props) {
   const [width, setWidth] = useState(0);
 
@@ -43,6 +56,11 @@ export default function MiniLineChart({
         : [];
 
   const dotR = lineWidth + 2;
+  const hasLabels = Array.isArray(labels) && labels.some(Boolean);
+  const valueSpace = showValues ? VALUE_SPACE : 0;
+  const labelSpace = hasLabels ? LABEL_SPACE : 0;
+  // Captions overhang the outermost dots, so inset the plot to keep them on-card.
+  const padX = showValues || hasLabels ? 18 : 0;
 
   const pointsFor = (() => {
     if (width <= 0 || allSeries.length === 0) return [] as { x: number; y: number }[][];
@@ -54,27 +72,46 @@ export default function MiniLineChart({
     const lo = min - pad;
     const hi = max + pad;
     const span = hi - lo || 1;
-    const usableH = height - dotR * 2;
+    const plotW = Math.max(1, width - padX * 2);
+    const usableH = height - dotR * 2 - valueSpace;
 
     return allSeries.map((s) => {
-      const stepX = s.data.length > 1 ? width / (s.data.length - 1) : 0;
+      const stepX = s.data.length > 1 ? plotW / (s.data.length - 1) : 0;
       return s.data.map((v, i) => {
-        const x = s.data.length > 1 ? i * stepX : width / 2;
+        const x = padX + (s.data.length > 1 ? i * stepX : plotW / 2);
         const norm = (v - lo) / span;
-        const y = dotR + (1 - norm) * usableH;
+        const y = dotR + valueSpace + (1 - norm) * usableH;
         return { x, y };
       });
     });
   })();
 
+  // Only as many captions as fit are drawn — picked backwards from the latest
+  // point so the most recent session is always labelled and spacing stays even.
+  const labelIdx = (() => {
+    const shown = new Set<number>();
+    const n = labels?.length ?? 0;
+    if (!n || width <= 0) return shown;
+    const maxLabels = Math.max(2, Math.floor((width - padX * 2) / 56));
+    const step = Math.max(1, Math.ceil(n / maxLabels));
+    for (let i = n - 1; i >= 0; i -= step) shown.add(i);
+    return shown;
+  })();
+
   return (
-    <View style={{ height }} onLayout={onLayout}>
+    <View style={{ height: height + labelSpace }} onLayout={onLayout}>
       {fillColor && pointsFor.length > 0 ? (
         <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: fillColor, borderRadius: 12, opacity: 0.5 },
-          ]}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            height,
+            backgroundColor: fillColor,
+            borderRadius: 12,
+            opacity: 0.5,
+          }}
         />
       ) : null}
 
@@ -138,9 +175,69 @@ export default function MiniLineChart({
                 />
               )
             )}
+
+            {showValues
+              ? points.map((p, i) => (
+                  <View
+                    key={`val-${si}-${i}`}
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      left: p.x - CAPTION_W / 2,
+                      // Sits above the dot; flips below when the dot is at the top.
+                      top:
+                        p.y - dotR - VALUE_SPACE < 0
+                          ? p.y + dotR + 2
+                          : p.y - dotR - VALUE_SPACE,
+                      width: CAPTION_W,
+                    }}
+                  >
+                    <Text style={[styles.caption, { color: s.color }]} numberOfLines={1}>
+                      {formatValue(s.data[i], i)}
+                    </Text>
+                  </View>
+                ))
+              : null}
           </React.Fragment>
         );
       })}
+
+      {hasLabels
+        ? (pointsFor[0] ?? []).map((p, i) => {
+            const text = labels?.[i];
+            if (!text || !labelIdx.has(i)) return null;
+            return (
+              <View
+                key={`lbl-${i}`}
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: p.x - CAPTION_W / 2,
+                  top: height + 2,
+                  width: CAPTION_W,
+                }}
+              >
+                <Text style={styles.axisLabel} numberOfLines={1}>
+                  {text}
+                </Text>
+              </View>
+            );
+          })
+        : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  caption: {
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  axisLabel: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: "#8A90A6",
+    textAlign: "center",
+  },
+});

@@ -312,18 +312,7 @@ export const examScreenStyles = StyleSheet.create({
   rightActionsRow: {
   flexDirection: "row",
   alignItems: "center",
-  gap: 10,          // <- this is the gap between marks / flag / mark
+  gap: 10,          // <- this is the gap between marks and mark-for-review
   marginLeft: "auto",
-},
-
-  flagBtn: {
-  width: 34,
-  height: 34,
-  borderRadius: 10,
-  borderWidth: 1,
-  borderColor: "#E5E7EB",
-  alignItems: "center",
-  justifyContent: "center",
-  backgroundColor: "#fff",
 },
 });

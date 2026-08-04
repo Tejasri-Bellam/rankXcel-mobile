@@ -35,7 +35,6 @@ import {
   saveActiveAttempt,
 } from "../../libs/utils/examSession";
 import QuestionPalette, { PaletteStatus } from "../common/QuestionPalette";
-import FlagQuestionModal from "../common/FlagQuestionModal";
 
 interface Props {
   assessmentId: number;
@@ -134,7 +133,6 @@ export default function ExamScreen({
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
-  const [showFlagModal, setShowFlagModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Set once the attempt is submitted. The runner stays mounted behind the
   // success popup while the parent redirects home, so this freezes the countdown
@@ -748,9 +746,6 @@ export default function ExamScreen({
     (s.questions ?? []).map((q: any, qi: number) => ({ q, si, qi })),
   );
   const totalQ = flatQuestions.length;
-  const currentFlatIdx = flatQuestions.findIndex(
-    ({ si, qi }: any) => si === activeSectionIdx && qi === activeQIdx,
-  );
   const currentQId = getCurrentQuestionId();
   const isMarked = qStatuses[currentQId] === "marked";
   const isLast =
@@ -781,7 +776,7 @@ export default function ExamScreen({
     const status = qStatuses[q.id];
     const hasAnswer = (answers[q.id] || []).length > 0;
     if (isCurrent) return '#6C63FF'
-    if (status === "answered" && hasAnswer) return '#6C63FF';
+    if (status === "answered" && hasAnswer) return '#22C55E';
     if (status === "marked") return "#F59E0B";
     return "#E5E7EB";
   });
@@ -936,10 +931,6 @@ export default function ExamScreen({
                   </Text>
                 </View>
               </View>
-
-              <TouchableOpacity style={styles.flagBtn} onPress={() => setShowFlagModal(true)} activeOpacity={0.75}>
-                <Ionicons name="flag-outline" size={16} color="#9CA3AF" />
-              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.markBtn, isMarked && styles.markBtnActive]}
@@ -1194,23 +1185,6 @@ export default function ExamScreen({
           </View>
         </TouchableOpacity>
       </Modal>
-      <FlagQuestionModal
-        visible={showFlagModal}
-        onClose={() => setShowFlagModal(false)}
-        questionId={activeQuestion?.id}
-        questionNumber={currentFlatIdx + 1}
-        choices={
-          isNumericalType(activeQuestion?.type)
-            ? []
-            : (activeQuestion?.options ?? []).map((o: any, idx: number) => ({
-                id: o.id,
-                label: String.fromCharCode(65 + idx),
-                // Raw HTML: the modal renders it through RichContent so an
-                // equation-only option is not listed as its LaTeX source.
-                text: o.text,
-              }))
-        }
-      />
     </SafeAreaView>
   );
 }

@@ -203,11 +203,12 @@ const ProgressBar = ({
       let bg = "#E5E7EB";
       if (i === current) bg = '#6C63FF';
       else if (i < current) {
-        // Test mode never reveals correctness mid-test — answered segments
-        // show a neutral filled state instead of green/red.
-        if (isTest) bg = a.answered ? "#BFD3FB" : "#E5E7EB";
+        // Test mode never reveals correctness mid-test — every answered segment
+        // is simply green.
+        if (isTest) bg = a.answered ? "#22C55E" : "#E5E7EB";
         else if (a.correct === true) bg = "#22C55E";
         else if (a.correct === false) bg = "#EF4444";
+        else if (a.answered) bg = "#22C55E";
       }
       return (
         <View

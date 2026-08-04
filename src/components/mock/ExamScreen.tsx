@@ -26,7 +26,6 @@ import {
   saveActiveAttempt,
 } from '../../libs/utils/examSession';
 import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
-import FlagQuestionModal from '../common/FlagQuestionModal';
 import ConfirmModal from '../common/ConfirmModal';
 
 interface Props {
@@ -105,7 +104,6 @@ export default function MockExamScreen({
   const [answers, setAnswers] = useState<Record<string, string[]>>(initialAnswers ?? {});
   const [qStatuses, setQStatuses] = useState<Record<string, QuestionStatus>>(initialStatuses ?? {});
   const [showPalette, setShowPalette] = useState(false);
-  const [showFlagModal, setShowFlagModal] = useState(false);
   const [showSubmitSheet, setShowSubmitSheet] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -452,7 +450,7 @@ export default function MockExamScreen({
     const isCurrent = si === activeSectionIdx && qi === activeQIdx;
     const status = qStatuses[qid];
     if (isCurrent) return '#6C63FF';
-    if (status === 'answered') return '#6C63FF';
+    if (status === 'answered') return '#22C55E';
     if (status === 'marked') return '#F59E0B';
     return '#E5E7EB';
   });
@@ -549,10 +547,6 @@ export default function MockExamScreen({
                 );
               })()}
             </View>
-
-            <TouchableOpacity style={styles.flagBtn} onPress={() => setShowFlagModal(true)} activeOpacity={0.75}>
-              <Ionicons name="flag-outline" size={16} color="#9CA3AF" />
-            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.markBtn, isMarked && styles.markBtnActive]}
@@ -766,24 +760,6 @@ export default function MockExamScreen({
         onCancel={() => setShowExitConfirm(false)}
         onConfirm={confirmExit}
       />
-      <FlagQuestionModal
-        visible={showFlagModal}
-        onClose={() => setShowFlagModal(false)}
-        questionId={currentQId}
-        questionNumber={currentFlatIdx + 1}
-        choices={
-          (activeQuestion?.options?.length ?? 0) === 0
-            ? []
-            : (activeQuestion?.options ?? []).map((o: any, idx: number) => ({
-                id: String(o.id),
-                label: String.fromCharCode(65 + idx),
-                // Raw HTML: the modal renders it through RichContent so an
-                // equation-only option is not listed as its LaTeX source.
-                text: o.text,
-              }))
-        }
-      />
-
       {/* Submitting overlay — blocks all interaction (answering, navigating)
           while the attempt is finalized server-side, which can take a while.
           Deliberately NOT a <Modal>: `submitting` stays true right through

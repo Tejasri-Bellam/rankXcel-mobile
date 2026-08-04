@@ -346,17 +346,6 @@ export const examScreenStyles = StyleSheet.create({
   marginLeft: 'auto',
 },
 
-  flagBtn: {
-  width: 30,
-  height: 28,
-  borderRadius: 10,
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: '#fff',
-
-},
 
   // Full-screen blocking overlay shown while the attempt is being submitted.
   // Rendered in-tree (not in a Modal), so it has to fill the screen itself.
