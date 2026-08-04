@@ -13,6 +13,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import RichContent from "@/src/components/common/RichContent";
+import ReviewFilterTabs, {
+  ReviewFilter,
+  ReviewFilterEmpty,
+} from "@/src/components/common/ReviewFilterTabs";
 import { hasRichContent } from "@/src/libs/utils/richContent";
 import { numericAnswersEqual } from "@/src/libs/utils/numericAnswer";
 import { AnswerState } from "./PracticeExamFlow";
@@ -252,6 +256,7 @@ export default function PracticeResults({
   onBackToHub,
 }: Props) {
   const [view, setView] = useState<"results" | "review">("results");
+  const [filter, setFilter] = useState<ReviewFilter>("all");
   // Tracks which question's explanation panel is open on the review screen
   // (keyed by question id), mirroring SolutionViewer's collapsible "Why" box.
   const [expandedExplanations, setExpandedExplanations] = useState<Record<string, boolean>>({});
@@ -323,6 +328,26 @@ const wrong = statuses.filter((s) => s === "wrong").length;
 
   // Raw marks from the server result (reflects negative marking, unlike the
   // accuracy above). Only shown when the /result/ payload carries a maximum.
+  // Review rows keep their original position so a card stays "Q7" once the
+  // outcome filter narrows the list.
+  const reviewRows = effQuestions.map((q, index) => ({ q, index, status: statuses[index] }));
+  const filterCounts = {
+    all: reviewRows.length,
+    correct: reviewRows.filter((r) => r.status === "correct").length,
+    incorrect: reviewRows.filter((r) => r.status === "wrong").length,
+    skipped: reviewRows.filter((r) => r.status === "skipped").length,
+  };
+  const visibleRows =
+    filter === "all"
+      ? reviewRows
+      : reviewRows.filter((r) =>
+          filter === "correct"
+            ? r.status === "correct"
+            : filter === "incorrect"
+            ? r.status === "wrong"
+            : r.status === "skipped",
+        );
+
   const totalScore = Number(apiResult?.total_score ?? 0);
   const maxScore = Number(apiResult?.max_score ?? 0);
   const hasScore = maxScore > 0;
@@ -342,11 +367,14 @@ const wrong = statuses.filter((s) => s === "wrong").length;
           <Text style={styles.reviewHeaderTitle}>Review</Text>
         </View>
 
+        <ReviewFilterTabs value={filter} onChange={setFilter} counts={filterCounts} />
+
         <FlatList
-          data={effQuestions}
-          keyExtractor={(_item, index) => String(index)}
+          data={visibleRows}
+          keyExtractor={(item) => String(item.index)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.reviewScrollContent}
+          ListEmptyComponent={<ReviewFilterEmpty filter={filter} />}
           ListFooterComponent={<View style={{ height: 20 }} />}
           // A paper can run to 90 questions and each card can hold several
           // KaTeX WebViews (question + every option). A ScrollView would mount
@@ -354,7 +382,8 @@ const wrong = statuses.filter((s) => s === "wrong").length;
           initialNumToRender={3}
           maxToRenderPerBatch={3}
           windowSize={5}
-          renderItem={({ item: q, index: i }) => {
+          renderItem={({ item: row }) => {
+            const { q, index: i, status: qStatus } = row;
             const ans = effAnswers[i];
             const userSel = ans?.selected ?? null;
             const multi = isMultiSelectType(q.type);
@@ -370,7 +399,6 @@ const wrong = statuses.filter((s) => s === "wrong").length;
               : q.correctChoiceId != null
               ? [String(q.correctChoiceId)]
               : [];
-            const qStatus = statuses[i];
             const numeric = isNumericalType(q.type);
             const explKey = String(q.id ?? i);
             const isOpen = !!expandedExplanations[explKey];
