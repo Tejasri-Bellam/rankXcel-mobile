@@ -27,6 +27,10 @@ import RichContent from '../common/RichContent';
 import TutorModal, { ConversationApi } from '@/src/components/common/TutorModal';
 import FlagQuestionModal, { FlagChoiceOption } from '@/src/components/common/FlagQuestionModal';
 import QuestionReportHistory from '@/src/components/common/QuestionReportHistory';
+import ReviewFilterTabs, {
+  ReviewFilter,
+  ReviewFilterEmpty,
+} from '@/src/components/common/ReviewFilterTabs';
 
 interface Props {
   mockId: number | string;
@@ -100,6 +104,60 @@ const selectedIdsFor = (q: any): string[] => {
   return (Array.isArray(raw) ? raw : []).map((v: any) => String(v?.id ?? v));
 };
 
+// Everything the review card needs to know about a question's outcome. Derived
+// once per question so the filter tabs and the card agree on the verdict.
+const deriveOutcome = (
+  q: any,
+  solution: any,
+  answers: Record<string, string[]>,
+) => {
+  const qid = getQuestionId(q);
+  const correctAnswers = correctIdsWithSolution(q, solution);
+  const apiSelected = selectedIdsFor(q);
+  const userAnswer =
+    qid != null && answers[String(qid)]?.length ? answers[String(qid)] : apiSelected;
+
+  const questionType = q?.question_type ?? q?.type ?? 'MCQ';
+  const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
+
+  // The server's numeric_answer is what was actually graded, so it wins over
+  // the locally-held answer from this session.
+  const rawNumericUser =
+    q?.your_answer?.numeric_answer ??
+    q?.numeric_answer ??
+    (qid != null ? answers[String(qid)]?.[0] : undefined);
+  const numericUser =
+    isNumericQ && rawNumericUser != null ? String(rawNumericUser).trim() : '';
+  const numericCorrect = isNumericQ ? numericAnswerWithSolution(q, solution) : '';
+
+  const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
+
+  // `outcome` is the server's verdict — it already accounts for the grading
+  // tolerance on NUMERICAL questions, so trust it whenever it is decisive. It is
+  // only re-derived locally when the field is missing or says "skipped" for a
+  // question that was in fact answered (a known quirk of /review/ on numeric
+  // questions; /result/ totals count them).
+  const outcome = String(q?.outcome ?? '').toLowerCase();
+  const outcomeIsGraded =
+    outcome === 'correct' || outcome === 'wrong' || outcome === 'incorrect';
+
+  const derivedCorrect = isNumericQ
+    ? attempted && numericAnswersEqual(numericUser, numericCorrect)
+    : userAnswer.length > 0 &&
+      correctAnswers.length === userAnswer.length &&
+      correctAnswers.every((a: string) => userAnswer.includes(a));
+
+  return {
+    correctAnswers,
+    userAnswer,
+    isNumericQ,
+    numericUser,
+    numericCorrect,
+    isCorrect: outcomeIsGraded ? outcome === 'correct' : derivedCorrect,
+    isSkipped: outcomeIsGraded ? false : !attempted,
+  };
+};
+
 export default function MockSolutionViewer({ mockId, attemptId, answers, onBack }: Props) {
   const [reviewData, setReviewData] = useState<any>(null);
   const [solutionsMap, setSolutionsMap] = useState<Record<string, any>>({});
@@ -111,6 +169,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
     number: number;
     choices: FlagChoiceOption[];
   } | null>(null);
+  const [filter, setFilter] = useState<ReviewFilter>('all');
   const { toast, showToast, hideToast } = useToast();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,6 +196,36 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
   }, [mockId, tutorQ?.id]);
 
   const questions: any[] = useMemo(() => reviewData?.questions ?? [], [reviewData]);
+
+  // One row per question, carrying its original position so the card keeps its
+  // "Q7" label once the list is filtered.
+  const rows = useMemo(
+    () =>
+      questions.map((q: any, index: number) => {
+        const qid = getQuestionId(q);
+        const solution = qid != null ? solutionsMap[String(qid)] : null;
+        return { q, index, solution, outcome: deriveOutcome(q, solution, answers) };
+      }),
+    [questions, solutionsMap, answers],
+  );
+
+  const counts = useMemo(
+    () => ({
+      all: rows.length,
+      correct: rows.filter((r) => !r.outcome.isSkipped && r.outcome.isCorrect).length,
+      incorrect: rows.filter((r) => !r.outcome.isSkipped && !r.outcome.isCorrect).length,
+      skipped: rows.filter((r) => r.outcome.isSkipped).length,
+    }),
+    [rows],
+  );
+
+  const visibleRows = useMemo(() => {
+    if (filter === 'all') return rows;
+    if (filter === 'skipped') return rows.filter((r) => r.outcome.isSkipped);
+    if (filter === 'correct')
+      return rows.filter((r) => !r.outcome.isSkipped && r.outcome.isCorrect);
+    return rows.filter((r) => !r.outcome.isSkipped && !r.outcome.isCorrect);
+  }, [rows, filter]);
 
   const loadReview = async () => {
     try {
@@ -205,58 +294,32 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
         <Text style={styles.headerTitle}>Review</Text>
       </View>
 
+      <ReviewFilterTabs value={filter} onChange={setFilter} counts={counts} />
+
       <FlatList
-        data={questions}
-        keyExtractor={(_item: any, index: number) => String(index)}
+        data={visibleRows}
+        keyExtractor={(item) => String(item.index)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        ListEmptyComponent={<ReviewFilterEmpty filter={filter} />}
         // A paper can run to 90 questions and each card can hold several KaTeX
         // WebViews (question + every option). A ScrollView would mount them all
         // at once; FlatList keeps only the cards near the viewport alive.
         initialNumToRender={3}
         maxToRenderPerBatch={3}
         windowSize={5}
-        renderItem={({ item: q, index: qIdx }: { item: any; index: number }) => {
+        renderItem={({ item: row }) => {
+          const { q, index: qIdx, solution: currentSolution } = row;
           const qid = getQuestionId(q);
-          const currentSolution = qid != null ? solutionsMap[String(qid)] : null;
-          const correctAnswers = correctIdsWithSolution(q, currentSolution);
-          const apiSelected = selectedIdsFor(q);
-          const userAnswer =
-            qid != null && answers[String(qid)]?.length ? answers[String(qid)] : apiSelected;
-
-          const questionType = q?.question_type ?? q?.type ?? 'MCQ';
-          const isNumericQ = String(questionType).toUpperCase().includes('NUMERIC');
-
-          // The server's numeric_answer is what was actually graded, so it wins
-          // over the locally-held answer from this session.
-          const rawNumericUser =
-            q?.your_answer?.numeric_answer ??
-            q?.numeric_answer ??
-            (qid != null ? answers[String(qid)]?.[0] : undefined);
-          const numericUser =
-            isNumericQ && rawNumericUser != null ? String(rawNumericUser).trim() : '';
-          const numericCorrect = isNumericQ ? numericAnswerWithSolution(q, currentSolution) : '';
-
-          const attempted = isNumericQ ? numericUser !== '' : userAnswer.length > 0;
-
-          // `outcome` is the server's verdict — it already accounts for the
-          // grading tolerance on NUMERICAL questions, so trust it whenever it is
-          // decisive. It is only re-derived locally when the field is missing or
-          // says "skipped" for a question that was in fact answered (a known
-          // quirk of /review/ on numeric questions; /result/ totals count them).
-          const outcome = String(q?.outcome ?? '').toLowerCase();
-          const outcomeIsGraded =
-            outcome === 'correct' || outcome === 'wrong' || outcome === 'incorrect';
-
-          const derivedCorrect = isNumericQ
-            ? attempted && numericAnswersEqual(numericUser, numericCorrect)
-            : userAnswer.length > 0 &&
-              correctAnswers.length === userAnswer.length &&
-              correctAnswers.every((a: string) => userAnswer.includes(a));
-
-          const isCorrect = outcomeIsGraded ? outcome === 'correct' : derivedCorrect;
-
-          const isSkipped = outcomeIsGraded ? false : !attempted;
+          const {
+            correctAnswers,
+            userAnswer,
+            isNumericQ,
+            numericUser,
+            numericCorrect,
+            isCorrect,
+            isSkipped,
+          } = row.outcome;
 
           const explanation =
             currentSolution?.explanation ??
