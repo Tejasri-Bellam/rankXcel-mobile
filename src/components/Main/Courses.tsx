@@ -105,61 +105,95 @@ export default function CoursesScreen() {
             they&apos;re published.
           </Text>
         ) : useCms ? (
-          <View style={s.courseListGrid}>
-            {cmsCourses.map((exam) => (
-              <TouchableOpacity
-                key={String(exam.id)}
-                style={s.courseListCard}
-                onPress={() =>
-                  router.push({
-                    pathname: '/courses/[id]',
-                    params: { id: String(exam.id) },
-                  })
-                }
-              >
-                <View style={s.courseListTopRow}>
-                  <View style={[s.courseListIconBox, { backgroundColor: '#4F46E51A' }]}>
-                    <Text style={s.courseListIcon}>📘</Text>
+          <View>
+            {cmsCourses.map((exam) => {
+              const subjects = (exam.subjects ?? []).filter(
+                (subject) => subject?.display_subject !== false,
+              );
+              const questionCount = subjects.reduce(
+                (total, subject) => total + (subject.questions_count ?? 0),
+                0,
+              );
+              return (
+                <TouchableOpacity
+                  key={String(exam.id)}
+                  style={s.examCard}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/courses/[id]',
+                      params: { id: String(exam.id) },
+                    })
+                  }
+                >
+                  <View style={s.examCardTopRow}>
+                    <View style={s.examCardIconBox}>
+                      <Text style={s.examCardIcon}>🎯</Text>
+                    </View>
+                    <View style={s.examFeaturedPill}>
+                      <Text style={s.examFeaturedText}>✨ Featured</Text>
+                    </View>
                   </View>
-                  <View style={s.courseFreeTag}>
-                    <Text style={s.courseFreeTagText}>FREE</Text>
+
+                  <Text style={s.examCardTitle}>{exam.name}</Text>
+                  {subjects.length > 0 && (
+                    <Text style={s.examCardSubjects} numberOfLines={2}>
+                      {subjects.map((subject) => subject.name).join(' · ')}
+                    </Text>
+                  )}
+
+                  <View style={s.examCardDivider} />
+
+                  <View style={s.examCardFooter}>
+                    {subjects.length > 0 && (
+                      <Text style={s.examCardMeta}>
+                        📖 {subjects.length}{' '}
+                        {subjects.length === 1 ? 'subject' : 'subjects'}
+                      </Text>
+                    )}
+                    {questionCount > 0 && (
+                      <Text style={s.examCardMeta}>✓ {questionCount} questions</Text>
+                    )}
                   </View>
-                </View>
-                <Text style={s.courseListTitle}>{exam.name}</Text>
-                {/* No blurb/rating/learners on this endpoint — the code stands
-                    in rather than inventing numbers. */}
-                <Text style={s.courseListDesc}>{exam.code?.toUpperCase()}</Text>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
             {cmsCourses.length === 0 && (
               <Text style={s.h1Subtitle}>No exams match “{query.trim()}”.</Text>
             )}
           </View>
         ) : (
-          <View style={s.courseListGrid}>
+          <View>
             {staticCourses.map((course) => (
               <TouchableOpacity
                 key={course.slug}
-                style={s.courseListCard}
+                style={s.examCard}
+                activeOpacity={0.85}
                 // Static cards keep their slug — the detail screen treats a
                 // non-numeric route param as a catalogue key.
                 onPress={() =>
                   router.push({ pathname: '/courses/[id]', params: { id: course.slug } })
                 }
               >
-                <View style={s.courseListTopRow}>
-                  <View style={[s.courseListIconBox, { backgroundColor: `${course.color}1A` }]}>
-                    <Text style={s.courseListIcon}>{course.emoji}</Text>
+                <View style={s.examCardTopRow}>
+                  <View style={[s.examCardIconBox, { backgroundColor: `${course.color}1A` }]}>
+                    <Text style={s.examCardIcon}>{course.emoji}</Text>
                   </View>
-                  <View style={s.courseFreeTag}>
-                    <Text style={s.courseFreeTagText}>FREE</Text>
+                  <View style={s.examFeaturedPill}>
+                    <Text style={s.examFeaturedText}>{course.tag}</Text>
                   </View>
                 </View>
-                <Text style={s.courseListTitle}>{course.name}</Text>
-                <Text style={s.courseListDesc}>{course.blurb}</Text>
-                <View style={s.courseListMetaRow}>
-                  <Text style={s.courseListMetaText}>★ {course.rating}</Text>
-                  <Text style={s.courseListMetaText}>👤 {course.learners}</Text>
+
+                <Text style={s.examCardTitle}>{course.name}</Text>
+                <Text style={s.examCardSubjects} numberOfLines={2}>
+                  {course.blurb}
+                </Text>
+
+                <View style={s.examCardDivider} />
+
+                <View style={s.examCardFooter}>
+                  <Text style={s.examCardMeta}>★ {course.rating}</Text>
+                  <Text style={s.examCardMeta}>👤 {course.learners}</Text>
                 </View>
               </TouchableOpacity>
             ))}

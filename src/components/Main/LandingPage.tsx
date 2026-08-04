@@ -1,5 +1,6 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { homeData } from '../json/landingpage';
 import { homeStyles } from '@/src/styles/styles/home/landingpage';
@@ -19,12 +20,28 @@ import { resolveDetectedCountry } from '@/src/libs/services/countries';
 import BrandLogo from '../common/BrandLogo';
 import CountrySelect from '../common/CountrySelect';
 
-// Real counts read better grouped ("1,979") than in the static "2.1Cr" style.
-const formatStat = (n: number): string => n.toLocaleString('en-IN');
+// Real counts are shown short, in Indian units — 1979 → "2K", 150000 → "1.5L".
+// Anything under a thousand stays as-is; a lone ".0" is dropped so it reads
+// "3K", not "3.0K".
+const formatStat = (n: number): string => {
+  const units: [number, string][] = [
+    [10000000, 'Cr'],
+    [100000, 'L'],
+    [1000, 'K'],
+  ];
+  for (const [size, suffix] of units) {
+    if (n >= size) {
+      const scaled = n / size;
+      const shown = scaled < 10 ? scaled.toFixed(1) : String(Math.round(scaled));
+      return `${shown.replace(/\.0$/, '')}${suffix}`;
+    }
+  }
+  return String(n);
+};
 
 export default function LandingPage() {
   const router = useRouter();
-  const { header, hero, popularCourses, howItWorks, levelingCard, testimonial, ctaSection } = homeData;
+  const { header, hero, popularCourses, howItWorks, levelingCard, testimonial } = homeData;
 
   // CMS content. Everything here is optional — each section falls back to the
   // static copy in json/landingpage.ts when the API has nothing for us.
@@ -44,6 +61,14 @@ export default function LandingPage() {
   const [detectedCountryId, setDetectedCountryId] = useState<
     number | string | null
   >(null);
+
+  // "See how it works" scrolls down to the section on this page rather than
+  // pushing the standalone screen. The section's y is captured on layout, so
+  // it stays right even as the sections above it grow with CMS content.
+  const scrollRef = useRef<ScrollView>(null);
+  const howItWorksY = useRef(0);
+  const scrollToHowItWorks = () =>
+    scrollRef.current?.scrollTo({ y: howItWorksY.current, animated: true });
 
   useEffect(() => {
     let active = true;
@@ -137,11 +162,12 @@ export default function LandingPage() {
   // Hero stats: the CMS's real platform totals where it sends them, falling
   // back to the static headline figures for anything it doesn't (the rating).
   const heroStats = hero.stats.map((stat) => {
-    if (stat.label === 'learners' && homePage?.users_count != null) {
+    if (stat.key === 'learners' && homePage?.users_count != null) {
       return { ...stat, value: formatStat(homePage.users_count) };
     }
-    if (stat.label === 'questions solved' && homePage?.questions_count != null) {
-      return { value: formatStat(homePage.questions_count), label: 'questions' };
+    // The bank keeps growing, so the question total reads as a floor ("2K+").
+    if (stat.key === 'questions' && homePage?.questions_count != null) {
+      return { ...stat, value: `${formatStat(homePage.questions_count)}+` };
     }
     return stat;
   });
@@ -160,7 +186,7 @@ export default function LandingPage() {
 
   return (
     <View style={homeStyles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
 
         {/* Header */}
         <View style={homeStyles.header}>
@@ -215,7 +241,7 @@ export default function LandingPage() {
           <TouchableOpacity style={homeStyles.primaryBtn} onPress={() => router.push('/auth/sign-up')}>
             <Text style={homeStyles.primaryBtnText}>{hero.primaryBtn}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={homeStyles.outlineBtn} onPress={() => router.push('/how-it-works')}>
+          <TouchableOpacity style={homeStyles.outlineBtn} onPress={scrollToHowItWorks}>
             <Text style={homeStyles.outlineBtnText}>{hero.secondaryBtn}</Text>
           </TouchableOpacity>
 
@@ -223,14 +249,22 @@ export default function LandingPage() {
           <>
           {/* Stats row */}
           <View style={homeStyles.heroStatsRow}>
-            {heroStats.map((stat, i) => (
-              <React.Fragment key={stat.label}>
-                <View style={homeStyles.heroStatItem}>
+            <View style={[homeStyles.heroStatsRing, homeStyles.heroStatsRingLg]} />
+            <View style={[homeStyles.heroStatsRing, homeStyles.heroStatsRingSm]} />
+            {heroStats.map((stat) => (
+              <View style={homeStyles.heroStatItem} key={stat.key}>
+                <View style={homeStyles.heroStatIconBox}>
+                  <MaterialCommunityIcons
+                    name={stat.icon as any}
+                    size={22}
+                    color="#4F46E5"
+                  />
+                </View>
+                <View>
                   <Text style={homeStyles.heroStatValue}>{stat.value}</Text>
                   <Text style={homeStyles.heroStatLabel}>{stat.label}</Text>
                 </View>
-                {i < heroStats.length - 1 && <View style={homeStyles.heroStatDivider} />}
-              </React.Fragment>
+              </View>
             ))}
           </View>
 
@@ -410,7 +444,6 @@ export default function LandingPage() {
                           ✓ {questionCount} questions
                         </Text>
                       )}
-                      <Text style={homeStyles.examCardFree}>FREE</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -430,9 +463,6 @@ export default function LandingPage() {
                   <View style={homeStyles.courseIconBox}>
                     <Text style={homeStyles.courseIcon}>{course.icon}</Text>
                   </View>
-                  <View style={homeStyles.courseTag}>
-                    <Text style={homeStyles.courseTagText}>{course.tag}</Text>
-                  </View>
                 </View>
                 <Text style={homeStyles.courseTitle}>{course.title}</Text>
                 <Text style={homeStyles.courseDesc}>{course.desc}</Text>
@@ -447,7 +477,12 @@ export default function LandingPage() {
         </View>
 
         {/* How it works */}
-        <View style={homeStyles.sectionWrap}>
+        <View
+          style={homeStyles.sectionWrap}
+          onLayout={(e) => {
+            howItWorksY.current = e.nativeEvent.layout.y;
+          }}
+        >
           <Text style={[homeStyles.sectionTitleLeft, { marginBottom: 18 }]}>{howItWorks.title}</Text>
           <View style={homeStyles.howGrid}>
             {howItWorks.steps.map((step) => (
@@ -494,17 +529,8 @@ export default function LandingPage() {
           </View>
         </View>
 
-        {/* CTA */}
-        <View style={homeStyles.ctaSection}>
-          <Text style={homeStyles.ctaTitle}>{ctaSection.title}</Text>
-          {/* <Text style={homeStyles.ctaSubtitle}>{ctaSection.subtitle}</Text> */}
-          <TouchableOpacity style={homeStyles.ctaButton} onPress={() => router.push('/auth/sign-up')}>
-            <Text style={homeStyles.ctaButtonText}>{ctaSection.button}</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Footer */}
-        <Footer />
+        <Footer onHowItWorks={scrollToHowItWorks} />
 
       </ScrollView>
     </View>

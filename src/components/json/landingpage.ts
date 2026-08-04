@@ -14,9 +14,21 @@ export const homeData = {
       "Adaptive practice, full-length mocks, and live ranked tests — built for the way India's toughest exams actually work.",
     primaryBtn: "Start Free — No Card Needed →",
     secondaryBtn: "See how it works",
+    // `key` is what the CMS totals are matched on, so the labels below stay
+    // free to change without breaking the swap-in.
     stats: [
-      { value: "12L+", label: "learners" },
-      { value: "2.1Cr", label: "questions solved" },
+      {
+        key: "learners",
+        value: "12L+",
+        label: "Active learners",
+        icon: "account-group-outline",
+      },
+      {
+        key: "questions",
+        value: "2.1Cr",
+        label: "Practice questions",
+        icon: "format-list-checks",
+      },
     ],
     readinessCard: {
       streakDays: 12,
@@ -41,7 +53,6 @@ export const homeData = {
       {
         slug: "iit-jee",
         icon: "📅",
-        tag: "FREE",
         title: "IIT JEE",
         desc: "Maths, Physics & Chemistry for JEE Main + Advanced.",
         rating: 4.8,
@@ -50,7 +61,6 @@ export const homeData = {
       {
         slug: "neet-ug",
         icon: "🩺",
-        tag: "FREE",
         title: "NEET UG",
         desc: "Biology, Physics & Chemistry, NTA pattern.",
         rating: 4.8,
@@ -59,7 +69,6 @@ export const homeData = {
       {
         slug: "ssc-cgl",
         icon: "📋",
-        tag: "FREE",
         title: "SSC CGL",
         desc: "Quant, Reasoning, English & GK for Tier 1 & 2.",
         rating: 4.7,
@@ -68,7 +77,6 @@ export const homeData = {
       {
         slug: "upsc-cse",
         icon: "🏛️",
-        tag: "FREE",
         title: "UPSC CSE",
         desc: "Prelims GS & CSAT with current affairs.",
         rating: 4.7,
@@ -124,13 +132,6 @@ export const homeData = {
     initials: "RK",
     name: "Rohan Kapoor",
     sub: "AIR 2,140 · JEE Main 2026",
-  },
-
-  ctaSection: {
-    title: "Start free today",
-    subtitle:
-      "Take a free diagnostic and see your strength map in 10 minutes. No card needed.",
-    button: "Create free account →",
   },
 
   footer: {

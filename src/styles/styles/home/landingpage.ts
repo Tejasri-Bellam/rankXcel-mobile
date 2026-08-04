@@ -81,11 +81,45 @@ export const homeStyles = StyleSheet.create({
   outlineBtnText: { color: TEXT_DARK, fontSize: 15, fontWeight: '600' },
 
   /* Hero stats row */
-  heroStatsRow: { flexDirection: 'row', marginBottom: 26 },
-  heroStatItem: { flex: 1, alignItems: 'center' },
-  heroStatDivider: { width: 1, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
-  heroStatValue: { fontSize: 20, fontWeight: '800', color: PRIMARY, marginBottom: 2 },
-  heroStatLabel: { fontSize: 11, color: TEXT_GRAY },
+  /* Stats band — same white card treatment as the featured exam below it, with
+     an icon tile per stat. The faint rings on the right are decorative; they sit
+     behind the row and are clipped by the card's overflow. */
+  heroStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    marginBottom: 26,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F0EDFF',
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  heroStatsRing: {
+    position: 'absolute',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#F3F1FF',
+  },
+  heroStatsRingLg: { width: 150, height: 150, right: -46, top: -54 },
+  heroStatsRingSm: { width: 96, height: 96, right: -30, bottom: -40 },
+  heroStatItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroStatIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: LAVENDER_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroStatValue: { fontSize: 26, fontWeight: '800', color: TEXT_DARK },
+  heroStatLabel: { fontSize: 12, color: TEXT_GRAY, marginTop: 2 },
 
   /* Readiness card */
   readinessCard: {
@@ -179,15 +213,6 @@ export const homeStyles = StyleSheet.create({
     alignItems: 'center',
   },
   courseIcon: { fontSize: 18 },
-  courseTag: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
-    height: 20,
-  },
-  courseTagText: { fontSize: 10, fontWeight: '700', color: GREEN },
   courseTitle: { fontSize: 15, fontWeight: '700', color: TEXT_DARK, marginBottom: 4 },
   courseDesc: { fontSize: 12, color: TEXT_GRAY, lineHeight: 17, marginBottom: 12, minHeight: 34 },
   courseMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
@@ -223,7 +248,6 @@ export const homeStyles = StyleSheet.create({
   examCardDivider: { height: 1, backgroundColor: '#F1F0F7', marginVertical: 12 },
   examCardFooter: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   examCardMeta: { fontSize: 12, color: TEXT_GRAY, fontWeight: '600' },
-  examCardFree: { fontSize: 13, fontWeight: '800', color: GREEN, marginLeft: 'auto' },
 
   /* ── Featured exam (CMS) — rendered inside the hero's card slot ── */
   featuredName: { fontSize: 17, fontWeight: '800', color: TEXT_DARK, marginTop: 4 },
