@@ -21,7 +21,6 @@ import { hasRichContent } from '../../libs/utils/richContent';
 import RichContent from '../common/RichContent';
 import { questionTypeLabel } from '@/src/libs/utils/questionType';
 import {
-  EXAM_BACKGROUND_GRACE_MS,
   clearActiveAttempt,
   saveActiveAttempt,
 } from '../../libs/utils/examSession';
@@ -45,8 +44,8 @@ interface Props {
     timeTaken: number,
     result?: MockTestResult | null,
     // Set when the attempt was submitted automatically (not via the Submit
-    // button): the timer ran out ('timeup') or the app was left past the grace
-    // window ('inactivity'). Lets the destination surface a toast explaining it.
+    // button) because the timer ran out. Lets the destination surface a toast
+    // explaining why it landed on the results screen.
     autoSubmitReason?: AutoSubmitReason,
   ) => void;
   onBackToMocks?: () => void;
@@ -54,7 +53,7 @@ interface Props {
 
 type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
 
-export type AutoSubmitReason = 'timeup' | 'inactivity';
+export type AutoSubmitReason = 'timeup';
 
 const isMultiSelect = (type: string | undefined) => {
   if (!type) return false;
@@ -93,12 +92,10 @@ export default function MockExamScreen({
   // every tick / resume, so a suspended JS timer (app-switch, screen-lock)
   // can't desync it from real elapsed time.
   const [deadline, setDeadline] = useState<number | null>(null);
-  // Timestamp the app was backgrounded at, used to measure the grace window.
-  const backgroundedAtRef = useRef<number | null>(null);
-  // Pending submit fired while the app stays in the background past the grace
-  // window (best-effort — JS may be suspended; the on-return check is fallback).
-  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  // Recomputes the countdown from the wall-clock deadline. Held in a ref so the
+  // AppState listener can force a sync the moment the app comes back.
+  const syncClockRef = useRef<() => void>(() => {});
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [activeQIdx, setActiveQIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>(initialAnswers ?? {});
@@ -155,6 +152,7 @@ export default function MockExamScreen({
       if (left <= 0) finalSubmitRef.current('timeup');
       return left;
     };
+    syncClockRef.current = sync;
     sync();
     const interval = setInterval(() => {
       if (sync() <= 0) clearInterval(interval);
@@ -163,38 +161,17 @@ export default function MockExamScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadline]);
 
-  // Leaving the app (app-switch / screen-lock / kill all look the same to JS):
-  // start a grace clock on background; on return, recompute the timer and, if
-  // the app stayed away past the grace window, auto-submit the attempt.
+  // Leaving the app (app-switch / screen-lock / kill all look the same to JS)
+  // does NOT end the attempt — it stays IN_PROGRESS so the student can resume
+  // it. All that happens on return is a clock resync against the wall-clock
+  // deadline, which submits only if the time ran out while they were away.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
-      if (prev === 'active' && (next === 'background' || next === 'inactive')) {
-        backgroundedAtRef.current = Date.now();
-        // Submit once the grace window elapses even while still away.
-        if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-        graceTimerRef.current = setTimeout(
-          () => finalSubmitRef.current('inactivity'),
-          EXAM_BACKGROUND_GRACE_MS,
-        );
-      } else if (next === 'active') {
-        if (graceTimerRef.current) {
-          clearTimeout(graceTimerRef.current);
-          graceTimerRef.current = null;
-        }
-        // Fallback: if JS was suspended and the timer never fired, submit now.
-        if (backgroundedAtRef.current != null) {
-          const away = Date.now() - backgroundedAtRef.current;
-          backgroundedAtRef.current = null;
-          if (away >= EXAM_BACKGROUND_GRACE_MS) finalSubmitRef.current('inactivity');
-        }
-      }
+      if (prev !== 'active' && next === 'active') syncClockRef.current();
     });
-    return () => {
-      sub.remove();
-      if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-    };
+    return () => sub.remove();
   }, []);
 
   // Android hardware back: an in-progress attempt can't simply be abandoned —

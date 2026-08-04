@@ -166,6 +166,9 @@ export default function AssessmentsScreen() {
   // pops back to the caller (e.g. the notifications screen) rather than
   // revealing the assessments list the user never navigated through.
   const [fromDeepLink, setFromDeepLink] = useState(false);
+  // Set when the detail was opened via a card's "Resume test" button — it goes
+  // straight back into the running attempt instead of the detail page.
+  const [resumeOnOpen, setResumeOnOpen] = useState(false);
   // Sub-view/attempt to open the deep-linked detail on (notification →
   // results of a specific attempt). Cleared alongside `selected`.
   const [deepLinkOpts, setDeepLinkOpts] = useState<{
@@ -488,6 +491,7 @@ export default function AssessmentsScreen() {
     }
     setSelected(null);
     setDeepLinkOpts(null);
+    setResumeOnOpen(false);
     fetchAssessments(true);
     fetchAllForCounts();
   };
@@ -514,6 +518,7 @@ export default function AssessmentsScreen() {
         status={deriveStatus(fresh)}
         initialView={deepLinkOpts?.view}
         initialAttemptId={deepLinkOpts?.attemptId}
+        autoResume={resumeOnOpen}
         onBack={closeSelected}
       />
     );
@@ -655,6 +660,10 @@ export default function AssessmentsScreen() {
               // once the scheduled window has closed (not just when the backend
               // flips student_status away from live).
               const isLive = status === "live";
+              // A started-but-unsubmitted attempt (the student left mid-test):
+              // it stays resumable for as long as the window is still open.
+              const isInProgress =
+                item?.latest_attempt_status === "IN_PROGRESS" && isLive;
               return (
                 <TouchableOpacity
                   key={String(item.id)}
@@ -662,17 +671,27 @@ export default function AssessmentsScreen() {
                   activeOpacity={0.85}
                   onPress={() => {
                     setFromDeepLink(false);
+                    setResumeOnOpen(false);
                     setSelected({ item, status });
                   }}
                 >
-                  {ss && (
+                  {(ss || isInProgress) && (
                     <View style={styles.cardTopRow}>
-                      <View style={[styles.statusPill, { backgroundColor: ss.bg }]}>
-                        {isLive ? <View style={styles.liveDot} /> : null}
-                        <Text style={[styles.statusPillText, { color: ss.color }]}>
-                          {ss.label}
-                        </Text>
-                      </View>
+                      {ss && (
+                        <View style={[styles.statusPill, { backgroundColor: ss.bg }]}>
+                          {isLive ? <View style={styles.liveDot} /> : null}
+                          <Text style={[styles.statusPillText, { color: ss.color }]}>
+                            {ss.label}
+                          </Text>
+                        </View>
+                      )}
+                      {isInProgress && (
+                        <View style={styles.inProgressPill}>
+                          <Text style={styles.inProgressPillText}>
+                            Attempt in progress
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -687,6 +706,22 @@ export default function AssessmentsScreen() {
                       ? ` · pass marks ${scoring.passMarks}`
                       : ""}
                   </Text>
+
+                  {/* Straight back into the unfinished attempt — the detail
+                      page's "Resume live test" CTA is the other way in. */}
+                  {isInProgress && (
+                    <TouchableOpacity
+                      style={styles.resumeCardBtn}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setFromDeepLink(false);
+                        setResumeOnOpen(true);
+                        setSelected({ item, status });
+                      }}
+                    >
+                      <Text style={styles.resumeCardBtnText}>▶  Resume test</Text>
+                    </TouchableOpacity>
+                  )}
                 </TouchableOpacity>
               );
             })}

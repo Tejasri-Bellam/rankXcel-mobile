@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import {
   startMockTestService,
   retakeMockTestService,
+  getMockTestByIdService,
   MockTest,
   MockTestResult,
 } from '../../libs/services/mock-library';
@@ -26,11 +27,10 @@ import { detailsStyles as styles } from '@/src/styles/styles/mock/detailsstyles'
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 
 // Copy shown when the attempt was submitted for the student (not via the
-// Submit button) — the timer ran out, or they left the app past the grace
-// window. Surfaced as a toast on the results screen so it isn't a silent jump.
+// Submit button) — i.e. the timer ran out. Surfaced as a toast on the results
+// screen so it isn't a silent jump.
 const AUTO_SUBMIT_MESSAGE: Record<AutoSubmitReason, string> = {
   timeup: "Time's up! Your mock test was submitted automatically.",
-  inactivity: 'You left the test, so it was submitted automatically.',
 };
 
 type MockView = 'detail' | 'exam' | 'results' | 'solutions';
@@ -63,8 +63,39 @@ export default function MockDetails({ mock, onBack, initialView = 'detail', init
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, string[]>>({});
   const [submittedResult, setSubmittedResult] = useState<MockTestResult | null>(null);
   const [timeTaken, setTimeTaken] = useState(0);
-  const [mockData] = useState<MockTest>(mock);
+  const [mockData, setMockData] = useState<MockTest>(mock);
   const { toast, showToast, hideToast } = useToast();
+
+  // The mock we were handed comes from a list page that may have been fetched
+  // before the student left mid-test (or from a deep-link payload), so its
+  // attempt fields can be stale — and those are exactly what decides between
+  // "Resume mock" and "Start / Retake". Re-read the detail endpoint on open and
+  // merge the attempt state in.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res: any = await getMockTestByIdService(String(mock.id));
+        const fresh: MockTest | null = res?.data ?? res ?? null;
+        if (cancelled || !fresh || fresh.id == null) return;
+        setMockData((prev) => {
+          const merged = { ...prev, ...fresh };
+          // The detail payload doesn't always carry the attempt fields; when it
+          // doesn't, keep what the list gave us rather than blanking the CTA.
+          if (fresh.latest_attempt_status == null)
+            merged.latest_attempt_status = prev.latest_attempt_status;
+          if (fresh.latest_attempt_id == null)
+            merged.latest_attempt_id = prev.latest_attempt_id;
+          if (fresh.total_attempts == null)
+            merged.total_attempts = prev.total_attempts;
+          return merged;
+        });
+      } catch {
+        // Keep the list's copy — worst case the CTA stays as it was.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mock.id]);
 
   // PASS_FAIL exams are scored against a fixed pass mark — surface it here in
   // place of the (ranked-only) last-score tile.

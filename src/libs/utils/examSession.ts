@@ -4,11 +4,11 @@ import { assessmentSubmitService } from "../services/assessments-attempts";
 
 const ACTIVE_ATTEMPT_KEY = "rankxcel_active_exam_attempt";
 
-// How long the app may sit in the background before an in-progress attempt is
-// auto-submitted. Brief app-switches under this window keep the test alive (the
-// wall-clock timer self-corrects on resume); leaving longer — or killing the
-// app — submits the attempt.
-export const EXAM_BACKGROUND_GRACE_MS = 30_000;
+// Leaving the app NEVER submits an attempt on its own — app-switch, screen-lock
+// and a full kill all leave it IN_PROGRESS so the student can resume it. The
+// only thing that auto-submits is the attempt's own deadline running out (the
+// wall-clock timer while the runner is open, or submitAbandonedAttempt() below
+// on the next launch/foreground).
 
 export type ExamKind = "mock" | "assessment";
 

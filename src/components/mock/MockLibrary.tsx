@@ -96,10 +96,15 @@ const getTagColor = (label: string | null): string => {
 interface MockCardProps {
   mock: MockTest;
   onPress: () => void;
+  // Tapping "Resume" on an in-progress card — goes straight back into the exam.
+  onResume: () => void;
 }
 
-const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
+const MockCard: React.FC<MockCardProps> = ({ mock, onPress, onResume }) => {
   const isCompleted = mock.latest_attempt_status === 'SUBMITTED';
+  // A started-but-unsubmitted attempt (the student closed the app / left mid
+  // test). Keys off the ATTEMPT status, not the mock's publish `status`.
+  const isInProgress = mock.latest_attempt_status === 'IN_PROGRESS';
   const lastPct = mock?.percentage;
   const lastAccuracy = mock?.accuracy;
   const tagLabel = getTagLabel(mock);
@@ -113,7 +118,11 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
   );
 
   return (
-    <TouchableOpacity style={styles.mockCard} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={[styles.mockCard, isInProgress && styles.mockCardInProgress]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
       {/* Icon */}
       <View style={styles.mockCardIcon}>
         <Ionicons name="document-text-outline" size={22} color="#6C63FF" />
@@ -134,6 +143,12 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
 
         {/* Tag + meta */}
         <View style={styles.mockCardMeta}>
+          {isInProgress && (
+            <View style={styles.inProgressPill}>
+              <View style={styles.inProgressDot} />
+              <Text style={styles.inProgressPillText}>In progress</Text>
+            </View>
+          )}
           {tagLabel && (
             <View style={[styles.mockTag, { backgroundColor: tagColor + '18' }]}>
               <Text style={[styles.mockTagText, { color: tagColor }]}>{tagLabel}</Text>
@@ -162,8 +177,17 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
         </View>
       </View>
 
-      {/* Right: score % or chevron */}
-      {isCompleted && lastPct != null ? (
+      {/* Right: Resume CTA for an unfinished attempt, else score % or chevron */}
+      {isInProgress ? (
+        <TouchableOpacity
+          style={styles.resumeCardBtn}
+          onPress={onResume}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="play" size={13} color="#fff" />
+          <Text style={styles.resumeCardBtnText}>Resume</Text>
+        </TouchableOpacity>
+      ) : isCompleted && lastPct != null ? (
         <Text style={[styles.mockCardScore, { color: getScoreColor(lastPct) }]}>
           {lastPct}%
         </Text>
@@ -650,13 +674,12 @@ export default function MockLibrary({
               <MockCard
                 key={String(mock.id)}
                 mock={mock}
-                onPress={() => {
-                  // Resume keys off the ATTEMPT status, not the mock's publish
-                  // `status` (which is PUBLISHED/etc., never IN_PROGRESS).
-                  if (mock.latest_attempt_status === 'IN_PROGRESS')
-                    setResumeMock(mock);
-                  else setSelectedMock(mock);
-                }}
+                // Tapping the card always opens the detail page — for an
+                // in-progress mock that's where the "Resume mock" CTA lives, so
+                // the student is never dropped back into a running test without
+                // meaning to. The card's own Resume button is the shortcut.
+                onPress={() => setSelectedMock(mock)}
+                onResume={() => setResumeMock(mock)}
               />
             ))}
             {/* "Nothing here" only once the pages have actually run out — the

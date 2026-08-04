@@ -43,6 +43,9 @@ interface Props {
   // specific attempt instead of the detail/register page.
   initialView?: View_;
   initialAttemptId?: number;
+  // Opened from the list's "Resume test" button: go straight back into the
+  // in-progress attempt rather than making the student tap through the detail.
+  autoResume?: boolean;
 }
 
 // "2026-06-14T19:00:00Z" → "Sun 14 Jun, 7:00 PM"
@@ -68,6 +71,7 @@ export default function LiveTestDetail({
   onBack,
   initialView,
   initialAttemptId,
+  autoResume = false,
 }: Props) {
   const meta = LIVE_STATUS_META[status];
   const assessmentId: number = item?.id;
@@ -332,6 +336,18 @@ export default function LiveTestDetail({
     }
   };
 
+  // Entered via the list's "Resume test" shortcut — drop straight back into the
+  // running attempt. Guarded by a ref so backing out of the exam to the detail
+  // page doesn't bounce the student right back in.
+  const autoResumedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!autoResume || autoResumedRef.current) return;
+    if (!isInProgress) return;
+    autoResumedRef.current = true;
+    enterLiveTest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoResume, isInProgress]);
+
   // ── Sub-views ──────────────────────────────────────────────────────────────
   if (view === "leaderboard" && !isPassFail) {
     return(
@@ -462,6 +478,28 @@ export default function LiveTestDetail({
       );
     }
     if (status === "results") {
+      // An unfinished attempt whose window is still open (the backend flipped
+      // the card state early) can still be resumed — offer that before any
+      // results/ended copy.
+      if (isInProgress && !examEnded) {
+        return (
+          <TouchableOpacity
+            style={s.primaryBtn}
+            onPress={() => enterLiveTest()}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="play" size={17} color="#fff" />
+                <Text style={s.primaryBtnText}>Resume live test</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        );
+      }
       // Personal results are viewable once the student has submitted AND the
       // backend has published them (is_results_published). Submitted but not yet
       // published → awaiting; a missed (never submitted) test → inert "ended".

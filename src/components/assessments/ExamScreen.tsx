@@ -30,7 +30,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getassessmentsQuestionsService } from "../../libs/services/assessments";
 import {
-  EXAM_BACKGROUND_GRACE_MS,
   clearActiveAttempt,
   saveActiveAttempt,
 } from "../../libs/utils/examSession";
@@ -110,13 +109,11 @@ export default function ExamScreen({
   // every tick / resume, so a suspended JS timer (app-switch, screen-lock)
   // can't desync it from real elapsed time.
   const [deadline, setDeadline] = useState<number | null>(null);
-  // Timestamp the app was backgrounded at, used to measure the grace window.
-  const backgroundedAtRef = useRef<number | null>(null);
-  // Pending submit fired while the app stays in the background past the grace
-  // window (best-effort — JS may be suspended; the on-return check is fallback).
-  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Calls the freshest handleFinalSubmit from inside long-lived effects.
   const finalSubmitRef = useRef<() => void>(() => {});
+  // Recomputes the countdown from the wall-clock deadline. Held in a ref so the
+  // AppState listener can force a sync the moment the app comes back.
+  const syncClockRef = useRef<() => void>(() => {});
 
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [activeQIdx, setActiveQIdx] = useState(0);
@@ -347,6 +344,7 @@ export default function ExamScreen({
       if (left <= 0) finalSubmitRef.current();
       return left;
     };
+    syncClockRef.current = sync;
     sync();
     const interval = setInterval(() => {
       if (sync() <= 0) clearInterval(interval);
@@ -356,6 +354,9 @@ export default function ExamScreen({
   }, [deadline, submitted]);
 
   // ── AppState / tab-switch detection ──
+  // Leaving the app never ends the attempt — it stays IN_PROGRESS and can be
+  // resumed. Switching away is still counted and warned about; the only thing
+  // that auto-submits is the deadline, which the clock resync below picks up.
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
@@ -364,14 +365,6 @@ export default function ExamScreen({
           appStateRef.current === "active" &&
           (nextState === "background" || nextState === "inactive")
         ) {
-          // Start the grace clock — leaving past the window auto-submits.
-          backgroundedAtRef.current = Date.now();
-          // Submit once the grace window elapses even while still away.
-          if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-          graceTimerRef.current = setTimeout(
-            () => finalSubmitRef.current(),
-            EXAM_BACKGROUND_GRACE_MS,
-          );
           setTabSwitchCount((prev) => {
             const newCount = prev + 1;
             setShowTabWarning(true);
@@ -384,17 +377,9 @@ export default function ExamScreen({
             return newCount;
           });
         } else if (nextState === "active") {
-          // Returned to the app: the wall-clock timer self-corrects on resume.
-          if (graceTimerRef.current) {
-            clearTimeout(graceTimerRef.current);
-            graceTimerRef.current = null;
-          }
-          // Fallback: if JS was suspended and the timer never fired, submit now.
-          if (backgroundedAtRef.current != null) {
-            const away = Date.now() - backgroundedAtRef.current;
-            backgroundedAtRef.current = null;
-            if (away >= EXAM_BACKGROUND_GRACE_MS) finalSubmitRef.current();
-          }
+          // Returned to the app: resync the countdown against the wall-clock
+          // deadline (submits only if the time ran out while away).
+          syncClockRef.current();
         }
         appStateRef.current = nextState;
       },
@@ -402,7 +387,6 @@ export default function ExamScreen({
     return () => {
       subscription.remove();
       if (tabWarningTimeout.current) clearTimeout(tabWarningTimeout.current);
-      if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
     };
   }, []);
 
@@ -705,13 +689,9 @@ export default function ExamScreen({
       await clearActiveAttempt();
 
       // Freeze the runner: the parent keeps us mounted behind the success popup
-      // while it redirects home, so stop the countdown and cancel any pending
-      // background-grace submit before handing the result up.
+      // while it redirects home, so stop the countdown before handing the
+      // result up.
       setSubmitted(true);
-      if (graceTimerRef.current) {
-        clearTimeout(graceTimerRef.current);
-        graceTimerRef.current = null;
-      }
 
       console.log("SUBMIT RESPONSE:", JSON.stringify(response, null, 2));
 
