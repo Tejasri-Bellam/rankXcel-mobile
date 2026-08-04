@@ -161,7 +161,6 @@ function AppShell() {
         if (!googleSigninConfigured.current && client_id) {
           GoogleSignin.configure({
             webClientId: client_id,
-            iosClientId: ios_client_id,
             // Required for Google Sign-In on iOS — the native iOS OAuth client
             // id. Without it GoogleSignin.signIn() throws on iOS.
             ...(ios_client_id ? { iosClientId: ios_client_id } : {}),
