@@ -105,6 +105,13 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
   const tagLabel = getTagLabel(mock);
   const tagColor = getTagColor(tagLabel);
 
+  // PASS_FAIL exams are scored against a fixed pass mark — shown alongside the
+  // question count / duration so students know the bar before they start.
+  const { getExamScoring } = useTargetExam();
+  const { isPassFail, passMarks } = getExamScoring(
+    typeof mock.exam === 'object' && mock.exam !== null ? mock.exam.id : mock.exam
+  );
+
   return (
     <TouchableOpacity style={styles.mockCard} onPress={onPress} activeOpacity={0.75}>
       {/* Icon */}
@@ -140,6 +147,12 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
             <Ionicons name="time-outline" size={12} color="#6B7280" />
             <Text style={styles.metaItemText}>{formatDuration(mock.total_duration_minutes)}</Text>
           </View>
+          {isPassFail && passMarks != null ? (
+            <View style={styles.metaItem}>
+              <Ionicons name="flag-outline" size={12} color="#6B7280" />
+              <Text style={styles.metaItemText}>Pass marks {passMarks}</Text>
+            </View>
+          ) : null}
           {lastAccuracy ? (
             <Text style={styles.metaItemText}>Accuracy: {lastAccuracy}%</Text>
           ) : null}
@@ -246,11 +259,22 @@ export default function MockLibrary({
   const [loadingMore, setLoadingMore] = useState(false);
 
   const loadMocks = useCallback(async (isRefresh = false) => {
+    // No active exam (e.g. the student switched to a country they have no
+    // target exam in): show nothing rather than an unscoped list of every
+    // exam's mocks — or the previous exam's, left over on screen.
+    if (activeExamId == null) {
+      setAllMocks([]);
+      setHasMore(false);
+      setError(null);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
-      const response = await getMockTestsService(activeExamId ?? undefined, testType, 1);
+      const response = await getMockTestsService(activeExamId, testType, 1);
       const { results, next } = extractPage<MockTest>(response);
       setAllMocks(results);
       setPage(1);

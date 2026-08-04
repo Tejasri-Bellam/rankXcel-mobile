@@ -29,7 +29,7 @@ import {
 import { storageSetAccessToken, clearUserSession } from '@/src/libs/storage';
 import { armSessionExpiryGuard } from '@/src/libs/session';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
-import { countrySelectStyles } from '@/src/styles/styles/common/countryselectstyles';
+import CountrySelect from '../common/CountrySelect';
 import InputField from '@/src/components/common/InputField';
 import Toast, { useToast } from '@/src/components/common/Toast';
 import {
@@ -40,7 +40,7 @@ import {
   getNonFieldError,
 } from '@/src/components/auth/authForm';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BRAND } from '@/src/libs/constants';
+import BrandLogo from '../common/BrandLogo';
 
 type LoginRegion = {
   name: string;
@@ -452,21 +452,17 @@ export default function LoginScreen() {
         >
           {/* Header: country selector (top-right) */}
           <View style={[styles.topRow, { justifyContent: 'flex-end' }]}>
-            <View style={countrySelectStyles.chip}>
-              <Ionicons name="location-outline" size={16} color="#475569" />
-              <Text style={countrySelectStyles.chipText}>
-                {country?.name ?? 'Region'}
-              </Text>
-            </View>
+            <CountrySelect
+              preferredCountryId={country?.id ?? null}
+              onChange={(c) => setSelectedCountryId(c.id)}
+            />
           </View>
 
-          {/* Brand */}
-          <View style={styles.brandRow}>
-            <View style={styles.brandIcon}>
-              <Ionicons name="flash" size={22} color="#FFFFFF" />
-            </View>
-            <Text style={styles.brandText}>{BRAND}</Text>
-          </View>
+          {/* Brand — tapping it returns to the landing page */}
+          <BrandLogo
+            style={[styles.brandRow, { alignSelf: 'flex-start' }]}
+            onPress={() => router.replace('/onboarding')}
+          />
 
           {/* Headings */}
           <Text style={styles.title}>Welcome back</Text>

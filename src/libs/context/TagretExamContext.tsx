@@ -12,6 +12,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getTargetExamsService } from "@/src/libs/services/profile";
 import { storageGetAccessToken } from "@/src/libs/storage";
 
+// How an exam is scored. COMPETITIVE exams rank students against each other
+// (leaderboard / rank / percentile); PASS_FAIL exams only score against a fixed
+// pass mark, so every ranking-related UI is hidden for them.
+export type ScoringType = "COMPETITIVE" | "PASS_FAIL";
+
 export interface TargetExam {
   id: number;
   name: string;
@@ -20,6 +25,44 @@ export interface TargetExam {
   total_duration_minutes: number;
   is_active: boolean;
   target_year?: number | null;
+  scoring_type: ScoringType;
+  // Marks needed to pass — only sent for PASS_FAIL exams (null otherwise).
+  pass_marks: number | null;
+}
+
+// Scoring rules for one exam, as consumed by the results/analytics screens.
+export interface ExamScoring {
+  scoringType: ScoringType;
+  isPassFail: boolean;
+  passMarks: number | null;
+}
+
+const COMPETITIVE_SCORING: ExamScoring = {
+  scoringType: "COMPETITIVE",
+  isPassFail: false,
+  passMarks: null,
+};
+
+// Anything that isn't an explicit PASS_FAIL stays COMPETITIVE — including a
+// missing field (older cached exams, endpoints that don't send it yet), so the
+// existing experience is what we fall back to.
+function toScoringType(value: any): ScoringType {
+  return String(value ?? "").toUpperCase() === "PASS_FAIL"
+    ? "PASS_FAIL"
+    : "COMPETITIVE";
+}
+
+function toScoring(exam: TargetExam | null | undefined): ExamScoring {
+  if (!exam) return COMPETITIVE_SCORING;
+  const scoringType = toScoringType(exam.scoring_type);
+  return {
+    scoringType,
+    isPassFail: scoringType === "PASS_FAIL",
+    passMarks:
+      scoringType === "PASS_FAIL" && exam.pass_marks != null
+        ? Number(exam.pass_marks)
+        : null,
+  };
 }
 
 // target-exams returns each row as { id (record id), exam: { id, name, code },
@@ -36,6 +79,9 @@ function normalizeTargetExam(item: any): TargetExam {
       exam?.total_duration_minutes ?? item?.total_duration_minutes ?? 0,
     is_active: item?.is_active ?? exam?.is_active ?? true,
     target_year: item?.target_year ?? exam?.target_year ?? null,
+    // scoring_type / pass_marks ride on the nested exam; tolerate the flat shape.
+    scoring_type: toScoringType(exam?.scoring_type ?? item?.scoring_type),
+    pass_marks: exam?.pass_marks ?? item?.pass_marks ?? null,
   };
 }
 
@@ -50,6 +96,15 @@ interface TargetExamContextValue extends TargetExamState {
   setActiveExamId: (id: number | string) => void;
   refreshExams: (countryId?: number | string | null) => Promise<void>;
   reset: () => void;
+  // The currently selected exam, resolved out of `targetExams`.
+  activeExam: TargetExam | null;
+  // Scoring rules for the active exam.
+  scoring: ExamScoring;
+  // Shorthand for `scoring.isPassFail` — hide leaderboard/rank/percentile when true.
+  isPassFail: boolean;
+  // Scoring for a specific exam (e.g. the exam a mock/assessment belongs to).
+  // Falls back to the active exam's scoring when the id is unknown.
+  getExamScoring: (examId?: number | string | null) => ExamScoring;
 }
 
 const TargetExamContext = createContext<TargetExamContextValue | null>(null);
@@ -122,9 +177,16 @@ export function TargetExamProvider({
           TARGET_EXAMS_KEY,
           JSON.stringify(targetExams)
         );
+      } else {
+        // The chosen country has no target exams for this student. Drop the
+        // cache too, or the previous country's exams come back on the next
+        // launch (and via the offline fallback below).
+        await AsyncStorage.removeItem(TARGET_EXAMS_KEY);
       }
       if (activeExamId != null) {
         await AsyncStorage.setItem(ACTIVE_EXAM_KEY, String(activeExamId));
+      } else {
+        await AsyncStorage.removeItem(ACTIVE_EXAM_KEY);
       }
     } catch {
       // Offline fallback: hydrate from cache.
@@ -177,9 +239,47 @@ export function TargetExamProvider({
     refreshExams();
   }, [refreshExams]);
 
+  const activeExam = useMemo<TargetExam | null>(
+    () =>
+      state.targetExams.find(
+        (e) => String(e.id) === String(state.activeExamId)
+      ) ?? null,
+    [state.targetExams, state.activeExamId]
+  );
+
+  const scoring = useMemo<ExamScoring>(() => toScoring(activeExam), [activeExam]);
+
+  const getExamScoring = useCallback(
+    (examId?: number | string | null): ExamScoring => {
+      if (examId == null || examId === "") return scoring;
+      const exam = state.targetExams.find(
+        (e) => String(e.id) === String(examId)
+      );
+      return exam ? toScoring(exam) : scoring;
+    },
+    [state.targetExams, scoring]
+  );
+
   const value = useMemo<TargetExamContextValue>(
-    () => ({ ...state, setActiveExamId, refreshExams, reset }),
-    [state, setActiveExamId, refreshExams, reset]
+    () => ({
+      ...state,
+      setActiveExamId,
+      refreshExams,
+      reset,
+      activeExam,
+      scoring,
+      isPassFail: scoring.isPassFail,
+      getExamScoring,
+    }),
+    [
+      state,
+      setActiveExamId,
+      refreshExams,
+      reset,
+      activeExam,
+      scoring,
+      getExamScoring,
+    ]
   );
 
   return (

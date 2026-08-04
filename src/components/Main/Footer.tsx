@@ -13,7 +13,14 @@ const LINK_ROUTES: Record<string, string> = {
   'Contact': '/contact',
 };
 
-export default function Footer() {
+type FooterProps = {
+  // The landing page carries its own "How RankXcel works" section, so it hands
+  // us a scroll handler and the link stays on the page. Every other screen
+  // leaves this off and the link pushes /how-it-works as usual.
+  onHowItWorks?: () => void;
+};
+
+export default function Footer({ onHowItWorks }: FooterProps = {}) {
   const { footer } = homeData;
   return (
     <View style={s.footer}>
@@ -30,8 +37,14 @@ export default function Footer() {
             <Text style={s.footerHeading}>{col.heading}</Text>
             {col.links.map((link) => {
                 const route = LINK_ROUTES[link];
-                return route ? (
-                    <TouchableOpacity key={link} onPress={() => router.push(route as any)}>
+                const onPress =
+                  link === 'How it works' && onHowItWorks
+                    ? onHowItWorks
+                    : route
+                      ? () => router.push(route as any)
+                      : null;
+                return onPress ? (
+                    <TouchableOpacity key={link} onPress={onPress}>
                     <Text style={s.footerLink}>{link}</Text>
                     </TouchableOpacity>
                 ) : (

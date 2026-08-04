@@ -78,7 +78,10 @@ export default function ExamResults({
   const [loading, setLoading] = useState(!initialResult);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { activeExamId } = useTargetExam();
+  const { activeExamId, getExamScoring } = useTargetExam();
+  // PASS_FAIL exams aren't ranked — no rank, percentile or leaderboard anywhere
+  // in their flow; they show pass/fail against the exam's pass_marks instead.
+  const { isPassFail, passMarks } = getExamScoring(exam?.exam?.id);
   useEffect(() => {
     if (initialResult) return; // already have it from the submit response
     loadResult();
@@ -157,13 +160,18 @@ export default function ExamResults({
   const timeTaken = num(result.time_taken_seconds) || num(timeTakenSeconds);
 
   // Rank → percentile. With N participants and rank R, you beat
-  // ((N - R) / N) of the field. Hidden until the window closes (rank null).
-  const rank = result.rank;
-  const totalParticipants = result.total_participants;
+  // ((N - R) / N) of the field. Hidden until the window closes (rank null),
+  // and never shown at all for PASS_FAIL exams.
+  const rank = isPassFail ? null : result.rank;
+  const totalParticipants = isPassFail ? null : result.total_participants;
   const percentile =
     rank != null && totalParticipants != null && totalParticipants > 0
       ? Math.round(((totalParticipants - rank) / totalParticipants) * 100)
       : null;
+
+  // Pass/fail verdict for PASS_FAIL exams — the marks scored against pass_marks.
+  const passed =
+    isPassFail && passMarks != null ? totalScore >= passMarks : null;
 
   const verdict =
     percentagePct >= 80 ? 'Mastered' : percentagePct >= 50 ? 'Good progress' : 'Needs work';
@@ -285,6 +293,16 @@ export default function ExamResults({
               <View style={styles.badge}>
                 <Ionicons name="trophy-outline" size={12} color="#fff" />
                 <Text style={styles.badgeText}>Top {Math.max(1, 100 - percentile)}%</Text>
+              </View>
+            )}
+            {passed != null && (
+              <View style={styles.badge}>
+                <Ionicons
+                  name={passed ? 'checkmark-circle-outline' : 'close-circle-outline'}
+                  size={12}
+                  color="#fff"
+                />
+                <Text style={styles.badgeText}>{passed ? 'Passed' : 'Not passed'}</Text>
               </View>
             )}
           </View>

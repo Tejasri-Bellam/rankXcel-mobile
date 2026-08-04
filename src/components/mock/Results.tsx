@@ -89,7 +89,12 @@ export default function MockExamResults({
   const [result, setResult] = useState<MockTestResult | null>(initialResult ?? null);
   const [loading, setLoading] = useState(!initialResult);
   const [error, setError] = useState<string | null>(null);
-  const { activeExamId } = useTargetExam();
+  const { activeExamId, getExamScoring } = useTargetExam();
+  // PASS_FAIL exams aren't ranked — no percentile/rank anywhere in their flow;
+  // they show pass/fail against the exam's pass_marks instead.
+  const mockExamId =
+    typeof mock.exam === 'object' && mock.exam !== null ? mock.exam.id : mock.exam;
+  const { isPassFail, passMarks } = getExamScoring(mockExamId);
 
   useEffect(() => {
     if (initialResult) return; // already have it from the submit response
@@ -172,7 +177,12 @@ export default function MockExamResults({
   const maxScore = num(result.max_score);
 
   const timeTaken = num(result.time_taken_seconds) || num(timeTakenSeconds);
-  const percentile = mock.percentile != null ? Math.round(num(mock.percentile)) : null;
+  const percentile =
+    !isPassFail && mock.percentile != null ? Math.round(num(mock.percentile)) : null;
+
+  // Pass/fail verdict for PASS_FAIL exams — the marks scored against pass_marks.
+  const passed =
+    isPassFail && passMarks != null ? totalScore >= passMarks : null;
 
   const verdict =
     percentagePct >= 80 ? 'Mastered' : percentagePct >= 50 ? 'Good progress' : 'Needs work';
@@ -295,6 +305,16 @@ export default function MockExamResults({
               <View style={styles.badge}>
                 <Ionicons name="trophy-outline" size={12} color="#fff" />
                 <Text style={styles.badgeText}>Top {Math.max(1, 100 - percentile)}%</Text>
+              </View>
+            )}
+            {passed != null && (
+              <View style={styles.badge}>
+                <Ionicons
+                  name={passed ? 'checkmark-circle-outline' : 'close-circle-outline'}
+                  size={12}
+                  color="#fff"
+                />
+                <Text style={styles.badgeText}>{passed ? 'Passed' : 'Not passed'}</Text>
               </View>
             )}
           </View>

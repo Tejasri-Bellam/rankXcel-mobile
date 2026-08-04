@@ -15,6 +15,7 @@ import {
 import HalfCircleProgress from "@/src/components/dashboard/HalfCircleProgress";
 import MiniLineChart from "@/src/components/home/MiniLineChart";
 import { useHeaderScrollHandler } from "@/src/libs/context/HeaderScrollContext";
+import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import { useDashboard } from "@/src/libs/hooks/enrollment/useDashboard";
 import {
   getConsistencyService,
@@ -45,7 +46,6 @@ const masteryColor = getScoreColor;
 const DUMMY = {
   bestPercentile: "Top 8%",
   examYear: 2027,
-  daysToExam: 312,
 };
 
 // Consistency heatmap palette: empty → low → high.
@@ -372,6 +372,9 @@ const TrendCard = ({
 export default function AnalyticsScreen() {
   const { targetExams, activeExamId, dashboardData, isLoading, refresh } =
     useDashboard();
+  // PASS_FAIL exams aren't ranked — percentile-based cards are hidden for them.
+  const { scoring } = useTargetExam();
+  const { isPassFail, passMarks } = scoring;
   const onHeaderScroll = useHeaderScrollHandler();
   const router = useRouter();
 
@@ -384,8 +387,13 @@ export default function AnalyticsScreen() {
   const [trendsFilter, setTrendsFilter] = useState<TrendsFilter>('all');
   const { toast, showToast, hideToast } = useToast();
 
+  // No active exam (e.g. the student switched to a country they have no target
+  // exam in) — clear out the previous exam's stats rather than leaving them up.
   const loadConsistency = useCallback(async () => {
-    if (activeExamId == null) return;
+    if (activeExamId == null) {
+      setConsistency(EMPTY_CONSISTENCY);
+      return;
+    }
     try {
       const res = await getConsistencyService(activeExamId);
       setConsistency(normalizeConsistency(res));
@@ -396,7 +404,10 @@ export default function AnalyticsScreen() {
   }, [activeExamId, showToast]);
 
   const loadExamStats = useCallback(async () => {
-    if (activeExamId == null) return;
+    if (activeExamId == null) {
+      setExamStats(EMPTY_STATS);
+      return;
+    }
     try {
       const res = await getExamStatsService(activeExamId);
       setExamStats(normalizeExamStats(res));
@@ -407,7 +418,10 @@ export default function AnalyticsScreen() {
   }, [activeExamId, showToast]);
 
   const loadTrends = useCallback(async () => {
-    if (activeExamId == null) return;
+    if (activeExamId == null) {
+      setTrends(EMPTY_TRENDS);
+      return;
+    }
     try {
       const res = await getExamTrendsService(activeExamId, trendsFilter);
       setTrends(normalizeTrends(res));
@@ -418,7 +432,10 @@ export default function AnalyticsScreen() {
   }, [activeExamId, trendsFilter, showToast]);
 
   const loadWeakestNodes = useCallback(async () => {
-    if (activeExamId == null) return;
+    if (activeExamId == null) {
+      setWeakestNodes([]);
+      return;
+    }
     try {
       const res = await getWeakestNodesService(activeExamId);
       setWeakestNodes(normalizeWeakestNodes(res));
@@ -672,14 +689,17 @@ export default function AnalyticsScreen() {
         data={trends.timePerQuestion.values}
         color={COLORS.primary}
       />
-      <TrendCard
-        icon="trophy-outline"
-        title="Percentile vs Peers"
-        caption="Your percentile across live exams."
-        pill={null}
-        data={trends.percentile.values}
-        color={COLORS.yellow}
-      />
+      {/* Percentile is a ranking metric — hidden for PASS_FAIL exams. */}
+      {!isPassFail && (
+        <TrendCard
+          icon="trophy-outline"
+          title="Percentile vs Peers"
+          caption="Your percentile across live exams."
+          pill={null}
+          data={trends.percentile.values}
+          color={COLORS.yellow}
+        />
+      )}
     </>
   );
 };
@@ -744,8 +764,7 @@ console.log('consistency', consistency);
           </HalfCircleProgress>
           <Text style={styles.gaugeLabel}>EXAM READINESS</Text>
           <Text style={styles.gaugeSub}>
-            {readinessText} · {examName} {DUMMY.examYear} in{" "}
-            {DUMMY.daysToExam} days
+            {readinessText} · {examName} {DUMMY.examYear}
           </Text>
         </View>
 
@@ -769,13 +788,25 @@ console.log('consistency', consistency);
             value={`${streakDays} days`}
             label="Streak"
           />
-          <StatCard
-            icon="trophy"
-            iconLib="mci"
-            iconColor="#F5A623"
-            value={DUMMY.bestPercentile}
-            label="Best percentile"
-          />
+          {/* Ranked exams show best percentile; PASS_FAIL ones show the bar to
+              clear instead (and nothing at all when pass_marks is missing). */}
+          {!isPassFail ? (
+            <StatCard
+              icon="trophy"
+              iconLib="mci"
+              iconColor="#F5A623"
+              value={DUMMY.bestPercentile}
+              label="Best percentile"
+            />
+          ) : passMarks != null ? (
+            <StatCard
+              icon="flag-checkered"
+              iconLib="mci"
+              iconColor="#F5A623"
+              value={String(passMarks)}
+              label="Pass marks"
+            />
+          ) : null}
         </View>
 
         {/* ── Weakest nodes ── */}

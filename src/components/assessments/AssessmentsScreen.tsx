@@ -137,7 +137,9 @@ const whenLabel = (item: any, status: LiveStatus): string => {
 };
 
 export default function AssessmentsScreen() {
-  const { activeExamId } = useTargetExam();
+  // PASS_FAIL exams aren't ranked, so the ranking-flavoured copy is swapped out
+  // and each card carries the pass mark instead.
+  const { activeExamId, isPassFail, scoring } = useTargetExam();
   const onHeaderScroll = useHeaderScrollHandler();
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -589,7 +591,9 @@ export default function AssessmentsScreen() {
         <View style={styles.header}>
           <Text style={styles.pageTitle}>Live Tests</Text>
           <Text style={styles.pageSubtitle}>
-            Compete against everyone, in real time. Climb the National Leaderboard.
+            {isPassFail
+              ? "Sit the same paper as everyone else, in real time."
+              : "Compete against everyone, in real time. Climb the National Leaderboard."}
           </Text>
         </View>
 
@@ -637,7 +641,9 @@ export default function AssessmentsScreen() {
               {filter === "all" ? "No live tests yet" : `No ${filter} tests`}
             </Text>
             <Text style={styles.emptySubtitle}>
-              Ranked live tests will appear here when scheduled.
+              {isPassFail
+                ? "Live tests will appear here when scheduled."
+                : "Ranked live tests will appear here when scheduled."}
             </Text>
           </View>
         ) : (
@@ -677,6 +683,9 @@ export default function AssessmentsScreen() {
                   <Text style={styles.cardMeta}>
                     {whenLabel(item, status)} · {item.question_count ?? 0} Qs ·{" "}
                     {item.total_duration_minutes ?? 0} min
+                    {scoring.passMarks != null
+                      ? ` · pass marks ${scoring.passMarks}`
+                      : ""}
                   </Text>
                 </TouchableOpacity>
               );

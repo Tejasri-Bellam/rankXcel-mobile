@@ -67,20 +67,43 @@ export const marketingStyles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: TEXT_DARK },
 
-  /* Course list grid */
-  courseListGrid: { gap: 14 },
-  courseListCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#EFEEF5' },
-  courseListTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  courseListIconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  courseListIcon: { fontSize: 20 },
-  courseFreeTag: { backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start', height: 20 },
-  courseFreeTagText: { fontSize: 10, fontWeight: '700', color: GREEN },
-  courseListTitle: { fontSize: 16, fontWeight: '700', color: TEXT_DARK, marginBottom: 4 },
-  courseListDesc: { fontSize: 12, color: TEXT_GRAY, lineHeight: 17, marginBottom: 12 },
-  courseListMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: '#F1F0F7', paddingTop: 10 },
-  courseListMetaText: { fontSize: 12, color: TEXT_GRAY },
-  courseListPriceOld: { fontSize: 12, color: '#B0AEC0', textDecorationLine: 'line-through', marginLeft: 'auto' },
-  courseListPriceFree: { fontSize: 13, fontWeight: '700', color: GREEN },
+  /* Exam card — same treatment as the landing page's popular-courses cards:
+     one full-width card per row, icon + pill, then a divider over the meta. */
+  examCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  examCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  examCardIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: LAVENDER_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  examCardIcon: { fontSize: 18 },
+  examFeaturedPill: {
+    backgroundColor: LAVENDER_BG,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  examFeaturedText: { fontSize: 11.5, fontWeight: '700', color: PRIMARY },
+  examCardTitle: { fontSize: 16, fontWeight: '800', color: TEXT_DARK },
+  examCardSubjects: { fontSize: 12.5, color: TEXT_GRAY, lineHeight: 18, marginTop: 4 },
+  examCardDivider: { height: 1, backgroundColor: '#F1F0F7', marginVertical: 12 },
+  examCardFooter: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  examCardMeta: { fontSize: 12, color: TEXT_GRAY, fontWeight: '600' },
 
   /* Course detail hero band */
   courseHeroBand: { paddingHorizontal: 20, paddingVertical: 22 },
