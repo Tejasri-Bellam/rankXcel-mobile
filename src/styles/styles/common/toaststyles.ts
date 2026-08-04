@@ -33,4 +33,14 @@ export const toastStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Close (✕) for a dismissible toast — the only part of it that takes taps.
+  closeBtn: {
+    marginLeft: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+  },
 });

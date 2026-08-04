@@ -34,6 +34,14 @@ import {
   saveActiveAttempt,
 } from "../../libs/utils/examSession";
 import QuestionPalette, { PaletteStatus } from "../common/QuestionPalette";
+import Toast, { useToast } from "../common/Toast";
+import { useNetworkStatus } from "@/src/libs/hooks/useNetworkStatus";
+
+// Shown when the connection drops mid-test. Blunt about the risk on purpose:
+// an answer saved while offline never reaches the server.
+const OFFLINE_MESSAGE =
+  "No internet connection — your answers may not be saved. Reconnect to keep going.";
+const ONLINE_MESSAGE = "You're back online.";
 
 interface Props {
   assessmentId: number;
@@ -125,6 +133,19 @@ export default function ExamScreen({
 
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showTabWarning, setShowTabWarning] = useState(false);
+
+  // Connectivity while the test is being written. Offline always warns —
+  // including on entry, when the connection was already down. "Back online" is
+  // only worth saying if we actually saw it drop (`changedAt` is null until the
+  // first transition), so a student who was online all along sees nothing.
+  const { online, changedAt } = useNetworkStatus();
+  const { toast, showToast, hideToast } = useToast();
+  useEffect(() => {
+    if (!online) { showToast(OFFLINE_MESSAGE, "error"); return; }
+    if (changedAt == null) return;
+    showToast(ONLINE_MESSAGE, "success");
+  }, [online, changedAt, showToast]);
+
   const appStateRef = useRef(AppState.currentState);
   const tabWarningTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1165,6 +1186,19 @@ export default function ExamScreen({
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Connectivity toast. The offline message is held open for as long as
+          there's no connection; when it returns, the same toast morphs into
+          "back online" and fades out on its own. Sits below the header so it
+          doesn't cover the timer while it's up. */}
+      <Toast
+        {...toast}
+        persistent={!online}
+        dismissible={!online}
+        duration={2500}
+        topOffset={72}
+        onHide={hideToast}
+      />
     </SafeAreaView>
   );
 }

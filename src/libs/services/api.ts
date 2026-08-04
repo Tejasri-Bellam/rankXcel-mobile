@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance } from "axios";
 import { notifySessionExpired } from "@/src/libs/session";
+import { reportNetworkStatus } from "@/src/libs/network";
 
 interface ApiError {
   status: number;
@@ -126,10 +127,18 @@ function createAxiosInstance(): AxiosInstance {
   });
 
   instance.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      // A response of any kind proves the round trip completed.
+      reportNetworkStatus(true);
+      return response;
+    },
     (error: AxiosError<ErrorResponseData>) => {
       maybeHandleTokenExpiry(error);
-      return Promise.reject(customizeAxiosError(error));
+      const apiError = customizeAxiosError(error);
+      // status 0 == the request never got a response (no connection / server
+      // unreachable). An HTTP status means we're online and the server said no.
+      reportNetworkStatus(apiError.status !== 0);
+      return Promise.reject(apiError);
     }
   );
 

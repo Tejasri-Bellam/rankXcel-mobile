@@ -26,6 +26,15 @@ import {
 } from '../../libs/utils/examSession';
 import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
 import ConfirmModal from '../common/ConfirmModal';
+import Toast, { useToast } from '../common/Toast';
+import { useNetworkStatus } from '@/src/libs/hooks/useNetworkStatus';
+
+// Shown when the connection drops mid-test. Deliberately blunt about the risk:
+// an answer saved while offline doesn't reach the server, and only the answers
+// on screen when connectivity returns get re-sent (on the next Next/Prev/Mark).
+const OFFLINE_MESSAGE =
+  'No internet connection — your answers may not be saved. Reconnect to keep going.';
+const ONLINE_MESSAGE = "You're back online.";
 
 interface Props {
   mockId: number | string;
@@ -107,6 +116,18 @@ export default function MockExamScreen({
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
 
   const [isInputFocused, setIsInputFocused] = useState(false);
+
+  // Connectivity while the test is being written. Offline always warns —
+  // including on entry, when the connection was already down. "Back online" is
+  // only worth saying if we actually saw it drop (`changedAt` is null until the
+  // first transition), so a student who was online all along sees nothing.
+  const { online, changedAt } = useNetworkStatus();
+  const { toast, showToast, hideToast } = useToast();
+  useEffect(() => {
+    if (!online) { showToast(OFFLINE_MESSAGE, 'error'); return; }
+    if (changedAt == null) return;
+    showToast(ONLINE_MESSAGE, 'success');
+  }, [online, changedAt, showToast]);
 
   // The focus ring is component state, not per-question, so it would otherwise
   // carry over: answer one numeric question, move to the next, and its empty
@@ -751,6 +772,19 @@ export default function MockExamScreen({
           <Text style={styles.submittingHint}>Please don&apos;t close the app.</Text>
         </View>
       )}
+
+      {/* Connectivity toast. The offline message is held open for as long as
+          there's no connection; when it returns, the same toast morphs into
+          "back online" and fades out on its own. Sits below the header so it
+          doesn't cover the timer while it's up. */}
+      <Toast
+        {...toast}
+        persistent={!online}
+        dismissible={!online}
+        duration={2500}
+        topOffset={72}
+        onHide={hideToast}
+      />
     </SafeAreaView>
   );
 }
