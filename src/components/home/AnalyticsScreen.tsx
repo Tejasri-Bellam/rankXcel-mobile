@@ -202,8 +202,17 @@ const normalizeExamStats = (raw: any): ExamStats => {
 
 // Shape of GET /v1/exams/{id}/trends/ — tolerant of several key spellings since
 // the exact response shape is pending confirmation.
+interface TrendPoint {
+  value: number;
+  /** "Mock" | "Assessment" — the session this point came from. */
+  type: string;
+  /** ISO submitted_at, used for the x-axis captions. */
+  date: string;
+  name: string;
+}
 interface TrendSeries {
   values: number[];
+  points: TrendPoint[];
   delta: number | null;
 }
 interface TrendsData {
@@ -212,30 +221,45 @@ interface TrendsData {
   percentile: TrendSeries;
 }
 
+const EMPTY_SERIES: TrendSeries = { values: [], points: [], delta: null };
 const EMPTY_TRENDS: TrendsData = {
-  accuracy: { values: [], delta: null },
-  timePerQuestion: { values: [], delta: null },
-  percentile: { values: [], delta: null },
+  accuracy: EMPTY_SERIES,
+  timePerQuestion: EMPTY_SERIES,
+  percentile: EMPTY_SERIES,
 };
 
-const toNums = (v: any): number[] => {
+// Each trend entry is { index, <metric>, type, submitted_at, name? } — keep the
+// metadata alongside the number so the chart can caption its points.
+const toPoints = (v: any): TrendPoint[] => {
   if (!Array.isArray(v)) return [];
   return v
-    .map((x) =>
-      typeof x === "number"
-        ? x
-        : Number(
-            x?.value ??
-              x?.accuracy ??
-              x?.percentage ??
-              x?.seconds ??
-              x?.time ??
-              x?.percentile ??
-              x?.y ??
-              NaN
-          )
-    )
-    .filter((n) => Number.isFinite(n));
+    .map((x) => {
+      const value =
+        typeof x === "number"
+          ? x
+          : Number(
+              x?.value ??
+                x?.accuracy ??
+                x?.percentage ??
+                x?.seconds ??
+                x?.time ??
+                x?.percentile ??
+                x?.y ??
+                NaN
+            );
+      return {
+        value,
+        type: String(x?.type ?? ""),
+        date: String(x?.submitted_at ?? x?.date ?? ""),
+        name: String(x?.name ?? ""),
+      };
+    })
+    .filter((p) => Number.isFinite(p.value));
+};
+
+const toSeries = (raw: any, delta: any): TrendSeries => {
+  const points = toPoints(raw);
+  return { points, values: points.map((p) => p.value), delta: numOrNull(delta) };
 };
 
 const numOrNull = (v: any): number | null =>
@@ -244,22 +268,18 @@ const numOrNull = (v: any): number | null =>
 const normalizeTrends = (raw: any): TrendsData => {
   const d = raw?.data ?? raw ?? {};
   return {
-    accuracy: {
-      values: toNums(d.accuracy_trend ?? d.accuracy ?? d.accuracy_series),
-      delta: numOrNull(d.accuracy_delta ?? d.accuracy_change),
-    },
-    timePerQuestion: {
-      values: toNums(
-        d.time_per_question_trend ?? d.time_per_question ?? d.time_trend ?? d.time
-      ),
-      delta: numOrNull(d.time_delta ?? d.time_change),
-    },
-    percentile: {
-      values: toNums(
-        d.percentile_trend ?? d.percentile ?? d.percentile_vs_peers
-      ),
-      delta: numOrNull(d.percentile_delta ?? d.percentile_change),
-    },
+    accuracy: toSeries(
+      d.accuracy_trend ?? d.accuracy ?? d.accuracy_series,
+      d.accuracy_delta ?? d.accuracy_change
+    ),
+    timePerQuestion: toSeries(
+      d.time_per_question_trend ?? d.time_per_question ?? d.time_trend ?? d.time,
+      d.time_delta ?? d.time_change
+    ),
+    percentile: toSeries(
+      d.percentile_trend ?? d.percentile ?? d.percentile_vs_peers,
+      d.percentile_delta ?? d.percentile_change
+    ),
   };
 };
 
@@ -312,22 +332,34 @@ const Metric = ({
   </View>
 );
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// "2026-08-03T05:15:03Z" → "3 Aug". Empty when the date is missing/unparseable.
+const shortDate = (iso: string): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+};
+
 const TrendCard = ({
   icon,
   title,
   caption,
   captionBottom = false,
   pill,
-  data,
+  points,
   color,
+  formatValue,
 }: {
   icon: string;
   title: string;
   caption: string;
   captionBottom?: boolean;
   pill: { text: string; good: boolean } | null;
-  data: number[];
+  points: TrendPoint[];
   color: string;
+  formatValue: (v: number) => string;
 }) => (
   <>
     <View style={styles.sectionHeaderRow}>
@@ -357,8 +389,16 @@ const TrendCard = ({
           ) : null}
         </View>
       ) : null}
-      {data.length >= 2 ? (
-        <MiniLineChart data={data} color={color} height={120} lineWidth={2} />
+      {points.length >= 2 ? (
+        <MiniLineChart
+          data={points.map((p) => p.value)}
+          color={color}
+          height={120}
+          lineWidth={2}
+          showValues
+          formatValue={(v) => formatValue(v)}
+          labels={points.map((p) => shortDate(p.date))}
+        />
       ) : (
         <Text style={styles.emptyText}>Not enough data yet.</Text>
       )}
@@ -674,7 +714,8 @@ export default function AnalyticsScreen() {
             ? { text: `${accDelta > 0 ? "+" : ""}${accDelta}%`, good: accDelta >= 0 }
             : null
         }
-        data={trends.accuracy.values}
+        points={trends.accuracy.points}
+        formatValue={(v) => `${Math.round(v * 10) / 10}%`}
         color={COLORS.green}
       />
       <TrendCard
@@ -686,7 +727,8 @@ export default function AnalyticsScreen() {
             ? { text: `${timeDelta > 0 ? "+" : ""}${timeDelta}s`, good: timeDelta <= 0 }
             : null
         }
-        data={trends.timePerQuestion.values}
+        points={trends.timePerQuestion.points}
+        formatValue={(v) => `${Math.round(v * 10) / 10}s`}
         color={COLORS.primary}
       />
       {/* Percentile is a ranking metric — hidden for PASS_FAIL exams. */}
@@ -696,7 +738,8 @@ export default function AnalyticsScreen() {
           title="Percentile vs Peers"
           caption="Your percentile across live exams."
           pill={null}
-          data={trends.percentile.values}
+          points={trends.percentile.points}
+          formatValue={(v) => `${Math.round(v * 10) / 10}`}
           color={COLORS.yellow}
         />
       )}

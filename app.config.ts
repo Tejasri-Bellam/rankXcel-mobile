@@ -10,8 +10,25 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     process.env.EXPO_PUBLIC_DEEP_LINK_DOMAIN || "mockexams.wmlit.com";
   // Reversed iOS OAuth client id (e.g. com.googleusercontent.apps.<id>). The
   // google-signin config plugin registers it as a CFBundleURLScheme so iOS can
-  // hand the OAuth callback back to the app.
-  const googleIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME?.trim();
+  // hand the OAuth callback back to the app. Without it the native GoogleSignIn
+  // SDK raises an uncaught exception (= app crash) as soon as signIn() runs, so
+  // it is derived from the iOS client id rather than left to a separate env var.
+  const googleIosClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
+  const googleIosUrlScheme =
+    process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME?.trim() ||
+    (googleIosClientId
+      ? `com.googleusercontent.apps.${googleIosClientId.replace(
+          ".apps.googleusercontent.com",
+          ""
+        )}`
+      : undefined);
+
+  if (!googleIosUrlScheme) {
+    console.warn(
+      "🚨 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID missing — Google Sign-In will crash on iOS"
+    );
+  }
 
   return {
     ...config,

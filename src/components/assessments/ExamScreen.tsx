@@ -30,12 +30,18 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getassessmentsQuestionsService } from "../../libs/services/assessments";
 import {
-  EXAM_BACKGROUND_GRACE_MS,
   clearActiveAttempt,
   saveActiveAttempt,
 } from "../../libs/utils/examSession";
 import QuestionPalette, { PaletteStatus } from "../common/QuestionPalette";
-import FlagQuestionModal from "../common/FlagQuestionModal";
+import Toast, { useToast } from "../common/Toast";
+import { useNetworkStatus } from "@/src/libs/hooks/useNetworkStatus";
+
+// Shown when the connection drops mid-test. Blunt about the risk on purpose:
+// an answer saved while offline never reaches the server.
+const OFFLINE_MESSAGE =
+  "No internet connection — your answers may not be saved. Reconnect to keep going.";
+const ONLINE_MESSAGE = "You're back online.";
 
 interface Props {
   assessmentId: number;
@@ -111,13 +117,11 @@ export default function ExamScreen({
   // every tick / resume, so a suspended JS timer (app-switch, screen-lock)
   // can't desync it from real elapsed time.
   const [deadline, setDeadline] = useState<number | null>(null);
-  // Timestamp the app was backgrounded at, used to measure the grace window.
-  const backgroundedAtRef = useRef<number | null>(null);
-  // Pending submit fired while the app stays in the background past the grace
-  // window (best-effort — JS may be suspended; the on-return check is fallback).
-  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Calls the freshest handleFinalSubmit from inside long-lived effects.
   const finalSubmitRef = useRef<() => void>(() => {});
+  // Recomputes the countdown from the wall-clock deadline. Held in a ref so the
+  // AppState listener can force a sync the moment the app comes back.
+  const syncClockRef = useRef<() => void>(() => {});
 
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [activeQIdx, setActiveQIdx] = useState(0);
@@ -129,12 +133,24 @@ export default function ExamScreen({
 
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showTabWarning, setShowTabWarning] = useState(false);
+
+  // Connectivity while the test is being written. Offline always warns —
+  // including on entry, when the connection was already down. "Back online" is
+  // only worth saying if we actually saw it drop (`changedAt` is null until the
+  // first transition), so a student who was online all along sees nothing.
+  const { online, changedAt } = useNetworkStatus();
+  const { toast, showToast, hideToast } = useToast();
+  useEffect(() => {
+    if (!online) { showToast(OFFLINE_MESSAGE, "error"); return; }
+    if (changedAt == null) return;
+    showToast(ONLINE_MESSAGE, "success");
+  }, [online, changedAt, showToast]);
+
   const appStateRef = useRef(AppState.currentState);
   const tabWarningTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
-  const [showFlagModal, setShowFlagModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Set once the attempt is submitted. The runner stays mounted behind the
   // success popup while the parent redirects home, so this freezes the countdown
@@ -349,6 +365,7 @@ export default function ExamScreen({
       if (left <= 0) finalSubmitRef.current();
       return left;
     };
+    syncClockRef.current = sync;
     sync();
     const interval = setInterval(() => {
       if (sync() <= 0) clearInterval(interval);
@@ -358,6 +375,9 @@ export default function ExamScreen({
   }, [deadline, submitted]);
 
   // ── AppState / tab-switch detection ──
+  // Leaving the app never ends the attempt — it stays IN_PROGRESS and can be
+  // resumed. Switching away is still counted and warned about; the only thing
+  // that auto-submits is the deadline, which the clock resync below picks up.
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
@@ -366,14 +386,6 @@ export default function ExamScreen({
           appStateRef.current === "active" &&
           (nextState === "background" || nextState === "inactive")
         ) {
-          // Start the grace clock — leaving past the window auto-submits.
-          backgroundedAtRef.current = Date.now();
-          // Submit once the grace window elapses even while still away.
-          if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-          graceTimerRef.current = setTimeout(
-            () => finalSubmitRef.current(),
-            EXAM_BACKGROUND_GRACE_MS,
-          );
           setTabSwitchCount((prev) => {
             const newCount = prev + 1;
             setShowTabWarning(true);
@@ -386,17 +398,9 @@ export default function ExamScreen({
             return newCount;
           });
         } else if (nextState === "active") {
-          // Returned to the app: the wall-clock timer self-corrects on resume.
-          if (graceTimerRef.current) {
-            clearTimeout(graceTimerRef.current);
-            graceTimerRef.current = null;
-          }
-          // Fallback: if JS was suspended and the timer never fired, submit now.
-          if (backgroundedAtRef.current != null) {
-            const away = Date.now() - backgroundedAtRef.current;
-            backgroundedAtRef.current = null;
-            if (away >= EXAM_BACKGROUND_GRACE_MS) finalSubmitRef.current();
-          }
+          // Returned to the app: resync the countdown against the wall-clock
+          // deadline (submits only if the time ran out while away).
+          syncClockRef.current();
         }
         appStateRef.current = nextState;
       },
@@ -404,7 +408,6 @@ export default function ExamScreen({
     return () => {
       subscription.remove();
       if (tabWarningTimeout.current) clearTimeout(tabWarningTimeout.current);
-      if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
     };
   }, []);
 
@@ -707,13 +710,9 @@ export default function ExamScreen({
       await clearActiveAttempt();
 
       // Freeze the runner: the parent keeps us mounted behind the success popup
-      // while it redirects home, so stop the countdown and cancel any pending
-      // background-grace submit before handing the result up.
+      // while it redirects home, so stop the countdown before handing the
+      // result up.
       setSubmitted(true);
-      if (graceTimerRef.current) {
-        clearTimeout(graceTimerRef.current);
-        graceTimerRef.current = null;
-      }
 
       console.log("SUBMIT RESPONSE:", JSON.stringify(response, null, 2));
 
@@ -748,9 +747,6 @@ export default function ExamScreen({
     (s.questions ?? []).map((q: any, qi: number) => ({ q, si, qi })),
   );
   const totalQ = flatQuestions.length;
-  const currentFlatIdx = flatQuestions.findIndex(
-    ({ si, qi }: any) => si === activeSectionIdx && qi === activeQIdx,
-  );
   const currentQId = getCurrentQuestionId();
   const isMarked = qStatuses[currentQId] === "marked";
   const isLast =
@@ -781,7 +777,7 @@ export default function ExamScreen({
     const status = qStatuses[q.id];
     const hasAnswer = (answers[q.id] || []).length > 0;
     if (isCurrent) return '#6C63FF'
-    if (status === "answered" && hasAnswer) return '#6C63FF';
+    if (status === "answered" && hasAnswer) return '#22C55E';
     if (status === "marked") return "#F59E0B";
     return "#E5E7EB";
   });
@@ -936,10 +932,6 @@ export default function ExamScreen({
                   </Text>
                 </View>
               </View>
-
-              <TouchableOpacity style={styles.flagBtn} onPress={() => setShowFlagModal(true)} activeOpacity={0.75}>
-                <Ionicons name="flag-outline" size={16} color="#9CA3AF" />
-              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.markBtn, isMarked && styles.markBtnActive]}
@@ -1194,22 +1186,18 @@ export default function ExamScreen({
           </View>
         </TouchableOpacity>
       </Modal>
-      <FlagQuestionModal
-        visible={showFlagModal}
-        onClose={() => setShowFlagModal(false)}
-        questionId={activeQuestion?.id}
-        questionNumber={currentFlatIdx + 1}
-        choices={
-          isNumericalType(activeQuestion?.type)
-            ? []
-            : (activeQuestion?.options ?? []).map((o: any, idx: number) => ({
-                id: o.id,
-                label: String.fromCharCode(65 + idx),
-                // Raw HTML: the modal renders it through RichContent so an
-                // equation-only option is not listed as its LaTeX source.
-                text: o.text,
-              }))
-        }
+
+      {/* Connectivity toast. The offline message is held open for as long as
+          there's no connection; when it returns, the same toast morphs into
+          "back online" and fades out on its own. Sits below the header so it
+          doesn't cover the timer while it's up. */}
+      <Toast
+        {...toast}
+        persistent={!online}
+        dismissible={!online}
+        duration={2500}
+        topOffset={72}
+        onHide={hideToast}
       />
     </SafeAreaView>
   );

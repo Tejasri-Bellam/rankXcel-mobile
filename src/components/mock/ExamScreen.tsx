@@ -21,13 +21,20 @@ import { hasRichContent } from '../../libs/utils/richContent';
 import RichContent from '../common/RichContent';
 import { questionTypeLabel } from '@/src/libs/utils/questionType';
 import {
-  EXAM_BACKGROUND_GRACE_MS,
   clearActiveAttempt,
   saveActiveAttempt,
 } from '../../libs/utils/examSession';
 import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
-import FlagQuestionModal from '../common/FlagQuestionModal';
 import ConfirmModal from '../common/ConfirmModal';
+import Toast, { useToast } from '../common/Toast';
+import { useNetworkStatus } from '@/src/libs/hooks/useNetworkStatus';
+
+// Shown when the connection drops mid-test. Deliberately blunt about the risk:
+// an answer saved while offline doesn't reach the server, and only the answers
+// on screen when connectivity returns get re-sent (on the next Next/Prev/Mark).
+const OFFLINE_MESSAGE =
+  'No internet connection — your answers may not be saved. Reconnect to keep going.';
+const ONLINE_MESSAGE = "You're back online.";
 
 interface Props {
   mockId: number | string;
@@ -46,8 +53,8 @@ interface Props {
     timeTaken: number,
     result?: MockTestResult | null,
     // Set when the attempt was submitted automatically (not via the Submit
-    // button): the timer ran out ('timeup') or the app was left past the grace
-    // window ('inactivity'). Lets the destination surface a toast explaining it.
+    // button) because the timer ran out. Lets the destination surface a toast
+    // explaining why it landed on the results screen.
     autoSubmitReason?: AutoSubmitReason,
   ) => void;
   onBackToMocks?: () => void;
@@ -55,7 +62,7 @@ interface Props {
 
 type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked';
 
-export type AutoSubmitReason = 'timeup' | 'inactivity';
+export type AutoSubmitReason = 'timeup';
 
 const isMultiSelect = (type: string | undefined) => {
   if (!type) return false;
@@ -94,24 +101,33 @@ export default function MockExamScreen({
   // every tick / resume, so a suspended JS timer (app-switch, screen-lock)
   // can't desync it from real elapsed time.
   const [deadline, setDeadline] = useState<number | null>(null);
-  // Timestamp the app was backgrounded at, used to measure the grace window.
-  const backgroundedAtRef = useRef<number | null>(null);
-  // Pending submit fired while the app stays in the background past the grace
-  // window (best-effort — JS may be suspended; the on-return check is fallback).
-  const graceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  // Recomputes the countdown from the wall-clock deadline. Held in a ref so the
+  // AppState listener can force a sync the moment the app comes back.
+  const syncClockRef = useRef<() => void>(() => {});
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [activeQIdx, setActiveQIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>(initialAnswers ?? {});
   const [qStatuses, setQStatuses] = useState<Record<string, QuestionStatus>>(initialStatuses ?? {});
   const [showPalette, setShowPalette] = useState(false);
-  const [showFlagModal, setShowFlagModal] = useState(false);
   const [showSubmitSheet, setShowSubmitSheet] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
 
   const [isInputFocused, setIsInputFocused] = useState(false);
+
+  // Connectivity while the test is being written. Offline always warns —
+  // including on entry, when the connection was already down. "Back online" is
+  // only worth saying if we actually saw it drop (`changedAt` is null until the
+  // first transition), so a student who was online all along sees nothing.
+  const { online, changedAt } = useNetworkStatus();
+  const { toast, showToast, hideToast } = useToast();
+  useEffect(() => {
+    if (!online) { showToast(OFFLINE_MESSAGE, 'error'); return; }
+    if (changedAt == null) return;
+    showToast(ONLINE_MESSAGE, 'success');
+  }, [online, changedAt, showToast]);
 
   // The focus ring is component state, not per-question, so it would otherwise
   // carry over: answer one numeric question, move to the next, and its empty
@@ -157,6 +173,7 @@ export default function MockExamScreen({
       if (left <= 0) finalSubmitRef.current('timeup');
       return left;
     };
+    syncClockRef.current = sync;
     sync();
     const interval = setInterval(() => {
       if (sync() <= 0) clearInterval(interval);
@@ -165,38 +182,17 @@ export default function MockExamScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadline]);
 
-  // Leaving the app (app-switch / screen-lock / kill all look the same to JS):
-  // start a grace clock on background; on return, recompute the timer and, if
-  // the app stayed away past the grace window, auto-submit the attempt.
+  // Leaving the app (app-switch / screen-lock / kill all look the same to JS)
+  // does NOT end the attempt — it stays IN_PROGRESS so the student can resume
+  // it. All that happens on return is a clock resync against the wall-clock
+  // deadline, which submits only if the time ran out while they were away.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
-      if (prev === 'active' && (next === 'background' || next === 'inactive')) {
-        backgroundedAtRef.current = Date.now();
-        // Submit once the grace window elapses even while still away.
-        if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-        graceTimerRef.current = setTimeout(
-          () => finalSubmitRef.current('inactivity'),
-          EXAM_BACKGROUND_GRACE_MS,
-        );
-      } else if (next === 'active') {
-        if (graceTimerRef.current) {
-          clearTimeout(graceTimerRef.current);
-          graceTimerRef.current = null;
-        }
-        // Fallback: if JS was suspended and the timer never fired, submit now.
-        if (backgroundedAtRef.current != null) {
-          const away = Date.now() - backgroundedAtRef.current;
-          backgroundedAtRef.current = null;
-          if (away >= EXAM_BACKGROUND_GRACE_MS) finalSubmitRef.current('inactivity');
-        }
-      }
+      if (prev !== 'active' && next === 'active') syncClockRef.current();
     });
-    return () => {
-      sub.remove();
-      if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-    };
+    return () => sub.remove();
   }, []);
 
   // Android hardware back: an in-progress attempt can't simply be abandoned —
@@ -452,7 +448,7 @@ export default function MockExamScreen({
     const isCurrent = si === activeSectionIdx && qi === activeQIdx;
     const status = qStatuses[qid];
     if (isCurrent) return '#6C63FF';
-    if (status === 'answered') return '#6C63FF';
+    if (status === 'answered') return '#22C55E';
     if (status === 'marked') return '#F59E0B';
     return '#E5E7EB';
   });
@@ -549,10 +545,6 @@ export default function MockExamScreen({
                 );
               })()}
             </View>
-
-            <TouchableOpacity style={styles.flagBtn} onPress={() => setShowFlagModal(true)} activeOpacity={0.75}>
-              <Ionicons name="flag-outline" size={16} color="#9CA3AF" />
-            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.markBtn, isMarked && styles.markBtnActive]}
@@ -766,24 +758,6 @@ export default function MockExamScreen({
         onCancel={() => setShowExitConfirm(false)}
         onConfirm={confirmExit}
       />
-      <FlagQuestionModal
-        visible={showFlagModal}
-        onClose={() => setShowFlagModal(false)}
-        questionId={currentQId}
-        questionNumber={currentFlatIdx + 1}
-        choices={
-          (activeQuestion?.options?.length ?? 0) === 0
-            ? []
-            : (activeQuestion?.options ?? []).map((o: any, idx: number) => ({
-                id: String(o.id),
-                label: String.fromCharCode(65 + idx),
-                // Raw HTML: the modal renders it through RichContent so an
-                // equation-only option is not listed as its LaTeX source.
-                text: o.text,
-              }))
-        }
-      />
-
       {/* Submitting overlay — blocks all interaction (answering, navigating)
           while the attempt is finalized server-side, which can take a while.
           Deliberately NOT a <Modal>: `submitting` stays true right through
@@ -798,6 +772,19 @@ export default function MockExamScreen({
           <Text style={styles.submittingHint}>Please don&apos;t close the app.</Text>
         </View>
       )}
+
+      {/* Connectivity toast. The offline message is held open for as long as
+          there's no connection; when it returns, the same toast morphs into
+          "back online" and fades out on its own. Sits below the header so it
+          doesn't cover the timer while it's up. */}
+      <Toast
+        {...toast}
+        persistent={!online}
+        dismissible={!online}
+        duration={2500}
+        topOffset={72}
+        onHide={hideToast}
+      />
     </SafeAreaView>
   );
 }

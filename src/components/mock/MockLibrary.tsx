@@ -96,10 +96,15 @@ const getTagColor = (label: string | null): string => {
 interface MockCardProps {
   mock: MockTest;
   onPress: () => void;
+  // Tapping "Resume" on an in-progress card — goes straight back into the exam.
+  onResume: () => void;
 }
 
-const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
+const MockCard: React.FC<MockCardProps> = ({ mock, onPress, onResume }) => {
   const isCompleted = mock.latest_attempt_status === 'SUBMITTED';
+  // A started-but-unsubmitted attempt (the student closed the app / left mid
+  // test). Keys off the ATTEMPT status, not the mock's publish `status`.
+  const isInProgress = mock.latest_attempt_status === 'IN_PROGRESS';
   const lastPct = mock?.percentage;
   const lastAccuracy = mock?.accuracy;
   const tagLabel = getTagLabel(mock);
@@ -113,7 +118,11 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
   );
 
   return (
-    <TouchableOpacity style={styles.mockCard} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={[styles.mockCard, isInProgress && styles.mockCardInProgress]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
       {/* Icon */}
       <View style={styles.mockCardIcon}>
         <Ionicons name="document-text-outline" size={22} color="#6C63FF" />
@@ -134,6 +143,12 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
 
         {/* Tag + meta */}
         <View style={styles.mockCardMeta}>
+          {isInProgress && (
+            <View style={styles.inProgressPill}>
+              <View style={styles.inProgressDot} />
+              <Text style={styles.inProgressPillText}>In progress</Text>
+            </View>
+          )}
           {tagLabel && (
             <View style={[styles.mockTag, { backgroundColor: tagColor + '18' }]}>
               <Text style={[styles.mockTagText, { color: tagColor }]}>{tagLabel}</Text>
@@ -162,8 +177,17 @@ const MockCard: React.FC<MockCardProps> = ({ mock, onPress }) => {
         </View>
       </View>
 
-      {/* Right: score % or chevron */}
-      {isCompleted && lastPct != null ? (
+      {/* Right: Resume CTA for an unfinished attempt, else score % or chevron */}
+      {isInProgress ? (
+        <TouchableOpacity
+          style={styles.resumeCardBtn}
+          onPress={onResume}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="play" size={13} color="#fff" />
+          <Text style={styles.resumeCardBtnText}>Resume</Text>
+        </TouchableOpacity>
+      ) : isCompleted && lastPct != null ? (
         <Text style={[styles.mockCardScore, { color: getScoreColor(lastPct) }]}>
           {lastPct}%
         </Text>
@@ -210,6 +234,8 @@ export default function MockLibrary({
   const [deepLinkResolving, setDeepLinkResolving] = useState(false);
 
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
+  // Every page of the list, fetched in the background purely for the tab counts.
+  const [countMocks, setCountMocks] = useState<MockTest[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -309,6 +335,38 @@ export default function MockLibrary({
 
   useEffect(() => { loadMocks(); }, [loadMocks]);
 
+  // Tab badges must show the true Official / My Mocks totals, not just what the
+  // pages loaded so far happen to hold — a page mixes both categories, so the
+  // loaded slice under-reports. Same approach the Live Tests screen uses for its
+  // filter counts: page through the whole list once in the background. Null
+  // until it lands (or if it fails), in which case the badges fall back to the
+  // loaded slice with a "+".
+  const fetchAllForCounts = useCallback(async () => {
+    if (activeExamId == null) {
+      setCountMocks([]);
+      return;
+    }
+    const all: MockTest[] = [];
+    try {
+      // Cap the walk so a mis-paginating endpoint can't spin forever.
+      for (let p = 1; p <= 30; p++) {
+        const response = await getMockTestsService(activeExamId, testType, p);
+        const { results, next } = extractPage<MockTest>(response);
+        if (results.length === 0) break;
+        all.push(...results);
+        if (!next) break;
+      }
+      setCountMocks(
+        Array.from(new Map(all.map((m) => [String(m.id), m])).values()),
+      );
+    } catch {
+      // Leave the badges on their loaded-slice fallback.
+      setCountMocks(null);
+    }
+  }, [activeExamId, testType]);
+
+  useEffect(() => { fetchAllForCounts(); }, [fetchAllForCounts]);
+
   // Deep-link from a notification: fetch the mock by id (it may be on any page
   // of the paginated list) and open its detail — or its results when the alert
   // carries an attempt id (RESULT_PUBLISHED).
@@ -402,25 +460,40 @@ export default function MockLibrary({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestVisible, resumeMock, selectedMock, deepLink]);
 
-  const visibleMocks = allMocks
+  // Shared by the rendered list and the background count list, so a badge can
+  // never count something the list itself would hide.
+  const inScope = (m: MockTest): boolean => {
     // Only show the requested test type — the API sometimes ignores the
     // test_type query param and returns both PRACTICE_TEST and MOCK_TEST.
-    .filter((m) => !m.test_type || m.test_type === testType)
-    .filter((m) => {
-      const eid = getExamId(m.exam);
-      // Can't tell which exam it belongs to — keep it rather than hide it.
-      if (eid == null) return true;
-      // A target exam is selected: the list came from that exam's endpoint, so
-      // it's already country-correct; drop anything else that slipped through.
-      if (activeExamId != null) return String(eid) === String(activeExamId);
-      // No target exam: the list is the unscoped /v1/mock-tests/, which mixes
-      // every country. Keep only exams offered in the student's country.
-      return countryExamIds == null || countryExamIds.has(String(eid));
-    });
+    if (m.test_type && m.test_type !== testType) return false;
+    const eid = getExamId(m.exam);
+    // Can't tell which exam it belongs to — keep it rather than hide it.
+    if (eid == null) return true;
+    // A target exam is selected: the list came from that exam's endpoint, so
+    // it's already country-correct; drop anything else that slipped through.
+    if (activeExamId != null) return String(eid) === String(activeExamId);
+    // No target exam: the list is the unscoped /v1/mock-tests/, which mixes
+    // every country. Keep only exams offered in the student's country.
+    return countryExamIds == null || countryExamIds.has(String(eid));
+  };
+
+  const visibleMocks = allMocks.filter(inScope);
 
   const studentMocks = visibleMocks.filter((m) => !m.is_official);
   const officialMocks = visibleMocks.filter((m) => m.is_official);
   const mocks = activeTab === 'official' ? officialMocks : studentMocks;
+
+  // True totals from the background walk over every page. Null until it lands —
+  // the badges stay hidden until then rather than counting up 10 → 20 → 30 as
+  // pages arrive.
+  const scopedCountMocks = countMocks?.filter(inScope) ?? null;
+  const totals = scopedCountMocks
+    ? {
+        all: scopedCountMocks.length,
+        official: scopedCountMocks.filter((m) => m.is_official).length,
+        student: scopedCountMocks.filter((m) => !m.is_official).length,
+      }
+    : null;
 
   // Keep pulling pages until the active tab shows at least 10 mocks (or the
   // API runs out). A page mixes both categories, so one tab can lag behind.
@@ -490,7 +563,7 @@ export default function MockLibrary({
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => loadMocks(true)}
+            onRefresh={() => { loadMocks(true); fetchAllForCounts(); }}
             colors={['#6C63FF']}
             tintColor="#6C63FF"
           />
@@ -504,12 +577,9 @@ export default function MockLibrary({
               {/* Counts what's actually on screen, not the server's `count` —
                   that total spans every country/test type, so it kept showing a
                   number for a country with no mocks. "+" while pages remain. */}
-              {!loading && (
+              {!loading && totals && (
                 <View style={styles.pageCountBadge}>
-                  <Text style={styles.pageCountText}>
-                    {visibleMocks.length}
-                    {hasMore ? '+' : ''}
-                  </Text>
+                  <Text style={styles.pageCountText}>{totals.all}</Text>
                 </View>
               )}
             </View>
@@ -527,8 +597,8 @@ export default function MockLibrary({
           )}
         </View>
 
-        {/* Tabs — each shows its mock count; "+" while more pages remain,
-            since the paginated list may not be fully loaded yet. */}
+        {/* Tabs — each shows its true mock count, which appears only once the
+            background walk over every page has finished. */}
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'official' && styles.tabActive]}
@@ -538,7 +608,7 @@ export default function MockLibrary({
             <Text style={[styles.tabText, activeTab === 'official' && styles.tabTextActive]}>
               Official Mocks
             </Text>
-            {!loading && (
+            {!loading && totals && (
               <View
                 style={[
                   styles.tabCountBadge,
@@ -551,8 +621,7 @@ export default function MockLibrary({
                     activeTab === 'official' && styles.tabCountTextActive,
                   ]}
                 >
-                  {officialMocks.length}
-                  {hasMore ? '+' : ''}
+                  {totals.official}
                 </Text>
               </View>
             )}
@@ -565,7 +634,7 @@ export default function MockLibrary({
             <Text style={[styles.tabText, activeTab === 'student' && styles.tabTextActive]}>
               My Mocks
             </Text>
-            {!loading && (
+            {!loading && totals && (
               <View
                 style={[
                   styles.tabCountBadge,
@@ -578,8 +647,7 @@ export default function MockLibrary({
                     activeTab === 'student' && styles.tabCountTextActive,
                   ]}
                 >
-                  {studentMocks.length}
-                  {hasMore ? '+' : ''}
+                  {totals.student}
                 </Text>
               </View>
             )}
@@ -606,13 +674,12 @@ export default function MockLibrary({
               <MockCard
                 key={String(mock.id)}
                 mock={mock}
-                onPress={() => {
-                  // Resume keys off the ATTEMPT status, not the mock's publish
-                  // `status` (which is PUBLISHED/etc., never IN_PROGRESS).
-                  if (mock.latest_attempt_status === 'IN_PROGRESS')
-                    setResumeMock(mock);
-                  else setSelectedMock(mock);
-                }}
+                // Tapping the card always opens the detail page — for an
+                // in-progress mock that's where the "Resume mock" CTA lives, so
+                // the student is never dropped back into a running test without
+                // meaning to. The card's own Resume button is the shortcut.
+                onPress={() => setSelectedMock(mock)}
+                onResume={() => setResumeMock(mock)}
               />
             ))}
             {/* "Nothing here" only once the pages have actually run out — the
@@ -652,7 +719,7 @@ export default function MockLibrary({
       <RequestMockModal
         visible={requestVisible}
         onClose={() => setRequestVisible(false)}
-        onCreated={() => { setRequestVisible(false); loadMocks(true); }}
+        onCreated={() => { setRequestVisible(false); loadMocks(true); fetchAllForCounts(); }}
         defaultExamId={activeExamId}
         testType={testType}
       />

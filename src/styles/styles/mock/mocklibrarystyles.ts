@@ -161,6 +161,39 @@ export const mockLibraryStyles = StyleSheet.create({
     flexShrink: 0,
   },
 
+  // ── In-progress (resumable) attempt ──
+  mockCardInProgress: {
+    borderWidth: 1.5,
+    borderColor: '#FCA5A5',
+  },
+  inProgressPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#FFECEC',
+  },
+  inProgressDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  inProgressPillText: { fontSize: 10, fontWeight: '800', color: '#EF4444' },
+  resumeCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#6C63FF',
+    flexShrink: 0,
+  },
+  resumeCardBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+
   buildBtn: {
     flexDirection: 'row',
     alignItems: 'center',

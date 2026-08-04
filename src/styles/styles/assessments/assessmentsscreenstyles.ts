@@ -81,6 +81,29 @@ export const liveTestsStyles = StyleSheet.create({
   cardTitle: { fontSize: 14, fontWeight: "800", color: "#1A1A2E", marginBottom: 6 },
   cardMeta: { fontSize: 12, color: "#9CA3AF" },
 
+  // ── In-progress (resumable) attempt ──
+  inProgressPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: "#FFECEC",
+  },
+  inProgressPillText: { fontSize: 10, fontWeight: "800", color: "#EF4444" },
+  resumeCardBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    marginTop: 10,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: "#6C63FF",
+  },
+  resumeCardBtnText: { fontSize: 12, fontWeight: "700", color: "#FFFFFF" },
+
   studentStatusPill: {
     alignSelf: "flex-start",
     paddingHorizontal: 10,

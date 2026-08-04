@@ -2,7 +2,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,6 +19,7 @@ import {
 } from "@/src/libs/services/questionReports";
 import Toast, { useToast } from "@/src/components/common/Toast";
 import RichContent from "@/src/components/common/RichContent";
+import { getErrorMessage } from "@/src/libs/utils/apiError";
 
 export interface FlagChoiceOption {
   id: string;
@@ -47,6 +47,9 @@ const ISSUE_TYPES: { value: QuestionReportIssueType; label: string }[] = [
   { value: "OTHER", label: "Other" },
 ];
 
+const issueLabel = (value: QuestionReportIssueType): string =>
+  ISSUE_TYPES.find((o) => o.value === value)?.label ?? "Other";
+
 const MAX_DESC = 500;
 
 export default function FlagQuestionModal({
@@ -61,6 +64,7 @@ export default function FlagQuestionModal({
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const { toast, showToast, hideToast } = useToast();
 
@@ -71,6 +75,7 @@ export default function FlagQuestionModal({
     setSelectedChoiceId(null);
     setDescription("");
     setSubmitting(false);
+    setFormError(null);
   };
 
   const handleClose = () => {
@@ -89,22 +94,26 @@ export default function FlagQuestionModal({
 const hasChoices = (choices?.length ?? 0) > 0;
 
 
-  // The issue type (and the offending choice, for CHOICE reports) is all that's
-  // required — the free-text description is optional.
+  // "Other" says nothing on its own, so the description is mandatory there. For
+  // every other issue type it stays optional — the API requires the field, so we
+  // send the issue label when nothing was typed.
+  const descriptionRequired = issueType === "OTHER";
+
   const isValid =
   !!issueType &&
-  (!isChoiceIssue || !hasChoices || !!selectedChoiceId);
+  (!isChoiceIssue || !hasChoices || !!selectedChoiceId) &&
+  (!descriptionRequired || description.trim() !== "");
 
   const handleSubmit = async () => {
   if (!isValid || submitting || !issueType || questionId == null) return;
   try {
     setSubmitting(true);
+    setFormError(null);
     const trimmedDescription = description.trim();
     const payload: QuestionReportPayloadWithOptionalChoice = {
       issue_type: issueType,
+      description: trimmedDescription || issueLabel(issueType),
     };
-    // Omit the key entirely when nothing was typed rather than sending "".
-    if (trimmedDescription !== "") payload.description = trimmedDescription;
     if (isChoiceIssue && hasChoices && selectedChoiceId) {
       payload.choice = Number(selectedChoiceId);
     }
@@ -114,11 +123,10 @@ const hasChoices = (choices?.length ?? 0) > 0;
     onClose();
     showToast("Thanks! Your report has been submitted.", "success");
   } catch (e: any) {
-    console.log(
-      "FLAG QUESTION ERROR:",
-      JSON.stringify(e?.response?.data ?? e?.message ?? e, null, 2),
+    // The toast sits behind the modal, so the message is shown in the card.
+    setFormError(
+      getErrorMessage(e, "Could not submit your report. Please try again."),
     );
-    Alert.alert("Error", "Could not submit your report. Please try again.");
     setSubmitting(false);
   }
 };
@@ -219,14 +227,25 @@ const hasChoices = (choices?.length ?? 0) > 0;
             <View style={{ marginTop: 12 }}>
               <Text style={styles.sectionLabel}>
                 ADDITIONAL DETAILS{" "}
-                <Text style={styles.optionalText}>(optional)</Text>
+                {descriptionRequired ? (
+                  <Text style={styles.requiredText}>(required)</Text>
+                ) : (
+                  <Text style={styles.optionalText}>(optional)</Text>
+                )}
               </Text>
               <TextInput
                 style={styles.textarea}
-                placeholder="Describe the issue briefly..."
+                placeholder={
+                  descriptionRequired
+                    ? "Tell us what's wrong with this question..."
+                    : "Describe the issue briefly..."
+                }
                 placeholderTextColor="#B0B3BD"
                 value={description}
-                onChangeText={(t) => setDescription(t.slice(0, MAX_DESC))}
+                onChangeText={(t) => {
+                  setDescription(t.slice(0, MAX_DESC));
+                  if (formError) setFormError(null);
+                }}
                 multiline
                 numberOfLines={4}
                 maxLength={MAX_DESC}
@@ -246,6 +265,13 @@ const hasChoices = (choices?.length ?? 0) > 0;
               </Text>
             </View>
           </ScrollView>
+
+          {formError ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={14} color="#DC2626" />
+              <Text style={styles.errorBannerText}>{formError}</Text>
+            </View>
+          ) : null}
 
           {/* Footer */}
           <View style={styles.footerRow}>
@@ -401,6 +427,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   charCount: { fontSize: 10.5, color: "#B0B3BD", textAlign: "right", marginTop: 4 },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginHorizontal: 18,
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "#FEE2E2",
+  },
+  errorBannerText: { flex: 1, fontSize: 11.5, fontWeight: "600", color: "#B91C1C" },
   footerRow: {
     flexDirection: "row",
     gap: 10,
