@@ -5,31 +5,6 @@ export const practiceSettingsModalStyles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
 
-  topBar: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 0,
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    alignSelf: "flex-start",
-  },
-  backText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: '#6C63FF',
-  },
-
-  pageTitle: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#1A1A2E",
-    marginTop: 10,
-    marginBottom: 20,
-  },
-
   playBox: {
     width: 52,
     height: 52,

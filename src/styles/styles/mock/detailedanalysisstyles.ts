@@ -10,19 +10,7 @@ export const mockAnalysisStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
 
   // Header
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  backArrow: { fontSize: 18, color: PRIMARY },
-  backText: { fontSize: 14, color: GRAY, fontWeight: '500' },
-
   scrollContent: { padding: 16, paddingBottom: 60 },
-
-  pageTitle: { fontSize: 24, fontWeight: '800', color: PRIMARY, marginBottom: 2 },
-  pageSubtitle: { fontSize: 13, color: GRAY, marginBottom: 12 },
 
   // Legend row (overall correct / wrong / skipped)
   legendRow: {

@@ -22,13 +22,18 @@ export const forgotPasswordStyles = StyleSheet.create({
   },
 
   // ── Back button ──────────────────────────────────────────────────────────
+  // Chevron + "Back" — the same icon-and-label affordance the in-app screens use.
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
+    alignSelf: 'flex-start',
+    height: 40,
+    paddingLeft: 8,
+    paddingRight: 14,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
     marginBottom: 28,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -41,6 +46,7 @@ export const forgotPasswordStyles = StyleSheet.create({
     color: '#6C63FF',
     fontWeight: '700',
   },
+  backButtonText: { fontSize: 15, fontWeight: '600', color: '#6C63FF' },
 
   // ── Logo ──────────────────────────────────────────────────────────────────
   logoRow: {

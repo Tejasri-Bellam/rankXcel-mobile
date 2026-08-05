@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PracticeExamFlow } from "./PracticeExamFlow";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import { practiceScreenStyles as styles } from "@/src/styles/styles/practice/practicescreenstyles";
+import ScreenHeader from "@/src/components/common/ScreenHeader";
 
 
 export interface TopicItem {
@@ -233,20 +234,10 @@ export const AccuracyRing = ({
   );
 };
 
-// "< Back" row + big page title — the drill-down header used by the
-// topics / sub-topics screens.
+// "‹ Back" row + big page title — the drill-down header used by the
+// topics / sub-topics screens. Same shared header as every other screen.
 const BackHeader = ({ title, onBack }: { title: string; onBack: () => void }) => (
-  <>
-    <View style={styles.topBar}>
-      <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-        <Ionicons name="chevron-back" size={14} color="#6C63FF" />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
-    </View>
-    <Text style={styles.bigTitle} numberOfLines={1}>
-      {title}
-    </Text>
-  </>
+  <ScreenHeader title={title} onBack={onBack} />
 );
 
 // White summary card with a progress ring, strength label and a meta line.

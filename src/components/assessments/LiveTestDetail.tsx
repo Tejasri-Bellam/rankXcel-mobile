@@ -21,6 +21,7 @@ import ExamResults from "./ExamResults";
 import SolutionViewer from "./SolutionViewer";
 import Leaderboard from "./Leaderboard";
 import SubmitSuccessModal from "./SubmitSuccessModal";
+import ScreenHeader from "@/src/components/common/ScreenHeader";
 import { liveTestDetailStyles as s } from "@/src/styles/styles/assessments/livetestdetailstyles";
 import { useTargetExam } from "@/src/libs/context/TagretExamContext";
 import {
@@ -562,12 +563,7 @@ export default function LiveTestDetail({
 
   return (
     <View style={s.safeArea}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color='#6C63FF' />
-          <Text style={s.backText}>Back</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader title={item?.name || "Live Test"} onBack={onBack} />
 
       <ScrollView
         style={s.scroll}
@@ -582,8 +578,6 @@ export default function LiveTestDetail({
             {statusPillMeta.label}
           </Text>
         </View>
-
-        <Text style={s.title}>{item?.name}</Text>
 
         <Text style={s.description}>
           {item?.description ||

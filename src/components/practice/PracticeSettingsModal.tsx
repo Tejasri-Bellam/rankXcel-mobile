@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Difficulty } from "./PracticeExamFlow";
 import { practiceSettingsModalStyles as styles } from "@/src/styles/styles/practice/practicesettingsmodalstyles";
+import ScreenHeader from "@/src/components/common/ScreenHeader";
 import {
   PRACTICE_DIFFICULTY_OPTIONS as DIFFICULTY_OPTIONS,
   PRACTICE_QUESTION_OPTIONS as QUESTION_OPTIONS,
@@ -56,13 +57,7 @@ export default function PracticeSettingsModal({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      {/* Back button */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={onCancel} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color='#6C63FF' />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader title={chapterName} onBack={onCancel} />
 
       <ScrollView
         style={styles.scroll}
@@ -70,8 +65,6 @@ export default function PracticeSettingsModal({
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Page Title */}
-        <Text style={styles.pageTitle}>{chapterName}</Text>
 
         {/* Mode icon box */}
         <View style={styles.playBox}>

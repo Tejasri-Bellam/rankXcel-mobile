@@ -20,6 +20,8 @@ import { COLORS } from '@/src/styles/styles';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 import { parseApiError, getFieldError } from '@/src/libs/utils/apiError';
 import { OnboardingJson } from '../json/onboarding';
+import BrandLogo from '@/src/components/common/BrandLogo';
+import ScreenHeader from '@/src/components/common/ScreenHeader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ExamOption = { id: number; name: string };
@@ -41,6 +43,14 @@ export default function SetGoalScreen() {
   const [goalErrors, setGoalErrors] = useState<{
     exam?: string; targetYear?: string; form?: string;
   }>({});
+
+  // Reached by push (sidebar "+ Add", the dashboard) but also by replace right
+  // after login, where there's nothing to pop back to — land on the dashboard
+  // rather than back on the auth screens.
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/dashboard');
+  };
 
   useEffect(() => {
     (async () => {
@@ -139,15 +149,13 @@ export default function SetGoalScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Header — the shared brand mark, same as the in-app header. */}
         <View style={s.header}>
-          <View style={s.logoRow}>
-            <View style={s.logoBadge}>
-              <Text style={s.logoBadgeText}>{data.logo.shortName}</Text>
-            </View>
-            <Text style={s.logoText}>{data.logo.name}</Text>
-          </View>
+          <BrandLogo />
         </View>
+
+        {/* No title here — the body's "Set Your Goal" hero is the page title. */}
+        <ScreenHeader onBack={handleBack} />
 
         <View style={s.body}>
           <Text style={s.title}>{data.goal.title}</Text>

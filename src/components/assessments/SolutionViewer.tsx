@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { solutionViewerStyles as styles } from '@/src/styles/styles/assessments/solutionviewerstyles';
+import ScreenHeader from '@/src/components/common/ScreenHeader';
 
 interface Props {
   attemptId: number;
@@ -216,14 +217,7 @@ export default function SolutionViewer({ attemptId, answers, onBack }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color='#6C63FF' />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review</Text>
-      </View>
+      <ScreenHeader title="Review" onBack={onBack} />
 
       <ReviewFilterTabs value={filter} onChange={setFilter} counts={counts} />
 

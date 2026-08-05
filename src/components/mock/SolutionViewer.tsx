@@ -27,6 +27,7 @@ import RichContent from '../common/RichContent';
 import TutorModal, { ConversationApi } from '@/src/components/common/TutorModal';
 import FlagQuestionModal, { FlagChoiceOption } from '@/src/components/common/FlagQuestionModal';
 import QuestionReportHistory from '@/src/components/common/QuestionReportHistory';
+import ScreenHeader from '@/src/components/common/ScreenHeader';
 import ReviewFilterTabs, {
   ReviewFilter,
   ReviewFilterEmpty,
@@ -285,14 +286,7 @@ export default function MockSolutionViewer({ mockId, attemptId, answers, onBack 
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color='#6C63FF' />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review</Text>
-      </View>
+      <ScreenHeader title="Review" onBack={onBack} />
 
       <ReviewFilterTabs value={filter} onChange={setFilter} counts={counts} />
 

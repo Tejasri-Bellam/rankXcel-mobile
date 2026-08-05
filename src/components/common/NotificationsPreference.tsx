@@ -9,13 +9,12 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 import { COLORS } from "@/src/styles/styles";
+import ScreenHeader from "./ScreenHeader";
 import { getNotificationPreferencesService, NotificationPreferences, updateNotificationPreferencesService } from "@/src/libs/services/alerts-preferences";
 
 type PrefKey = keyof NotificationPreferences;
@@ -122,12 +121,7 @@ export default function NotificationPreferencesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.textDark} />
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Notification Preferences</Text>
-      </View>
+      <ScreenHeader title="Notification Preferences" onBack={() => router.back()} />
 
       {loading ? (
         <View style={styles.centerLoading}>
@@ -163,25 +157,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingTop: 52,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-  },
-  backBtn: {
-    width: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  topTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: COLORS.textDark,
   },
   centerLoading: {
     flex: 1,

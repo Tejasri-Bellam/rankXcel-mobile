@@ -192,13 +192,14 @@ export const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 // ───────────────────────────── History filters ─────────────────────────────
 
-// HistoryScreen filter chips → `type` query value (null = all types).
+// HistoryScreen filter dropdown → `type` query value (null = all types).
+// Listed in the order they're shown in the dropdown.
 export const HISTORY_FILTERS: { label: string; value: string | null }[] = [
   { label: "All", value: null },
+  { label: "Assessment", value: "assessment" },
   { label: "Mock", value: "mock" },
   { label: "Practice", value: "practice" },
   { label: "Test", value: "test" },
-  { label: "Assessment", value: "assessment" },
 ];
 
 // ───────────────────────────── Notifications ─────────────────────────────

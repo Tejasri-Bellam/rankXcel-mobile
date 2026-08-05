@@ -105,7 +105,8 @@ export default function ResetPasswordConfirmScreen() {
       onPress={() => router.replace('/auth/login')}
       activeOpacity={0.7}
     >
-      <Ionicons name="chevron-back" size={20} color="#2F8AF4" />
+      <Ionicons name="chevron-back" size={18} color="#2F8AF4" />
+      <Text style={styles.backButtonText}>Back</Text>
     </TouchableOpacity>
   );
 

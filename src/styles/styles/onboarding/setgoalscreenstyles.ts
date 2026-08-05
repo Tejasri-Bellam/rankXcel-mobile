@@ -3,6 +3,9 @@ import { COLORS } from '@/src/styles/styles';
 
 export const onboardingStyles = StyleSheet.create({
   safeArea: {
+    // Without flex the wrapper hugs its content, leaving the page background
+    // stopping short of the bottom of the screen.
+    flex: 1,
     backgroundColor: COLORS.background,
   },
   scroll: {
@@ -10,38 +13,15 @@ export const onboardingStyles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  // Header
+  // Header — same geometry and (unscrolled) colour as the in-app header, which
+  // sits transparent on the page background rather than in a white bar.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    backgroundColor: COLORS.white,
-  },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#6C63FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  logoBadgeText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  logoText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textDark,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
   },
   stepIndicator: {
     fontSize: 13,

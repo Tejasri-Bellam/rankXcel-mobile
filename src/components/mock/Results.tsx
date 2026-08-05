@@ -20,6 +20,7 @@ import {
 import { getScoreColor } from '@/src/styles/styles';
 import { SUBJECT_ACCENTS } from '@/src/libs/constants';
 import { resultsStyles as styles } from '@/src/styles/styles/mock/resultsstyles';
+import ScreenHeader from '@/src/components/common/ScreenHeader';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 
 interface Props {
@@ -262,13 +263,9 @@ export default function MockExamResults({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color='#6C63FF' />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-      </View>
+      {/* The banner below repeats the mock's name, so the header stays generic
+          rather than printing it twice. */}
+      <ScreenHeader title="Results" onBack={onBack} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* ── Hero banner ── */}

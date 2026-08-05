@@ -2,18 +2,6 @@ import { StyleSheet } from 'react-native';
 
 export const solutionViewerStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#EEEFF5' },
-  header: {
-    flexDirection: 'column',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    backgroundColor: '#EEEFF5',
-    paddingLeft: 18,
-    gap: 10,
-  },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  backText: { fontSize: 15, fontWeight: '600', color: '#6C63FF' },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#1A1A2E' },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 40, gap: 16 },
 
   questionCard: {

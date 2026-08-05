@@ -15,10 +15,6 @@ export const examResultsStyles = StyleSheet.create({
   retryBtn: { marginTop: 16, backgroundColor: '#6C63FF', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
   retryBtnText: { color: '#fff', fontWeight: '700' },
 
-  topBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  backText: { fontSize: 15, fontWeight: '600', color: '#6C63FF' },
-
   scrollContent: { padding: 16, paddingBottom: 28 },
 
   // Hero banner

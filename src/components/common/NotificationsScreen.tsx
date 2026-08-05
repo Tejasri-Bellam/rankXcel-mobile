@@ -16,6 +16,7 @@ import { COLORS } from "@/src/styles/styles";
 import BottomNav from "./BottomNav";
 import { deleteAlertService, getAlertsService, markAllAlertsReadService, updateAlertService } from "@/src/libs/services/alerts";
 import DeleteConfirmModal from "./DeleteConfirmModal";
+import ScreenHeader from "./ScreenHeader";
 
 // Types
 type AlertItem = {
@@ -224,29 +225,21 @@ const confirmDelete = async () => {
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chevron-back" size={18} color={COLORS.primary} />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Notifications</Text>
-
-        {unreadCount > 0 && (
-          <TouchableOpacity
-            style={styles.markAllBtn}
-            onPress={handleMarkAllRead}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.markAllText}>Mark all as read</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => router.back()}
+        right={
+          unreadCount > 0 ? (
+            <TouchableOpacity
+              style={styles.markAllBtn}
+              onPress={handleMarkAllRead}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.markAllText}>Mark all as read</Text>
+            </TouchableOpacity>
+          ) : null
+        }
+      />
 
       {/* Body */}
       {loading ? (
@@ -369,34 +362,8 @@ const styles = StyleSheet.create({
   },
 
   // Header
-  header: {
-    paddingTop: 20,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    backgroundColor: COLORS.background,
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    marginBottom: 10,
-  },
-  backText: {
-    fontSize: 17,
-    color: COLORS.primary,
-    marginLeft: 2,
-    fontWeight: "500",
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: COLORS.textDark,
-  },
-  markAllBtn: {
-    position: "absolute",
-    right: 16,
-    bottom: 18,
-  },
+  // Sits in the page header's right-hand slot, beside the title.
+  markAllBtn: {},
   markAllText: {
     fontSize: 13,
     color: COLORS.primary,

@@ -30,6 +30,7 @@ import {
 } from "@/src/libs/services/mock-library";
 import { practiceResultsStyles as styles } from "@/src/styles/styles/practice/practiceresultsstyles";
 import { OPTION_LETTERS } from "@/src/libs/constants";
+import ScreenHeader from "@/src/components/common/ScreenHeader";
 import {
   idSetsEqual,
   isMultiSelectType,
@@ -356,17 +357,7 @@ const wrong = statuses.filter((s) => s === "wrong").length;
   if (view === "review") {
     return (
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.reviewHeader}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => setView("results")}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-back" size={18} color="#6C63FF" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.reviewHeaderTitle}>Review</Text>
-        </View>
+        <ScreenHeader title="Review" onBack={() => setView("results")} />
 
         <ReviewFilterTabs value={filter} onChange={setFilter} counts={filterCounts} />
 
@@ -563,19 +554,13 @@ const wrong = statuses.filter((s) => s === "wrong").length;
   // ── Results view ───────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBackToHub} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color="#6C63FF" />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader title="Results" onBack={onBackToHub} />
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.resultsContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.resultsTitle}>Results</Text>
 
         <View style={styles.ringWrap}>
           <CircleProgress

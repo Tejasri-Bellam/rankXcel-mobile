@@ -5,37 +5,6 @@ const BG = "#EEEFF5";
 export const leaderboardStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BG },
 
-  // Header is its own white rounded card, not a bare bar on the background.
-  headerCard: {
-    marginHorizontal: 18,
-    marginTop: 12,
-    marginBottom: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  backBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 17,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: { fontSize: 16, fontWeight: "800", color: "#1A1A2E" },
-
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 32, gap: 8 },
 
@@ -82,8 +51,8 @@ export const leaderboardExtraStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
-    paddingTop: 4,
-    paddingLeft: 44, // aligns under the title, past the circular back button
+    paddingHorizontal: 20, // lines up with the page header's title
+    paddingBottom: 10,
   },
   breadcrumbText: { fontSize: 12, fontWeight: "600", color: "#9CA3AF" },
   breadcrumbActive: { color: "#6C63FF" },

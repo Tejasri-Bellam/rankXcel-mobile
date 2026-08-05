@@ -139,10 +139,11 @@ export default function ForgotPasswordScreen() {
     >
       <Ionicons
         name="chevron-back"
-        size={24}
+        size={20}
         color="#6C63FF"
         style={forgotPasswordStyles.backButtonIcon}
       />
+      <Text style={forgotPasswordStyles.backButtonText}>Back</Text>
     </TouchableOpacity>
   );
 

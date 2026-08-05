@@ -49,27 +49,6 @@ export const practiceScreenStyles = StyleSheet.create({
   nodeInfo: { flex: 1 },
 
   // Drill-down header
-  topBar: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    backgroundColor: "#F7F8FC",
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    alignSelf: "flex-start",
-  },
-  backText: { fontSize: 14, fontWeight: "600", color: '#6C63FF' },
-  bigTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1A1A2E",
-    paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 16,
-    backgroundColor: "#F7F8FC",
-  },
   screenContent: { paddingHorizontal: 16, paddingBottom: 32 },
 
   // Stat banner

@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   ScrollView,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +12,7 @@ import {
   leaderboardExtraStyles as lb,
 } from "@/src/styles/styles/assessments/leaderboardstyles";
 import { getAssessmentLeaderboardService } from "@/src/libs/services/assessments";
+import ScreenHeader from "@/src/components/common/ScreenHeader";
 
 interface Props {
   assessmentId?: number;
@@ -208,25 +208,19 @@ export default function Leaderboard({
 
   return (
     <View style={s.safeArea}>
-      <View style={s.headerCard}>
-        <View style={s.headerRow}>
-          <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={18} color="#1A1A2E" />
-          </TouchableOpacity>
-          <Text style={s.title}>Leaderboard</Text>
+      <ScreenHeader title="Leaderboard" onBack={onBack} />
+
+      {(assessmentName || liveLabel) && (
+        <View style={lb.breadcrumb}>
+          {assessmentName && <Text style={lb.breadcrumbText}>{assessmentName}</Text>}
+          {assessmentName && liveLabel && (
+            <Ionicons name="chevron-forward" size={12} color="#9CA3AF" />
+          )}
+          {liveLabel && (
+            <Text style={[lb.breadcrumbText, lb.breadcrumbActive]}>{liveLabel}</Text>
+          )}
         </View>
-        {(assessmentName || liveLabel) && (
-          <View style={lb.breadcrumb}>
-            {assessmentName && <Text style={lb.breadcrumbText}>{assessmentName}</Text>}
-            {assessmentName && liveLabel && (
-              <Ionicons name="chevron-forward" size={12} color="#9CA3AF" />
-            )}
-            {liveLabel && (
-              <Text style={[lb.breadcrumbText, lb.breadcrumbActive]}>{liveLabel}</Text>
-            )}
-          </View>
-        )}
-      </View>
+      )}
 
       {loading ? (
         <View style={{ paddingTop: 60, alignItems: "center" }}>

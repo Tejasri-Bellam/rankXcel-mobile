@@ -17,6 +17,7 @@ import {
   getassessmentResultService,
 } from "@/src/libs/services/assessments-attempts";
 import { getSubjectColor } from "@/src/libs/constants";
+import ScreenHeader from "@/src/components/common/ScreenHeader";
 
 interface Props {
   attemptId: number;
@@ -280,18 +281,15 @@ export default function AssessmentDetailedAnalysis({
     <View style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backText}>Results Overview</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Detailed Analysis"
+        subtitle={exam?.title || undefined}
+        onBack={onBack}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.pageTitle}>Detailed Analysis</Text>
-        {!!exam?.title && <Text style={styles.pageSubtitle}>{exam.title}</Text>}
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: "#22C55E" }]} />
