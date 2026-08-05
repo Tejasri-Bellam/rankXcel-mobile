@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,8 @@ import { useRouter } from "expo-router";
 import { COLORS } from "@/src/styles/styles";
 import BottomNav from "./BottomNav";
 import { deleteAlertService, getAlertsService, markAllAlertsReadService, updateAlertService } from "@/src/libs/services/alerts";
+import DeleteConfirmModal from "./DeleteConfirmModal";
+import ScreenHeader from "./ScreenHeader";
 
 // Types
 type AlertItem = {
@@ -94,6 +95,9 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
+const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const fetchAlerts = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -197,51 +201,45 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleDelete = (item: AlertItem) => {
-    Alert.alert("Delete notification", "Remove this notification?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setAlerts((prev) => prev.filter((a) => a.id !== item.id));
-          try {
-            await deleteAlertService(item.id);
-          } catch {
-            fetchAlerts(true);
-          }
-        },
-      },
-    ]);
-  };
+const handleDeletePress = (item: AlertItem) => {
+  setSelectedAlert(item);
+  setShowDeleteModal(true);
+};
+
+const confirmDelete = async () => {
+  if (!selectedAlert) return;
+
+  setAlerts(prev => prev.filter(a => a.id !== selectedAlert.id));
+
+  try {
+    await deleteAlertService(selectedAlert.id);
+  } catch {
+    fetchAlerts(true);
+  }
+
+  setShowDeleteModal(false);
+  setSelectedAlert(null);
+};
 
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
   return (
     <View style={styles.root}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chevron-back" size={18} color={COLORS.primary} />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Notifications</Text>
-
-        {unreadCount > 0 && (
-          <TouchableOpacity
-            style={styles.markAllBtn}
-            onPress={handleMarkAllRead}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.markAllText}>Mark all as read</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => router.back()}
+        right={
+          unreadCount > 0 ? (
+            <TouchableOpacity
+              style={styles.markAllBtn}
+              onPress={handleMarkAllRead}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.markAllText}>Mark all as read</Text>
+            </TouchableOpacity>
+          ) : null
+        }
+      />
 
       {/* Body */}
       {loading ? (
@@ -293,13 +291,20 @@ export default function NotificationsScreen() {
               key={item.id}
               item={item}
               onPress={() => handleAlertPress(item)}
-              onDelete={() => handleDelete(item)}
+              onDelete={() => handleDeletePress(item)}
             />
           ))}
           <View style={{ height: 12 }} />
         </ScrollView>
       )}
-
+<DeleteConfirmModal
+  visible={showDeleteModal}
+  onCancel={() => {
+    setShowDeleteModal(false);
+    setSelectedAlert(null);
+  }}
+  onDelete={confirmDelete}
+/>
       <BottomNav />
     </View>
   );
@@ -357,34 +362,8 @@ const styles = StyleSheet.create({
   },
 
   // Header
-  header: {
-    paddingTop: 20,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    backgroundColor: COLORS.background,
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    marginBottom: 10,
-  },
-  backText: {
-    fontSize: 17,
-    color: COLORS.primary,
-    marginLeft: 2,
-    fontWeight: "500",
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: COLORS.textDark,
-  },
-  markAllBtn: {
-    position: "absolute",
-    right: 16,
-    bottom: 18,
-  },
+  // Sits in the page header's right-hand slot, beside the title.
+  markAllBtn: {},
   markAllText: {
     fontSize: 13,
     color: COLORS.primary,

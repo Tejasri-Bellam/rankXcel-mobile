@@ -5,25 +5,6 @@ export const detailsStyles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    gap: 10,
-  },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  backText: { fontSize: 15, fontWeight: '600', color: '#6C63FF' },
-  headerTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1A1A2E',
-    textAlign: 'center',
-    marginRight: 60,
-  },
-
   mockIcon: {
     width: 60,
     height: 60,

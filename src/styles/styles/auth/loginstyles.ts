@@ -22,19 +22,24 @@ export const loginStyles = StyleSheet.create({
   },
 
   // Back button (white rounded square with chevron)
+  // Chevron + "Back" — the same icon-and-label affordance the in-app screens use.
   backButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
+    height: 32,
+    paddingLeft: 6,
+    paddingRight: 10,
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
     shadowColor: '#1E293B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 2,
   },
+  backButtonText: { fontSize: 14, fontWeight: '600', color: '#6C63FF' },
 
   // Brand row
   brandRow: {

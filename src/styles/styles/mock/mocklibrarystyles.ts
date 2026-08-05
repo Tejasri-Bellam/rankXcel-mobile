@@ -28,11 +28,11 @@ export const mockLibraryStyles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     paddingHorizontal: 8,
-    backgroundColor: '#EEF0FE',
+    backgroundColor: '#6C63FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pageCountText: { fontSize: 12, fontWeight: '700', color: '#6C63FF' },
+  pageCountText: { fontSize: 12, fontWeight: '700', color: '#fff' },
   pageSubtitle: { fontSize: 13, color: '#9CA3AF', lineHeight: 18 },
 
   tabBar: {
@@ -72,9 +72,9 @@ export const mockLibraryStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabCountBadgeActive: { backgroundColor: '#EEF0FE' },
+  tabCountBadgeActive: { backgroundColor: '#6C63FF' },
   tabCountText: { fontSize: 10, fontWeight: '700', color: '#6B7280' },
-  tabCountTextActive: { color: '#6C63FF' },
+  tabCountTextActive: { color: '#fff' },
 
   cardList: { paddingHorizontal: 16, gap: 12 },
 

@@ -7,24 +7,6 @@ export const profileStyles = StyleSheet.create({
   scrollContent: { paddingBottom: 16 },
   body: { flex: 1, backgroundColor: COLORS.background, paddingTop: 6 },
 
-  backButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  paddingHorizontal: 16,
-  paddingVertical: 14,
-  marginLeft: 10,
-  backgroundColor: COLORS.white,
-
-},
-
-backText: {
-  fontSize: 24,
-  alignItems: 'flex-start',
-  fontWeight: '700',
-  color: COLORS.textDark,
-  marginLeft: 16,
-},
-
   // ── Hero ──
   heroCard: {
     flexDirection: 'row',

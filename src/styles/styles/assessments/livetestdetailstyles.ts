@@ -5,14 +5,6 @@ const ACCENT = "#2F86FF";
 
 export const liveTestDetailStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BG },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 2, alignSelf: "flex-start" },
-  backText: { fontSize: 16, fontWeight: "600", color: '#6C63FF' },
-
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
 
@@ -37,7 +29,6 @@ export const liveTestDetailStyles = StyleSheet.create({
   statusPillText: { fontSize: 12, fontWeight: "700" },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#EF4444" },
 
-  title: { fontSize: 26, fontWeight: "800", color: "#1A1A2E", marginBottom: 10 },
   description: { fontSize: 14, color: "#6B7280", lineHeight: 21, marginBottom: 20 },
 
   infoCard: {

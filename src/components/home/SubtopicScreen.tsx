@@ -17,6 +17,7 @@ import { subtopicScreenStyles as styles } from "@/src/styles/styles/home/subtopi
 import { getSubtopicDetailService } from "@/src/libs/services/dashboard";
 import CircleProgress from "@/src/components/dashboard/CircleProgress";
 import MiniLineChart from "@/src/components/home/MiniLineChart";
+import ScreenHeader from "@/src/components/common/ScreenHeader";
 
 // Weakest-node colour band: <30 red, 30–39 orange, 40–59 yellow, 60–100 green.
 const nodeColor = getScoreColor;
@@ -183,19 +184,10 @@ export default function SubtopicScreen() {
   return (
     <View style={styles.safeArea}>
       {/* ── Header ── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.replace('/analytics')}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.textDark} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {detail.topicName || "Sub-topic"}
-        </Text>
-      </View>
+      <ScreenHeader
+        title={detail.topicName || "Sub-topic"}
+        onBack={() => router.replace('/analytics')}
+      />
 
       <ScrollView
         style={styles.scroll}

@@ -6,6 +6,7 @@ import {
   Animated,
   Dimensions,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -13,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
@@ -40,8 +42,70 @@ import ConfirmModal from "@/src/components/common/ConfirmModal";
 const { width, height } = Dimensions.get("window");
 // Full-width panel.
 const PANEL_W = width;
-// Keep the courses list scrollable without letting the sheet cover the screen.
-const SHEET_LIST_MAX_H = height * 0.6;
+
+// Height of a bottom sheet's header row — the title, the "+ Add" pill and the
+// pinned close button all share it so they line up on one baseline.
+const HEADER_ROW_H = 32;
+
+// Drag past this far (or flick faster than this) and the sheet dismisses;
+// anything less springs back.
+const SHEET_DISMISS_DISTANCE = 110;
+const SHEET_DISMISS_VELOCITY = 0.7;
+
+/**
+ * Makes a bottom sheet draggable: the handle was previously decorative, so the
+ * only way out was the close button.
+ *
+ * Returns the transform for the sheet and the pan handlers to spread on its
+ * grab area. Attach the handlers to the handle/header only — the list below
+ * owns vertical gestures, and claiming them here would break scrolling.
+ */
+function useSheetDrag(visible: boolean, onClose: () => void) {
+  const translateY = useRef(new Animated.Value(0)).current;
+  // The responder is built once, so it must read the *current* onClose.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Reopening after a drag-dismiss must start from the top again.
+  useEffect(() => {
+    if (visible) translateY.setValue(0);
+  }, [visible, translateY]);
+
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderMove: (_, g) => {
+        // Downward only — dragging up shouldn't lift the sheet off the bottom.
+        translateY.setValue(Math.max(0, g.dy));
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > SHEET_DISMISS_DISTANCE || g.vy > SHEET_DISMISS_VELOCITY) {
+          Animated.timing(translateY, {
+            toValue: height,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => onCloseRef.current());
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            bounciness: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateY, {
+          toValue: 0,
+          bounciness: 0,
+          useNativeDriver: true,
+        }).start();
+      },
+    })
+  ).current;
+
+  return { sheetTransform: { transform: [{ translateY }] }, panHandlers: pan.panHandlers };
+}
 
 type Props = {
   visible: boolean;
@@ -645,6 +709,8 @@ function CoursesSheet({
   onAssignExam: () => void;
   onDeleteExam: (exam: TargetExam) => void;
 }) {
+  const insets = useSafeAreaInsets();
+  const { sheetTransform, panHandlers } = useSheetDrag(visible, onClose);
   // Only hide the assign action when we've confirmed the country's catalogue is
   // empty. `null` means unknown (not loaded / fetch failed) — keep the action.
   const noExamsForCountry =
@@ -657,18 +723,39 @@ function CoursesSheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={styles.sheet}>
-        <View style={styles.sheetHandle} />
-        <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Your courses</Text>
-          <TouchableOpacity onPress={onClose} style={styles.sheetClose}>
-            <Ionicons name="close" size={18} color={COLORS.textMedium} />
-          </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.sheet,
+          sheetTransform,
+          // Clear the device's bottom inset (gesture bar / nav bar) so the last
+          // card isn't cut off by it.
+          { paddingBottom: insets.bottom + 16 },
+        ]}
+      >
+        {/* Grab area: drag anywhere on the handle or the title row to dismiss.
+            The list below keeps its own vertical gestures. */}
+        <View {...panHandlers}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle} numberOfLines={1}>
+              Your courses
+            </Text>
+            {!noExamsForCountry && (
+              <TouchableOpacity
+                style={styles.sheetAddBtn}
+                onPress={onAssignExam}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add" size={16} color={COLORS.white} />
+                <Text style={styles.sheetAddText}>Add</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          style={{ maxHeight: SHEET_LIST_MAX_H }}
+          style={styles.sheetList}
         >
           {/* Region (display only — country is changed from the main sidebar) */}
           <View style={styles.regionRow}>
@@ -738,34 +825,19 @@ function CoursesSheet({
             })
           )}
 
-          {/* Assign a new target exam — or explain that the selected country
-              has no exams to assign. */}
-          {noExamsForCountry ? (
+          {/* Assigning is the header's "+ Add" button; all that's left down here
+              is explaining when there's nothing to assign. */}
+          {noExamsForCountry && (
             <View style={styles.noExamsRow}>
               <Text style={styles.noExamsText}>
                 No target exams are available for {region.name}.
               </Text>
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.assignRow}
-              activeOpacity={0.85}
-              onPress={onAssignExam}
-            >
-              <View style={styles.assignIcon}>
-                <Ionicons name="add" size={18} color={COLORS.primary} />
-              </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.assignTitle}>Assign target exam</Text>
-                <Text style={styles.assignSub}>Add another exam to your courses</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-            </TouchableOpacity>
           )}
 
-          <View style={{ height: 12 }} />
+          <View style={{ height: 4 }} />
         </ScrollView>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -781,6 +853,8 @@ function CountrySheet({
   currentRegion: RegionInfo;
   onSelect: (country: Country) => void;
 }) {
+  const insets = useSafeAreaInsets();
+  const { sheetTransform, panHandlers } = useSheetDrag(visible, onClose);
   const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -819,13 +893,22 @@ function CountrySheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={styles.sheet}>
-        <View style={styles.sheetHandle} />
-        <View style={styles.sheetHeader}>
-          <Text style={styles.sheetTitle}>Region & country</Text>
-          <TouchableOpacity onPress={onClose} style={styles.sheetClose}>
-            <Ionicons name="close" size={18} color={COLORS.textMedium} />
-          </TouchableOpacity>
+      <Animated.View
+        style={[
+          styles.sheet,
+          sheetTransform,
+          { paddingBottom: insets.bottom + 16 },
+        ]}
+      >
+        <TouchableOpacity onPress={onClose} style={styles.sheetClose}>
+          <Ionicons name="close" size={18} color={COLORS.textMedium} />
+        </TouchableOpacity>
+        {/* Drag the handle or the title row to dismiss. */}
+        <View {...panHandlers}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Region & country</Text>
+          </View>
         </View>
 
         <Text style={styles.sheetSub}>
@@ -844,7 +927,7 @@ function CountrySheet({
         ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}
-            style={{ maxHeight: 380 }}
+            style={[styles.sheetList, { maxHeight: 380 }]}
           >
             {countries.map((c) => {
               const selected =
@@ -886,7 +969,7 @@ function CountrySheet({
             <View style={{ height: 12 }} />
           </ScrollView>
         )}
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -1020,6 +1103,9 @@ const styles: any = {
     left: 0,
     right: 0,
     bottom: 0,
+    // Bounded here rather than on the list, so the sheet never runs past the
+    // screen — the list shrinks to whatever room is left (see `sheetList`).
+    maxHeight: "88%",
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
@@ -1027,6 +1113,9 @@ const styles: any = {
     paddingTop: 10,
     paddingBottom: 28,
   },
+  // flexShrink lets the list give back space when the sheet hits its max
+  // height; without it the last card is clipped by the screen edge.
+  sheetList: { flexShrink: 1 },
   sheetHandle: {
     width: 40,
     height: 4,
@@ -1035,14 +1124,43 @@ const styles: any = {
     alignSelf: "center",
     marginBottom: 10,
   },
+  // Title left, "+ Add" right — the full width of the sheet. The close button
+  // sits in its own strip above (see `sheetClose`), so nothing is reserved for
+  // it here. `marginTop` clears that strip.
   sheetHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    height: HEADER_ROW_H,
+    marginTop: 14,
     marginBottom: 14,
   },
-  sheetTitle: { fontSize: 18, fontWeight: "800", color: COLORS.textDark },
+  sheetTitle: {
+    flexShrink: 1,
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.textDark,
+  },
+  // "+ Add" — assigning a new target exam, in reach without scrolling past
+  // every course.
+  sheetAddBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    height: HEADER_ROW_H,
+    paddingLeft: 11,
+    paddingRight: 14,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary,
+  },
+  sheetAddText: { fontSize: 13, fontWeight: "700", color: COLORS.white },
+  // Pinned to the sheet's top-right corner, level with the drag handle — not on
+  // the title row, which the title and "+ Add" own outright.
   sheetClose: {
+    position: "absolute",
+    top: 8,
+    right: 12,
+    zIndex: 2,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -1135,27 +1253,6 @@ const styles: any = {
   expiredText: { fontSize: 11, fontWeight: "700", color: COLORS.red },
 
   // "Assign target exam" action in the courses sheet
-  assignRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: COLORS.primary,
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: COLORS.primaryLight,
-  },
-  assignIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: COLORS.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  assignTitle: { fontSize: 14, fontWeight: "700", color: COLORS.primary },
-  assignSub: { fontSize: 11, color: COLORS.textMedium, marginTop: 1 },
   noExamsRow: {
     borderWidth: 1,
     borderColor: COLORS.border,

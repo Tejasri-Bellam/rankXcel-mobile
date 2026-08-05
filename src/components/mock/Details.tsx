@@ -24,6 +24,7 @@ import MockSolutionViewer from './SolutionViewer';
 import Toast, { useToast } from '../common/Toast';
 import type { AutoSubmitReason } from './ExamScreen';
 import { detailsStyles as styles } from '@/src/styles/styles/mock/detailsstyles';
+import ScreenHeader from '@/src/components/common/ScreenHeader';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
 
 // Copy shown when the attempt was submitted for the student (not via the
@@ -290,16 +291,7 @@ const handleRetake = async () => {
   // ── Detail screen ──
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={18} color="#6C63FF" />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {mockData.name}
-        </Text>
-      </View>
+      <ScreenHeader title={mockData.name} onBack={onBack} />
 
       <ScrollView
         style={styles.scroll}

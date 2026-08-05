@@ -21,6 +21,7 @@ import {
   ASSESSMENT_INSTRUCTIONS as INSTRUCTIONS,
 } from '@/src/libs/constants';
 import { Ionicons } from '@expo/vector-icons';
+import ScreenHeader from '@/src/components/common/ScreenHeader';
 
 interface Props {
   item: any;
@@ -209,12 +210,7 @@ export default function ExamDetails({ item, onBack }: Props) {
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backText}>Assessments</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader title={item?.name || 'Assessment'} onBack={onBack} />
 
       <ScrollView
         style={styles.scroll}
@@ -229,9 +225,6 @@ export default function ExamDetails({ item, onBack }: Props) {
           <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
           <Text style={[styles.statusText, { color: sc.color }]}>{sc.label}</Text>
         </View>
-
-        {/* Title */}
-        <Text style={styles.title}>{item?.name}</Text>
 
         {/* Description */}
         {!!item?.description && (

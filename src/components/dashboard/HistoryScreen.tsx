@@ -3,7 +3,10 @@ import { getErrorMessage } from "@/src/libs/utils/apiError";
 import { formatPercent } from "@/src/libs/utils/percent";
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
+  Modal,
+  Pressable,
   Text,
   TouchableOpacity,
   View,
@@ -12,6 +15,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, getScoreColor } from "@/src/styles/styles";
+import ScreenHeader from "@/src/components/common/ScreenHeader";
 import { getDashboardHistoryService } from "@/src/libs/services/dashboard";
 import {
   DashboardHistoryPage,
@@ -75,9 +79,25 @@ export default function HistoryScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
+  // Server's `count` for the currently filtered list — shown beside the title.
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  // Type filter dropdown. `anchor` is the on-screen box of the trigger button,
+  // measured on open so the panel can be pinned right under it (the panel lives
+  // in a Modal so it overlays the list instead of being clipped by it).
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [anchor, setAnchor] = useState({ top: 0, right: 16 });
+  const filterBtnRef = useRef<View>(null);
 
   // Guard against overlapping onEndReached fires.
   const fetchingRef = useRef(false);
+
+  const openFilter = () => {
+    filterBtnRef.current?.measureInWindow((x, y, width, height) => {
+      const screenWidth = Dimensions.get("window").width;
+      setAnchor({ top: y + height + 6, right: Math.max(screenWidth - (x + width), 8) });
+      setFilterOpen(true);
+    });
+  };
 
   const fetchPage = useCallback(
     async (pageNum: number, type: string | null) => {
@@ -92,6 +112,9 @@ export default function HistoryScreen() {
         const results = data?.results ?? [];
         setItems((prev) => (pageNum === 1 ? results : [...prev, ...results]));
         setHasNext(Boolean(data?.next));
+        setTotalCount(
+          typeof data?.count === "number" ? data.count : results.length
+        );
         setPage(pageNum);
       } catch (err) {
         if (pageNum === 1)
@@ -143,33 +166,35 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.replace('/dashboard')}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="arrow-back" size={20} color={COLORS.textDark} />
-          <Text style={styles.headerTitle}>Activity history</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => {
-          const active = f.value === filter;
-          return (
+      <ScreenHeader
+        title="Activity history"
+        onBack={() => router.replace("/dashboard")}
+        titleAccessory={
+          totalCount != null ? (
+            <View style={styles.titleCount}>
+              <Text style={styles.titleCountText}>{totalCount}</Text>
+            </View>
+          ) : null
+        }
+        right={
+          <View ref={filterBtnRef} collapsable={false}>
             <TouchableOpacity
-              key={f.label}
-              style={[styles.chip, active && styles.chipActive]}
-              onPress={() => onSelectFilter(f.value)}
+              style={[styles.filterBtn, filterOpen && styles.filterBtnOpen]}
+              activeOpacity={0.85}
+              onPress={openFilter}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {f.label}
+              <Text style={styles.filterBtnText}>
+                {FILTERS.find((f) => f.value === filter)?.label ?? "Type"}
               </Text>
+              <Ionicons
+                name={filterOpen ? "chevron-up" : "chevron-down"}
+                size={12}
+                color={COLORS.primary}
+              />
             </TouchableOpacity>
-          );
-        })}
-      </View>
+          </View>
+        }
+      />
 
       {loading ? (
         <View style={styles.centered}>
@@ -208,40 +233,126 @@ export default function HistoryScreen() {
           }
         />
       )}
+
+      <Modal
+        visible={filterOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFilterOpen(false)}
+      >
+        <Pressable
+          style={styles.dropdownBackdrop}
+          onPress={() => setFilterOpen(false)}
+        >
+          <View style={[styles.dropdown, { top: anchor.top, right: anchor.right }]}>
+            {FILTERS.map((f) => {
+              const active = f.value === filter;
+              return (
+                <TouchableOpacity
+                  key={f.label}
+                  style={styles.dropdownRow}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setFilterOpen(false);
+                    onSelectFilter(f.value);
+                  }}
+                >
+                  <View style={[styles.checkbox, active && styles.checkboxChecked]}>
+                    {active && (
+                      <Ionicons name="checkmark" size={12} color={COLORS.white} />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.dropdownLabel,
+                      active && styles.dropdownLabelActive,
+                    ]}
+                  >
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 const styles: any = {
   safeArea: { flex: 1, backgroundColor: COLORS.background },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.background,
+  // Server-reported total for the active type filter.
+  titleCount: {
+    minWidth: 26,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
   },
-  backButton: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: COLORS.textDark },
-  filterRow: {
+  titleCountText: { fontSize: 12, fontWeight: "800", color: COLORS.white },
+
+  // ── Type filter button + dropdown ──
+  filterBtn: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 9,
     backgroundColor: COLORS.white,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  chipActive: {
+  filterBtnOpen: { borderColor: COLORS.primary },
+  filterBtnText: { fontSize: 12, fontWeight: "700", color: COLORS.primary },
+
+  dropdownBackdrop: { flex: 1 },
+  dropdown: {
+    position: "absolute",
+    minWidth: 150,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  dropdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  checkbox: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.white,
+  },
+  checkboxChecked: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  chipText: { fontSize: 13, fontWeight: "700", color: COLORS.textMedium },
-  chipTextActive: { color: COLORS.white },
+  dropdownLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textMedium,
+  },
+  dropdownLabelActive: { color: COLORS.primary, fontWeight: "800" },
   centered: {
     flex: 1,
     alignItems: "center",

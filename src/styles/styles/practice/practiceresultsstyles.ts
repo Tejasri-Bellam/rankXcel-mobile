@@ -4,15 +4,10 @@ const SCREEN_BG = "#EEEFF5";
 
 export const practiceResultsStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: SCREEN_BG },
-  topBar: { paddingHorizontal: 16, paddingTop: 12 },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 2, alignSelf: "flex-start" },
-  backText: { fontSize: 16, fontWeight: "600", color: '#6C63FF' },
-
   scroll: { flex: 1 },
 
   // Results view
   resultsContent: { paddingHorizontal: 20, paddingBottom: 32, alignItems: "center" },
-  resultsTitle: { fontSize: 16, fontWeight: "700", color: "#1A1A2E", marginBottom: 18 },
   ringWrap: { marginBottom: 16 },
   ringPct: { fontSize: 32, fontWeight: "800", color: "#1A1A2E" },
   ringSub: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
@@ -86,16 +81,6 @@ export const practiceResultsStyles = StyleSheet.create({
   tryAgainText: { fontSize: 13, fontWeight: "600", color: "#9CA3AF" },
 
   // ── Review view — matches SolutionViewer (assessments) styling ───────────
-  reviewHeader: {
-    flexDirection: "column",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    backgroundColor: SCREEN_BG,
-    paddingLeft: 18,
-    gap: 10,
-  },
-  reviewHeaderTitle: { fontSize: 26, fontWeight: "800", color: "#1A1A2E" },
   reviewScrollContent: { paddingHorizontal: 16, paddingBottom: 40, gap: 16 },
 
   questionCard: {

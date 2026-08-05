@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   BackHandler,
+  Dimensions,
+  Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   Text,
@@ -10,6 +13,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast, { useToast } from "@/src/components/common/Toast";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
@@ -176,6 +180,20 @@ export default function AssessmentsScreen() {
     attemptId?: number;
   } | null>(null);
   const [filter, setFilter] = useState<FilterValue>("all");
+  // Status filter dropdown. `anchor` is the on-screen box of the trigger button,
+  // measured on open so the panel can be pinned right under it (the panel lives
+  // in a Modal so it overlays the cards instead of being clipped by the list).
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [anchor, setAnchor] = useState({ top: 0, right: 16 });
+  const filterBtnRef = useRef<View>(null);
+
+  const openFilter = () => {
+    filterBtnRef.current?.measureInWindow((x, y, width, height) => {
+      const screenWidth = Dimensions.get("window").width;
+      setAnchor({ top: y + height + 6, right: Math.max(screenWidth - (x + width), 8) });
+      setFilterOpen(true);
+    });
+  };
   // Bumped on a timer so time-based labels / statuses re-derive without a refetch.
   const [, setNow] = useState(() => Date.now());
 
@@ -186,6 +204,9 @@ export default function AssessmentsScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [allCount, setAllCount] = useState(0);
+  // The server's `count` for the *currently filtered* list — shown beside the
+  // page title, so it tracks whichever status tab is active.
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const loadingMoreRef = useRef(false);
   const { toast, showToast, hideToast } = useToast();
 
@@ -223,6 +244,7 @@ export default function AssessmentsScreen() {
       setData(list);
       setPage(1);
       setHasMore(!Array.isArray(raw) && !!raw?.next);
+      setTotalCount(typeof raw?.count === "number" ? raw.count : list.length);
     } catch (error: any) {
       console.log("ASSESSMENTS ERROR:", JSON.stringify(error, null, 2));
       if (!silent)
@@ -594,47 +616,40 @@ export default function AssessmentsScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Live Tests</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.headerTitleWrap}>
+              <Text style={styles.pageTitle}>Live Tests</Text>
+              {totalCount != null && (
+                <View style={styles.titleCount}>
+                  <Text style={styles.titleCountText}>{totalCount}</Text>
+                </View>
+              )}
+            </View>
+
+            <View ref={filterBtnRef} collapsable={false}>
+              <TouchableOpacity
+                style={[styles.filterBtn, filterOpen && styles.filterBtnOpen]}
+                activeOpacity={0.85}
+                onPress={openFilter}
+              >
+                <Text style={styles.filterBtnText}>
+                  {FILTERS.find((f) => f.value === filter)?.label ?? "Status"}
+                </Text>
+                <Ionicons
+                  name={filterOpen ? "chevron-up" : "chevron-down"}
+                  size={12}
+                  color="#4C6FD1"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <Text style={styles.pageSubtitle}>
             {isPassFail
               ? "Sit the same paper as everyone else, in real time."
               : "Compete against everyone, in real time. Climb the National Leaderboard."}
           </Text>
         </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          {FILTERS.map((f) => {
-            const active = f.value === filter;
-            return (
-              <TouchableOpacity
-                key={f.value}
-                style={[styles.chip, active && styles.chipActive]}
-                onPress={() => setFilter(f.value)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {f.label}
-                </Text>
-                {counts[f.value] > 0 && (
-                  <View style={[styles.chipBadge, active && styles.chipBadgeActive]}>
-                    <Text
-                      style={[
-                        styles.chipBadgeText,
-                        active && styles.chipBadgeTextActive,
-                      ]}
-                    >
-                      {counts[f.value]}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
 
         {loading ? (
           <View style={styles.centered}>
@@ -736,6 +751,56 @@ export default function AssessmentsScreen() {
           />
         )}
       </ScrollView>
+
+      <Modal
+        visible={filterOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFilterOpen(false)}
+      >
+        <Pressable
+          style={styles.dropdownBackdrop}
+          onPress={() => setFilterOpen(false)}
+        >
+          <View
+            style={[styles.dropdown, { top: anchor.top, right: anchor.right }]}
+          >
+            {FILTERS.map((f) => {
+              const active = f.value === filter;
+              return (
+                <TouchableOpacity
+                  key={f.value}
+                  style={styles.dropdownRow}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setFilter(f.value);
+                    setFilterOpen(false);
+                  }}
+                >
+                  <View style={[styles.checkbox, active && styles.checkboxChecked]}>
+                    {active && (
+                      <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.dropdownLabel,
+                      active && styles.dropdownLabelActive,
+                    ]}
+                  >
+                    {f.label}
+                  </Text>
+                  {counts[f.value] > 0 && (
+                    <Text style={styles.dropdownCount}>{counts[f.value]}</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
+
       <Toast {...toast} onHide={hideToast} />
     </SafeAreaView>
   );

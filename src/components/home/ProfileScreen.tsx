@@ -1,5 +1,6 @@
 import { getMeService, updateMeService, changePasswordService } from '@/src/libs/services/profile';
 import { profileStyles } from '@/src/styles/styles/home/profilescreenstyles';
+import ScreenHeader from '@/src/components/common/ScreenHeader';
 import { COLORS } from '@/src/styles/styles';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -206,19 +207,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={profileStyles.safeArea}>
-      <TouchableOpacity
-        style={profileStyles.backButton}
-        onPress={() => router.replace('/dashboard')}
-      >
-        <Ionicons
-          name="arrow-back"
-          size={18}
-          color={COLORS.textDark}
-        />
-        <Text style={profileStyles.backText}>
-          Profile
-        </Text>
-      </TouchableOpacity>
+      <ScreenHeader title="Profile" onBack={() => router.replace('/dashboard')} />
 
       <ScrollView
         style={profileStyles.scroll}

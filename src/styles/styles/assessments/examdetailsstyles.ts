@@ -19,30 +19,6 @@ export const examDetailsStyles = StyleSheet.create({
   },
 
   // ── Header ──────────────────────────────────────
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-    backgroundColor: '#fff',
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  backArrow: {
-    fontSize: 18,
-    color: PRIMARY,
-  },
-  backText: {
-    fontSize: 14,
-    color: GRAY,
-    fontWeight: '500',
-  },
-
   // ── Scroll ──────────────────────────────────────
   scroll: {
     flex: 1,
@@ -74,12 +50,6 @@ export const examDetailsStyles = StyleSheet.create({
   },
 
   // ── Title & Tag ──────────────────────────────────
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: PRIMARY,
-    marginBottom: 8,
-  },
   description: {
     fontSize: 13,
     color: GRAY,
