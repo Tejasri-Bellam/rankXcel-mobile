@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
+import { formatPercent } from '@/src/libs/utils/percent';
 import {
   ActivityIndicator,
   ScrollView,
@@ -162,14 +163,14 @@ export default function MockExamResults({
 
   // One accuracy value drives the Accuracy card.
   const accuracyPct =
-    totalQ > 0 ? Math.round((correct / totalQ) * 100) : Math.round(num(result.accuracy));
+    totalQ > 0 ? (correct / totalQ) * 100 : num(result.accuracy);
 
   // Score percentage (total_score / max_score) — headlines the hero banner.
   const percentagePct =
     result.percentage != null && !Number.isNaN(Number(result.percentage))
-      ? Math.round(num(result.percentage))
+      ? num(result.percentage)
       : num(result.max_score) > 0
-      ? Math.round((num(result.total_score) / num(result.max_score)) * 100)
+      ? (num(result.total_score) / num(result.max_score)) * 100
       : accuracyPct;
 
   // Raw marks scored out of the maximum — surfaced on the hero banner.
@@ -178,7 +179,7 @@ export default function MockExamResults({
 
   const timeTaken = num(result.time_taken_seconds) || num(timeTakenSeconds);
   const percentile =
-    !isPassFail && mock.percentile != null ? Math.round(num(mock.percentile)) : null;
+    !isPassFail && mock.percentile != null ? num(mock.percentile) : null;
 
   // Pass/fail verdict for PASS_FAIL exams — the marks scored against pass_marks.
   const passed =
@@ -194,7 +195,7 @@ export default function MockExamResults({
     .map((s) => ({
       name: String(s.name),
       // Accuracy can come back negative under negative marking — clamp to 0–100.
-      acc: Math.max(0, Math.min(100, Math.round(num(s.accuracy)))),
+      acc: Math.max(0, Math.min(100, num(s.accuracy))),
     }));
 
   // "Practice Next" suggestions: flatten every node in topic_breakdown
@@ -207,7 +208,7 @@ export default function MockExamResults({
     weakNodes.push({
       key: `subject-${subjectId}`,
       name: subjectName,
-      accuracy: Math.round(num(subj?.accuracy)),
+      accuracy: num(subj?.accuracy),
       level: 'Subject',
       subjectName,
     });
@@ -215,7 +216,7 @@ export default function MockExamResults({
       weakNodes.push({
         key: `topic-${topicId}`,
         name: String(topic?.name ?? ''),
-        accuracy: Math.round(num(topic?.accuracy)),
+        accuracy: num(topic?.accuracy),
         level: 'Topic',
         subjectName,
         topicId: Number(topicId),
@@ -224,7 +225,7 @@ export default function MockExamResults({
         weakNodes.push({
           key: `subtopic-${subId}`,
           name: String(sub?.name ?? ''),
-          accuracy: Math.round(num(sub?.accuracy)),
+          accuracy: num(sub?.accuracy),
           level: 'Sub-topic',
           subjectName,
           // A subtopic practises just its own id (used as topic_ids downstream).
@@ -284,7 +285,7 @@ export default function MockExamResults({
           </Text>
 
           <View style={styles.bannerScoreWrap}>
-            <Text style={styles.bannerScore}>{percentagePct}</Text>
+            <Text style={styles.bannerScore}>{formatPercent(percentagePct)}</Text>
             <Text style={styles.bannerScorePct}>%</Text>
           </View>
 
@@ -304,7 +305,7 @@ export default function MockExamResults({
             {percentile != null && (
               <View style={styles.badge}>
                 <Ionicons name="trophy-outline" size={12} color="#fff" />
-                <Text style={styles.badgeText}>Top {Math.max(1, 100 - percentile)}%</Text>
+                <Text style={styles.badgeText}>Top {formatPercent(Math.max(1, 100 - percentile))}%</Text>
               </View>
             )}
             {passed != null && (
@@ -324,7 +325,7 @@ export default function MockExamResults({
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Ionicons name="locate-outline" size={18} color='#6C63FF' />
-            <Text style={styles.statValue}>{accuracyPct}%</Text>
+            <Text style={styles.statValue}>{formatPercent(accuracyPct)}%</Text>
             <Text style={styles.statLabel}>Accuracy</Text>
           </View>
           <View style={styles.statCard}>
@@ -364,7 +365,7 @@ export default function MockExamResults({
                 <View style={[styles.practiceIcon, { backgroundColor: strengthColor(t.accuracy) }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.practiceName} numberOfLines={1}>{t.name}</Text>
-                  <Text style={styles.practiceSub}>{t.level} · {t.accuracy}% · tap to practise</Text>
+                  <Text style={styles.practiceSub}>{t.level} · {formatPercent(t.accuracy)}% · tap to practise</Text>
                 </View>
                 <View style={styles.practicePill}>
                   <Ionicons name="play" size={11} color="#6C63FF" />
@@ -389,7 +390,7 @@ export default function MockExamResults({
                     <View style={[styles.subjectDot, { backgroundColor: subjectAccent(s.name) }]} />
                     <Text style={styles.subjectName} numberOfLines={1}>{s.name}</Text>
                   </View>
-                  <Text style={[styles.subjectPct, { color: strengthColor(s.acc) }]}>{s.acc}%</Text>
+                  <Text style={[styles.subjectPct, { color: strengthColor(s.acc) }]}>{formatPercent(s.acc)}%</Text>
                 </View>
                 <View style={styles.subjectTrack}>
                   <View
@@ -411,7 +412,7 @@ export default function MockExamResults({
               <Ionicons name="trophy" size={22} color="#F59E0B" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.beatTitle}>You beat {percentile}% of test-takers</Text>
+              <Text style={styles.beatTitle}>You beat {formatPercent(percentile)}% of test-takers</Text>
               <Text style={styles.beatSub}>Based on everyone who took this set</Text>
             </View>
           </View>

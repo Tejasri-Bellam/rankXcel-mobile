@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
+import { formatPercent } from '@/src/libs/utils/percent';
 import {
   ActivityIndicator,
   ScrollView,
@@ -143,14 +144,14 @@ export default function ExamResults({
 
   // One accuracy value drives the Accuracy card.
   const accuracyPct =
-    totalQ > 0 ? Math.round((correct / totalQ) * 100) : Math.round(num(result.accuracy));
+    totalQ > 0 ? (correct / totalQ) * 100 : num(result.accuracy);
 
   // Score percentage (total_score / max_score) — headlines the hero banner.
   const percentagePct =
     result.percentage != null && !Number.isNaN(Number(result.percentage))
-      ? Math.round(num(result.percentage))
+      ? num(result.percentage)
       : num(result.max_score) > 0
-      ? Math.round((num(result.total_score) / num(result.max_score)) * 100)
+      ? (num(result.total_score) / num(result.max_score)) * 100
       : accuracyPct;
 
   // Raw marks scored out of the maximum — surfaced on the hero banner.
@@ -166,7 +167,7 @@ export default function ExamResults({
   const totalParticipants = isPassFail ? null : result.total_participants;
   const percentile =
     rank != null && totalParticipants != null && totalParticipants > 0
-      ? Math.round(((totalParticipants - rank) / totalParticipants) * 100)
+      ? ((totalParticipants - rank) / totalParticipants) * 100
       : null;
 
   // Pass/fail verdict for PASS_FAIL exams — the marks scored against pass_marks.
@@ -186,7 +187,7 @@ export default function ExamResults({
     weakNodes.push({
       key: `subject-${subjectId}`,
       name: subjectName,
-      accuracy: Math.round(num(subj?.accuracy)),
+      accuracy: num(subj?.accuracy),
       level: 'Subject',
       subjectName,
     });
@@ -194,7 +195,7 @@ export default function ExamResults({
       weakNodes.push({
         key: `topic-${topicId}`,
         name: String(topic?.name ?? ''),
-        accuracy: Math.round(num(topic?.accuracy)),
+        accuracy: num(topic?.accuracy),
         level: 'Topic',
         subjectName,
         topicId: Number(topicId),
@@ -203,7 +204,7 @@ export default function ExamResults({
         weakNodes.push({
           key: `subtopic-${subId}`,
           name: String(sub?.name ?? ''),
-          accuracy: Math.round(num(sub?.accuracy)),
+          accuracy: num(sub?.accuracy),
           level: 'Sub-topic',
           subjectName,
           // A subtopic practises just its own id (used as topic_ids downstream).
@@ -242,7 +243,7 @@ export default function ExamResults({
     .filter((s) => s?.name)
     .map((s) => ({
       name: String(s.name),
-      acc: Math.round(num(s.accuracy)),
+      acc: num(s.accuracy),
     }));
 
   const title: string = result.assessment?.name ?? exam?.name ?? 'Assessment';
@@ -272,7 +273,7 @@ export default function ExamResults({
           </Text>
 
           <View style={styles.bannerScoreWrap}>
-            <Text style={styles.bannerScore}>{percentagePct}</Text>
+            <Text style={styles.bannerScore}>{formatPercent(percentagePct)}</Text>
             <Text style={styles.bannerScorePct}>%</Text>
           </View>
 
@@ -292,7 +293,7 @@ export default function ExamResults({
             {percentile != null && (
               <View style={styles.badge}>
                 <Ionicons name="trophy-outline" size={12} color="#fff" />
-                <Text style={styles.badgeText}>Top {Math.max(1, 100 - percentile)}%</Text>
+                <Text style={styles.badgeText}>Top {formatPercent(Math.max(1, 100 - percentile))}%</Text>
               </View>
             )}
             {passed != null && (
@@ -312,7 +313,7 @@ export default function ExamResults({
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Ionicons name="locate-outline" size={18} color='#6C63FF' />
-            <Text style={styles.statValue}>{accuracyPct}%</Text>
+            <Text style={styles.statValue}>{formatPercent(accuracyPct)}%</Text>
             <Text style={styles.statLabel}>Accuracy</Text>
           </View>
           <View style={styles.statCard}>
@@ -352,7 +353,7 @@ export default function ExamResults({
                 <View style={[styles.practiceIcon, { backgroundColor: strengthColor(t.accuracy) }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.practiceName} numberOfLines={1}>{t.name}</Text>
-                  <Text style={styles.practiceSub}>{t.level} · {t.accuracy}% · tap to practise</Text>
+                  <Text style={styles.practiceSub}>{t.level} · {formatPercent(t.accuracy)}% · tap to practise</Text>
                 </View>
                 <View style={styles.practicePill}>
                   <Ionicons name="play" size={11} color="#6C63FF" />
@@ -377,7 +378,7 @@ export default function ExamResults({
                     <View style={[styles.subjectDot, { backgroundColor: subjectAccent(s.name) }]} />
                     <Text style={styles.subjectName} numberOfLines={1}>{s.name}</Text>
                   </View>
-                  <Text style={[styles.subjectPct, { color: strengthColor(s.acc) }]}>{s.acc}%</Text>
+                  <Text style={[styles.subjectPct, { color: strengthColor(s.acc) }]}>{formatPercent(s.acc)}%</Text>
                 </View>
                 <View style={styles.subjectTrack}>
                   <View
@@ -399,7 +400,7 @@ export default function ExamResults({
               <Ionicons name="trophy" size={22} color="#F59E0B" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.beatTitle}>You beat {percentile}% of test-takers</Text>
+              <Text style={styles.beatTitle}>You beat {formatPercent(percentile)}% of test-takers</Text>
               <Text style={styles.beatSub}>
                 {rank != null && totalParticipants != null
                   ? `Rank #${rank} of ${totalParticipants}`

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Toast, { useToast } from '@/src/components/common/Toast';
 import { getErrorMessage } from '@/src/libs/utils/apiError';
+import { formatPercent } from '@/src/libs/utils/percent';
 import {
   View,
   Text,
@@ -60,7 +61,7 @@ function CircleProgress({ percentage, size = 72, color = '#6C5CE7' }: {
           }}
         />
         <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A1A2E' }}>
-          {clipped}%
+          {formatPercent(clipped)}%
         </Text>
       </View>
     </View>
@@ -124,7 +125,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
       const total = attempted + skipped;
       const accuracy = ch?.accuracy != null
         ? Number(ch.accuracy)
-        : attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+        : attempted > 0 ? (correct / attempted) * 100 : 0;
       const subject = ch?.subject_name ?? ch?.subject ?? 'General';
       return {
         chapter: ch?.chapter_name ?? ch?.chapter ?? 'Unknown',
@@ -154,7 +155,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
           total: attempted + skipped,
           accuracy: s?.accuracy != null
             ? Number(s.accuracy)
-            : attempted > 0 ? Math.round((correct / attempted) * 100) : 0,
+            : attempted > 0 ? (correct / attempted) * 100 : 0,
           color: getSubjectColor(s?.subject_name ?? 'General', idx),
         };
       });
@@ -182,7 +183,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
     });
     return Object.values(map).map((s: any) => ({
       ...s,
-      accuracy: s.attempted > 0 ? Math.round((s.correct / s.attempted) * 100) : 0,
+      accuracy: s.attempted > 0 ? (s.correct / s.attempted) * 100 : 0,
     }));
   }, [analysis, chapterStats]);
 
@@ -191,14 +192,14 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
     const wrong = chapterStats.reduce((a, c) => a + c.wrong, 0);
     const skipped = chapterStats.reduce((a, c) => a + c.skipped, 0);
     const attempted = correct + wrong;
-    const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+    const accuracy = attempted > 0 ? (correct / attempted) * 100 : 0;
     const score = Number(breakdownSource?.total_score ?? breakdownSource?.score ?? 0);
     const totalMarks = Number(
       breakdownSource?.max_score ??
       breakdownSource?.total_marks ??
       chapterStats.reduce((a, c) => a + c.totalMarks, 0)
     );
-    const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+    const percentage = totalMarks > 0 ? (score / totalMarks) * 100 : 0;
     return { correct, wrong, skipped, attempted, accuracy, score, totalMarks, percentage };
   }, [chapterStats, breakdownSource]);
 
@@ -312,7 +313,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
                     <Text style={styles.subjectMiniLabel}>Score</Text>
                   </View>
                   <View style={styles.subjectMiniStat}>
-                    <Text style={styles.subjectMiniVal}>{sp.accuracy}%</Text>
+                    <Text style={styles.subjectMiniVal}>{formatPercent(sp.accuracy)}%</Text>
                     <Text style={styles.subjectMiniLabel}>Accuracy</Text>
                   </View>
                   <View style={styles.subjectMiniStat}>
@@ -403,7 +404,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
                         { color: getScoreColor(cp.accuracy) },
                       ]}
                     >
-                      {cp.accuracy}%
+                      {formatPercent(cp.accuracy)}%
                     </Text>
                   </View>
                 </View>
@@ -433,7 +434,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
                 <View style={{ flex: 1 }}>
                   <Text style={styles.insightTitle}>Strong in {sp.subject}</Text>
                   <Text style={styles.insightDesc}>
-                    {sp.accuracy}% accuracy with {sp.correct}/{sp.total} questions correct. Keep it up!
+                    {formatPercent(sp.accuracy)}% accuracy with {sp.correct}/{sp.total} questions correct. Keep it up!
                   </Text>
                 </View>
               </View>
@@ -447,7 +448,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
                 <View style={{ flex: 1 }}>
                   <Text style={styles.insightTitle}>Needs Work: {sp.subject}</Text>
                   <Text style={styles.insightDesc}>
-                    Only {sp.accuracy}% accuracy. Focus on {sp.subject} concepts and practice more.
+                    Only {formatPercent(sp.accuracy)}% accuracy. Focus on {sp.subject} concepts and practice more.
                   </Text>
                 </View>
               </View>
@@ -460,7 +461,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
               <View style={{ flex: 1 }}>
                 <Text style={styles.insightTitle}>Overall Performance</Text>
                 <Text style={styles.insightDesc}>
-                  You scored {overall.score}/{overall.totalMarks} ({overall.percentage}%) with {overall.accuracy}% accuracy.
+                  You scored {overall.score}/{overall.totalMarks} ({formatPercent(overall.percentage)}%) with {formatPercent(overall.accuracy)}% accuracy.
                   {overall.skipped > 0 ? ` You skipped ${overall.skipped} questions.` : ' Great job attempting all questions!'}
                 </Text>
               </View>
@@ -490,7 +491,7 @@ export default function MockDetailedAnalysis({ mockId, attemptId, mock, onBack }
                   <View style={{ flex: 1 }}>
                     <Text style={styles.insightTitle}>Best Chapter: {best.chapter}</Text>
                     <Text style={styles.insightDesc}>
-                      {best.accuracy}% accuracy in {best.chapter} ({best.subject}). This is your strongest topic!
+                      {formatPercent(best.accuracy)}% accuracy in {best.chapter} ({best.subject}). This is your strongest topic!
                     </Text>
                   </View>
                 </View>

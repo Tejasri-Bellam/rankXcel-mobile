@@ -1,6 +1,7 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { COLORS, getScoreColor } from "@/src/styles/styles";
+import { formatPercent } from "@/src/libs/utils/percent";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DashboardData } from "@/src/libs/types/dashboard";
@@ -86,7 +87,7 @@ export default function RecentActivity({ dashboardData }: RecentActivityProps) {
       ) : (
       <View style={styles.card}>
         {rows.map((item, index) => {
-          const pct = Math.round(item.percentage ?? 0);
+          const pct = Number(item.percentage ?? 0);
           const color = scoreColor(pct);
           return (
             <View
@@ -106,7 +107,7 @@ export default function RecentActivity({ dashboardData }: RecentActivityProps) {
                 </Text>
                 <Text style={styles.rowSub}>{formatDate(item.submitted_at)}</Text>
               </View>
-              <Text style={[styles.rowPct, { color }]}>{pct}%</Text>
+              <Text style={[styles.rowPct, { color }]}>{formatPercent(pct)}%</Text>
             </View>
           );
         })}
