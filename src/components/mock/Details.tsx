@@ -26,6 +26,7 @@ import type { AutoSubmitReason } from './ExamScreen';
 import { detailsStyles as styles } from '@/src/styles/styles/mock/detailsstyles';
 import ScreenHeader from '@/src/components/common/ScreenHeader';
 import { useTargetExam } from '@/src/libs/context/TagretExamContext';
+import { formatPercent } from '@/src/libs/utils/percent';
 
 // Copy shown when the attempt was submitted for the student (not via the
 // Submit button) — i.e. the timer ran out. Surfaced as a toast on the results
@@ -89,6 +90,8 @@ export default function MockDetails({ mock, onBack, initialView = 'detail', init
             merged.latest_attempt_id = prev.latest_attempt_id;
           if (fresh.total_attempts == null)
             merged.total_attempts = prev.total_attempts;
+          if (fresh.percentage == null) merged.percentage = prev.percentage;
+          if (fresh.accuracy == null) merged.accuracy = prev.accuracy;
           return merged;
         });
       } catch {
@@ -132,6 +135,11 @@ export default function MockDetails({ mock, onBack, initialView = 'detail', init
   // Attempt id for viewing results: the just-finished attempt this session, else
   // the latest attempt from the mock list/detail.
   const resultAttemptId = attemptId ?? mockData.latest_attempt_id ?? null;
+  // Score of the latest attempt; null (never attempted) hides the tile.
+  const lastScorePct =
+    mockData.percentage != null && Number.isFinite(Number(mockData.percentage))
+      ? Number(mockData.percentage)
+      : null;
 
   // Start (or resume) an attempt. The /start/ response carries the attempt_id
   // that the questions / response / submit endpoints are keyed on. There is NO
@@ -338,8 +346,9 @@ const handleRetake = async () => {
             <Text style={styles.statValue}>{formatDuration(mockData.total_duration_minutes)}</Text>
             <Text style={styles.statLabel}>minutes</Text>
           </View>
-          {/* PASS_FAIL exams show the mark to clear; ranked exams keep the last
-              score (a static placeholder — the backend doesn't return it yet). */}
+          {/* PASS_FAIL exams show the mark to clear; ranked exams show the last
+              attempt's score (`percentage` from the mock payload — null until
+              the mock has been attempted, in which case the tile is dropped). */}
           {isPassFail ? (
             passMarks != null ? (
               <View style={styles.statCard}>
@@ -348,13 +357,13 @@ const handleRetake = async () => {
                 <Text style={styles.statLabel}>pass marks</Text>
               </View>
             ) : null
-          ) : (
+          ) : lastScorePct != null ? (
             <View style={styles.statCard}>
               <Ionicons name="disc-outline" size={20} color="#6C63FF" />
-              <Text style={styles.statValue}>75%</Text>
+              <Text style={styles.statValue}>{formatPercent(lastScorePct)}%</Text>
               <Text style={styles.statLabel}>last score</Text>
             </View>
-          )}
+          ) : null}
         </View>
       </ScrollView>
 
