@@ -166,4 +166,34 @@ export const liveTestsStyles = StyleSheet.create({
   emptyState: { alignItems: "center", paddingTop: 80, paddingHorizontal: 32, gap: 8 },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: "#1A1A2E" },
   emptySubtitle: { fontSize: 13, color: "#9CA3AF", textAlign: "center" },
+
+  loadMoreBtn: {
+  marginTop: 8,
+  marginBottom: 8,
+  alignSelf: 'center',
+  paddingVertical: 8,
+  paddingHorizontal: 18,
+  borderRadius: 10,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: '#FFFFFF',
+  borderWidth: 1.5,
+  borderColor: '#6C63FF',
+},
+
+loadMoreText: {
+  fontSize: 13,
+  fontWeight: '700',
+  color: '#6C63FF',
+},
+
+loadMoreSpinner: {
+  marginTop: 8,
+  marginBottom: 8,
+  alignSelf: 'center',
+  paddingVertical: 10,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
 });
