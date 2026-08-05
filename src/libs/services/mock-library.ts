@@ -56,6 +56,10 @@ export interface MockTest {
   // from `status`, which is the mock's PUBLISH state — this is what tells us a
   // mid-test attempt can be resumed.
   latest_attempt_status?: string | null;
+  // Score / accuracy of the latest attempt, as percentages (e.g. 8.33, 25.0).
+  // Null until the mock has been attempted.
+  percentage?: number | null;
+  accuracy?: number | null;
   // Scope: full-syllabus vs. subject-picked. Drives the card's scope label.
   is_full_syllabus?: boolean;
   // Admin-authored ("official") mock — shown with an Admin badge on the card.
