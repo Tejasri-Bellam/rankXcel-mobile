@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,7 @@ import { useRouter } from "expo-router";
 import { COLORS } from "@/src/styles/styles";
 import BottomNav from "./BottomNav";
 import { deleteAlertService, getAlertsService, markAllAlertsReadService, updateAlertService } from "@/src/libs/services/alerts";
+import DeleteConfirmModal from "./DeleteConfirmModal";
 
 // Types
 type AlertItem = {
@@ -94,6 +94,9 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
+const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const fetchAlerts = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -197,23 +200,25 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleDelete = (item: AlertItem) => {
-    Alert.alert("Delete notification", "Remove this notification?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setAlerts((prev) => prev.filter((a) => a.id !== item.id));
-          try {
-            await deleteAlertService(item.id);
-          } catch {
-            fetchAlerts(true);
-          }
-        },
-      },
-    ]);
-  };
+const handleDeletePress = (item: AlertItem) => {
+  setSelectedAlert(item);
+  setShowDeleteModal(true);
+};
+
+const confirmDelete = async () => {
+  if (!selectedAlert) return;
+
+  setAlerts(prev => prev.filter(a => a.id !== selectedAlert.id));
+
+  try {
+    await deleteAlertService(selectedAlert.id);
+  } catch {
+    fetchAlerts(true);
+  }
+
+  setShowDeleteModal(false);
+  setSelectedAlert(null);
+};
 
   const unreadCount = alerts.filter((a) => !a.is_read).length;
 
@@ -293,13 +298,20 @@ export default function NotificationsScreen() {
               key={item.id}
               item={item}
               onPress={() => handleAlertPress(item)}
-              onDelete={() => handleDelete(item)}
+              onDelete={() => handleDeletePress(item)}
             />
           ))}
           <View style={{ height: 12 }} />
         </ScrollView>
       )}
-
+<DeleteConfirmModal
+  visible={showDeleteModal}
+  onCancel={() => {
+    setShowDeleteModal(false);
+    setSelectedAlert(null);
+  }}
+  onDelete={confirmDelete}
+/>
       <BottomNav />
     </View>
   );
