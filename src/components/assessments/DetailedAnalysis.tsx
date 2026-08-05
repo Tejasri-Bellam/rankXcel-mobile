@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Toast, { useToast } from "@/src/components/common/Toast";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
+import { formatPercent } from "@/src/libs/utils/percent";
 import {
   View,
   Text,
@@ -73,7 +74,7 @@ function CircleProgress({
             color: "#1A1A2E",
           }}
         >
-          {clipped}%
+          {formatPercent(clipped)}%
         </Text>
       </View>
     </View>
@@ -153,7 +154,7 @@ export default function AssessmentDetailedAnalysis({
 
       const total = attempted + skipped;
       const accuracy =
-        attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+        attempted > 0 ? (correct / attempted) * 100 : 0;
 
       const subject = ch?.subject_name ?? ch?.subject ?? "General";
 
@@ -214,7 +215,7 @@ export default function AssessmentDetailedAnalysis({
       ...s,
 
       accuracy:
-        s.attempted > 0 ? Math.round((s.correct / s.attempted) * 100) : 0,
+        s.attempted > 0 ? (s.correct / s.attempted) * 100 : 0,
     }));
   }, [chapterStats]);
 
@@ -228,7 +229,7 @@ export default function AssessmentDetailedAnalysis({
     const attempted = correct + wrong;
 
     const accuracy =
-      attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+      attempted > 0 ? (correct / attempted) * 100 : 0;
 
     const score = Number(
       breakdownSource?.total_score ?? breakdownSource?.score ?? 0,
@@ -239,7 +240,7 @@ export default function AssessmentDetailedAnalysis({
     );
 
     const percentage =
-      totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+      totalMarks > 0 ? (score / totalMarks) * 100 : 0;
 
     return {
       correct,
@@ -433,7 +434,7 @@ export default function AssessmentDetailedAnalysis({
       </View>
 
       <View style={styles.subjectMiniStat}>
-        <Text style={styles.subjectMiniVal}>{sp.accuracy}%</Text>
+        <Text style={styles.subjectMiniVal}>{formatPercent(sp.accuracy)}%</Text>
         <Text style={styles.subjectMiniLabel}>Accuracy</Text>
       </View>
 
@@ -485,7 +486,7 @@ export default function AssessmentDetailedAnalysis({
         >
         {cp.correct}
         </Text>
-          <Text style={styles.chapterCell}>{cp.accuracy}%</Text>
+          <Text style={styles.chapterCell}>{formatPercent(cp.accuracy)}%</Text>
         </View>
       ))}
     </View>
@@ -513,7 +514,7 @@ export default function AssessmentDetailedAnalysis({
 
       <Text style={styles.insightDesc}>
         You scored {overall.score}/{overall.totalMarks} (
-        {overall.percentage}%) with {overall.accuracy}% accuracy.
+        {formatPercent(overall.percentage)}%) with {formatPercent(overall.accuracy)}% accuracy.
       </Text>
     </View>
   </View>

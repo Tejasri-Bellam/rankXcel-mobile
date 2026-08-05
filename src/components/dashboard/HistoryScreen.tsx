@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getErrorMessage } from "@/src/libs/utils/apiError";
+import { formatPercent } from "@/src/libs/utils/percent";
 import {
   ActivityIndicator,
   FlatList,
@@ -122,7 +123,7 @@ export default function HistoryScreen() {
   };
 
   const renderItem = ({ item }: { item: RecentActivityItem }) => {
-    const pct = Math.round(item.percentage ?? 0);
+    const pct = Number(item.percentage ?? 0);
     const color = scoreColor(pct);
     return (
       <View style={styles.row}>
@@ -135,7 +136,7 @@ export default function HistoryScreen() {
           </Text>
           <Text style={styles.rowSub}>{formatDate(item.submitted_at)}</Text>
         </View>
-        <Text style={[styles.rowPct, { color }]}>{pct}%</Text>
+        <Text style={[styles.rowPct, { color }]}>{formatPercent(pct)}%</Text>
       </View>
     );
   };

@@ -19,6 +19,7 @@ import ReviewFilterTabs, {
 } from "@/src/components/common/ReviewFilterTabs";
 import { hasRichContent } from "@/src/libs/utils/richContent";
 import { numericAnswersEqual } from "@/src/libs/utils/numericAnswer";
+import { formatPercent } from "@/src/libs/utils/percent";
 import { AnswerState } from "./PracticeExamFlow";
 import { PracticeApiQuestion } from "./PracticeQuestions";
 import { getScoreColor } from "@/src/styles/styles";
@@ -323,7 +324,7 @@ export default function PracticeResults({
   const correct = statuses.filter((s) => s === "correct").length;
 const wrong = statuses.filter((s) => s === "wrong").length;
   const total = effQuestions.length;
-  const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const accuracy = total > 0 ? (correct / total) * 100 : 0;
   const color = accColor(accuracy);
 
   // Raw marks from the server result (reflects negative marking, unlike the
@@ -585,7 +586,7 @@ const wrong = statuses.filter((s) => s === "wrong").length;
             trackColor="#E3E5EE"
             bgColor={SCREEN_BG}
           >
-            <Text style={styles.ringPct}>{accuracy}%</Text>
+            <Text style={styles.ringPct}>{formatPercent(accuracy)}%</Text>
             <Text style={styles.ringSub}>
               {correct}/{total} correct
             </Text>
