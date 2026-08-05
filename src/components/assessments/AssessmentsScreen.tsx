@@ -327,10 +327,7 @@ export default function AssessmentsScreen() {
   };
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    const distanceFromBottom =
-      contentSize.height - (contentOffset.y + layoutMeasurement.height);
-    if (distanceFromBottom < 400) loadMore();
+    onHeaderScroll(e);
   };
 
   // Refetch the (server-filtered) list whenever the exam or active tab changes.
@@ -598,10 +595,7 @@ export default function AssessmentsScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        onScroll={(e) => {
-          handleScroll(e);
-          onHeaderScroll(e);
-        }}
+        onScroll={handleScroll}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
@@ -740,16 +734,22 @@ export default function AssessmentsScreen() {
                 </TouchableOpacity>
               );
             })}
+            {loadingMore ? (
+            <View style={styles.loadMoreSpinner}>
+              <ActivityIndicator size="small" color="#6C63FF" />
+            </View>
+          ) : hasMore ? (
+            <TouchableOpacity
+              style={styles.loadMoreBtn}
+              onPress={loadMore}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.loadMoreText}>Load More</Text>
+            </TouchableOpacity>
+          ) : null}
           </View>
         )}
 
-        {loadingMore && (
-          <ActivityIndicator
-            size="small"
-            color="#6C63FF"
-            style={{ marginVertical: 16 }}
-          />
-        )}
       </ScrollView>
 
       <Modal
