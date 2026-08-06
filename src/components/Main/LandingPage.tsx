@@ -238,7 +238,7 @@ export default function LandingPage() {
             </>
           )}
 
-          <TouchableOpacity style={homeStyles.primaryBtn} onPress={() => router.push('/auth/sign-up')}>
+          <TouchableOpacity style={homeStyles.primaryBtn} onPress={() => router.push('/courses')}>
             <Text style={homeStyles.primaryBtnText}>{hero.primaryBtn}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={homeStyles.outlineBtn} onPress={scrollToHowItWorks}>

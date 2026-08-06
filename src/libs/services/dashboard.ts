@@ -19,9 +19,11 @@ export async function getExamStatsService(examId: number | string) {
 
 // GET /api/v1/exams/{exam_id}/trends/
 // Performance trends for the Stats → Trends tab. Response:
-//   { accuracy_trend: [{ index, accuracy, type, submitted_at }], accuracy_delta,
-//     time_per_question_trend: [{ index, seconds, ... }], time_delta,
+//   { accuracy_trend: [{ index, accuracy, type, submitted_at }],
+//     time_per_question_trend: [{ index, seconds, ... }],
 //     percentile_trend: [{ index, percentile, ... }] }
+// The `*_delta` fields the API also returns are unused — the charts show the
+// per-session values, not a first→last summary.
 export type TrendsFilter = 'all' | 'mock' | 'assessment';
 
 export const getExamTrendsService = (

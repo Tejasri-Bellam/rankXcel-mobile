@@ -456,12 +456,8 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
       // ignore network errors on logout
     } finally {
       // Wipe all persisted user-scoped data (token, user, region, target
-      // exam selection/catalogue, and per-exam/quiz caches)...
+      // exam selection/catalogue, and per-exam/quiz caches).
       await clearUserSession();
-      // ...and the in-memory exam state, which the provider keeps alive
-      // across logout navigation. Without both, the next student inherits
-      // the previous student's activeExamId and sees their data.
-      reset();
       setLoggingOut(false);
       // iOS gives every Modal its own window. Dismissing the confirm dialog and
       // the sidebar while the route is replaced underneath them leaves one of
@@ -470,7 +466,18 @@ export default function ProfileSidebar({ visible, onClose }: Props) {
       setLogoutOpen(false);
       afterDismiss(() => {
         onClose();
-        afterDismiss(() => router.replace("/"));
+        afterDismiss(() => {
+          // Replace the route and clear the in-memory exam state in the same
+          // commit, so the dashboard unmounts rather than re-rendering without
+          // an active exam. Resetting any earlier blanks it while the modals are
+          // still dismissing above it — on iOS that teardown is ~600ms, long
+          // enough for its "No course in this region" empty state to show
+          // through the closing sidebar. The reset itself is required: the
+          // provider sits above the router and survives this navigation, so
+          // without it the next student inherits this one's activeExamId.
+          router.replace("/");
+          reset();
+        });
       });
     }
   };

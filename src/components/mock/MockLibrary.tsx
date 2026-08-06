@@ -34,6 +34,9 @@ import { mockLibraryStyles as styles } from '@/src/styles/styles/mock/mocklibrar
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+// Mocks per page. Only page 1 is fetched on open; the rest come from "Load more".
+const PAGE_SIZE = 20;
+
 // Pull `{ results, next, count }` out of a (possibly nested) paginated API
 // response. `count` is the server-side total across all pages (null when the
 // response isn't paginated).
@@ -234,8 +237,6 @@ export default function MockLibrary({
   const [deepLinkResolving, setDeepLinkResolving] = useState(false);
 
   const [allMocks, setAllMocks] = useState<MockTest[]>([]);
-  // Every page of the list, fetched in the background purely for the tab counts.
-  const [countMocks, setCountMocks] = useState<MockTest[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -283,6 +284,10 @@ export default function MockLibrary({
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // The server's `count` — the total across every page of this exam's list, so
+  // the header badge shows the real total from page 1 alone. Null when the
+  // response isn't paginated.
+  const [totalCount, setTotalCount] = useState<number | null>(null);
 
   const loadMocks = useCallback(async (isRefresh = false) => {
     // No active exam (e.g. the student switched to a country they have no
@@ -291,6 +296,7 @@ export default function MockLibrary({
     if (activeExamId == null) {
       setAllMocks([]);
       setHasMore(false);
+      setTotalCount(null);
       setError(null);
       setLoading(false);
       setRefreshing(false);
@@ -300,11 +306,12 @@ export default function MockLibrary({
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
-      const response = await getMockTestsService(activeExamId, testType, 1);
-      const { results, next } = extractPage<MockTest>(response);
+      const response = await getMockTestsService(activeExamId, testType, 1, PAGE_SIZE);
+      const { results, next, count } = extractPage<MockTest>(response);
       setAllMocks(results);
       setPage(1);
       setHasMore(!!next);
+      setTotalCount(count);
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to load mock tests.'));
     } finally {
@@ -318,14 +325,20 @@ export default function MockLibrary({
     const nextPage = page + 1;
     try {
       setLoadingMore(true);
-      const response = await getMockTestsService(activeExamId ?? undefined, testType, nextPage);
-      const { results, next } = extractPage<MockTest>(response);
+      const response = await getMockTestsService(
+        activeExamId ?? undefined,
+        testType,
+        nextPage,
+        PAGE_SIZE,
+      );
+      const { results, next, count } = extractPage<MockTest>(response);
       setAllMocks((prev) => {
         const seen = new Set(prev.map((m) => String(m.id)));
         return [...prev, ...results.filter((m) => !seen.has(String(m.id)))];
       });
       setPage(nextPage);
       setHasMore(!!next);
+      if (count != null) setTotalCount(count);
     } catch {
       setHasMore(false);
     } finally {
@@ -334,38 +347,6 @@ export default function MockLibrary({
   }, [activeExamId, testType, page, hasMore, loading, refreshing, loadingMore]);
 
   useEffect(() => { loadMocks(); }, [loadMocks]);
-
-  // Tab badges must show the true Official / My Mocks totals, not just what the
-  // pages loaded so far happen to hold — a page mixes both categories, so the
-  // loaded slice under-reports. Same approach the Live Tests screen uses for its
-  // filter counts: page through the whole list once in the background. Null
-  // until it lands (or if it fails), in which case the badges fall back to the
-  // loaded slice with a "+".
-  const fetchAllForCounts = useCallback(async () => {
-    if (activeExamId == null) {
-      setCountMocks([]);
-      return;
-    }
-    const all: MockTest[] = [];
-    try {
-      // Cap the walk so a mis-paginating endpoint can't spin forever.
-      for (let p = 1; p <= 30; p++) {
-        const response = await getMockTestsService(activeExamId, testType, p);
-        const { results, next } = extractPage<MockTest>(response);
-        if (results.length === 0) break;
-        all.push(...results);
-        if (!next) break;
-      }
-      setCountMocks(
-        Array.from(new Map(all.map((m) => [String(m.id), m])).values()),
-      );
-    } catch {
-      // Leave the badges on their loaded-slice fallback.
-      setCountMocks(null);
-    }
-  }, [activeExamId, testType]);
-
-  useEffect(() => { fetchAllForCounts(); }, [fetchAllForCounts]);
 
   // Deep-link from a notification: fetch the mock by id (it may be on any page
   // of the paginated list) and open its detail — or its results when the alert
@@ -483,32 +464,18 @@ export default function MockLibrary({
   const officialMocks = visibleMocks.filter((m) => m.is_official);
   const mocks = activeTab === 'official' ? officialMocks : studentMocks;
 
-  // True totals from the background walk over every page. Null until it lands —
-  // the badges stay hidden until then rather than counting up 10 → 20 → 30 as
-  // pages arrive.
-  const scopedCountMocks = countMocks?.filter(inScope) ?? null;
-  const totals = scopedCountMocks
-    ? {
-        all: scopedCountMocks.length,
-        official: scopedCountMocks.filter((m) => m.is_official).length,
-        student: scopedCountMocks.filter((m) => !m.is_official).length,
-      }
-    : null;
+  // Header badge: the server's total across every page, so it's exact from page
+  // 1 alone. The per-tab badges have no server equivalent — the response carries
+  // no Official / My Mocks split — so they count the pages loaded so far and
+  // carry a "+" while more remain.
+  const totals = {
+    all: totalCount ?? visibleMocks.length,
+    official: officialMocks.length,
+    student: studentMocks.length,
+    partial: hasMore,
+  };
 
-  // Keep pulling pages until the active tab shows at least 10 mocks (or the
-  // API runs out). A page mixes both categories, so one tab can lag behind.
-  useEffect(() => {
-    if (!loading && !refreshing && !loadingMore && hasMore && mocks.length < 10) {
-      loadMore();
-    }
-  }, [mocks.length, hasMore, loading, refreshing, loadingMore, loadMore]);
-
-  // A page request is in flight, or the auto-fill above is about to start one.
-  // The last clause covers the gap between one page landing and the next request
-  // going out — that gap is what made the tail flicker between the spinner and
-  // the "Load more" pill while the tab was topping up.
-  const fetchingMore =
-    loadingMore || refreshing || (hasMore && mocks.length < 10);
+  const fetchingMore = loadingMore;
 
   if (resumeMock) {
     return (
@@ -563,7 +530,7 @@ export default function MockLibrary({
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { loadMocks(true); fetchAllForCounts(); }}
+            onRefresh={() => loadMocks(true)}
             colors={['#6C63FF']}
             tintColor="#6C63FF"
           />
@@ -574,10 +541,10 @@ export default function MockLibrary({
           <View style={styles.headerText}>
             <View style={styles.pageTitleRow}>
               <Text style={styles.pageTitle}>{title}</Text>
-              {/* Counts what's actually on screen, not the server's `count` —
-                  that total spans every country/test type, so it kept showing a
-                  number for a country with no mocks. "+" while pages remain. */}
-              {!loading && totals && (
+              {/* The server's `count` — exact, and no longer the whole-catalogue
+                  number that once showed for a country with no mocks: the list
+                  is scoped to the active exam and test type. */}
+              {!loading && (
                 <View style={styles.pageCountBadge}>
                   <Text style={styles.pageCountText}>{totals.all}</Text>
                 </View>
@@ -608,7 +575,7 @@ export default function MockLibrary({
             <Text style={[styles.tabText, activeTab === 'official' && styles.tabTextActive]}>
               Official Mocks
             </Text>
-            {!loading && totals && (
+            {!loading && (
               <View
                 style={[
                   styles.tabCountBadge,
@@ -622,6 +589,7 @@ export default function MockLibrary({
                   ]}
                 >
                   {totals.official}
+                  {totals.partial ? '+' : ''}
                 </Text>
               </View>
             )}
@@ -634,7 +602,7 @@ export default function MockLibrary({
             <Text style={[styles.tabText, activeTab === 'student' && styles.tabTextActive]}>
               My Mocks
             </Text>
-            {!loading && totals && (
+            {!loading && (
               <View
                 style={[
                   styles.tabCountBadge,
@@ -648,6 +616,7 @@ export default function MockLibrary({
                   ]}
                 >
                   {totals.student}
+                  {totals.partial ? '+' : ''}
                 </Text>
               </View>
             )}
@@ -682,8 +651,8 @@ export default function MockLibrary({
                 onResume={() => setResumeMock(mock)}
               />
             ))}
-            {/* "Nothing here" only once the pages have actually run out — the
-                auto-fill may still be pulling this tab's first mocks. */}
+            {/* A page mixes both categories, so a tab can be empty while pages
+                remain — offer "Load more" below rather than "nothing here". */}
             {mocks.length === 0 && !fetchingMore && !hasMore && (
               <View style={styles.emptyState}>
                 <Ionicons name="document-text-outline" size={40} color="#D1D5DB" />
@@ -691,18 +660,15 @@ export default function MockLibrary({
               </View>
             )}
 
-            {/* A page is on its way (auto-fill or a tap): plain spinner, no
-                button. The button-with-a-spinner-inside made the pill flicker
-                between label and spinner on every page while the list grew. */}
+            {/* A page is on its way: plain spinner, no button. The
+                button-with-a-spinner-inside made the pill flicker between label
+                and spinner on every page while the list grew. */}
             {fetchingMore ? (
               <View style={styles.loadMoreSpinner}>
                 <ActivityIndicator size="small" color="#6C63FF" />
               </View>
             ) : (
-              // Only offer the button once the tab is topped up — below that the
-              // auto-fill fetches on its own, so a button would just race it.
-              hasMore &&
-              mocks.length >= 10 && (
+              hasMore && (
                 <TouchableOpacity
                   style={styles.loadMoreBtn}
                   onPress={loadMore}
@@ -719,7 +685,7 @@ export default function MockLibrary({
       <RequestMockModal
         visible={requestVisible}
         onClose={() => setRequestVisible(false)}
-        onCreated={() => { setRequestVisible(false); loadMocks(true); fetchAllForCounts(); }}
+        onCreated={() => { setRequestVisible(false); loadMocks(true); }}
         defaultExamId={activeExamId}
         testType={testType}
       />

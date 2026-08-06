@@ -1,5 +1,4 @@
 import axios, { AxiosError, AxiosInstance } from "axios";
-import { notifySessionExpired } from "@/src/libs/session";
 import { reportNetworkStatus } from "@/src/libs/network";
 
 interface ApiError {
@@ -98,27 +97,6 @@ function customizeAxiosError(error: AxiosError<ErrorResponseData>): ApiError {
   return apiError;
 }
 
-// A 401 on an authenticated (token-bearing) request means the backend rejected
-// our token — typically because the account was signed in on another device,
-// which invalidates this one under single-user login. Force a logout.
-//
-// Auth endpoints (/v1/auth/*) are excluded: their 401s are ordinary "invalid
-// credentials" responses that the login screen surfaces inline, and they carry
-// no token anyway.
-function maybeHandleTokenExpiry(error: AxiosError<ErrorResponseData>): void {
-  if (error.response?.status !== 401) return;
-
-  const url = error.config?.url ?? "";
-  if (url.includes("/v1/auth/")) return;
-
-  const authHeader =
-    (error.config?.headers?.Authorization as string | undefined) ??
-    (error.config?.headers?.authorization as string | undefined);
-  if (!authHeader) return;
-
-  notifySessionExpired();
-}
-
 function createAxiosInstance(): AxiosInstance {
   const instance = axios.create({
     baseURL: process.env.EXPO_PUBLIC_API_BASE_URL,
@@ -132,8 +110,10 @@ function createAxiosInstance(): AxiosInstance {
       reportNetworkStatus(true);
       return response;
     },
+    // A 401 is reported to the caller like any other HTTP error — the screen
+    // that made the request surfaces it. There is no auto-logout: the session
+    // is only cleared by an explicit sign-out.
     (error: AxiosError<ErrorResponseData>) => {
-      maybeHandleTokenExpiry(error);
       const apiError = customizeAxiosError(error);
       // status 0 == the request never got a response (no connection / server
       // unreachable). An HTTP status means we're online and the server said no.

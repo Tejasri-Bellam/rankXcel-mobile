@@ -12,7 +12,7 @@ export const homeData = {
     titleLine3: "that adapts to you.",
     description:
       "Adaptive practice, full-length mocks, and live ranked tests — built for the way India's toughest exams actually work.",
-    primaryBtn: "Start Free — No Card Needed →",
+    primaryBtn: "Explore Courses →",
     secondaryBtn: "See how it works",
     // `key` is what the CMS totals are matched on, so the labels below stay
     // free to change without breaking the swap-in.
