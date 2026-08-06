@@ -12,12 +12,10 @@ import { COLORS } from "@/src/styles/styles";
 import Header from "@/src/components/common/Header";
 import ProfileSidebar from "@/src/components/common/ProfileSidebar";
 import BottomNav from "@/src/components/common/BottomNav";
-import { TargetExamProvider, useTargetExam } from "../libs/context/TagretExamContext";
+import { TargetExamProvider } from "../libs/context/TagretExamContext";
 import { HeaderScrollProvider } from "../libs/context/HeaderScrollContext";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { submitAbandonedAttempt } from "../libs/utils/examSession";
-import { clearUserSession } from "../libs/storage";
-import { setSessionExpiredHandler } from "../libs/session";
 import { installKatexAssets } from "../libs/katex/katexAssets";
 
 const HEADER_ROUTES = [
@@ -54,23 +52,6 @@ function AppShell() {
   const insets = useSafeAreaInsets();
   const { view } = useGlobalSearchParams<{ view?: string }>();
   const [profileOpen, setProfileOpen] = useState(false);
-  const { reset: resetTargetExam } = useTargetExam();
-
-  // Auto-logout when the backend invalidates our token (single-user login:
-  // signing in on another device kicks this one). The axios interceptor detects
-  // the 401 and calls into libs/session; here we do the actual sign-out —
-  // wiping the persisted session, dropping in-memory exam state (the provider
-  // outlives logout navigation), and routing to login. The login screen reads
-  // the `sessionExpired` param and surfaces a toast explaining why.
-  useEffect(() => {
-    setSessionExpiredHandler(async () => {
-      await clearUserSession();
-      resetTargetExam();
-      setProfileOpen(false);
-      router.replace("/auth/login?sessionExpired=1");
-    });
-    return () => setSessionExpiredHandler(null);
-  }, [resetTargetExam]);
 
   const matches = (routes: string[]) =>
     routes.some((r) => pathname === r || pathname.startsWith(r + "/"));

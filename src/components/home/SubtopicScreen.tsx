@@ -280,13 +280,17 @@ export default function SubtopicScreen() {
           <Text style={styles.sectionTitle}>Accuracy trend</Text>
         </View>
         <View style={styles.card}>
-          {detail.trend.length >= 2 ? (
+          {/* One attempt still plots — the value caption is what makes a lone
+              dot readable, so it stays on for every series here. */}
+          {detail.trend.length >= 1 ? (
             <MiniLineChart
               data={detail.trend}
               color={COLORS.orange}
               fillColor={COLORS.orangeLight}
               height={120}
               lineWidth={2}
+              showValues
+              formatValue={(v) => `${v}%`}
             />
           ) : (
             <Text style={styles.emptyText}>Not enough data yet.</Text>

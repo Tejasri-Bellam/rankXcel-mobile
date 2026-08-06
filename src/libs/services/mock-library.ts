@@ -86,19 +86,26 @@ export interface MockResponse<T = any> {
 
 // Mock Tests — exam-scoped list: GET /v1/exams/{examId}/mock-tests/
 // Falls back to the global endpoint when no target exam is selected.
+// `pageSize` is a request, not a guarantee — the API can cap it lower, so read
+// the page's own length / `next` rather than assuming this many came back.
 export async function getMockTestsService(
   examId?: number | string,
   testType: TestType = 'MOCK_TEST',
   page?: number,
+  pageSize?: number,
 ) {
   const pageQs = page && page > 1 ? `&page=${page}` : '';
+  const sizeQs = pageSize ? `&page_size=${pageSize}` : '';
   if (examId != null) {
     return await genericGet(
-      `/v1/exams/${examId}/mock-tests/?test_type=${testType}${pageQs}`,
+      `/v1/exams/${examId}/mock-tests/?test_type=${testType}${pageQs}${sizeQs}`,
       true,
     );
   }
-  return await genericGet(`/v1/mock-tests/?test_type=${testType}${pageQs}`, true);
+  return await genericGet(
+    `/v1/mock-tests/?test_type=${testType}${pageQs}${sizeQs}`,
+    true,
+  );
 }
 
 // Mock Test By ID

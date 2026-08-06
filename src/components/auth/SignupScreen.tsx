@@ -655,7 +655,7 @@ export default function SignupScreen() {
                 &{' '}
                 <Text
                   style={styles.footerTermsLink}
-                  onPress={() => router.push({ pathname: './legal', params: { tab: 'privacy' } })}
+                  onPress={() => router.push({ pathname: '../legal', params: { tab: 'privacy' } })}
                 >
                   Privacy
                 </Text>

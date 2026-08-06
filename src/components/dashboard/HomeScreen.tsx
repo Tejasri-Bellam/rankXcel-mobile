@@ -52,16 +52,26 @@ export default function HomeScreen() {
     (e) => String(e.id) === String(activeExamId)
   );
 
+  const loader = (
+    <View style={styles.centered}>
+      <ActivityIndicator size="large" color={COLORS.primary} />
+    </View>
+  );
+
   return (
     <View style={styles.safeArea}>
       {(isLoading || dashboardLoading) && !dashboardData ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
+        loader
       ) : error && !dashboardData ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
+      ) : activeExamId == null && isLoading ? (
+        // No exam *yet* — the list is still resolving (launch, region switch,
+        // or the reset logout does while this screen is still on the stack).
+        // "No course in this region" here would accuse the student of a missing
+        // course we haven't actually checked for.
+        loader
       ) : activeExamId == null ? (
         // No target exam for the selected country — show nothing from the
         // previously selected exam, just the way back in.

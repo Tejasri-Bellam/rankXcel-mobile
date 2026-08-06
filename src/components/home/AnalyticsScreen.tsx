@@ -213,7 +213,6 @@ interface TrendPoint {
 interface TrendSeries {
   values: number[];
   points: TrendPoint[];
-  delta: number | null;
 }
 interface TrendsData {
   accuracy: TrendSeries;
@@ -221,7 +220,7 @@ interface TrendsData {
   percentile: TrendSeries;
 }
 
-const EMPTY_SERIES: TrendSeries = { values: [], points: [], delta: null };
+const EMPTY_SERIES: TrendSeries = { values: [], points: [] };
 const EMPTY_TRENDS: TrendsData = {
   accuracy: EMPTY_SERIES,
   timePerQuestion: EMPTY_SERIES,
@@ -257,37 +256,22 @@ const toPoints = (v: any): TrendPoint[] => {
     .filter((p) => Number.isFinite(p.value));
 };
 
-const toSeries = (raw: any, delta: any): TrendSeries => {
+const toSeries = (raw: any): TrendSeries => {
   const points = toPoints(raw);
-  return { points, values: points.map((p) => p.value), delta: numOrNull(delta) };
+  return { points, values: points.map((p) => p.value) };
 };
-
-const numOrNull = (v: any): number | null =>
-  v == null || !Number.isFinite(Number(v)) ? null : Number(v);
 
 const normalizeTrends = (raw: any): TrendsData => {
   const d = raw?.data ?? raw ?? {};
   return {
-    accuracy: toSeries(
-      d.accuracy_trend ?? d.accuracy ?? d.accuracy_series,
-      d.accuracy_delta ?? d.accuracy_change
-    ),
+    accuracy: toSeries(d.accuracy_trend ?? d.accuracy ?? d.accuracy_series),
     timePerQuestion: toSeries(
-      d.time_per_question_trend ?? d.time_per_question ?? d.time_trend ?? d.time,
-      d.time_delta ?? d.time_change
+      d.time_per_question_trend ?? d.time_per_question ?? d.time_trend ?? d.time
     ),
     percentile: toSeries(
-      d.percentile_trend ?? d.percentile ?? d.percentile_vs_peers,
-      d.percentile_delta ?? d.percentile_change
+      d.percentile_trend ?? d.percentile ?? d.percentile_vs_peers
     ),
   };
-};
-
-// Delta from explicit field, else inferred from first→last of the series.
-const seriesDelta = (s: TrendSeries): number | null => {
-  if (s.delta != null) return s.delta;
-  if (s.values.length < 2) return null;
-  return Math.round((s.values[s.values.length - 1] - s.values[0]) * 10) / 10;
 };
 
 const StatCard = ({
@@ -347,7 +331,6 @@ const TrendCard = ({
   title,
   caption,
   captionBottom = false,
-  pill,
   points,
   color,
   formatValue,
@@ -356,7 +339,6 @@ const TrendCard = ({
   title: string;
   caption: string;
   captionBottom?: boolean;
-  pill: { text: string; good: boolean } | null;
   points: TrendPoint[];
   color: string;
   formatValue: (v: number) => string;
@@ -370,26 +352,11 @@ const TrendCard = ({
       {!captionBottom ? (
         <View style={styles.trendTopRow}>
           <Text style={styles.trendCaption}>{caption}</Text>
-          {pill ? (
-            <View
-              style={[
-                styles.trendPill,
-                { backgroundColor: pill.good ? "#DCFCE7" : "#FEE2E2" },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.trendPillText,
-                  { color: pill.good ? "#16A34A" : "#DC2626" },
-                ]}
-              >
-                {pill.text}
-              </Text>
-            </View>
-          ) : null}
         </View>
       ) : null}
-      {points.length >= 2 ? (
+      {/* A single session still plots — one dot with its value and date reads
+          better than an empty-state on a filter that genuinely has one entry. */}
+      {points.length >= 1 ? (
         <MiniLineChart
           data={points.map((p) => p.value)}
           color={color}
@@ -677,8 +644,6 @@ export default function AnalyticsScreen() {
   );
 
   const renderTrends = () => {
-  const accDelta = seriesDelta(trends.accuracy);
-  const timeDelta = seriesDelta(trends.timePerQuestion);
   return (
     <>
       {/* Trends filter: All / Mocks / Assessments */}
@@ -709,11 +674,6 @@ export default function AnalyticsScreen() {
         icon="stats-chart"
         title="Accuracy trend"
         caption={`Last ${trends.accuracy.values.length} sessions`}
-        pill={
-          accDelta != null
-            ? { text: `${accDelta > 0 ? "+" : ""}${accDelta}%`, good: accDelta >= 0 }
-            : null
-        }
         points={trends.accuracy.points}
         formatValue={(v) => `${Math.round(v * 10) / 10}%`}
         color={COLORS.green}
@@ -722,11 +682,6 @@ export default function AnalyticsScreen() {
         icon="time-outline"
         title="Time per question"
         caption="Seconds · lower is better"
-        pill={
-          timeDelta != null
-            ? { text: `${timeDelta > 0 ? "+" : ""}${timeDelta}s`, good: timeDelta <= 0 }
-            : null
-        }
         points={trends.timePerQuestion.points}
         formatValue={(v) => `${Math.round(v * 10) / 10}s`}
         color={COLORS.primary}
@@ -737,7 +692,6 @@ export default function AnalyticsScreen() {
           icon="trophy-outline"
           title="Percentile vs Peers"
           caption="Your percentile across live exams."
-          pill={null}
           points={trends.percentile.points}
           formatValue={(v) => `${Math.round(v * 10) / 10}`}
           color={COLORS.yellow}

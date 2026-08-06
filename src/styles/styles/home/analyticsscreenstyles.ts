@@ -103,8 +103,6 @@ export const analyticsScreenStyles = StyleSheet.create({
     marginBottom: 6,
   },
   trendCaption: { fontSize: 12, color: COLORS.textMedium },
-  trendPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
-  trendPillText: { fontSize: 10, fontWeight: "800" },
 
   gaugeCard: {
     backgroundColor: COLORS.white,

@@ -225,12 +225,18 @@ export function TargetExamProvider({
   // previous student's activeExamId stays in memory and drives every data
   // fetch after a different student logs in. (Persisted keys are wiped
   // separately via clearUserSession.)
+  // Back to the provider's launch state, `isLoading` included: "no exam yet"
+  // here means unknown, not "this student has no course". Screens key their
+  // empty states off `activeExamId == null`, and reporting that as settled makes
+  // them announce a missing course to someone who has simply logged out. The
+  // next sign-in resolves it — both LoginScreen and SignupScreen call
+  // refreshExams straight after reset.
   const reset = useCallback(() => {
     inFlight.current = false;
     setState({
       targetExams: [],
       activeExamId: null,
-      isLoading: false,
+      isLoading: true,
       error: null,
     });
   }, []);
