@@ -17,7 +17,6 @@ import {
   AppStateStatus,
   BackHandler,
   Image,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -36,6 +35,7 @@ import {
 import QuestionPalette, { PaletteStatus } from "../common/QuestionPalette";
 import Toast, { useToast } from "../common/Toast";
 import { useNetworkStatus } from "@/src/libs/hooks/useNetworkStatus";
+import { useKeyboardOverlap } from "@/src/libs/hooks/useKeyboardOverlap";
 
 // Shown when the connection drops mid-test. Blunt about the risk on purpose:
 // an answer saved while offline never reaches the server.
@@ -163,6 +163,20 @@ export default function ExamScreen({
 
   // Lets us scroll the numeric input into view when the keyboard opens.
   const scrollRef = useRef<ScrollView>(null);
+  const [numericFocused, setNumericFocused] = useState(false);
+  const keyboardOverlap = useKeyboardOverlap();
+
+  // The field is the last thing in the scroll content, so once the layout has
+  // shrunk for the keyboard, scrolling to the end puts it (and its hint) just
+  // above the keyboard.
+  useEffect(() => {
+    if (!numericFocused || keyboardOverlap === 0) return;
+    const t = setTimeout(
+      () => scrollRef.current?.scrollToEnd({ animated: true }),
+      60,
+    );
+    return () => clearTimeout(t);
+  }, [numericFocused, keyboardOverlap]);
 
   // ── Load questions ──
   useEffect(() => {
@@ -806,7 +820,10 @@ export default function ExamScreen({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={[]}>
+    <SafeAreaView
+      style={[styles.safeArea, { paddingBottom: keyboardOverlap }]}
+      edges={[]}
+    >
       <StatusBar barStyle="light-content" backgroundColor="#0F1117" />
 
       {/* Header */}
@@ -889,14 +906,6 @@ export default function ExamScreen({
         </View>
       )}
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        // Android already resizes the window on keyboard open (adjustResize in
-        // the manifest); adding "height" here double-handles it and makes the
-        // layout jump. Only iOS needs the avoider.
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-      >
       {/* Question content */}
       {activeQuestion ? (
         <ScrollView
@@ -989,15 +998,13 @@ export default function ExamScreen({
                 value={selectedOptions[0] ?? ""}
                 onChangeText={handleNumericChange}
                 onEndEditing={handleNumericBlur}
-                onBlur={handleNumericBlur}
+                onBlur={() => {
+                  setNumericFocused(false);
+                  handleNumericBlur();
+                }}
                 // Reveal the input (and hint) just above the keyboard — they sit
                 // at the end of the scroll content on numeric questions.
-                onFocus={() =>
-                  setTimeout(
-                    () => scrollRef.current?.scrollToEnd({ animated: true }),
-                    150,
-                  )
-                }
+                onFocus={() => setNumericFocused(true)}
                 keyboardType={
                   Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
                 }
@@ -1074,7 +1081,6 @@ export default function ExamScreen({
           <Text style={{ color: "#9898B0" }}>No question available.</Text>
         </View>
       )}
-      </KeyboardAvoidingView>
 
       {/* Bottom bar */}
       <View style={styles.bottomBar}>
