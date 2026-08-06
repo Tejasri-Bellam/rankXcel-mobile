@@ -6,7 +6,6 @@ import {
   Image,
   Platform,
   ScrollView,
-  KeyboardAvoidingView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -38,6 +37,7 @@ import {
 import TutorModal, { ConversationApi } from "@/src/components/common/TutorModal";
 import ConfirmModal from "@/src/components/common/ConfirmModal";
 import FlagQuestionModal from "@/src/components/common/FlagQuestionModal";
+import { useKeyboardOverlap } from "@/src/libs/hooks/useKeyboardOverlap";
 
 export interface ExplanationStep {
   number: number;
@@ -263,6 +263,24 @@ export default function PracticeQuestions({
   const [showFlagModal, setShowFlagModal] = useState(false);
   const insets = useSafeAreaInsets();
   const [bottomBarHeight, setBottomBarHeight] = useState(0);
+
+  // Numeric questions put a text field at the end of the scroll content; the
+  // keyboard would otherwise cover it (see useKeyboardOverlap).
+  const keyboardOverlap = useKeyboardOverlap();
+  const scrollRef = useRef<ScrollView>(null);
+  const [numericFocused, setNumericFocused] = useState(false);
+
+  // Once the layout has shrunk for the keyboard, scroll the field (and its
+  // hint) back above it.
+  useEffect(() => {
+    if (!numericFocused || keyboardOverlap === 0) return;
+    const t = setTimeout(
+      () => scrollRef.current?.scrollToEnd({ animated: true }),
+      60,
+    );
+    return () => clearTimeout(t);
+  }, [numericFocused, keyboardOverlap]);
+
   useEffect(() => {
     intervalRef.current = setInterval(() => setTotalSeconds((s) => s + 1), 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
@@ -665,7 +683,10 @@ export default function PracticeQuestions({
   const correctOptObjs = question.options.filter((o) => correctIdSet.includes(o.id));
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={[styles.safeArea, { paddingBottom: keyboardOverlap }]}
+      edges={["top", "bottom"]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.closeBtn} onPress={handleEndPractice} activeOpacity={0.7}>
@@ -686,20 +707,16 @@ export default function PracticeQuestions({
       </View>
 
       {/* Body */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 20}
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: bottomBarHeight > 0 ? bottomBarHeight + insets.bottom + 12 : 24 },
+        ]}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView
-          style={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: bottomBarHeight > 0 ? bottomBarHeight + insets.bottom + 12 : 24 },
-          ]}
-          keyboardShouldPersistTaps="handled"
-        >
         {/* Question label + marks */}
         <View style={styles.qMetaRow}>
           <View>
@@ -766,6 +783,8 @@ export default function PracticeQuestions({
                 ]}
                 value={current.selected ?? ""}
                 onChangeText={handleNumericChange}
+                onFocus={() => setNumericFocused(true)}
+                onBlur={() => setNumericFocused(false)}
                 editable={!current.answered}
                 keyboardType={
                   Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"
@@ -916,7 +935,6 @@ export default function PracticeQuestions({
           )}
         </Animated.View>
       </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* Bottom bar */}
       <View

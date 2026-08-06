@@ -28,6 +28,7 @@ import QuestionPalette, { PaletteStatus } from '../common/QuestionPalette';
 import ConfirmModal from '../common/ConfirmModal';
 import Toast, { useToast } from '../common/Toast';
 import { useNetworkStatus } from '@/src/libs/hooks/useNetworkStatus';
+import { useKeyboardOverlap } from '@/src/libs/hooks/useKeyboardOverlap';
 
 // Shown when the connection drops mid-test. Deliberately blunt about the risk:
 // an answer saved while offline doesn't reach the server, and only the answers
@@ -116,6 +117,22 @@ export default function MockExamScreen({
   const pendingSaves = useRef<Set<Promise<any>>>(new Set());
 
   const [isInputFocused, setIsInputFocused] = useState(false);
+  // Numeric questions put a text field at the end of the scroll content; the
+  // keyboard would otherwise cover it (see useKeyboardOverlap).
+  const keyboardOverlap = useKeyboardOverlap();
+  const scrollRef = useRef<ScrollView>(null);
+
+  // The field is the last thing in the scroll content, so once the layout has
+  // shrunk for the keyboard, scrolling to the end puts it (and its hint) just
+  // above the keyboard.
+  useEffect(() => {
+    if (!isInputFocused || keyboardOverlap === 0) return;
+    const t = setTimeout(
+      () => scrollRef.current?.scrollToEnd({ animated: true }),
+      60,
+    );
+    return () => clearTimeout(t);
+  }, [isInputFocused, keyboardOverlap]);
 
   // Connectivity while the test is being written. Offline always warns —
   // including on entry, when the connection was already down. "Back online" is
@@ -473,7 +490,10 @@ export default function MockExamScreen({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={[]}>
+    <SafeAreaView
+      style={[styles.safeArea, { paddingBottom: keyboardOverlap }]}
+      edges={[]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.closeBtn} onPress={handleExit} activeOpacity={0.7}>
@@ -511,9 +531,11 @@ export default function MockExamScreen({
 
       {/* Question body */}
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Q label + Mark */}
         <View style={[styles.qMetaRow, { alignItems: 'flex-start' }]}>
